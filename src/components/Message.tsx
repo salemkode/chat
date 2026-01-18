@@ -70,90 +70,96 @@ export function Message({ message }: MessageProps) {
             </>
           )} */}
         </div>
-        <div className="prose prose-sm dark:prose-invert max-w-none text-foreground overflow-hidden wrap-anywhere">
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            components={{
-              p: ({ children }) => (
-                <p className="mb-4 last:mb-0" dir="auto">
-                  {children}
-                </p>
-              ),
-              ul: ({ children }) => (
-                <ul className="list-disc pl-6 mb-4 space-y-1" dir="auto">
-                  {children}
-                </ul>
-              ),
-              ol: ({ children }) => (
-                <ol className="list-decimal pl-6 mb-4 space-y-1" dir="auto">
-                  {children}
-                </ol>
-              ),
-              li: ({ children }) => <li dir="auto">{children}</li>,
-              code: ({ inline, children, ...props }: any) =>
-                inline ? (
-                  <code
-                    className="rounded bg-muted px-1.5 py-0.5 text-sm font-mono text-foreground"
-                    {...props}
-                  >
-                    {children}
-                  </code>
-                ) : (
-                  <code
-                    className="block rounded-lg bg-muted p-4 text-sm font-mono overflow-x-auto text-foreground"
-                    {...props}
-                  >
-                    {children}
-                  </code>
-                ),
-              pre: ({ children }) => (
-                <pre className="mb-4 overflow-x-auto" dir="auto">
-                  {children}
-                </pre>
-              ),
-              h1: ({ children }) => (
-                <h1 className="text-2xl font-bold mb-4" dir="auto">
-                  {children}
-                </h1>
-              ),
-              h2: ({ children }) => (
-                <h2 className="text-xl font-semibold mb-3" dir="auto">
-                  {children}
-                </h2>
-              ),
-              h3: ({ children }) => (
-                <h3 className="text-lg font-medium mb-2" dir="auto">
-                  {children}
-                </h3>
-              ),
-              blockquote: ({ children }) => (
-                <blockquote
-                  className="border-l-4 border-muted pl-4 italic text-muted-foreground mb-4"
-                  dir="auto"
-                >
-                  {children}
-                </blockquote>
-              ),
-              a: ({ children, href }) => (
-                <a
-                  href={href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary underline underline-offset-4 hover:text-primary/80"
-                >
-                  {children}
-                </a>
-              ),
-              img: () => <span aria-hidden={true}></span>,
-              strong: ({ children }) => (
-                <strong className="font-bold text-muted-foreground" dir="auto">
-                  {children}
-                </strong>
-              ),
-            }}
+        <div dir="auto">
+          <div
+            className="prose prose-sm dark:prose-invert max-w-none text-foreground overflow-hidden wrap-anywhere"
+            dir="auto"
           >
-            {visibleText}
-          </ReactMarkdown>
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                p: ({ children }) => (
+                  <p className="mb-4 last:mb-0">{children}</p>
+                ),
+                ul: ({ children }) => (
+                  <ul className="list-disc pl-6 mb-4 space-y-1" dir="auto">
+                    {children}
+                  </ul>
+                ),
+                ol: ({ children }) => (
+                  <ol className="list-decimal pl-6 mb-4 space-y-1">
+                    {children}
+                  </ol>
+                ),
+                li: ({ children }) => <li>{children}</li>,
+                code: ({ inline, children, ...props }: any) =>
+                  inline ? (
+                    <code
+                      className="rounded bg-muted px-1.5 py-0.5 text-sm font-mono text-foreground"
+                      {...props}
+                    >
+                      {children}
+                    </code>
+                  ) : (
+                    <code
+                      className="block rounded-lg bg-muted p-4 text-sm font-mono overflow-x-auto text-foreground"
+                      {...props}
+                    >
+                      {children}
+                    </code>
+                  ),
+                pre: ({ children }) => (
+                  <pre className="mb-4 overflow-x-auto" dir="auto">
+                    {children}
+                  </pre>
+                ),
+                h1: ({ children }) => (
+                  <h1 className="text-2xl font-bold mb-4" dir="auto">
+                    {children}
+                  </h1>
+                ),
+                h2: ({ children }) => (
+                  <h2 className="text-xl font-semibold mb-3" dir="auto">
+                    {children}
+                  </h2>
+                ),
+                h3: ({ children }) => (
+                  <h3 className="text-lg font-medium mb-2" dir="auto">
+                    {children}
+                  </h3>
+                ),
+                blockquote: ({ children }) => (
+                  <blockquote
+                    className="border-l-4 border-muted pl-4 italic text-muted-foreground mb-4"
+                    dir="auto"
+                  >
+                    {children}
+                  </blockquote>
+                ),
+                a: ({ children, href }) => (
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary underline underline-offset-4 hover:text-primary/80"
+                  >
+                    {children}
+                  </a>
+                ),
+                img: () => <span aria-hidden={true}></span>,
+                strong: ({ children }) => (
+                  <strong
+                    className="font-bold text-muted-foreground"
+                    dir="auto"
+                  >
+                    {children}
+                  </strong>
+                ),
+              }}
+            >
+              {visibleText}
+            </ReactMarkdown>
+          </div>
         </div>
         <div className="flex items-center gap-1 mt-3 pt-3 border-t border-border/50">
           <Button
