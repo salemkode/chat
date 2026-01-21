@@ -403,4 +403,233 @@ describe('Project CRUD API', () => {
       expect(result[2].name).toBe('Oldest Project')
     })
   })
+
+  describe('searchProjects', () => {
+    it('should search projects by name with exact match', async () => {
+      const t = convexTest(schema)
+
+      await t.run(async (ctx) => {
+        await ctx.db.insert('projects', {
+          userId,
+          name: 'Graduation Thesis',
+          createdAt: Date.now(),
+          lastActiveAt: Date.now(),
+          metadata: {
+            description: undefined,
+            icon: undefined,
+            color: undefined,
+          },
+        })
+
+        await ctx.db.insert('projects', {
+          userId,
+          name: 'Product Feature X',
+          createdAt: Date.now(),
+          lastActiveAt: Date.now(),
+          metadata: {
+            description: undefined,
+            icon: undefined,
+            color: undefined,
+          },
+        })
+
+        await ctx.db.insert('projects', {
+          userId,
+          name: 'Personal Notes',
+          createdAt: Date.now(),
+          lastActiveAt: Date.now(),
+          metadata: {
+            description: undefined,
+            icon: undefined,
+            color: undefined,
+          },
+        })
+      })
+
+      const result = await t
+        .withIdentity({ subject: userId })
+        .query(api.projects.searchProjects, {
+          searchQuery: 'Graduation',
+        })
+
+      expect(result).toHaveLength(1)
+      expect(result[0].name).toBe('Graduation Thesis')
+    })
+
+    it('should support fuzzy matching (partial name)', async () => {
+      const t = convexTest(schema)
+
+      await t.run(async (ctx) => {
+        await ctx.db.insert('projects', {
+          userId,
+          name: 'Graduation Thesis',
+          createdAt: Date.now(),
+          lastActiveAt: Date.now(),
+          metadata: {
+            description: undefined,
+            icon: undefined,
+            color: undefined,
+          },
+        })
+
+        await ctx.db.insert('projects', {
+          userId,
+          name: 'Product Feature X',
+          createdAt: Date.now(),
+          lastActiveAt: Date.now(),
+          metadata: {
+            description: undefined,
+            icon: undefined,
+            color: undefined,
+          },
+        })
+
+        await ctx.db.insert('projects', {
+          userId,
+          name: 'Personal Notes',
+          createdAt: Date.now(),
+          lastActiveAt: Date.now(),
+          metadata: {
+            description: undefined,
+            icon: undefined,
+            color: undefined,
+          },
+        })
+      })
+
+      const result = await t
+        .withIdentity({ subject: userId })
+        .query(api.projects.searchProjects, {
+          searchQuery: 'Grad',
+        })
+
+      expect(result).toHaveLength(1)
+      expect(result[0].name).toBe('Graduation Thesis')
+    })
+
+    it('should limit results to 10 items', async () => {
+      const t = convexTest(schema)
+
+      await t.run(async (ctx) => {
+        for (let i = 0; i < 15; i++) {
+          await ctx.db.insert('projects', {
+            userId,
+            name: `Project ${i}`,
+            createdAt: Date.now(),
+            lastActiveAt: Date.now(),
+            metadata: {
+              description: undefined,
+              icon: undefined,
+              color: undefined,
+            },
+          })
+        }
+      })
+
+      const result = await t
+        .withIdentity({ subject: userId })
+        .query(api.projects.searchProjects, {
+          searchQuery: 'Project',
+        })
+
+      expect(result.length).toBeLessThanOrEqual(10)
+    })
+
+    it('should exclude archived projects from search', async () => {
+      const t = convexTest(schema)
+
+      await t.run(async (ctx) => {
+        await ctx.db.insert('projects', {
+          userId,
+          name: 'Active Project',
+          createdAt: Date.now(),
+          lastActiveAt: Date.now(),
+          metadata: {
+            description: undefined,
+            icon: undefined,
+            color: undefined,
+          },
+        })
+
+        await ctx.db.insert('projects', {
+          userId,
+          name: 'Archived Project',
+          createdAt: Date.now(),
+          lastActiveAt: Date.now(),
+          archivedAt: Date.now(),
+          metadata: {
+            description: undefined,
+            icon: undefined,
+            color: undefined,
+          },
+        })
+      })
+
+      const result = await t
+        .withIdentity({ subject: userId })
+        .query(api.projects.searchProjects, {
+          searchQuery: 'Project',
+        })
+
+      expect(result).toHaveLength(1)
+      expect(result[0].name).toBe('Active Project')
+    })
+
+    it('should return empty array for no matches', async () => {
+      const t = convexTest(schema)
+
+      await t.run(async (ctx) => {
+        await ctx.db.insert('projects', {
+          userId,
+          name: 'Test Project',
+          createdAt: Date.now(),
+          lastActiveAt: Date.now(),
+          metadata: {
+            description: undefined,
+            icon: undefined,
+            color: undefined,
+          },
+        })
+      })
+
+      const result = await t
+        .withIdentity({ subject: userId })
+        .query(api.projects.searchProjects, {
+          searchQuery: 'NonExistent',
+        })
+
+      expect(result).toHaveLength(0)
+    })
+
+    it('should return results in <50ms', async () => {
+      const t = convexTest(schema)
+
+      await t.run(async (ctx) => {
+        for (let i = 0; i < 5; i++) {
+          await ctx.db.insert('projects', {
+            userId,
+            name: `Project ${i}`,
+            createdAt: Date.now(),
+            lastActiveAt: Date.now(),
+            metadata: {
+              description: undefined,
+              icon: undefined,
+              color: undefined,
+            },
+          })
+        }
+      })
+
+      const start = Date.now()
+      const result = await t
+        .withIdentity({ subject: userId })
+        .query(api.projects.searchProjects, {
+          searchQuery: 'Project',
+        })
+      const duration = Date.now() - start
+
+      expect(result).toHaveLength(5)
+      expect(duration).toBeLessThan(50)
+    })
+  })
 })
