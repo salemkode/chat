@@ -16,6 +16,7 @@ import type * as http from '../http.js'
 import type * as messages from '../messages.js'
 import type * as migrations from '../migrations.js'
 import type * as migrationsRunner from '../migrationsRunner.js'
+import type * as projects from '../projects.js'
 import type * as sections from '../sections.js'
 import type * as users from '../users.js'
 
@@ -34,6 +35,7 @@ declare const fullApi: ApiFromModules<{
   messages: typeof messages
   migrations: typeof migrations
   migrationsRunner: typeof migrationsRunner
+  projects: typeof projects
   sections: typeof sections
   users: typeof users
 }>
