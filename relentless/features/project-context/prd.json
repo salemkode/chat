@@ -173,7 +173,7 @@
       ],
       "priority": 6,
       "passes": true,
-      "notes": "Implemented full thread attachment API for Epic 3 (Project Management). Includes: attachThreadToProject, detachThreadFromProject, moveThreadToProject, and helper updateLastActiveAt. All 11 unit tests passing (TDD approach). All acceptance criteria met."
+      "notes": "Implemented createThreadInProject mutation in convex/threads.ts. Accepts projectId parameter, sets thread.projectId, updates project.lastActiveAt, generates default title \"New conversation\". Includes validation for project existence and user ownership. Helper mutation updateLastActiveAt added to projects.ts for moveThreadToProject support. All 11 unit tests passing (TDD approach). All acceptance criteria met."
     }
     },
     {
