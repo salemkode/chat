@@ -458,39 +458,32 @@
       }
     },
     {
-      "id": "US-006",
-      "title": ".1: Hierarchical Sidebar Layout",
-      "description": "As a user, I want to see projects and threads in a hierarchical sidebar so that I can organize my conversations.",
+      "id": "US-003",
+      "title": ".1: Thread Attachment API",
+      "description": "As a user, I want to attach a thread to a project so that the thread appears in the project's sidebar section.",
       "acceptanceCriteria": [
-        "Design component structure:",
-        "`Sidebar` (container)",
-        "`ProjectList` (renders projects)",
-        "`ProjectItem` (single project with threads)",
-        "`ThreadList` (renders threads in project)",
-        "`ThreadItem` (single thread)",
-        "`FreeChatsList` (threads without project)",
-        "Implement expand/collapse functionality per project",
-        "Store collapse state in Jotai atom (`sidebarCollapsedAtom`)",
-        "Implement drag-and-drop (optional for MVP)",
-        "Add \"+ New Thread\" button per project",
-        "Style with Tailwind CSS",
-        "Make responsive (collapse on mobile)",
-        "Sidebar renders projects with nested threads",
-        "Expand/collapse state persists across sessions (localStorage)",
-        "Clicking thread activates it in main view",
-        "UI matches design mockup"
+        "Implement `attachThreadToProject` mutation",
+        "Update `thread.projectId`",
+        "Update `project.lastActiveAt`",
+        "Create audit log entry",
+        "Implement `detachThreadFromProject` mutation",
+        "Set `thread.projectId = null`",
+        "Update `project.lastActiveAt`",
+        "Implement `moveThreadToProject` mutation",
+        "Detach from old project",
+        "Attach to new project",
+        "Handle edge cases (already attached, same project)",
+        "Write unit tests",
+        "Add transaction support (ensure atomicity)",
+        "Thread attachment is atomic (no partial updates)",
+        "User can attach/detach threads successfully",
+        "Moving thread between projects updates both projects' `lastActiveAt`",
+        "Operations complete in <100ms"
       ],
-      "priority": 15,
-      "passes": false,
-      "notes": "",
-      "routing": {
-        "complexity": "medium",
-        "harness": "opencode",
-        "model": "glm-4.7",
-        "mode": "good",
-        "estimatedCost": 0,
-        "classificationReasoning": "Task classified as medium (confidence: 80%). Using good mode, routing to opencode/glm-4.7. Estimated tokens: 304, cost: free."
-      }
+      "priority": 5,
+      "passes": true,
+      "notes": "Implemented full thread attachment API with proper authorization, validation, and atomic updates. All 11 unit tests passing (TDD approach). Added helper mutation updateLastActiveAt. All acceptance criteria met."
+    }
     },
     {
       "id": "US-006",
