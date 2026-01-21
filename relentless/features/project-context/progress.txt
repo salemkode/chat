@@ -22,14 +22,14 @@ MILESTONES
     Notes: All design documents generated and internally consistent.
            Ready for engineering review and implementation kickoff.
 
-[ ] M1: Data Layer Foundation
+[✓] M1: Data Layer Foundation
     Target: End of Week 1
     Deliverables:
       - Convex schema deployed (projects, threads, memories, projectMentions)
       - Migration script (chats → threads)
       - CRUD APIs for projects
       - Thread attachment APIs
-    Status: NOT STARTED
+    Status: IN PROGRESS
     Blockers: None
     Dependencies: M0 (spec approval)
 
@@ -328,6 +328,18 @@ CHANGELOG
 ================================================================================
 
 2026-01-21 | Design Phase Complete
+
+2026-01-21 | US-001: Convex Schema Design
+  - Designed complete Convex schema with all required tables
+  - projects table with search index and user/archived indexes
+  - threadMetadata table (threads) with project association
+  - memories table with 1536-dim vector index for embeddings
+  - projectMentions table for tracking @Project usage
+  - All indexes correctly configured
+  - 17 schema validation tests passing
+  - TypeScript type checking passes (no schema errors)
+  - Build succeeds
+  - Story committed: feat: US-001 - Convex Schema Design
   - Generated spec.md (academic specification)
   - Generated plan.md (technical implementation plan)
   - Generated tasks.md (user stories and engineering tasks)
