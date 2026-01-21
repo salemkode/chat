@@ -188,3 +188,23 @@ export const listProjects = query({
     return projects
   },
 })
+
+export const searchProjects = query({
+  args: {
+    searchQuery: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId) return []
+
+    const projects = await ctx.db
+      .query('projects')
+      .withSearchIndex('search_name', (q) =>
+        q.search('search_name', args.searchQuery),
+      )
+      .take(10)
+      .collect()
+
+    return projects
+  },
+})
