@@ -476,3 +476,78 @@ Notes:
 - ✓ Build succeeds
 
 ---
+
+## 2026-01-21 - US-003.1: Thread Creation in Project
+
+**Completed:**
+
+- Implemented `createThreadInProject` mutation in convex/threads.ts
+- Mutation accepts `projectId` parameter
+- Sets `thread.projectId` on creation
+- Generates default thread title "New conversation"
+- Validates project exists and user owns project
+- Updates `project.lastActiveAt` on creation
+
+**Files Changed:**
+
+- `convex/threads.ts` - Added thread creation functions
+
+**Tests:**
+
+- 11/11 unit tests passing (TDD approach)
+- createThreadInProject: validates project, sets projectId, updates lastActiveAt ✓
+- Default title generation works ✓
+- Proper authorization checks ✓
+- Edge cases handled (not found, unauthorized)
+
+**Learnings:**
+
+- TDD approach works well - tests written first, then implementation
+- Convex mutations properly handle validation and errors
+- Transaction atomicity achieved through single mutation calls
+- Default title format matches spec requirements
+
+**Quality Checks:**
+
+- ✓ Tests pass (11/11)
+- ⚠ Lint has pre-existing error in .netlify (not from my changes)
+- ✓ Check passes
+- ✓ Build succeeds
+
+---
+
+## 2026-01-21 - US-003.1: Thread Creation in Project - ITERATION COMPLETE
+
+**Completed:**
+
+- Implemented `createThreadInProject` mutation
+- Added 11 unit tests (all passing)
+- All acceptance criteria met
+- Transactions atomic (single mutation calls)
+- Proper validation and authorization
+- Default title generation
+
+**Files Changed:**
+
+- `convex/threads.ts` - Added attachThreadToProject, detachThreadFromProject, moveThreadToProject, createThreadInProject mutations
+
+**Tests:**
+
+- 11/11 tests passing (TDD approach)
+- Tests for createThreadInProject: validation, project ownership, title generation, lastActiveAt update ✓
+- Proper error handling for not found, unauthorized cases
+
+**Learnings:**
+
+- TDD works well - tests written first to specify behavior, then implemented to pass them
+- Convex mutation atomicity: Single `.patch()` call updates thread record efficiently
+- Project metadata: Creating thread sets initial lastActiveAt, then mutations update it
+
+**Quality Checks:**
+
+- ✓ All 11 tests passing
+- ⚠ Lint has pre-existing error in .netlify (not from my changes)
+- ✓ Check passes
+- ✓ Build succeeds
+
+---
