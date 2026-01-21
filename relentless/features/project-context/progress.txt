@@ -330,6 +330,16 @@ CHANGELOG
 2026-01-21 | Design Phase Complete
 
 2026-01-21 | US-001: Convex Schema Design
+
+2026-01-21 | US-001.2: Database Migration Script
+   - Added `getMigrationStats` query to track migration status
+   - Added `backfillAllThreadMetadata` mutation for batch processing
+   - Updated MIGRATION_GUIDE.md to reflect TanStack Start + Convex Agent architecture
+   - All 7 migration tests passing
+   - Build succeeds
+   - Migration functions handle errors gracefully
+   - Note: Current limitation counts ALL messages per user, not thread-specific (schema lacks threadId in messages table)
+   - Story committed: feat: US-001.2 - Database Migration Script
   - Designed complete Convex schema with all required tables
   - projects table with search index and user/archived indexes
   - threadMetadata table (threads) with project association

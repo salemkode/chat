@@ -14,6 +14,8 @@ import type * as auth from '../auth.js'
 import type * as chat from '../chat.js'
 import type * as http from '../http.js'
 import type * as messages from '../messages.js'
+import type * as migrations from '../migrations.js'
+import type * as migrationsRunner from '../migrationsRunner.js'
 import type * as sections from '../sections.js'
 import type * as users from '../users.js'
 
@@ -30,6 +32,8 @@ declare const fullApi: ApiFromModules<{
   chat: typeof chat
   http: typeof http
   messages: typeof messages
+  migrations: typeof migrations
+  migrationsRunner: typeof migrationsRunner
   sections: typeof sections
   users: typeof users
 }>

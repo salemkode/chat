@@ -50,8 +50,8 @@
         "Rollback script tested and validated"
       ],
       "priority": 2,
-      "passes": false,
-      "notes": "",
+      "passes": true,
+      "notes": "Implemented getMigrationStats query and backfillAllThreadMetadata mutation. All 7 migration tests passing. Updated MIGRATION_GUIDE.md to reflect TanStack Start + Convex Agent architecture (no chats table migration needed - threadMetadata backfill instead). Note: Current implementation counts ALL messages per user (not thread-specific) due to schema limitation (no threadId in messages table). Build succeeds.",
       "routing": {
         "complexity": "complex",
         "harness": "opencode",
