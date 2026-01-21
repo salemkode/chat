@@ -1,0 +1,982 @@
+{
+  "project": "Implementation Tasks: Project-Scoped Context System",
+  "branchName": "ralph/implementation-tasks-project-scoped-context-system",
+  "description": "",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": ".1: Convex Schema Design",
+      "description": "As a backend engineer, I need to design and deploy the Convex schema for projects, threads, memories, and project mentions so that the system has a solid data foundation.",
+      "acceptanceCriteria": [
+        "Design `projects` table schema with indexes",
+        "Design `threads` table schema (extend existing chats)",
+        "Design `memories` table schema with vector index",
+        "Design `projectMentions` table schema",
+        "Write schema validation tests",
+        "Deploy schema to staging environment",
+        "Verify index performance with synthetic data (10k+ records)",
+        "Schema deployed without errors",
+        "All indexes created successfully",
+        "Vector index supports <100ms queries on 10k memories",
+        "Schema passes type checking in TypeScript"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "Schema fully designed with all required tables (projects, threads/threadMetadata, memories, projectMentions). All indexes defined including vector index for embeddings (1536 dimensions). 17 schema validation tests passing. TypeScript type checking passes. Build succeeds. Performance verification to be done during migration phase.",
+      "routing": {
+        "complexity": "medium",
+        "harness": "opencode",
+        "model": "glm-4.7",
+        "mode": "good",
+        "estimatedCost": 0,
+        "classificationReasoning": "Task classified as medium (confidence: 79%). Using good mode, routing to opencode/glm-4.7. Estimated tokens: 249, cost: free."
+      }
+    },
+    {
+      "id": "US-001",
+      "title": ".2: Database Migration Script",
+      "description": "As a backend engineer, I need to migrate existing chats to the new threads table so that existing users don't lose data.",
+      "acceptanceCriteria": [
+        "Write migration script `migrateChatsToThreads`",
+        "Add `projectId` field to threads (default `null`)",
+        "Backfill thread metadata (messageCount, lastActiveAt)",
+        "Test migration on staging data (1000+ chats)",
+        "Write rollback script",
+        "Document migration process",
+        "Run migration on production with monitoring",
+        "All existing chats migrated to threads",
+        "No data loss (verify message counts match)",
+        "Migration completes in <10 minutes for 10k chats",
+        "Rollback script tested and validated"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "",
+      "routing": {
+        "complexity": "complex",
+        "harness": "opencode",
+        "model": "glm-4.7",
+        "mode": "good",
+        "estimatedCost": 0,
+        "classificationReasoning": "Task classified as complex (confidence: 95%). Using good mode, routing to opencode/glm-4.7. Estimated tokens: 227, cost: free."
+      }
+    },
+    {
+      "id": "US-002",
+      "title": ".1: Project CRUD API",
+      "description": "As a user, I want to create, rename, and archive projects so that I can organize my conversations.",
+      "acceptanceCriteria": [
+        "Implement `createProject` mutation",
+        "Validate project name (max 50 chars, no special chars)",
+        "Check for duplicate names per user",
+        "Return project ID",
+        "Implement `renameProject` mutation",
+        "Validate new name",
+        "Update `lastActiveAt`",
+        "Implement `archiveProject` mutation",
+        "Set `archivedAt` timestamp",
+        "Do NOT delete memories or threads",
+        "Implement `listProjects` query",
+        "Filter by user ID",
+        "Exclude archived projects by default",
+        "Sort by `lastActiveAt` (descending)",
+        "Write unit tests for all mutations/queries",
+        "Add error handling (e.g., project not found)",
+        "Users can create projects with valid names",
+        "Users cannot create duplicate project names",
+        "Archived projects do not appear in default list",
+        "All CRUD operations complete in <200ms"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "",
+      "routing": {
+        "complexity": "medium",
+        "harness": "opencode",
+        "model": "glm-4.7",
+        "mode": "good",
+        "estimatedCost": 0,
+        "classificationReasoning": "Task classified as medium (confidence: 95%). Using good mode, routing to opencode/glm-4.7. Estimated tokens: 306, cost: free."
+      }
+    },
+    {
+      "id": "US-002",
+      "title": ".2: Project Search",
+      "description": "As a user, I want to search for projects by name so that I can quickly find projects in large lists.",
+      "acceptanceCriteria": [
+        "Implement `searchProjects` query using Convex search index",
+        "Support fuzzy matching (e.g., \"Grad\" matches \"Graduation Thesis\")",
+        "Limit results to 10 items",
+        "Highlight matching text in UI (frontend task)",
+        "Test with 100+ projects",
+        "Search returns results in <50ms",
+        "Fuzzy matching works for partial names",
+        "Archived projects excluded from search"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": "",
+      "routing": {
+        "complexity": "medium",
+        "harness": "opencode",
+        "model": "glm-4.7",
+        "mode": "good",
+        "estimatedCost": 0,
+        "classificationReasoning": "Task classified as medium (confidence: 95%). Using good mode, routing to opencode/glm-4.7. Estimated tokens: 168, cost: free."
+      }
+    },
+    {
+      "id": "US-003",
+      "title": ".1: Thread Attachment API",
+      "description": "As a user, I want to attach a thread to a project so that the thread appears in the project's sidebar section.",
+      "acceptanceCriteria": [
+        "Implement `attachThreadToProject` mutation",
+        "Validate thread and project exist",
+        "Validate user owns both",
+        "Update `thread.projectId`",
+        "Update `project.lastActiveAt`",
+        "Create audit log entry",
+        "Implement `detachThreadFromProject` mutation",
+        "Set `thread.projectId = null`",
+        "Update `project.lastActiveAt`",
+        "Implement `moveThreadToProject` mutation",
+        "Detach from old project",
+        "Attach to new project",
+        "Handle edge cases (already attached, same project)",
+        "Write unit tests",
+        "Add transaction support (ensure atomicity)",
+        "Thread attachment is atomic (no partial updates)",
+        "User can attach/detach threads successfully",
+        "Moving thread between projects updates both projects' `lastActiveAt`",
+        "Operations complete in <100ms"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": "",
+      "routing": {
+        "complexity": "medium",
+        "harness": "opencode",
+        "model": "glm-4.7",
+        "mode": "good",
+        "estimatedCost": 0,
+        "classificationReasoning": "Task classified as medium (confidence: 95%). Using good mode, routing to opencode/glm-4.7. Estimated tokens: 304, cost: free."
+      }
+    },
+    {
+      "id": "US-003",
+      "title": ".2: Thread Creation in Project",
+      "description": "As a user, I want to create a new thread directly within a project so that it's automatically associated with that project.",
+      "acceptanceCriteria": [
+        "Implement `createThreadInProject` mutation",
+        "Accept `projectId` parameter",
+        "Set `thread.projectId` on creation",
+        "Update `project.lastActiveAt`",
+        "Generate default thread title",
+        "Add validation (project exists, user owns project)",
+        "Write unit tests",
+        "New threads created in project are automatically attached",
+        "Project's `lastActiveAt` updates on thread creation",
+        "Thread title is human-readable (e.g., \"New conversation\")"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": "",
+      "routing": {
+        "complexity": "medium",
+        "harness": "opencode",
+        "model": "glm-4.7",
+        "mode": "good",
+        "estimatedCost": 0,
+        "classificationReasoning": "Task classified as medium (confidence: 95%). Using good mode, routing to opencode/glm-4.7. Estimated tokens: 209, cost: free."
+      }
+    },
+    {
+      "id": "US-004",
+      "title": ".1: NLP Classifier Agent",
+      "description": "As the system, I need to detect @Project mentions in user messages so that I can inject project context.",
+      "acceptanceCriteria": [
+        "Implement `classifyMessage` action",
+        "Write regex to extract @mentions: `/@([a-zA-Z0-9\\s]+)/g`",
+        "Query `projects` table to validate mentioned projects exist",
+        "Return array of `{ projectId, projectName, startIndex, endIndex }`",
+        "Implement intent classification (question/command/statement/code)",
+        "Handle edge cases:",
+        "Multiple @mentions in one message",
+        "@mention of archived project",
+        "@mention of non-existent project",
+        "Write unit tests with 20+ test cases",
+        "Measure latency (target <50ms)",
+        "@Mentions detected with >99% accuracy",
+        "Invalid project names return empty array (no error)",
+        "Intent classification accuracy >90%",
+        "Latency <50ms for messages up to 1000 chars"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": "",
+      "routing": {
+        "complexity": "medium",
+        "harness": "opencode",
+        "model": "glm-4.7",
+        "mode": "good",
+        "estimatedCost": 0,
+        "classificationReasoning": "Task classified as medium (confidence: 95%). Using good mode, routing to opencode/glm-4.7. Estimated tokens: 287, cost: free."
+      }
+    },
+    {
+      "id": "US-004",
+      "title": ".2: Context Builder Agent",
+      "description": "As the system, I need to assemble ranked context from thread history and project memory so that the AI has relevant information.",
+      "acceptanceCriteria": [
+        "Implement `buildContext` action",
+        "Fetch thread history (last 20 messages)",
+        "Fetch project memory if thread attached to project",
+        "Fetch project memory if @mentioned (even if not attached)",
+        "Fetch pinned global memory",
+        "Implement memory ranking function:",
+        "Truncate context to 8000 tokens (estimate: 4 chars = 1 token)",
+        "Return context with metadata (sources, token count)",
+        "Write unit tests for ranking logic",
+        "Test with large context (100+ memories)",
+        "Context includes thread history + relevant memories",
+        "Ranking function prioritizes project memory over profile memory",
+        "Context truncation respects token limit",
+        "Build time <200ms for threads with 1000 messages"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": "",
+      "routing": {
+        "complexity": "medium",
+        "harness": "opencode",
+        "model": "glm-4.7",
+        "mode": "good",
+        "estimatedCost": 0,
+        "classificationReasoning": "Task classified as medium (confidence: 95%). Using good mode, routing to opencode/glm-4.7. Estimated tokens: 296, cost: free."
+      }
+    },
+    {
+      "id": "US-004",
+      "title": ".3: Model Router Factory (Dynamic Agent Pattern)",
+      "description": "As the system, I need to select the optimal AI model and return a configured `LanguageModel` instance for Dynamic Agent creation.",
+      "acceptanceCriteria": [
+        "Install `@convex-dev/agent`, `@ai-sdk/openai`, `@ai-sdk/anthropic`",
+        "Implement `selectModel` factory function (not action, pure function)",
+        "Import and configure language models from AI SDK:",
+        "`openai(\"gpt-4-turbo\")` for code/learn/create modes",
+        "`anthropic(\"claude-3-opus-20240229\")` for think mode",
+        "Define model selection rules:",
+        "Code mode → GPT-4 Turbo (temp 0.2, maxTokens 8000)",
+        "Learn mode → GPT-4 Turbo (temp 0.5, maxTokens 4000)",
+        "Think mode → Claude 3 Opus (temp 0.8, maxTokens 4000)",
+        "Create mode → GPT-4 Turbo (temp 0.9, maxTokens 6000)",
+        "Adjust for long context (>6000 tokens → Claude)",
+        "Return `{ languageModel: LanguageModel, maxTokens, temperature }`",
+        "Write unit tests for all mode combinations",
+        "Document model selection logic",
+        "Returns configured `LanguageModel` instance (not string)",
+        "Model selection is deterministic given same inputs",
+        "Long context triggers Claude selection",
+        "Selection completes in <10ms",
+        "Compatible with Convex Dynamic Agent API"
+      ],
+      "priority": 9,
+      "passes": false,
+      "notes": "",
+      "routing": {
+        "complexity": "medium",
+        "harness": "opencode",
+        "model": "glm-4.7",
+        "mode": "good",
+        "estimatedCost": 0,
+        "classificationReasoning": "Task classified as medium (confidence: 95%). Using good mode, routing to opencode/glm-4.7. Estimated tokens: 417, cost: free."
+      }
+    },
+    {
+      "id": "US-004",
+      "title": ".4: Main Inference Agent (Dynamic Agent)",
+      "description": "As the system, I need to create a Dynamic Agent that generates AI responses using the selected model with assembled context and project-specific tools.",
+      "acceptanceCriteria": [
+        "Implement `createInferenceAgent` factory function",
+        "Accept `ctx`, `threadId`, `projectId`, `userId`, `languageModel`, `mode`",
+        "Define mode-specific instructions (code/learn/think/create)",
+        "Create tools:",
+        "`searchMemories` - Search project memories",
+        "`getThreadContext` - Get recent thread messages",
+        "Return new `Agent(components.agent, { ... })` instance",
+        "Set `maxSteps: 3` to limit multi-step reasoning",
+        "Implement `sendMessage` action",
+        "Get thread info",
+        "Call NLP Classifier",
+        "Call Context Builder",
+        "Call Model Router to get `languageModel`",
+        "Create Inference Agent with `languageModel`",
+        "Run agent with context + user message",
+        "Store user and assistant messages",
+        "Store `contextSnapshot` in message metadata",
+        "Async: Extract memories (non-blocking)",
+        "Async: Determine banner state",
+        "Add error handling (context build failure → fallback to thread-only)",
+        "Write integration tests",
+        "Measure end-to-end latency (target <2s for full pipeline)",
+        "@Mention in message triggers project memory injection",
+        "AI response reflects project context",
+        "Dynamic Agent uses correct model per mode",
+        "Agent can use tools to search memories/context",
+        "Context snapshot stored in message metadata",
+        "Pipeline failure does not crash message send",
+        "Latency <2s end-to-end"
+      ],
+      "priority": 10,
+      "passes": false,
+      "notes": "",
+      "routing": {
+        "complexity": "medium",
+        "harness": "opencode",
+        "model": "glm-4.7",
+        "mode": "good",
+        "estimatedCost": 0,
+        "classificationReasoning": "Task classified as medium (confidence: 95%). Using good mode, routing to opencode/glm-4.7. Estimated tokens: 519, cost: free."
+      }
+    },
+    {
+      "id": "US-005",
+      "title": ".1: Memory Storage API",
+      "description": "As the system, I need to store memories with embeddings so that I can retrieve them later.",
+      "acceptanceCriteria": [
+        "Implement `createMemory` mutation",
+        "Accept `content`, `scope`, `scopeId`, `embedding`",
+        "Validate embedding dimensions (1536 for `text-embedding-3-small`)",
+        "Set initial scores (recency=1.0, importance=0.5)",
+        "Return memory ID",
+        "Implement `listMemories` query",
+        "Filter by `userId`, `scope`, `scopeId`",
+        "Support pagination",
+        "Implement `deleteMemory` mutation (for future manual editing)",
+        "Write unit tests",
+        "Memories stored with correct scope",
+        "Embeddings validated before storage",
+        "List query returns memories sorted by `createdAt` (descending)"
+      ],
+      "priority": 11,
+      "passes": false,
+      "notes": "",
+      "routing": {
+        "complexity": "medium",
+        "harness": "opencode",
+        "model": "glm-4.7",
+        "mode": "good",
+        "estimatedCost": 0,
+        "classificationReasoning": "Task classified as medium (confidence: 95%). Using good mode, routing to opencode/glm-4.7. Estimated tokens: 236, cost: free."
+      }
+    },
+    {
+      "id": "US-005",
+      "title": ".2: Memory Embedding Generation",
+      "description": "As the system, I need to generate embeddings for memory content so that I can perform semantic search.",
+      "acceptanceCriteria": [
+        "Implement `generateEmbedding` helper function",
+        "Call OpenAI Embeddings API (`text-embedding-3-small`)",
+        "Handle API errors (retry logic, fallback)",
+        "Cache embeddings for identical content (optional optimization)",
+        "Write unit tests",
+        "Measure latency (target <200ms per embedding)",
+        "Embedding generation succeeds for valid content",
+        "API errors handled gracefully (return null or retry)",
+        "Latency <200ms per embedding"
+      ],
+      "priority": 12,
+      "passes": false,
+      "notes": "",
+      "routing": {
+        "complexity": "medium",
+        "harness": "opencode",
+        "model": "glm-4.7",
+        "mode": "good",
+        "estimatedCost": 0,
+        "classificationReasoning": "Task classified as medium (confidence: 95%). Using good mode, routing to opencode/glm-4.7. Estimated tokens: 199, cost: free."
+      }
+    },
+    {
+      "id": "US-005",
+      "title": ".3: Memory Retrieval and Ranking",
+      "description": "As the system, I need to retrieve and rank memories by relevance, recency, and importance.",
+      "acceptanceCriteria": [
+        "Implement `rankMemories` helper function",
+        "Use Convex vector index for nearest neighbor search",
+        "Implement ranking formula:",
+        "Recency calculation: `exp(-ageInDays / 30)`",
+        "Return top K memories (K=10 by default)",
+        "Write unit tests with synthetic data",
+        "Test with 10k+ memories",
+        "Vector search returns relevant memories",
+        "Ranking prioritizes recent + relevant memories",
+        "Retrieval completes in <100ms for 10k memories"
+      ],
+      "priority": 13,
+      "passes": false,
+      "notes": "",
+      "routing": {
+        "complexity": "medium",
+        "harness": "opencode",
+        "model": "glm-4.7",
+        "mode": "good",
+        "estimatedCost": 0,
+        "classificationReasoning": "Task classified as medium (confidence: 95%). Using good mode, routing to opencode/glm-4.7. Estimated tokens: 195, cost: free."
+      }
+    },
+    {
+      "id": "US-005",
+      "title": ".4: Memory Manager Agent (Dynamic Agent)",
+      "description": "As the system, I need to automatically extract and store memories from conversations using a Dynamic Agent with LLM-powered fact extraction.",
+      "acceptanceCriteria": [
+        "Implement `createMemoryAgent` factory function",
+        "Create tools:",
+        "`extractFacts` - Extract key statements from conversation",
+        "`generateEmbedding` - Generate vector embedding using AI SDK",
+        "`storeMemory` - Store memory in database with correct scope",
+        "Set `languageModel: openai(\"gpt-4-turbo\")`",
+        "Define instructions for fact extraction rules",
+        "Set `maxSteps: 10`",
+        "Implement `extractAndStoreMemories` action",
+        "Create Memory Agent instance",
+        "Run agent with user + assistant messages",
+        "Extract tool calls to count stored memories",
+        "Return `{ memoriesCreated, memoryIds }`",
+        "Prompt engineering for fact extraction (in agent instructions):",
+        "Handle extraction failures gracefully",
+        "Write unit tests",
+        "Measure accuracy (manual review of 100 conversations)",
+        "Memories extracted with >80% relevance (manual validation)",
+        "Extraction completes in <5s per conversation turn",
+        "Failures do not block message send",
+        "Dynamic Agent uses tools correctly (extract → embed → store)"
+      ],
+      "priority": 14,
+      "passes": false,
+      "notes": "",
+      "routing": {
+        "complexity": "medium",
+        "harness": "opencode",
+        "model": "glm-4.7",
+        "mode": "good",
+        "estimatedCost": 0,
+        "classificationReasoning": "Task classified as medium (confidence: 95%). Using good mode, routing to opencode/glm-4.7. Estimated tokens: 414, cost: free."
+      }
+    },
+    {
+      "id": "US-006",
+      "title": ".1: Hierarchical Sidebar Layout",
+      "description": "As a user, I want to see projects and threads in a hierarchical sidebar so that I can organize my conversations.",
+      "acceptanceCriteria": [
+        "Design component structure:",
+        "`Sidebar` (container)",
+        "`ProjectList` (renders projects)",
+        "`ProjectItem` (single project with threads)",
+        "`ThreadList` (renders threads in project)",
+        "`ThreadItem` (single thread)",
+        "`FreeChatsList` (threads without project)",
+        "Implement expand/collapse functionality per project",
+        "Store collapse state in Jotai atom (`sidebarCollapsedAtom`)",
+        "Implement drag-and-drop (optional for MVP)",
+        "Add \"+ New Thread\" button per project",
+        "Style with Tailwind CSS",
+        "Make responsive (collapse on mobile)",
+        "Sidebar renders projects with nested threads",
+        "Expand/collapse state persists across sessions (localStorage)",
+        "Clicking thread activates it in main view",
+        "UI matches design mockup"
+      ],
+      "priority": 15,
+      "passes": false,
+      "notes": "",
+      "routing": {
+        "complexity": "medium",
+        "harness": "opencode",
+        "model": "glm-4.7",
+        "mode": "good",
+        "estimatedCost": 0,
+        "classificationReasoning": "Task classified as medium (confidence: 80%). Using good mode, routing to opencode/glm-4.7. Estimated tokens: 304, cost: free."
+      }
+    },
+    {
+      "id": "US-006",
+      "title": ".2: Project Creation UI",
+      "description": "As a user, I want to create a new project from the sidebar so that I can organize my threads.",
+      "acceptanceCriteria": [
+        "Add \"+ New Project\" button to sidebar",
+        "Implement modal/inline form for project name input",
+        "Validate name (max 50 chars, no duplicates)",
+        "Call `createProject` mutation on submit",
+        "Show success/error toast",
+        "Auto-expand new project in sidebar",
+        "Write E2E test for project creation flow",
+        "Users can create projects with 2 clicks",
+        "Invalid names show inline error",
+        "New project appears in sidebar immediately (real-time update)"
+      ],
+      "priority": 16,
+      "passes": false,
+      "notes": "",
+      "routing": {
+        "complexity": "medium",
+        "harness": "opencode",
+        "model": "glm-4.7",
+        "mode": "good",
+        "estimatedCost": 0,
+        "classificationReasoning": "Task classified as medium (confidence: 95%). Using good mode, routing to opencode/glm-4.7. Estimated tokens: 197, cost: free."
+      }
+    },
+    {
+      "id": "US-006",
+      "title": ".3: Thread Management UI",
+      "description": "As a user, I want to create threads within projects and rename/delete threads.",
+      "acceptanceCriteria": [
+        "Implement \"+ New Thread\" button in `ProjectItem`",
+        "Call `createThreadInProject` mutation",
+        "Implement thread context menu (right-click):",
+        "Rename thread",
+        "Move to project (if free chat)",
+        "Remove from project (if in project)",
+        "Delete thread",
+        "Add confirmation dialog for destructive actions",
+        "Write E2E tests",
+        "Users can create threads in projects with 1 click",
+        "Context menu actions work correctly",
+        "Deletion requires confirmation"
+      ],
+      "priority": 17,
+      "passes": false,
+      "notes": "",
+      "routing": {
+        "complexity": "medium",
+        "harness": "opencode",
+        "model": "glm-4.7",
+        "mode": "good",
+        "estimatedCost": 0,
+        "classificationReasoning": "Task classified as medium (confidence: 95%). Using good mode, routing to opencode/glm-4.7. Estimated tokens: 191, cost: free."
+      }
+    },
+    {
+      "id": "US-006",
+      "title": ".4: Sidebar Virtualization",
+      "description": "As a user with 100+ projects, I want the sidebar to remain performant.",
+      "acceptanceCriteria": [
+        "Integrate `react-window` for project list",
+        "Measure render performance before/after",
+        "Test with 500+ projects",
+        "Ensure expand/collapse still works",
+        "Sidebar renders 500 projects with <50ms lag",
+        "Scrolling is smooth (60fps)"
+      ],
+      "priority": 18,
+      "passes": false,
+      "notes": "",
+      "routing": {
+        "complexity": "medium",
+        "harness": "opencode",
+        "model": "glm-4.7",
+        "mode": "good",
+        "estimatedCost": 0,
+        "classificationReasoning": "Task classified as medium (confidence: 95%). Using good mode, routing to opencode/glm-4.7. Estimated tokens: 116, cost: free."
+      }
+    },
+    {
+      "id": "US-007",
+      "title": ".1: Chat Header with Project Context",
+      "description": "As a user, I want to see which project (if any) the current thread belongs to.",
+      "acceptanceCriteria": [
+        "Update `ChatHeader` component",
+        "Display project name if `thread.projectId` is set",
+        "Display \"Free Chat\" if no project",
+        "Add project icon/color (optional)",
+        "Make project name clickable (navigate to project in sidebar)",
+        "Style with Tailwind CSS",
+        "Chat header shows project name for project threads",
+        "Chat header shows \"Free Chat\" for free threads",
+        "UI is visually distinct for project vs. free chats"
+      ],
+      "priority": 19,
+      "passes": false,
+      "notes": "",
+      "routing": {
+        "complexity": "simple",
+        "harness": "opencode",
+        "model": "glm-4.7",
+        "mode": "good",
+        "estimatedCost": 0,
+        "classificationReasoning": "Task classified as simple (confidence: 60%). Using good mode, routing to opencode/glm-4.7. Estimated tokens: 186, cost: free."
+      }
+    },
+    {
+      "id": "US-007",
+      "title": ".2: Attachment Banner UI",
+      "description": "As a user, I want to see a banner prompting me to attach the thread to a project after I mention it.",
+      "acceptanceCriteria": [
+        "Create `AttachmentBanner` component",
+        "Display banner after AI response if:",
+        "User mentioned @Project in last message",
+        "Thread is not attached to that project",
+        "Banner was not dismissed for this mention",
+        "Show two buttons: \"Attach\" and \"Dismiss\"",
+        "\"Attach\" button:",
+        "Call `attachThreadToProject` mutation",
+        "Update `projectMention.attachmentAccepted = true`",
+        "Close banner",
+        "\"Dismiss\" button:",
+        "Update `projectMention.attachmentAccepted = false`",
+        "Close banner",
+        "Animate banner entrance/exit",
+        "Write E2E test for attachment flow",
+        "Banner appears immediately after AI response to @mention",
+        "\"Attach\" button attaches thread and closes banner",
+        "\"Dismiss\" button closes banner without attachment",
+        "Dismissed banners do not reappear for same mention"
+      ],
+      "priority": 20,
+      "passes": false,
+      "notes": "",
+      "routing": {
+        "complexity": "medium",
+        "harness": "opencode",
+        "model": "glm-4.7",
+        "mode": "good",
+        "estimatedCost": 0,
+        "classificationReasoning": "Task classified as medium (confidence: 95%). Using good mode, routing to opencode/glm-4.7. Estimated tokens: 312, cost: free."
+      }
+    },
+    {
+      "id": "US-007",
+      "title": ".3: @Mention Autocomplete",
+      "description": "As a user, I want autocomplete suggestions when I type @ so that I can easily mention projects.",
+      "acceptanceCriteria": [
+        "Detect `@` trigger in `InputArea` component",
+        "Query projects matching partial name",
+        "Display autocomplete menu with project list",
+        "Support keyboard navigation (up/down arrows, Enter)",
+        "Insert selected project name on selection",
+        "Syntax highlight @mentions in input (optional)",
+        "Handle edge cases (no matching projects, archived projects)",
+        "Write E2E test",
+        "Autocomplete appears within 50ms of typing `@`",
+        "Keyboard navigation works correctly",
+        "Selected project name inserted with space after",
+        "Archived projects excluded from autocomplete"
+      ],
+      "priority": 21,
+      "passes": false,
+      "notes": "",
+      "routing": {
+        "complexity": "medium",
+        "harness": "opencode",
+        "model": "glm-4.7",
+        "mode": "good",
+        "estimatedCost": 0,
+        "classificationReasoning": "Task classified as medium (confidence: 95%). Using good mode, routing to opencode/glm-4.7. Estimated tokens: 239, cost: free."
+      }
+    },
+    {
+      "id": "US-007",
+      "title": ".4: Message Context Indicator",
+      "description": "As a user, I want to see which project context was active when a message was sent (for debugging).",
+      "acceptanceCriteria": [
+        "Display small badge on messages that used project context",
+        "Badge shows project name on hover",
+        "Read from `message.metadata.contextSnapshot`",
+        "Style subtly (low visual weight)",
+        "Badge appears on messages with project context",
+        "Hover shows project name",
+        "Badge does not clutter message UI"
+      ],
+      "priority": 22,
+      "passes": false,
+      "notes": "",
+      "routing": {
+        "complexity": "simple",
+        "harness": "opencode",
+        "model": "glm-4.7",
+        "mode": "good",
+        "estimatedCost": 0,
+        "classificationReasoning": "Task classified as simple (confidence: 60%). Using good mode, routing to opencode/glm-4.7. Estimated tokens: 151, cost: free."
+      }
+    },
+    {
+      "id": "US-008",
+      "title": ".1: UX State Agent",
+      "description": "As the system, I need to determine when to show attachment banners and manage UI state.",
+      "acceptanceCriteria": [
+        "Implement `determineBannerState` action",
+        "Check if thread already attached to mentioned project (no banner)",
+        "Check if banner already dismissed for this mention (no banner)",
+        "Handle multiple @mentions (show banner for first unattached project)",
+        "Return `{ showBanner, bannerProjectId, bannerMessage }`",
+        "Write unit tests for all edge cases",
+        "Banner logic is deterministic",
+        "Edge cases handled correctly (see spec.md EC-1 to EC-6)",
+        "Action completes in <50ms"
+      ],
+      "priority": 23,
+      "passes": false,
+      "notes": "",
+      "routing": {
+        "complexity": "medium",
+        "harness": "opencode",
+        "model": "glm-4.7",
+        "mode": "good",
+        "estimatedCost": 0,
+        "classificationReasoning": "Task classified as medium (confidence: 95%). Using good mode, routing to opencode/glm-4.7. Estimated tokens: 205, cost: free."
+      }
+    },
+    {
+      "id": "US-008",
+      "title": ".2: Project Mention Tracking",
+      "description": "As the system, I need to track @Project mentions to prevent duplicate banners.",
+      "acceptanceCriteria": [
+        "Create `projectMention` record on each @mention",
+        "Store `threadId`, `projectId`, `messageId`, `mentionedAt`",
+        "Set `attachmentOffered = true` when banner shown",
+        "Update `attachmentAccepted` based on user action",
+        "Write unit tests",
+        "Each @mention creates a `projectMention` record",
+        "Dismissed banners do not reappear"
+      ],
+      "priority": 24,
+      "passes": false,
+      "notes": "",
+      "routing": {
+        "complexity": "medium",
+        "harness": "opencode",
+        "model": "glm-4.7",
+        "mode": "good",
+        "estimatedCost": 0,
+        "classificationReasoning": "Task classified as medium (confidence: 80%). Using good mode, routing to opencode/glm-4.7. Estimated tokens: 153, cost: free."
+      }
+    },
+    {
+      "id": "US-009",
+      "title": ".1: Unit Test Suite",
+      "description": "As an engineer, I need comprehensive unit tests for all agents and core logic.",
+      "acceptanceCriteria": [
+        "Write tests for NLP Classifier Agent (20+ cases)",
+        "Write tests for Context Builder Agent (15+ cases)",
+        "Write tests for Memory Manager Agent (10+ cases)",
+        "Write tests for UX State Agent (10+ cases)",
+        "Write tests for memory ranking function (5+ cases)",
+        "Achieve >80% code coverage",
+        "Set up CI to run tests on every commit",
+        "All tests pass",
+        "Code coverage >80%",
+        "CI pipeline passes"
+      ],
+      "priority": 25,
+      "passes": false,
+      "notes": "",
+      "routing": {
+        "complexity": "medium",
+        "harness": "opencode",
+        "model": "glm-4.7",
+        "mode": "good",
+        "estimatedCost": 0,
+        "classificationReasoning": "Task classified as medium (confidence: 80%). Using good mode, routing to opencode/glm-4.7. Estimated tokens: 172, cost: free."
+      }
+    },
+    {
+      "id": "US-009",
+      "title": ".2: Integration Test Suite",
+      "description": "As an engineer, I need integration tests to verify end-to-end flows.",
+      "acceptanceCriteria": [
+        "Test: Create project → Create thread → Send message → Verify context",
+        "Test: Send @mention → Verify banner → Click \"Attach\" → Verify thread moves",
+        "Test: Archive project → Verify not in autocomplete",
+        "Write tests using Convex test utilities",
+        "Run tests in CI",
+        "All integration tests pass",
+        "Tests cover happy path + edge cases"
+      ],
+      "priority": 26,
+      "passes": false,
+      "notes": "",
+      "routing": {
+        "complexity": "medium",
+        "harness": "opencode",
+        "model": "glm-4.7",
+        "mode": "good",
+        "estimatedCost": 0,
+        "classificationReasoning": "Task classified as medium (confidence: 95%). Using good mode, routing to opencode/glm-4.7. Estimated tokens: 153, cost: free."
+      }
+    },
+    {
+      "id": "US-009",
+      "title": ".3: E2E Test Suite",
+      "description": "As a QA engineer, I need E2E tests to verify UI interactions.",
+      "acceptanceCriteria": [
+        "Set up Playwright for E2E testing",
+        "Test: User creates project from sidebar",
+        "Test: User types @Project and selects from autocomplete",
+        "Test: User sees attachment banner and clicks \"Attach\"",
+        "Test: User drags thread from \"Chats\" to project",
+        "Run E2E tests in CI",
+        "Record test videos for debugging",
+        "All E2E tests pass in headless mode",
+        "Tests run in <5 minutes",
+        "CI pipeline includes E2E tests"
+      ],
+      "priority": 27,
+      "passes": false,
+      "notes": "",
+      "routing": {
+        "complexity": "medium",
+        "harness": "opencode",
+        "model": "glm-4.7",
+        "mode": "good",
+        "estimatedCost": 0,
+        "classificationReasoning": "Task classified as medium (confidence: 80%). Using good mode, routing to opencode/glm-4.7. Estimated tokens: 171, cost: free."
+      }
+    },
+    {
+      "id": "US-009",
+      "title": ".4: Performance Testing",
+      "description": "As an engineer, I need to verify the system meets performance requirements.",
+      "acceptanceCriteria": [
+        "Load test: 10k threads, 100k memories",
+        "Measure context build latency (target <200ms)",
+        "Measure memory retrieval latency (target <100ms)",
+        "Measure sidebar render time with 100+ projects (target <50ms)",
+        "Use Convex benchmarking tools",
+        "Document results in `progress.txt`",
+        "All NFRs met (see spec.md NFR-1)",
+        "No memory leaks in frontend",
+        "Performance report generated"
+      ],
+      "priority": 28,
+      "passes": false,
+      "notes": "",
+      "routing": {
+        "complexity": "medium",
+        "harness": "opencode",
+        "model": "glm-4.7",
+        "mode": "good",
+        "estimatedCost": 0,
+        "classificationReasoning": "Task classified as medium (confidence: 95%). Using good mode, routing to opencode/glm-4.7. Estimated tokens: 168, cost: free."
+      }
+    },
+    {
+      "id": "US-010",
+      "title": ".1: User Documentation",
+      "description": "As a user, I want documentation explaining how to use projects and @mentions.",
+      "acceptanceCriteria": [
+        "Write user guide: \"Getting Started with Projects\"",
+        "Write tutorial: \"Using @Mentions to Inject Context\"",
+        "Create video walkthrough (2-3 minutes)",
+        "Add in-app tooltips for first-time users",
+        "Publish documentation to help center",
+        "Documentation covers all user-facing features",
+        "Video demonstrates key workflows",
+        "In-app tooltips guide new users"
+      ],
+      "priority": 29,
+      "passes": false,
+      "notes": "",
+      "routing": {
+        "complexity": "medium",
+        "harness": "opencode",
+        "model": "glm-4.7",
+        "mode": "good",
+        "estimatedCost": 0,
+        "classificationReasoning": "Task classified as medium (confidence: 80%). Using good mode, routing to opencode/glm-4.7. Estimated tokens: 161, cost: free."
+      }
+    },
+    {
+      "id": "US-010",
+      "title": ".2: Developer Documentation",
+      "description": "As a developer, I want documentation for the agent architecture and APIs.",
+      "acceptanceCriteria": [
+        "Document agent architecture (diagram + text)",
+        "Document Convex schema and indexes",
+        "Document memory ranking algorithm",
+        "Add JSDoc comments to all public functions",
+        "Generate API reference with TypeDoc",
+        "Publish to internal wiki",
+        "All agents documented with examples",
+        "Schema diagram generated",
+        "API reference auto-generated from JSDoc"
+      ],
+      "priority": 30,
+      "passes": false,
+      "notes": "",
+      "routing": {
+        "complexity": "complex",
+        "harness": "opencode",
+        "model": "glm-4.7",
+        "mode": "good",
+        "estimatedCost": 0,
+        "classificationReasoning": "Task classified as complex (confidence: 87%). Using good mode, routing to opencode/glm-4.7. Estimated tokens: 157, cost: free."
+      }
+    },
+    {
+      "id": "US-010",
+      "title": ".3: Feature Flags and Rollout",
+      "description": "As a product manager, I want to roll out this feature gradually to mitigate risk.",
+      "acceptanceCriteria": [
+        "Implement feature flags:",
+        "`enable_projects`",
+        "`enable_context_injection`",
+        "`enable_memory_extraction`",
+        "`enable_attachment_banners`",
+        "Roll out to internal users (week 1-2)",
+        "Roll out to 10% of users (week 3-4)",
+        "Roll out to 50% of users (week 5)",
+        "Roll out to 100% of users (week 6)",
+        "Monitor error rates and performance metrics",
+        "Set up alerts for critical failures",
+        "Feature flags work correctly",
+        "Rollout completes without major incidents",
+        "Monitoring dashboards show healthy metrics"
+      ],
+      "priority": 31,
+      "passes": false,
+      "notes": "",
+      "routing": {
+        "complexity": "medium",
+        "harness": "opencode",
+        "model": "glm-4.7",
+        "mode": "good",
+        "estimatedCost": 0,
+        "classificationReasoning": "Task classified as medium (confidence: 95%). Using good mode, routing to opencode/glm-4.7. Estimated tokens: 215, cost: free."
+      }
+    },
+    {
+      "id": "US-010",
+      "title": ".4: Post-Launch Monitoring",
+      "description": "As an engineer, I need to monitor the system in production to catch issues early.",
+      "acceptanceCriteria": [
+        "Set up Convex analytics dashboard",
+        "Track key metrics:",
+        "Context build latency (p50, p99)",
+        "Memory retrieval latency (p50, p99)",
+        "Attachment banner conversion rate",
+        "Project creation rate",
+        "Set up alerts for:",
+        "Context build failures >1%",
+        "Memory retrieval timeouts >0.1%",
+        "Sidebar render time >100ms",
+        "Weekly review of metrics",
+        "Document findings in `progress.txt`",
+        "Dashboard shows real-time metrics",
+        "Alerts trigger for anomalies",
+        "Weekly review completed"
+      ],
+      "priority": 32,
+      "passes": false,
+      "notes": "",
+      "routing": {
+        "complexity": "expert",
+        "harness": "opencode",
+        "model": "glm-4.7",
+        "mode": "good",
+        "estimatedCost": 0,
+        "classificationReasoning": "Task classified as expert (confidence: 93%). Using good mode, routing to opencode/glm-4.7. Estimated tokens: 202, cost: free."
+      }
+    }
+  ]
+}

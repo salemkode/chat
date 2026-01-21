@@ -1,0 +1,63 @@
+{
+  "defaultAgent": "auto",
+  "agents": {
+    "claude": {
+      "dangerouslyAllowAll": true
+    },
+    "amp": {
+      "dangerouslyAllowAll": true
+    },
+    "gemini": {
+      "dangerouslyAllowAll": true
+    }
+  },
+  "routing": {
+    "rules": [],
+    "default": "opencode"
+  },
+  "fallback": {
+    "enabled": true,
+    "priority": ["gemini"],
+    "autoRecovery": true,
+    "retryDelay": 2000
+  },
+  "execution": {
+    "maxIterations": 20,
+    "iterationDelay": 2000,
+    "timeout": 600000
+  },
+  "prompt": {
+    "path": "prompt.md"
+  },
+  "autoMode": {
+    "enabled": false,
+    "defaultMode": "good",
+    "fallbackOrder": ["opencode", "gemini"],
+    "modeModels": {
+      "simple": "glm-4.7",
+      "medium": "glm-4.7",
+      "complex": "glm-4.7",
+      "expert": "glm-4.7"
+    },
+    "review": {
+      "promptUser": true,
+      "defaultMode": "good",
+      "microTasks": [
+        "typecheck",
+        "lint",
+        "test",
+        "security",
+        "quality",
+        "docs"
+      ],
+      "maxRetries": 3
+    },
+    "escalation": {
+      "enabled": true,
+      "maxAttempts": 3,
+      "escalationPath": {
+        "glm-4.7": "glm-4.7"
+      }
+    }
+  }
+}

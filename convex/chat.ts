@@ -45,10 +45,10 @@ export const listMessages = query({
     if (!args.threadId) throw new Error('No threadId provided')
 
     // Fetches the regular non-streaming messages.
-    const paginated = await listUIMessages(ctx, components.agent, args);
+    const paginated = await listUIMessages(ctx, components.agent, args)
 
-    const streams = await syncStreams(ctx, components.agent, args);
+    const streams = await syncStreams(ctx, components.agent, args)
 
-    return { ...paginated, streams };
+    return { ...paginated, streams }
   },
 })

@@ -8,6 +8,6 @@ export const viewer = query({
     if (userId === null) {
       return null
     }
-    return await ctx.db.get("users", userId)
+    return await ctx.db.get('users', userId)
   },
 })

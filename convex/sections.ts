@@ -57,7 +57,7 @@ export const updateSection = mutation({
     const userId = await getAuthUserId(ctx)
     if (!userId) throw new Error('Unauthorized')
 
-    const section = await ctx.db.get("sections", args.id)
+    const section = await ctx.db.get('sections', args.id)
     if (!section || section.userId !== userId) {
       throw new Error('Section not found')
     }
@@ -67,7 +67,7 @@ export const updateSection = mutation({
       Object.entries(updates).filter(([_, v]) => v !== undefined),
     )
 
-    await ctx.db.patch("sections", id, cleanUpdates)
+    await ctx.db.patch('sections', id, cleanUpdates)
   },
 })
 
@@ -78,12 +78,12 @@ export const deleteSection = mutation({
     const userId = await getAuthUserId(ctx)
     if (!userId) throw new Error('Unauthorized')
 
-    const section = await ctx.db.get("sections", args.id)
+    const section = await ctx.db.get('sections', args.id)
     if (!section || section.userId !== userId) {
       throw new Error('Section not found')
     }
 
-    await ctx.db.delete("sections", args.id)
+    await ctx.db.delete('sections', args.id)
   },
 })
 
@@ -94,11 +94,11 @@ export const toggleSection = mutation({
     const userId = await getAuthUserId(ctx)
     if (!userId) throw new Error('Unauthorized')
 
-    const section = await ctx.db.get("sections", args.id)
+    const section = await ctx.db.get('sections', args.id)
     if (!section || section.userId !== userId) {
       throw new Error('Section not found')
     }
 
-    await ctx.db.patch("sections", args.id, { isExpanded: !section.isExpanded })
+    await ctx.db.patch('sections', args.id, { isExpanded: !section.isExpanded })
   },
 })

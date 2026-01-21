@@ -103,6 +103,14 @@ export const createChatThread = mutation({
       emoji: getRandomEmoji(),
       sectionId: args.sectionId,
       userId,
+      title: args.title || 'New chat',
+      mode: 'think',
+      createdAt: Date.now(),
+      lastActiveAt: Date.now(),
+      metadata: {
+        messageCount: 0,
+        isPinned: false,
+      },
     })
 
     return threadId
@@ -128,7 +136,9 @@ export const updateThreadSection = mutation({
       throw new Error('Thread not found')
     }
 
-    await ctx.db.patch("threadMetadata", metadata._id, { sectionId: args.sectionId })
+    await ctx.db.patch('threadMetadata', metadata._id, {
+      sectionId: args.sectionId,
+    })
   },
 })
 

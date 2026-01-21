@@ -1,13 +1,26 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "lmstudio": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "LM Studio (local)",
+      "options": {
+        "baseURL": "http://127.0.0.1:1234/v1"
+      },
+      "models": {
+        "mlx-community/glm-4.7-flash@8bit": {
+          "name": "mlx GLM 4.7 Flash (8-bit)"
+        },
+        "mlx-community/glm-4.7-flash-4bit": {
+          "name": "mlx GLM 4.7 Flash (4-bit)"
+        }
+      }
+    }
+  },
   "mcp": {
     "shadcn": {
       "type": "local",
-      "command": [
-        "npx",
-        "shadcn@latest",
-        "mcp"
-      ],
+      "command": ["npx", "shadcn@latest", "mcp"],
       "enabled": true
     }
   }
