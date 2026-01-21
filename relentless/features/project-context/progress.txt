@@ -401,3 +401,42 @@ Notes:
   - Risk status should be reviewed weekly and mitigations adjusted as needed
 
 ================================================================================
+
+## 2026-01-21 - US-002.1: Project CRUD API
+
+**Completed:**
+
+- Implemented full CRUD API for projects in `convex/projects.ts`
+- Fixed Convex query filter issues - replaced unsupported `.filter()` with `.collect().then()` pattern
+- Added sorting by `lastActiveAt` descending to `listProjects` query
+- Fixed all test issues - updated to use proper Convex user IDs from `users` table
+- All 11 unit tests passing (TDD approach)
+
+**Files Changed:**
+
+- `convex/projects.ts` - Fixed createProject, renameProject, archiveProject, listProjects
+- `convex/projects.test.ts` - Fixed all test cases to use proper user setup
+
+**Tests:**
+
+- 11/11 unit tests passing
+- createProject: validates name, checks duplicates ✓
+- renameProject: validates new name, updates lastActiveAt ✓  
+- archiveProject: sets archivedAt, preserves data ✓
+- listProjects: filters by user, excludes archived, sorts by lastActiveAt ✓
+
+**Learnings:**
+
+- Convex FilterBuilder doesn't support `.filter()` with predicates - must use `.collect().then()` instead
+- Convex ID validation in tests requires creating real user records in `users` table, not using strings
+- TDD approach worked well - wrote tests first, fixed implementation to pass them
+- Convex `.withIdentity()` method properly sets auth context for tests
+
+**Quality Checks:**
+
+- ✓ Tests pass (11/11)
+- ⚠ Lint has pre-existing error in auto-generated .netlify functions (not from my changes)
+- ✓ Check passes
+- ✓ Build succeeds
+
+---
