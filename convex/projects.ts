@@ -173,8 +173,8 @@ export const listProjects = query({
   args: {},
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx)
-    if (!userId) return []
-
+    if (!userId) return [] 
+    
     const projects = await ctx.db
       .query('projects')
       .withIndex('by_user_archived', (q) =>
@@ -186,6 +186,40 @@ export const listProjects = query({
       )
 
     return projects
+  },
+})
+
+export const updateLastActiveAt = mutation({
+  args: {
+    projectId: v.id('projects'),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId) throw new Error('Unauthorized')
+
+    const project = await ctx.db.get(args.projectId)
+
+    if (!project) {
+      return {
+        success: false,
+        error: 'Project not found',
+      }
+    }
+
+    if (project.userId !== userId) {
+      return {
+        success: false,
+        error: 'Unauthorized',
+      }
+    }
+
+    await ctx.db.patch(args.projectId, {
+      lastActiveAt: Date.now(),
+    })
+
+    return {
+      success: true,
+    },
   },
 })
 
