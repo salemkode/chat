@@ -125,4 +125,16 @@ export default defineSchema({
   })
     .index('by_thread', ['threadId'])
     .index('by_thread_project', ['threadId', 'projectId']),
+
+  // Audit logs for important actions
+  auditLogs: defineTable({
+    userId: v.id('users'),
+    action: v.string(),
+    entityId: v.string(), // ID of the affected entity
+    entityType: v.string(), // e.g., "thread", "project"
+    metadata: v.any(),
+    timestamp: v.number(),
+  })
+    .index('by_userId', ['userId'])
+    .index('by_entity', ['entityType', 'entityId']),
 })

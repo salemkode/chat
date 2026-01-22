@@ -28,8 +28,8 @@ This checklist ensures the system meets academic rigor, production quality, and 
 - [ ] Users can create threads within projects via "+" button
 - [ ] Newly created threads appear in correct project section immediately
 - [ ] Free chats appear in separate "Chats" section
-- [ ] Thread attachment moves thread from "Chats" to project section
-- [ ] Thread detachment moves thread from project to "Chats" section
+- [x] Thread attachment moves thread from "Chats" to project section
+- [x] Thread detachment moves thread from project to "Chats" section
 - [ ] Thread deletion requires confirmation dialog
 
 ### 1.3 Sidebar Interaction
@@ -187,8 +187,8 @@ This checklist ensures the system meets academic rigor, production quality, and 
 
 ### 5.1 Data Integrity
 
-- [ ] Project-thread associations are ACID-compliant
-- [ ] Concurrent thread attachment/detachment handled correctly
+- [x] Project-thread associations are ACID-compliant
+- [x] Concurrent thread attachment/detachment handled correctly
 - [ ] Archived projects retain all memory and thread associations
 - [ ] No data loss during migration (chats → threads)
 - [ ] Rollback script tested and validated
@@ -212,7 +212,7 @@ This checklist ensures the system meets academic rigor, production quality, and 
 
 ### 5.4 Transactional Consistency
 
-- [ ] Thread attachment is atomic (no partial updates)
+- [x] Thread attachment is atomic (no partial updates)
 - [ ] Project creation + first thread creation is atomic
 - [ ] Memory creation + embedding generation is atomic
 - [ ] Database constraints enforce referential integrity

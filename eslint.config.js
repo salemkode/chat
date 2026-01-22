@@ -11,7 +11,17 @@ export default defineConfig([
 
   // General configuration for all files
   {
-    ignores: ['node_modules/**', 'dist/**', 'build/**', '.next/**'],
+    ignores: [
+      'node_modules/**',
+      'dist/**',
+      'build/**',
+      '.next/**',
+      '.netlify/**',
+      '.output/**',
+      'convex/_generated/**',
+      '*.config.js',
+      '*.config.mjs',
+    ],
   },
 
   // Convex-specific configuration

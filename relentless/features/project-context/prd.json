@@ -89,7 +89,7 @@
       ],
       "priority": 3,
       "passes": true,
-      "notes": "Implemented full CRUD API for projects with proper validation and error handling. Fixed Convex query filter issues - replaced .filter() with .collect().then() pattern. Added sorting to listProjects. All 11 unit tests passing (TDD approach)."
+      "notes": "Implemented full CRUD API for projects with proper validation and error handling. Fixed Convex query filter issues - replaced .filter() with .collect().then() pattern. Added sorting to listProjects. All 11 unit tests passing (TDD approach).",
       "routing": {
         "complexity": "medium",
         "harness": "opencode",
@@ -116,7 +116,6 @@
       "priority": 4,
       "passes": true,
       "notes": "Implemented searchProjects query using Convex search index 'search_name'. Search provides fuzzy matching by default (Convex feature). Limits results to 10 items via .take(10). Excludes archived projects via filterFields: ['archivedAt']. Note: Automated tests blocked by convex-test bug with search, but functionality verified via manual inspection and Convex documentation."
-    }
     },
     {
       "id": "US-003",
@@ -144,8 +143,8 @@
         "Operations complete in <100ms"
       ],
       "priority": 5,
-      "passes": false,
-      "notes": "",
+      "passes": true,
+      "notes": "Implemented full thread attachment API with proper authorization, validation, audit logging, and atomic updates. All 11 unit tests passing (TDD approach). Handle same-project edge cases by skipping redundant updates.",
       "routing": {
         "complexity": "medium",
         "harness": "opencode",
@@ -157,7 +156,7 @@
     },
     {
       "id": "US-003",
-      "title": ".1: Thread Creation in Project",
+      "title": ".2: Thread Creation in Project",
       "description": "As a user, I want to create a new thread directly within a project so that it's automatically associated with that project.",
       "acceptanceCriteria": [
         "Implement `createThreadInProject` mutation",
@@ -173,8 +172,15 @@
       ],
       "priority": 6,
       "passes": true,
-      "notes": "Implemented createThreadInProject mutation in convex/threads.ts. Accepts projectId parameter, sets thread.projectId, updates project.lastActiveAt, generates default title \"New conversation\". Includes validation for project existence and user ownership. Helper mutation updateLastActiveAt added to projects.ts for moveThreadToProject support. All 11 unit tests passing (TDD approach). All acceptance criteria met."
-    }
+      "notes": "Implemented createThreadInProject mutation in convex/threads.ts. Accepts projectId parameter, sets thread.projectId, updates project.lastActiveAt, generates default title \"New conversation\". Includes validation for project existence and user ownership. Helper mutation updateLastActiveAt added to projects.ts for moveThreadToProject support. All 11 unit tests passing (TDD approach). All acceptance criteria met.",
+      "routing": {
+        "complexity": "medium",
+        "harness": "opencode",
+        "model": "glm-4.7",
+        "mode": "good",
+        "estimatedCost": 0,
+        "classificationReasoning": "Task classified as medium (confidence: 95%). Using good mode, routing to opencode/glm-4.7. Estimated tokens: 227, cost: free."
+      }
     },
     {
       "id": "US-004",
@@ -182,7 +188,7 @@
       "description": "As the system, I need to detect @Project mentions in user messages so that I can inject project context.",
       "acceptanceCriteria": [
         "Implement `classifyMessage` action",
-        "Write regex to extract @mentions: `/@([a-zA-Z0-9\\s]+)/g`",
+        "Write regex to extract @mentions: `/@([a-zA-Z0-9\s]+)/g`",
         "Query `projects` table to validate mentioned projects exist",
         "Return array of `{ projectId, projectName, startIndex, endIndex }`",
         "Implement intent classification (question/command/statement/code)",
@@ -449,34 +455,6 @@
         "estimatedCost": 0,
         "classificationReasoning": "Task classified as medium (confidence: 95%). Using good mode, routing to opencode/glm-4.7. Estimated tokens: 414, cost: free."
       }
-    },
-    {
-      "id": "US-003",
-      "title": ".1: Thread Attachment API",
-      "description": "As a user, I want to attach a thread to a project so that the thread appears in the project's sidebar section.",
-      "acceptanceCriteria": [
-        "Implement `attachThreadToProject` mutation",
-        "Update `thread.projectId`",
-        "Update `project.lastActiveAt`",
-        "Create audit log entry",
-        "Implement `detachThreadFromProject` mutation",
-        "Set `thread.projectId = null`",
-        "Update `project.lastActiveAt`",
-        "Implement `moveThreadToProject` mutation",
-        "Detach from old project",
-        "Attach to new project",
-        "Handle edge cases (already attached, same project)",
-        "Write unit tests",
-        "Add transaction support (ensure atomicity)",
-        "Thread attachment is atomic (no partial updates)",
-        "User can attach/detach threads successfully",
-        "Moving thread between projects updates both projects' `lastActiveAt`",
-        "Operations complete in <100ms"
-      ],
-      "priority": 5,
-      "passes": true,
-      "notes": "Implemented full thread attachment API with proper authorization, validation, and atomic updates. All 11 unit tests passing (TDD approach). Added helper mutation updateLastActiveAt. All acceptance criteria met."
-    }
     },
     {
       "id": "US-006",

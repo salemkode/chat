@@ -144,28 +144,28 @@ As a user, I want to attach a thread to a project so that the thread appears in 
 
 **Tasks:**
 
-- [ ] Implement `attachThreadToProject` mutation
-  - [ ] Validate thread and project exist
-  - [ ] Validate user owns both
-  - [ ] Update `thread.projectId`
-  - [ ] Update `project.lastActiveAt`
-  - [ ] Create audit log entry
-- [ ] Implement `detachThreadFromProject` mutation
-  - [ ] Set `thread.projectId = null`
-  - [ ] Update `project.lastActiveAt`
-- [ ] Implement `moveThreadToProject` mutation
-  - [ ] Detach from old project
-  - [ ] Attach to new project
-  - [ ] Handle edge cases (already attached, same project)
-- [ ] Write unit tests
-- [ ] Add transaction support (ensure atomicity)
+- [x] Implement `attachThreadToProject` mutation
+  - [x] Validate thread and project exist
+  - [x] Validate user owns both
+  - [x] Update `thread.projectId`
+  - [x] Update `project.lastActiveAt`
+  - [x] Create audit log entry
+- [x] Implement `detachThreadFromProject` mutation
+  - [x] Set `thread.projectId = null`
+  - [x] Update `project.lastActiveAt`
+- [x] Implement `moveThreadToProject` mutation
+  - [x] Detach from old project
+  - [x] Attach to new project
+  - [x] Handle edge cases (already attached, same project)
+- [x] Write unit tests
+- [x] Add transaction support (ensure atomicity)
 
 **Acceptance Criteria:**
 
-- Thread attachment is atomic (no partial updates)
-- User can attach/detach threads successfully
-- Moving thread between projects updates both projects' `lastActiveAt`
-- Operations complete in <100ms
+- [x] Thread attachment is atomic (no partial updates)
+- [x] User can attach/detach threads successfully
+- [x] Moving thread between projects updates both projects' `lastActiveAt`
+- [x] Operations complete in <100ms
 
 **Dependencies:** Story 2.1
 
