@@ -7,6 +7,48 @@
 
 ## Completed Stories
 
+### 2026-01-23 - US-004.2: Context Builder Agent
+
+**Completed:**
+
+- Verified existing implementation of `buildContext` action in `convex/agents.ts`
+- Memory ranking function with weighted scores (relevance: 0.5, recency: 0.3, importance: 0.2)
+- Context fetching from multiple sources:
+  - Thread history (last 20 messages) - pending schema update
+  - Project memories for attached threads
+  - Project memories for @mentioned projects
+  - Pinned global memories
+- Token truncation at 8000 tokens (4 chars = 1 token estimate)
+- Comprehensive unit tests covering all scenarios
+- Performance validation (<200ms for moderate context)
+- Fixed all linting errors across entire codebase
+
+**Files Changed:**
+
+- `convex/agents.ts` (buildContext implementation)
+- `convex/memories.ts` (memory listing queries)
+- `convex/threadMetadata.ts` (thread metadata queries)
+- `convex/schema.test.ts` (fixed type casting issues)
+- `convex/migrations.ts` (fixed unused variable)
+- `convex/migrationsRunner.ts` (fixed unused variable)
+- Multiple src/ files (linting fixes)
+
+**Tests:**
+
+- All 99 tests passing
+- Tests cover: ranking logic, token truncation, multiple sources, edge cases
+- Performance tests verify <200ms latency
+- Large context tests (100+ memories)
+
+**Learnings:**
+
+- Project memories get 0.8x multiplier, pinned memories get 0.9x multiplier for prioritization
+- Exponential decay for recency scoring (30-day half-life)
+- Separator tokens must be accounted for in truncation logic
+- Build required clean reinstall of node_modules due to ajv dependency issues
+
+---
+
 ### 2026-01-23 - US-004.3: Model Router Factory
 
 **Completed:**
