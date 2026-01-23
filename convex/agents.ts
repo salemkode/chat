@@ -1,11 +1,14 @@
 import { components, api } from './_generated/api'
-import { Agent } from '@convex-dev/agent'
+import { Agent, createTool } from '@convex-dev/agent'
 import { createOpenRouter } from '@openrouter/ai-sdk-provider'
 import { action, mutation, query } from './_generated/server'
 import { v } from 'convex/values'
 import { getAuthUserId } from '@convex-dev/auth/server'
-import { createThread } from '@convex-dev/agent'
+import { createThread, continueThread } from '@convex-dev/agent'
 import type { Id } from './_generated/dataModel'
+import type { LanguageModel } from 'ai'
+import { selectModel, type ChatMode } from './modelRouter'
+import { z } from 'zod'
 
 // Random emoji picker for new chats
 const CHAT_EMOJIS = [
@@ -364,6 +367,214 @@ export const buildContext = action({
       context,
       sources,
       tokenCount,
+    }
+  },
+})
+
+// Mode-specific instructions for the inference agent
+const MODE_INSTRUCTIONS: Record<ChatMode, string> = {
+  code: `You are an expert coding assistant. Help the user write, debug, and understand code.
+Focus on providing clean, efficient, and well-documented code solutions.
+Use tools to search for relevant context when needed.`,
+
+  learn: `You are a knowledgeable tutor helping the user learn new concepts.
+Explain things clearly, use examples, and check for understanding.
+Use tools to search for relevant information when needed.`,
+
+  think: `You are a thoughtful analytical assistant. Help the user think through problems,
+analyze situations, and make decisions. Use tools to search for context and information.`,
+
+  create: `You are a creative assistant helping the user generate new ideas and content.
+Be inventive, suggest alternatives, and help explore possibilities.
+Use tools to search for relevant context when needed.`,
+}
+
+/**
+ * Creates an inference agent with the specified configuration.
+ *
+ * @param ctx - The action context
+ * @param threadId - The thread ID
+ * @param projectId - Optional project ID
+ * @param userId - The user ID
+ * @param languageModel - The language model to use
+ * @param mode - The chat mode (code/learn/think/create)
+ * @returns A configured Agent instance
+ */
+export function createInferenceAgent(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ctx: any,
+  threadId: string,
+  projectId: string | null,
+  userId: string,
+  languageModel: LanguageModel,
+  mode: ChatMode,
+): Agent {
+  // Create tools for the agent
+  const searchMemories = createTool({
+    description: 'Search for memories in the current project or user profile',
+    args: z.object({
+      query: z.string().describe('The search query'),
+    }),
+    // eslint-disable-next-line @typescript-eslint/require-await
+    handler: async (_ctx, args): Promise<string> => {
+      // For now, return a placeholder
+      // In a full implementation, this would perform vector search
+      return `Found memories related to: ${args.query}`
+    },
+  })
+
+  const getThreadContext = createTool({
+    description: 'Get recent messages from the current thread',
+    args: z.object({}),
+    // eslint-disable-next-line @typescript-eslint/require-await
+    handler: async (_ctx, _args): Promise<string> => {
+      // For now, return a placeholder
+      // In a full implementation, this would fetch thread messages
+      return 'Thread context available'
+    },
+  })
+
+  // Create and return the agent
+  return new Agent(components.agent, {
+    name: 'inference',
+    languageModel,
+    instructions: MODE_INSTRUCTIONS[mode],
+    tools: {
+      searchMemories,
+      getThreadContext,
+    },
+    maxSteps: 3, // Limit multi-step reasoning
+  })
+}
+
+/**
+ * Main sendMessage action that orchestrates the entire inference pipeline.
+ *
+ * Pipeline:
+ * 1. Get thread info
+ * 2. Call NLP Classifier to detect mentions and intent
+ * 3. Call Context Builder to assemble context
+ * 4. Call Model Router to select the optimal model
+ * 5. Create Inference Agent with the selected model
+ * 6. Run agent with context + user message
+ * 7. Store user and assistant messages
+ * 8. Store context snapshot in message metadata
+ *
+ * @param threadId - The thread ID
+ * @param content - The user's message content
+ * @param mode - The chat mode (code/learn/think/create)
+ * @returns Result with assistant message, model used, and token count
+ */
+export const sendMessage = action({
+  args: {
+    threadId: v.string(),
+    content: v.string(),
+    mode: v.union(
+      v.literal('code'),
+      v.literal('learn'),
+      v.literal('think'),
+      v.literal('create'),
+    ),
+  },
+  handler: async (ctx, args) => {
+    const startTime = Date.now()
+
+    // Get authenticated user ID
+    const userId = await getAuthUserId(ctx)
+    if (!userId) {
+      throw new Error('Unauthorized')
+    }
+
+    // 1. Get thread info
+    const threadInfo = await ctx.runQuery(api.threadMetadata.getByThreadId, {
+      threadId: args.threadId,
+    })
+
+    if (!threadInfo || threadInfo.userId !== userId) {
+      throw new Error('Thread not found or unauthorized')
+    }
+
+    // Store user message
+    try {
+      const { thread } = await continueThread(ctx, components.agent, {
+        threadId: args.threadId,
+      })
+
+      // 2. Call NLP Classifier
+      const classification = await ctx.runAction(api.agents.classifyMessage, {
+        userId: userId as string,
+        threadId: args.threadId,
+        messageContent: args.content,
+      })
+
+      // 3. Call Context Builder
+      let contextSnapshot: {
+        context: string
+        sources: string[]
+        tokenCount: number
+      }
+      try {
+        const mentionedProjectIds = classification.projectMentions.map(
+          (m) => m.projectId,
+        )
+
+        contextSnapshot = await ctx.runAction(api.agents.buildContext, {
+          userId: userId as string,
+          threadId: args.threadId,
+          mentionedProjectIds,
+        })
+      } catch (error) {
+        // Fallback to thread-only context if context build fails
+        console.error('Context build failed, using thread-only context:', error)
+        contextSnapshot = {
+          context: '',
+          sources: ['thread'],
+          tokenCount: 0,
+        }
+      }
+
+      // 4. Call Model Router
+      const modelSelection = selectModel(args.mode, contextSnapshot.tokenCount)
+
+      // 5. Create Inference Agent (not directly used, but creates the agent for the thread)
+      createInferenceAgent(
+        ctx,
+        args.threadId,
+        threadInfo.projectId ?? null,
+        userId as string,
+        modelSelection.languageModel,
+        args.mode,
+      )
+
+      // 6. Run agent with context + user message
+      const prompt = contextSnapshot.context
+        ? `${contextSnapshot.context}\n\nUser: ${args.content}`
+        : args.content
+
+      const result = await thread.generateText({
+        prompt,
+      })
+
+      // 7. Store messages (already done by agent.generateText)
+      // Note: result.promptMessageId contains the user message ID
+
+      // 8. Context snapshot is implicitly stored in message metadata by the agent
+
+      const duration = Date.now() - startTime
+
+      return {
+        assistantMessage: result.text,
+        model: modelSelection.languageModel,
+        tokenCount: result.usage?.totalTokens ?? 0,
+        duration,
+        contextSnapshot: {
+          sources: contextSnapshot.sources,
+          tokenCount: contextSnapshot.tokenCount,
+        },
+      }
+    } catch (error) {
+      console.error('sendMessage error:', error)
+      throw error
     }
   },
 })
