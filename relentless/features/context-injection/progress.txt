@@ -156,6 +156,52 @@
 
 ---
 
+### 2026-01-23 - US-004.4: Main Inference Agent (Dynamic Agent)
+
+**Completed:**
+
+- Implemented `createInferenceAgent` factory function
+  - Accepts `ctx`, `threadId`, `projectId`, `userId`, `languageModel`, `mode`
+  - Defines mode-specific instructions for code/learn/think/create modes
+  - Creates tools: `searchMemories`, `getThreadContext`
+  - Returns new `Agent(components.agent, { ... })` instance
+  - Sets `maxSteps: 3` to limit multi-step reasoning
+- Implemented `sendMessage` action with full pipeline orchestration:
+  1. Get thread info and authenticate user
+  2. Call NLP Classifier to detect @mentions and intent
+  3. Call Context Builder to assemble ranked context
+  4. Call Model Router to select optimal AI model
+  5. Create Inference Agent with selected model
+  6. Run agent with context + user message
+  7. Store messages and context snapshot
+  8. Handle errors gracefully (fallback to thread-only context)
+- Added comprehensive unit tests (9 new tests)
+- All linting errors fixed
+- Verified AI SDK integration with OpenAI and Anthropic models
+
+**Files Changed:**
+
+- `convex/agents.ts` (added createInferenceAgent and sendMessage)
+- `convex/agents.test.ts` (added 9 new tests for Main Inference Agent)
+- `relentless/features/context-injection/` (feature artifacts created)
+
+**Tests:**
+
+- All 52 tests passing
+- Tests cover: createInferenceAgent for all modes, sendMessage structure
+- Agent creation tests verify correct initialization
+- Tool definitions tested (searchMemories, getThreadContext)
+
+**Learnings:**
+
+- Convex Dynamic Agents use AI SDK LanguageModel instances
+- Tools created with `createTool` from @convex-dev/agent
+- Error handling crucial for context build failures
+- `continueThread` used to get existing thread for message generation
+- Context snapshot metadata stored implicitly by agent
+
+---
+
 ## In Progress
 
 None yet.
@@ -167,7 +213,7 @@ None yet.
 1. ~~US-004.1: NLP Classifier Agent (3 days)~~ ✅ Done
 2. ~~US-004.2: Context Builder Agent (4 days)~~ ✅ Done
 3. ~~US-004.3: Model Router Factory (2 days)~~ ✅ Done
-4. US-004.4: Main Inference Agent (4 days)
+4. ~~US-004.4: Main Inference Agent (4 days)~~ ✅ Done
 5. US-008.1: UX State Agent (2 days)
 
 ---
@@ -182,4 +228,4 @@ None currently.
 
 - Feature split completed on 2026-01-23
 - All AI SDK packages installed and working
-- Ready to implement US-004.4: Main Inference Agent
+- **US-004.4 COMPLETED** - Main Inference Agent fully implemented with full pipeline orchestration
