@@ -37,6 +37,11 @@ export default defineConfig([
       ],
       // Require explicit table names in database operations
       '@convex-dev/explicit-table-ids': 'error',
+      // Allow unsafe operations in Convex files due to generated type limitations
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
     },
   },
 
@@ -76,6 +81,17 @@ export default defineConfig([
           jsx: true,
         },
       },
+    },
+  },
+
+  // Test files - allow some unsafe operations due to test utility limitations
+  {
+    files: ['**/*.test.ts', '**/*.test.tsx'],
+    rules: {
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
     },
   },
 ])
