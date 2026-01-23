@@ -40,7 +40,9 @@ function LandingPage() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <button
               type="button"
-              onClick={() => navigate({ to: '/login' })}
+              onClick={() => {
+                void navigate({ to: '/login' })
+              }}
               className="px-8 py-4 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-lg transition-all shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/40 flex items-center gap-2 group"
             >
               Get Started
@@ -132,7 +134,9 @@ function LandingPage() {
             </p>
             <button
               type="button"
-              onClick={() => navigate({ to: '/login' })}
+              onClick={() => {
+                void navigate({ to: '/login' })
+              }}
               className="relative z-10 px-8 py-4 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-lg transition-all shadow-lg hover:shadow-cyan-500/25"
             >
               Create free account

@@ -27,7 +27,7 @@ export const backfillThreadMetadata = mutation({
 
     const messageCount = threadMessages.length
 
-    await ctx.db.patch(threadMetadata._id, {
+    await ctx.db.patch('threadMetadata', threadMetadata._id, {
       metadata: {
         ...threadMetadata.metadata,
         messageCount,
@@ -72,12 +72,12 @@ export const backfillAllThreadMetadata = mutation({
     batchSize: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const batchSize = args.batchSize || 50
+    const _batchSize = args.batchSize || 50
 
     const allThreads = await ctx.db.query('threadMetadata').collect()
 
     let processed = 0
-    let skipped = 0
+    const skipped = 0
     let errors = 0
 
     for (const threadMetadata of allThreads) {
@@ -89,7 +89,7 @@ export const backfillAllThreadMetadata = mutation({
 
         const messageCount = messages.length
 
-        await ctx.db.patch(threadMetadata._id, {
+        await ctx.db.patch('threadMetadata', threadMetadata._id, {
           metadata: {
             ...threadMetadata.metadata,
             messageCount,

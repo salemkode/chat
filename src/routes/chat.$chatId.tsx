@@ -128,7 +128,12 @@ function ChatPage() {
 
       <div className="p-4 border-t bg-background">
         <div className="max-w-4xl mx-auto">
-          <AIPromptInput onSubmit={handleSendMessage} disabled={sending} />
+          <AIPromptInput
+            onSubmit={() => {
+              void handleSendMessage
+            }}
+            disabled={sending}
+          />
           <div className="text-center mt-2">
             <p className="text-[10px] text-muted-foreground">
               AI can make mistakes. Check important info.

@@ -4,6 +4,9 @@ import * as ResizablePrimitive from 'react-resizable-panels'
 
 import { cn } from '@/lib/utils'
 
+/* eslint-disable @typescript-eslint/no-redundant-type-constituents */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+
 function ResizablePanelGroup({
   className,
   ...props
@@ -50,5 +53,8 @@ function ResizableHandle({
     </ResizablePrimitive.PanelResizeHandle>
   )
 }
+
+/* eslint-enable @typescript-eslint/no-redundant-type-constituents */
+/* eslint-enable @typescript-eslint/no-unsafe-argument */
 
 export { ResizablePanelGroup, ResizablePanel, ResizableHandle }

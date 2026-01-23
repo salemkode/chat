@@ -34,7 +34,7 @@ function SignupPage() {
 
     try {
       await signIn('password', { flow: 'signUp', name, email, password })
-      navigate({ to: '/chat' })
+      void navigate({ to: '/chat' })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to create account.')
     } finally {
@@ -56,7 +56,7 @@ function SignupPage() {
         <div className="flex flex-1 items-center justify-center">
           <div className="w-full max-w-xs">
             <SignupForm
-              onSubmit={handleSubmit}
+              onSubmit={(e) => void handleSubmit(e)}
               errorMessage={error}
               isLoading={isLoading}
             />

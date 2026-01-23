@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { convexTest } from 'convex-test'
 import schema from './schema'
-import { api } from './_generated/api'
 import type { Id } from './_generated/dataModel'
 
 let userId: Id<'users'>
@@ -48,7 +47,7 @@ describe('Schema Validation: Projects Table', () => {
       t.run(async (ctx) => {
         await ctx.db.insert('projects', {
           userId,
-          name: 123 as any,
+          name: 123 as unknown as string,
           createdAt: Date.now(),
           lastActiveAt: Date.now(),
           metadata: {},
@@ -135,7 +134,7 @@ describe('Schema Validation: Threads Table (threadMetadata)', () => {
           emoji: '💬',
           userId,
           title: 'Test Thread',
-          mode: 'invalid' as any,
+          mode: 'invalid' as unknown as 'code',
           createdAt: Date.now(),
           lastActiveAt: Date.now(),
           metadata: {
@@ -198,7 +197,7 @@ describe('Schema Validation: Memories Table', () => {
     expect(memoryId).toBeDefined()
 
     const memory = await t.run(async (ctx) => {
-      return await ctx.db.get(memoryId)
+      return await ctx.db.get('memories', memoryId)
     })
 
     expect(memory?.embedding).toBeDefined()
@@ -212,7 +211,7 @@ describe('Schema Validation: Memories Table', () => {
       t.run(async (ctx) => {
         await ctx.db.insert('memories', {
           userId,
-          scope: 'invalid' as any,
+          scope: 'invalid' as unknown as 'project',
           scopeId: 'test-id',
           content: 'Test memory',
           embedding: new Array(1536).fill(0.1),
@@ -274,7 +273,7 @@ describe('Schema Validation: ProjectMentions Table', () => {
   it('should define projectMentions table with required fields', async () => {
     const t = convexTest(schema)
 
-    const threadId = await t.run(async (ctx) => {
+    const _threadId = await t.run(async (ctx) => {
       return await ctx.db.insert('threadMetadata', {
         threadId: 'thread-123',
         emoji: '💬',
@@ -324,7 +323,7 @@ describe('Schema Validation: ProjectMentions Table', () => {
           projectId,
           messageId: 'msg-123',
           mentionedAt: Date.now(),
-          attachmentOffered: 'true' as any,
+          attachmentOffered: 'true' as unknown as boolean,
           attachmentAccepted: undefined,
         })
       }),
@@ -368,19 +367,18 @@ describe('Schema Validation: Indexes', () => {
   it('should create by_user index on projects table', async () => {
     const t = convexTest(schema)
 
-    const projects = await t.run(async (ctx) => {
-      const ids = []
+    await t.run(async (ctx) => {
+      const _projects = []
       for (let i = 0; i < 5; i++) {
-        const id = await ctx.db.insert('projects', {
+        await ctx.db.insert('projects', {
           userId,
           name: `Project ${i}`,
           createdAt: Date.now() + i * 1000,
           lastActiveAt: Date.now() + i * 1000,
           metadata: {},
         })
-        ids.push(id)
+        _projects.push(i)
       }
-      return ids
     })
 
     const retrievedProjects = await t.run(async (ctx) => {
@@ -473,7 +471,7 @@ describe('Schema Type Checking', () => {
     expect(projectId).toBeDefined()
 
     const project = await t.run(async (ctx) => {
-      return await ctx.db.get(projectId)
+      return await ctx.db.get('projects', projectId)
     })
 
     expect(project).toBeDefined()

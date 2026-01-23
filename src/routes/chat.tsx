@@ -15,7 +15,7 @@ function NewChatPage() {
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      navigate({ to: '/login' })
+      void navigate({ to: '/login' })
     }
   }, [isLoading, isAuthenticated, navigate])
 

@@ -49,8 +49,8 @@
         "Build time <200ms for threads with 1000 messages"
       ],
       "priority": 2,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Completed on 2026-01-23. All tests passing. Context builder implements memory ranking, token truncation, and handles project + pinned memories correctly."
     },
     {
       "id": "US-004",

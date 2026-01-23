@@ -33,7 +33,7 @@ function AdminPage() {
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      navigate({ to: '/login' })
+      void navigate({ to: '/login' })
     }
   }, [authLoading, isAuthenticated, navigate])
 
@@ -54,7 +54,12 @@ function AdminPage() {
         <p className="text-muted-foreground">
           You do not have admin privileges.
         </p>
-        <Button onClick={() => navigate({ to: '/chat' })} variant="outline">
+        <Button
+          onClick={() => {
+            void navigate({ to: '/chat' })
+          }}
+          variant="outline"
+        >
           <ArrowLeft className="mr-2 h-4 w-4" /> Back to Chat
         </Button>
       </div>
@@ -104,17 +109,30 @@ function AdminPage() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => navigate({ to: '/chat' })}
+              onClick={() => {
+                void navigate({ to: '/chat' })
+              }}
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <h1 className="text-xl font-bold">Admin Dashboard</h1>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={handleSeed}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                void handleSeed()
+              }}
+            >
               Seed Default Models
             </Button>
-            <Button size="sm" onClick={() => setShowAddForm(true)}>
+            <Button
+              size="sm"
+              onClick={() => {
+                setShowAddForm(true)
+              }}
+            >
               <Plus className="h-4 w-4 mr-1" /> Add Model
             </Button>
           </div>
@@ -126,7 +144,12 @@ function AdminPage() {
         {showAddForm && (
           <div className="mb-8 p-6 border rounded-xl">
             <h2 className="text-lg font-semibold mb-4">Add New Model</h2>
-            <form onSubmit={handleAddModel} className="space-y-4">
+            <form
+              onSubmit={(e) => {
+                void handleAddModel(e)
+              }}
+              className="space-y-4"
+            >
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="modelId">Model ID (OpenRouter format)</Label>
@@ -217,9 +240,9 @@ function AdminPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() =>
-                        handleToggleEnabled(model._id, model.isEnabled)
-                      }
+                      onClick={() => {
+                        void handleToggleEnabled(model._id, model.isEnabled)
+                      }}
                       className={
                         model.isEnabled
                           ? 'text-foreground'
@@ -236,7 +259,9 @@ function AdminPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleDelete(model._id)}
+                      onClick={() => {
+                        void handleDelete(model._id)
+                      }}
                       className="text-destructive hover:text-destructive hover:bg-destructive/10"
                     >
                       <Trash2 className="h-4 w-4" />

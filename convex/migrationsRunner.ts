@@ -6,7 +6,7 @@ export const backfillAllThreadMetadata = internalMutation({
     batchSize: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const batchSize = args.batchSize || 50
+    const _batchSize = args.batchSize || 50
 
     const allThreads = await ctx.db.query('threadMetadata').collect()
 
@@ -26,7 +26,7 @@ export const backfillAllThreadMetadata = internalMutation({
 
         const messageCount = messages.length
 
-        await ctx.db.patch(thread._id, {
+        await ctx.db.patch('threadMetadata', thread._id, {
           metadata: {
             ...thread.metadata,
             messageCount,

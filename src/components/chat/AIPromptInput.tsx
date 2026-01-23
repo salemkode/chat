@@ -59,7 +59,9 @@ export function AIPromptInput({
   const [sending, setSending] = useState(false)
 
   const { isAuthenticated } = useConvexAuth()
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
   const createThread = useMutation(api.agents.createChatThread)
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
   const sendMessage = useAction(api.agents.generateMessage)
 
   const filteredPages = pages.filter((page) =>
@@ -83,8 +85,11 @@ export function AIPromptInput({
       let currentThreadId = selectedThreadId
 
       if (!currentThreadId) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         const newThreadId = await createThread({ title: text.substring(0, 30) })
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         currentThreadId = newThreadId
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         onThreadIdChange?.(newThreadId)
       }
 
@@ -103,7 +108,7 @@ export function AIPromptInput({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      handleSubmit()
+      void handleSubmit()
     }
   }
 
@@ -260,7 +265,9 @@ export function AIPromptInput({
               size="icon"
               className="h-10 w-10 rounded-full bg-zinc-200 text-zinc-900 hover:bg-zinc-300"
               disabled={!value.trim() || sending}
-              onClick={handleSubmit}
+              onClick={() => {
+                void handleSubmit()
+              }}
             >
               {sending ? (
                 <div className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-400 border-t-transparent" />

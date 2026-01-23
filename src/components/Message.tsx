@@ -1,11 +1,12 @@
 import { useSmoothText } from '@convex-dev/agent/react'
-import { Clock, Calendar, Copy, Check, Brain } from 'lucide-react'
+import { Clock, Calendar, Copy, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import React from 'react'
 import { FunctionReturnType } from 'convex/server'
 import { api } from 'convex/_generated/api'
+import type { CodeProps } from 'react-markdown/lib/ast-to-react'
 
 interface MessageProps {
   message: FunctionReturnType<typeof api.chat.listMessages>['page'][number]
@@ -92,7 +93,7 @@ export function Message({ message }: MessageProps) {
                   </ol>
                 ),
                 li: ({ children }) => <li>{children}</li>,
-                code: ({ inline, children, ...props }: any) =>
+                code: ({ inline, children, ...props }: CodeProps) =>
                   inline ? (
                     <code
                       className="rounded bg-muted px-1.5 py-0.5 text-sm font-mono text-foreground"
@@ -166,7 +167,9 @@ export function Message({ message }: MessageProps) {
             variant="ghost"
             size="sm"
             className="h-8 px-2 text-muted-foreground hover:text-foreground"
-            onClick={handleCopy}
+            onClick={() => {
+              void handleCopy()
+            }}
           >
             {copied ? (
               <Check className="h-4 w-4" />

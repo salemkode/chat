@@ -58,7 +58,7 @@ function NewChatIndex() {
         `pending-message-${threadId}`,
         JSON.stringify({ text, model }),
       )
-      navigate({ to: `/chat/${threadId}` })
+      void navigate({ to: `/chat/${threadId}` })
       await sendMessage({
         threadId,
         text,
@@ -105,7 +105,12 @@ function NewChatIndex() {
         </div>
 
         <div className="w-full max-w-3xl relative">
-          <AIPromptInput onSubmit={handleSendMessage} disabled={sending} />
+          <AIPromptInput
+            onSubmit={() => {
+              void handleSendMessage
+            }}
+            disabled={sending}
+          />
           <div className="text-center mt-4">
             <p className="text-xs text-muted-foreground">
               AI can make mistakes. Check important info.

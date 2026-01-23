@@ -26,7 +26,7 @@ function LoginPage() {
 
     try {
       await signIn('password', { email, password, flow: 'signIn' })
-      navigate({ to: '/chat' })
+      void navigate({ to: '/chat' })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to sign in.')
     } finally {
@@ -48,7 +48,7 @@ function LoginPage() {
         <div className="flex flex-1 items-center justify-center">
           <div className="w-full max-w-xs">
             <LoginForm
-              onSubmit={handleSubmit}
+              onSubmit={(e) => void handleSubmit(e)}
               errorMessage={error}
               isLoading={isLoading}
             />
