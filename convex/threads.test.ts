@@ -256,7 +256,9 @@ describe('Thread Attachment API', () => {
 
       // Update project lastActiveAt to be in the past
       await t.run(async (ctx) => {
-        await ctx.db.patch('projects', projectId, { lastActiveAt: projectLastActive })
+        await ctx.db.patch('projects', projectId, {
+          lastActiveAt: projectLastActive,
+        })
       })
 
       const threadMetaId = await t.run(async (ctx) => {
@@ -305,7 +307,9 @@ describe('Thread Attachment API', () => {
           .collect()
       })) as Array<{ action: string }>
 
-      expect(auditLogs.some((log) => log.action === 'detach_thread_from_project')).toBe(true)
+      expect(
+        auditLogs.some((log) => log.action === 'detach_thread_from_project'),
+      ).toBe(true)
     })
 
     it('should reject if thread not found', async () => {
@@ -458,7 +462,9 @@ describe('Thread Attachment API', () => {
           .collect()
       })) as Array<{ action: string }>
 
-      expect(auditLogs.some((log) => log.action === 'move_thread_to_project')).toBe(true)
+      expect(
+        auditLogs.some((log) => log.action === 'move_thread_to_project'),
+      ).toBe(true)
     })
 
     it('should handle same project (already attached)', async () => {
@@ -580,6 +586,134 @@ describe('Thread Attachment API', () => {
 
       expect(result.success).toBe(false)
       expect(result.error).toContain('Project not found')
+    })
+  })
+
+  describe('createThreadInProject', () => {
+    it('should create thread in project with projectId set and update project lastActiveAt', async () => {
+      const threadId = 'thread-create-in-project-1'
+
+      const projectLastActive = Date.now() - 86400000
+
+      await t.run(async (ctx) => {
+        await ctx.db.patch('projects', projectId, {
+          lastActiveAt: projectLastActive,
+        })
+      })
+
+      const result = (await t
+        .withIdentity({ subject: userId })
+        .mutation(api.threads.createThreadInProject, {
+          threadId,
+          projectId,
+        })) as {
+        success: boolean
+        threadId: string
+        projectId: Id<'projects'>
+        title: string
+      }
+
+      expect(result.success).toBe(true)
+      expect(result.threadId).toBe(threadId)
+      expect(result.projectId).toBe(projectId)
+      expect(result.title).toBe('New conversation')
+
+      const thread = (await t.run(async (ctx) => {
+        return await ctx.db
+          .query('threadMetadata')
+          .withIndex('by_threadId', (q) => q.eq('threadId', threadId))
+          .first()
+      })) as { projectId: Id<'projects'>; title: string; userId: Id<'users'> }
+
+      expect(thread).toBeDefined()
+      expect(thread.projectId).toBe(projectId)
+      expect(thread.title).toBe('New conversation')
+      expect(thread.userId).toBe(userId)
+
+      const project = (await t.run(async (ctx) => {
+        return (await ctx.db.get('projects', projectId))!
+      })) as { lastActiveAt: number }
+
+      expect(project.lastActiveAt).toBeGreaterThan(projectLastActive)
+    })
+
+    it('should reject if project not found', async () => {
+      const threadId = 'thread-no-project-2'
+
+      const fakeProjectId = (await t.run(async (ctx) => {
+        const id = await ctx.db.insert('projects', {
+          userId,
+          name: 'Temp Project 3',
+          createdAt: 0,
+          lastActiveAt: 0,
+          metadata: {},
+        })
+        await ctx.db.delete('projects', id)
+        return id
+      })) as Id<'projects'>
+
+      const result = (await t
+        .withIdentity({ subject: userId })
+        .mutation(api.threads.createThreadInProject, {
+          threadId,
+          projectId: fakeProjectId,
+        })) as { success: boolean; error: string }
+
+      expect(result.success).toBe(false)
+      expect(result.error).toContain('Project not found')
+    })
+
+    it('should reject if user does not own project', async () => {
+      const threadId = 'thread-unauthorized-project'
+
+      const otherUserId = (await t.run(async (ctx) => {
+        const user = await ctx.db.insert('users', {
+          name: 'Other User',
+          email: 'other2@example.com',
+          emailVerificationTime: 0,
+          isAnonymous: false,
+        })
+        return user
+      })) as Id<'users'>
+
+      const otherProjectId = (await t.run(async (ctx) => {
+        const id = await ctx.db.insert('projects', {
+          userId: otherUserId,
+          name: 'Other Project 2',
+          createdAt: Date.now(),
+          lastActiveAt: Date.now(),
+          metadata: {
+            description: undefined,
+            icon: undefined,
+            color: undefined,
+          },
+        })
+        return id
+      })) as Id<'projects'>
+
+      const result = (await t
+        .withIdentity({ subject: userId })
+        .mutation(api.threads.createThreadInProject, {
+          threadId,
+          projectId: otherProjectId,
+        })) as { success: boolean; error: string }
+
+      expect(result.success).toBe(false)
+      expect(result.error).toContain('Unauthorized')
+    })
+
+    it('should generate human-readable title "New conversation"', async () => {
+      const threadId = 'thread-title-check-1'
+
+      const result = (await t
+        .withIdentity({ subject: userId })
+        .mutation(api.threads.createThreadInProject, {
+          threadId,
+          projectId,
+        })) as { success: boolean; title: string }
+
+      expect(result.success).toBe(true)
+      expect(result.title).toBe('New conversation')
     })
   })
 })

@@ -10,7 +10,7 @@ export const updateLastActiveAt = mutation({
     const userId = await getAuthUserId(ctx)
     if (!userId) throw new Error('Unauthorized')
 
-    const project = await ctx.db.get("projects", args.projectId)
+    const project = await ctx.db.get('projects', args.projectId)
 
     if (!project) {
       return {
@@ -26,7 +26,7 @@ export const updateLastActiveAt = mutation({
       }
     }
 
-    await ctx.db.patch("projects", args.projectId, {
+    await ctx.db.patch('projects', args.projectId, {
       lastActiveAt: Date.now(),
     })
 
@@ -64,7 +64,7 @@ export const attachThreadToProject = mutation({
       }
     }
 
-    const project = await ctx.db.get("projects", args.projectId)
+    const project = await ctx.db.get('projects', args.projectId)
 
     if (!project) {
       return {
@@ -90,11 +90,11 @@ export const attachThreadToProject = mutation({
       }
     }
 
-    await ctx.db.patch("threadMetadata", thread._id, {
+    await ctx.db.patch('threadMetadata', thread._id, {
       projectId: args.projectId,
     })
 
-    await ctx.db.patch("projects", args.projectId, {
+    await ctx.db.patch('projects', args.projectId, {
       lastActiveAt: now,
     })
 
@@ -152,11 +152,11 @@ export const detachThreadFromProject = mutation({
 
     const now = Date.now()
 
-    await ctx.db.patch("threadMetadata", thread._id, {
+    await ctx.db.patch('threadMetadata', thread._id, {
       projectId: undefined,
     })
 
-    await ctx.db.patch("projects", oldProjectId, {
+    await ctx.db.patch('projects', oldProjectId, {
       lastActiveAt: now,
     })
 
@@ -218,7 +218,7 @@ export const moveThreadToProject = mutation({
 
     const now = Date.now()
 
-    const newProject = await ctx.db.get("projects", newProjectId)
+    const newProject = await ctx.db.get('projects', newProjectId)
 
     if (!newProject) {
       return {
@@ -234,16 +234,16 @@ export const moveThreadToProject = mutation({
       }
     }
 
-    await ctx.db.patch("threadMetadata", thread._id, {
+    await ctx.db.patch('threadMetadata', thread._id, {
       projectId: newProjectId,
     })
 
-    await ctx.db.patch("projects", newProjectId, {
+    await ctx.db.patch('projects', newProjectId, {
       lastActiveAt: now,
     })
 
     if (oldProjectId) {
-      await ctx.db.patch("projects", oldProjectId, {
+      await ctx.db.patch('projects', oldProjectId, {
         lastActiveAt: now,
       })
     }
@@ -262,6 +262,61 @@ export const moveThreadToProject = mutation({
       threadId: args.threadId,
       oldProjectId,
       newProjectId,
+    }
+  },
+})
+
+export const createThreadInProject = mutation({
+  args: {
+    threadId: v.string(),
+    projectId: v.id('projects'),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId) throw new Error('Unauthorized')
+
+    const project = await ctx.db.get('projects', args.projectId)
+
+    if (!project) {
+      return {
+        success: false,
+        error: 'Project not found',
+      }
+    }
+
+    if (project.userId !== userId) {
+      return {
+        success: false,
+        error: 'Unauthorized',
+      }
+    }
+
+    const now = Date.now()
+
+    await ctx.db.insert('threadMetadata', {
+      userId,
+      threadId: args.threadId,
+      emoji: '💬',
+      title: 'New conversation',
+      mode: 'think',
+      createdAt: now,
+      lastActiveAt: now,
+      projectId: args.projectId,
+      metadata: {
+        messageCount: 0,
+        isPinned: false,
+      },
+    })
+
+    await ctx.db.patch('projects', args.projectId, {
+      lastActiveAt: now,
+    })
+
+    return {
+      success: true,
+      threadId: args.threadId,
+      projectId: args.projectId,
+      title: 'New conversation',
     }
   },
 })
