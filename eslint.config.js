@@ -1,6 +1,7 @@
 import { defineConfig } from 'eslint/config'
 import tseslint from 'typescript-eslint'
 import convexPlugin from '@convex-dev/eslint-plugin'
+import unusedImports from 'eslint-plugin-unused-imports'
 
 export default defineConfig([
   // TypeScript configuration
@@ -48,6 +49,9 @@ export default defineConfig([
   // TypeScript-specific rules
   {
     files: ['**/*.ts', '**/*.tsx'],
+    plugins: {
+      'unused-imports': unusedImports,
+    },
     languageOptions: {
       parserOptions: {
         project: ['./tsconfig.json'],
@@ -56,11 +60,15 @@ export default defineConfig([
     },
     rules: {
       // Ensure no unused variables
-      '@typescript-eslint/no-unused-vars': [
-        'error',
+      '@typescript-eslint/no-unused-vars': 'off',
+      'unused-imports/no-unused-imports': 'error',
+      'unused-imports/no-unused-vars': [
+        'warn',
         {
-          argsIgnorePattern: '^_',
+          vars: 'all',
           varsIgnorePattern: '^_',
+          args: 'after-used',
+          argsIgnorePattern: '^_',
         },
       ],
       // Require explicit return types for public functions

@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
 import { useQuery, useMutation, useConvexAuth } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { useState, useEffect } from 'react'
@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Trash2, Plus, ArrowLeft, Loader2, Check, X } from 'lucide-react'
+import { Trash2, Plus, ArrowLeft, Loader2, Check, X, Key } from 'lucide-react'
 import { Id } from '../../convex/_generated/dataModel'
 
 export const Route = createFileRoute('/admin')({
@@ -22,7 +22,7 @@ function AdminPage() {
   const addModel = useMutation(api.admin.addModel)
   const updateModel = useMutation(api.admin.updateModel)
   const deleteModel = useMutation(api.admin.deleteModel)
-  const seedModels = useMutation(api.admin.seedModels)
+  const seedProvidersAndModels = useMutation(api.admin.seedProvidersAndModels)
 
   const [newModel, setNewModel] = useState({
     modelId: '',
@@ -82,6 +82,11 @@ function AdminPage() {
     setShowAddForm(false)
   }
 
+  const handleSeedProvidersAndModels = async () => {
+    const result = await seedProvidersAndModels({})
+    alert(result)
+  }
+
   const handleToggleEnabled = async (
     id: Id<'models'>,
     currentState: boolean,
@@ -93,11 +98,6 @@ function AdminPage() {
     if (confirm('Are you sure you want to delete this model?')) {
       await deleteModel({ id })
     }
-  }
-
-  const handleSeed = async () => {
-    const result = await seedModels()
-    alert(result)
   }
 
   return (
@@ -118,14 +118,20 @@ function AdminPage() {
             <h1 className="text-xl font-bold">Admin Dashboard</h1>
           </div>
           <div className="flex gap-2">
+            <Link to="/admin/providers">
+              <Button variant="outline" size="sm">
+                <Key className="h-4 w-4 mr-2" />
+                Manage Providers
+              </Button>
+            </Link>
             <Button
               variant="outline"
               size="sm"
               onClick={() => {
-                void handleSeed()
+                void handleSeedProvidersAndModels()
               }}
             >
-              Seed Default Models
+              Seed Providers & Models
             </Button>
             <Button
               size="sm"

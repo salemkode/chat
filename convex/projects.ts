@@ -262,3 +262,33 @@ export const getByName = query({
     return projects.find((p) => p.name === args.name) || null
   },
 })
+
+/**
+ * Get a project by ID
+ */
+export const get = query({
+  args: {
+    id: v.id('projects'),
+  },
+  handler: async (ctx, args) => {
+    const project = await ctx.db.get('projects', args.id)
+    return project
+  },
+})
+
+/**
+ * List projects by user with pagination options
+ */
+export const listByUser = query({
+  args: {
+    userId: v.id('users'),
+  },
+  handler: async (ctx, args) => {
+    const projects = await ctx.db
+      .query('projects')
+      .withIndex('by_user', (q) => q.eq('userId', args.userId))
+      .collect()
+
+    return projects
+  },
+})

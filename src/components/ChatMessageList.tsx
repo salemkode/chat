@@ -6,11 +6,12 @@ import { Message } from './Message'
 
 interface ChatMessageListProps {
   messages: FunctionReturnType<typeof api.chat.listMessages>['page']
+  optimisticMessages?: string[]
   isLoading?: boolean
   className?: string
 }
 
-export function ChatMessageList({ messages, className }: ChatMessageListProps) {
+export function ChatMessageList({ messages, optimisticMessages = [], className }: ChatMessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [_copiedId, _setCopiedId] = useState<string | null>(null)
 
@@ -72,6 +73,22 @@ export function ChatMessageList({ messages, className }: ChatMessageListProps) {
     >
       {messages.map((msg) => (
         <Message key={msg.id} message={msg} />
+      ))}
+      {/* Show optimistic messages */}
+      {optimisticMessages.map((text, idx) => (
+        <div
+          key={`optimistic-${idx}`}
+          className="flex gap-3 justify-end opacity-70"
+        >
+          <div className="flex flex-col items-end gap-1 max-w-[80%]">
+            <div className="rounded-2xl bg-primary px-4 py-2.5">
+              <p className="text-sm whitespace-pre-wrap text-primary-foreground">
+                {text}
+              </p>
+            </div>
+            <span className="text-xs text-muted-foreground">Sending...</span>
+          </div>
+        </div>
       ))}
       <div ref={messagesEndRef} />
     </div>

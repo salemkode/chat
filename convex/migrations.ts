@@ -123,3 +123,27 @@ export const listThreadsWithoutCounts = query({
     return threads.filter((t) => t.metadata.messageCount === 0)
   },
 })
+
+// Temporary migration - delete broken threadMetadata documents without createdAt
+export const deleteBrokenThreadMetadata = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const docs = await ctx.db.query('threadMetadata').collect()
+    let deleted = 0
+    const deletedIds: string[] = []
+
+    for (const doc of docs) {
+      // Check if createdAt is missing
+      if (!doc.createdAt) {
+        await ctx.db.delete("threadMetadata", doc._id)
+        deleted++
+        deletedIds.push(doc._id)
+      }
+    }
+
+    return {
+      deleted,
+      deletedIds,
+    }
+  },
+})

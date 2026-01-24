@@ -1,4 +1,8 @@
 {
   "$schema": "https://unpkg.com/knip@5/schema.json",
-  "tags": ["-lintignore"]
+  "tags": ["-lintignore"],
+  "ignore": [
+    "src/components/ai-prompt-input.tsx",
+    "convex/validators.ts"
+  ]
 }

@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useQuery } from 'convex/react'
+import { api } from '../../../convex/_generated/api'
 import {
   AtSign,
   Paperclip,
@@ -24,6 +26,19 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
+type Model = {
+  _id: string
+  modelId: string
+  displayName: string
+  isEnabled: boolean
+  isFree: boolean
+  sortOrder: number
+  provider?: {
+    name: string
+    providerType: string
+  }
+}
+
 const pages = [
   { icon: '📋', label: 'Meeting Notes' },
   { icon: '📊', label: 'Project Dashboard' },
@@ -36,10 +51,8 @@ const pages = [
   { icon: '🔧', label: 'Technical Specs' },
 ]
 
-type AgentMode = 'auto' | 'agent' | 'plan'
-
 interface AIPromptInputProps {
-  onSubmit?: (value: string) => void
+  onSubmit?: (value: string, model?: string) => void
   disabled?: boolean
 }
 
@@ -48,23 +61,35 @@ export function AIPromptInput({
   disabled = false,
 }: AIPromptInputProps) {
   const [value, setValue] = useState('')
-  const [agentMode, setAgentMode] = useState<AgentMode>('auto')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedPage, setSelectedPage] = useState<string | null>(null)
+  const [selectedModel, setSelectedModel] = useState<string>('')
+  const [modelSearchQuery, setModelSearchQuery] = useState('')
+
+  // Fetch enabled models from Convex
+  const models = useQuery(api.admin.listEnabledModels) ?? []
 
   const filteredPages = pages.filter((page) =>
     page.label.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
-  const agentModeLabel = {
-    auto: 'Auto',
-    agent: 'Agent Mode',
-    plan: 'Plan Mode',
-  }
+  // Filter models based on search query
+  const filteredModels = models.filter((model) =>
+    model.displayName.toLowerCase().includes(modelSearchQuery.toLowerCase()) ||
+    model.modelId.toLowerCase().includes(modelSearchQuery.toLowerCase()),
+  )
+
+  // Set default model (first free model or first model)
+  useEffect(() => {
+    if (models.length > 0 && !selectedModel) {
+      const freeModel = models.find((m) => m.isFree)
+      setSelectedModel((freeModel || models[0]).modelId)
+    }
+  }, [models, selectedModel])
 
   const handleSubmit = () => {
     if (value.trim() && onSubmit) {
-      onSubmit(value)
+      onSubmit(value, selectedModel)
       setValue('')
     }
   }
@@ -169,48 +194,62 @@ export function AIPromptInput({
                     size="sm"
                     className="h-9 gap-1 rounded-full px-3 text-muted-foreground hover:bg-secondary hover:text-foreground"
                   >
-                    {agentModeLabel[agentMode]}
+                    {models.find((m) => m.modelId === selectedModel)?.displayName || 'Select Model'}
                     <ChevronDown className="h-3 w-3" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent
-                  className="w-52 rounded-xl border-input bg-card p-2"
+                  className="w-72 rounded-xl border-input bg-card p-2"
                   align="start"
                   sideOffset={8}
                 >
-                  <p className="mb-2 px-2 text-sm text-muted-foreground">
-                    Select Agent Mode
-                  </p>
-                  <div className="space-y-1">
-                    <button
-                      type="button"
-                      onClick={() => setAgentMode('auto')}
-                      className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-sm text-foreground transition-colors hover:bg-accent"
-                    >
-                      Auto
-                      {agentMode === 'auto' && <Check className="h-4 w-4" />}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setAgentMode('agent')}
-                      className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-sm text-foreground transition-colors hover:bg-accent"
-                    >
-                      <span className="flex items-center gap-2">
-                        Agent Mode
-                        <Badge className="bg-primary px-1.5 py-0 text-[10px] font-medium text-primary-foreground hover:bg-primary">
-                          Beta
-                        </Badge>
-                      </span>
-                      {agentMode === 'agent' && <Check className="h-4 w-4" />}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setAgentMode('plan')}
-                      className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-sm text-foreground transition-colors hover:bg-accent"
-                    >
-                      Plan Mode
-                      {agentMode === 'plan' && <Check className="h-4 w-4" />}
-                    </button>
+                  {/* Search input */}
+                  <div className="flex items-center gap-2 border-b border-input px-3 py-2">
+                    <Search className="h-4 w-4 text-muted-foreground" />
+                    <Input
+                      value={modelSearchQuery}
+                      onChange={(e) => setModelSearchQuery(e.target.value)}
+                      placeholder="Search models..."
+                      className="h-8 border-0 bg-transparent p-0 px-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:ring-0"
+                    />
+                  </div>
+                  {/* Models list */}
+                  <div className="max-h-64 overflow-y-auto p-2">
+                    {filteredModels.length === 0 ? (
+                      <p className="px-2 py-4 text-sm text-muted-foreground text-center">
+                        {modelSearchQuery ? 'No models found' : 'No enabled models'}
+                      </p>
+                    ) : (
+                      filteredModels.map((model) => (
+                        <button
+                          type="button"
+                          key={model._id}
+                          onClick={() => {
+                            setSelectedModel(model.modelId)
+                            setModelSearchQuery('')
+                          }}
+                          className={cn(
+                            'flex w-full items-center justify-between rounded-lg px-2 py-2 text-sm text-foreground transition-colors hover:bg-accent',
+                            selectedModel === model.modelId && 'bg-accent',
+                          )}
+                        >
+                          <div className="flex flex-col items-start gap-1">
+                            <span className="font-medium">{model.displayName}</span>
+                            {model.provider && (
+                              <span className="text-xs text-muted-foreground">{model.provider.name}</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {model.isFree && (
+                              <Badge className="bg-green-600 px-1.5 py-0 text-[10px] font-medium text-white hover:bg-green-600">
+                                Free
+                              </Badge>
+                            )}
+                            {selectedModel === model.modelId && <Check className="h-4 w-4" />}
+                          </div>
+                        </button>
+                      ))
+                    )}
                   </div>
                 </PopoverContent>
               </Popover>

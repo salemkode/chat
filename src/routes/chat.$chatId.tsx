@@ -49,6 +49,7 @@ function ChatPage() {
 
   const sendMessage = useAction(api.agents.generateMessage)
   const [sending, setSending] = useState(false)
+  const [optimisticMessages, setOptimisticMessages] = useState<string[]>([])
 
   const { results: messages } = useUIMessages(
     api.chat.listMessages,
@@ -66,14 +67,20 @@ function ChatPage() {
 
     setSending(true)
 
+    // Add optimistic message immediately
+    setOptimisticMessages([...optimisticMessages, text])
+
     try {
       await sendMessage({
         threadId: chatId,
         text,
         model,
       })
+      // Message sent successfully, will be removed from optimistic when real message appears
     } catch (error) {
       console.error('Failed to send message:', error)
+      // Remove from optimistic on error
+      setOptimisticMessages(optimisticMessages.filter((msg) => msg !== text))
       setSending(false)
     }
   }
@@ -83,6 +90,8 @@ function ChatPage() {
       const lastMessage = messages[messages.length - 1]
       if (lastMessage && lastMessage.role === 'assistant') {
         setSending(false)
+        // Clear optimistic messages since we got a real response
+        setOptimisticMessages([])
       }
     }
   }, [messages, sending])
@@ -124,13 +133,13 @@ function ChatPage() {
 
       <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--border)_1px,transparent_1px),linear-gradient(to_bottom,var(--border)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-[0.05] pointer-events-none" />
 
-      <ChatMessageList messages={messages || []} />
+      <ChatMessageList messages={messages || []} optimisticMessages={optimisticMessages} />
 
       <div className="p-4 border-t bg-background">
         <div className="max-w-4xl mx-auto">
           <AIPromptInput
-            onSubmit={() => {
-              void handleSendMessage
+            onSubmit={(text) => {
+              void handleSendMessage(text)
             }}
             disabled={sending}
           />

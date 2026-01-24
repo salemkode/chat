@@ -53,13 +53,13 @@ export function selectModel(
       if (hasLongContext) {
         // Use Claude for long context even in code mode
         return {
-          languageModel: anthropic('claude-3-opus-20240229'),
+          languageModel: anthropic('claude-3-opus-20240229') as unknown as LanguageModel,
           maxTokens: 8000,
           temperature: 0.2,
         }
       }
       return {
-        languageModel: openai.chat('gpt-4-turbo'),
+        languageModel: openai.chat('gpt-4-turbo') as unknown as LanguageModel,
         maxTokens: 8000,
         temperature: 0.2,
       }
@@ -68,13 +68,13 @@ export function selectModel(
       // Learn mode: GPT-4 Turbo with medium temperature
       if (hasLongContext) {
         return {
-          languageModel: anthropic('claude-3-opus-20240229'),
+          languageModel: anthropic('claude-3-opus-20240229') as unknown as LanguageModel,
           maxTokens: 4000,
           temperature: 0.5,
         }
       }
       return {
-        languageModel: openai.chat('gpt-4-turbo'),
+        languageModel: openai.chat('gpt-4-turbo') as unknown as LanguageModel,
         maxTokens: 4000,
         temperature: 0.5,
       }
@@ -83,7 +83,7 @@ export function selectModel(
       // Think mode: Claude 3 Opus with higher temperature for reasoning
       // Always use Claude for think mode, regardless of context length
       return {
-        languageModel: anthropic('claude-3-opus-20240229'),
+        languageModel: anthropic('claude-3-opus-20240229') as unknown as LanguageModel,
         maxTokens: 4000,
         temperature: 0.8,
       }
@@ -92,13 +92,13 @@ export function selectModel(
       // Create mode: GPT-4 Turbo with high temperature for creativity
       if (hasLongContext) {
         return {
-          languageModel: anthropic('claude-3-opus-20240229'),
+          languageModel: anthropic('claude-3-opus-20240229') as unknown as LanguageModel,
           maxTokens: 6000,
           temperature: 0.9,
         }
       }
       return {
-        languageModel: openai.chat('gpt-4-turbo'),
+        languageModel: openai.chat('gpt-4-turbo') as unknown as LanguageModel,
         maxTokens: 6000,
         temperature: 0.9,
       }
@@ -106,7 +106,7 @@ export function selectModel(
     default:
       // Default to GPT-4 Turbo with balanced settings
       return {
-        languageModel: openai.chat('gpt-4-turbo'),
+        languageModel: openai.chat('gpt-4-turbo') as unknown as LanguageModel,
         maxTokens: 4000,
         temperature: 0.7,
       }

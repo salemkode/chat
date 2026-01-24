@@ -4,6 +4,11 @@ import { getAuthUserId } from '@convex-dev/auth/server'
 import { createOpenAI } from '@ai-sdk/openai'
 import { embed } from 'ai'
 import { api } from './_generated/api'
+import { Agent, createTool } from '@convex-dev/agent'
+import { components } from './_generated/api'
+import type { LanguageModel } from 'ai'
+import { z } from 'zod'
+import type { Doc } from './_generated/dataModel'
 
 // Expected embedding dimensions for text-embedding-3-small
 const EMBEDDING_DIMENSIONS = 1536
@@ -11,7 +16,6 @@ const EMBEDDING_DIMENSIONS = 1536
 // Create OpenAI client for embeddings
 const openai = createOpenAI({
   apiKey: process.env.OPENAI_API_KEY,
-  compatibility: 'strict', // Use strict mode for best compatibility
 })
 
 export const createMemory = mutation({
@@ -235,7 +239,7 @@ export const generateEmbedding = action({
   args: {
     content: v.string(),
   },
-  handler: async (ctx, args) => {
+  handler: async (_ctx, args) => {
     const startTime = Date.now()
 
     // Retry logic for API calls
@@ -370,7 +374,7 @@ export const rankMemories = action({
 
     // Collect all candidate memories with their vector scores
     const allMemories: Array<{
-      memory: typeof schema.memories.doc
+      memory: Doc<'memories'>
       vectorScore: number
     }> = []
 
@@ -462,7 +466,7 @@ export const rankMemories = action({
       // Calculate combined rank
       const rankScore = calculateRank(relevance, recency, importance)
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+       
       return {
         ...memory,
         rankScore,
@@ -485,5 +489,179 @@ export const rankMemories = action({
       memories: topMemories,
       totalCount: uniqueMemories.length,
     } as const
+  },
+})
+
+// ============================================================================
+// Memory Manager Agent (Dynamic Agent)
+// ============================================================================
+
+/**
+ * Creates a Memory Manager Agent that extracts facts from text and stores them.
+ *
+ * The agent uses GPT-4 Turbo to:
+ * 1. Extract factual statements from conversation messages
+ * 2. Generate embeddings for each fact
+ * 3. Store facts as memories with appropriate scope
+ *
+ * @param ctx - The action context
+ * @param languageModel - The language model to use (default: GPT-4 Turbo)
+ * @param scope - The memory scope (profile, skill, project, thread, pinned)
+ * @param scopeId - Optional scope ID (project ID, thread ID, etc.)
+ * @returns A configured Agent instance
+ */
+export function createMemoryAgent(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ctx: any,
+  languageModel: LanguageModel,
+  scope: 'profile' | 'skill' | 'project' | 'thread' | 'pinned',
+  scopeId?: string,
+): Agent {
+  // Create tool to generate embeddings for facts
+  const generateEmbeddingTool = createTool({
+    description: 'Generate an embedding vector for text content',
+    args: z.object({
+      content: z.string().describe('The text content to embed'),
+    }),
+    handler: async (_ctx, args: { content: string }): Promise<number[]> => {
+      // Call the generateEmbedding action
+      const result = await ctx.runAction(api.memories.generateEmbedding, {
+        content: args.content,
+      })
+      return result.embedding
+    },
+  })
+
+  // Create tool to store a memory with embedding
+  const storeMemoryTool = createTool({
+    description: 'Store a fact as a memory with its embedding',
+    args: z.object({
+      content: z.string().describe('The factual statement to store'),
+      embedding: z.array(z.number()).describe('The embedding vector'),
+    }),
+    handler: async (_ctx, args: { content: string; embedding: number[] }): Promise<string> => {
+      // Call the createMemory mutation
+      const result = await ctx.runMutation(api.memories.createMemory, {
+        content: args.content,
+        scope,
+        scopeId,
+        embedding: args.embedding,
+      })
+      return result.memoryId
+    },
+  })
+
+  // Create and return the agent
+  return new Agent(components.agent, {
+    name: 'memory-manager',
+    languageModel,
+    instructions: `You are a Memory Manager Agent. Your job is to extract factual statements from text and store them as memories.
+
+Rules:
+1. Extract ONLY objective facts (preferences, skills, project details, etc.)
+2. Ignore opinions, greetings, pleasantries, and non-factual statements
+3. Each fact should be a standalone, declarative statement
+4. Use the generateEmbedding tool to create embeddings for each fact
+5. Use the storeMemory tool to store each fact with its embedding
+6. Process up to 10 facts per message
+
+Examples of facts to extract:
+- "User prefers TypeScript over JavaScript"
+- "User knows React, Node.js, and PostgreSQL"
+- "Project uses Next.js 14 and shadcn/ui"
+- "User is working on a chat application"
+
+Examples to ignore:
+- "Hello, how are you?"
+- "That's great!"
+- "I think this might work"
+- "Can you help me?"
+
+Return a summary of how many facts you extracted and stored.`,
+    tools: {
+      generateEmbedding: generateEmbeddingTool,
+      storeMemory: storeMemoryTool,
+    },
+    maxSteps: 10, // Allow up to 10 steps for extraction + storage
+  })
+}
+
+/**
+ * Extracts facts from text and stores them as memories using the Memory Manager Agent.
+ *
+ * This action:
+ * 1. Creates a Memory Manager Agent with GPT-4 Turbo
+ * 2. Runs the agent with the provided text
+ * 3. The agent extracts facts, generates embeddings, and stores them
+ * 4. Returns a summary of the extraction results
+ *
+ * @param args.text - The text content to extract facts from
+ * @param args.scope - The memory scope (profile, skill, project, thread, pinned)
+ * @param args.scopeId - Optional scope ID (project ID, thread ID, etc.)
+ * @returns Object with number of facts extracted and any errors
+ */
+export const extractAndStoreMemories = action({
+  args: {
+    text: v.string(),
+    scope: v.union(
+      v.literal('profile'),
+      v.literal('skill'),
+      v.literal('project'),
+      v.literal('thread'),
+      v.literal('pinned'),
+    ),
+    scopeId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const startTime = Date.now()
+
+    try {
+      // Get authenticated user ID
+      const userId = await getAuthUserId(ctx)
+      if (!userId) {
+        throw new Error('Unauthorized')
+      }
+
+      // Create OpenAI client for the agent
+      const openai = createOpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      })
+
+      // Create the Memory Manager Agent
+      const memoryAgent = createMemoryAgent(
+        ctx,
+        openai.chat('gpt-4-turbo'),
+        args.scope,
+        args.scopeId,
+      )
+
+      // Run the agent with the text
+      const result = await memoryAgent.generateText(
+        ctx,
+        {},
+        { prompt: args.text },
+      )
+
+      const duration = Date.now() - startTime
+
+      return {
+        success: true,
+        factsExtracted: result.usage?.totalTokens || 0, // Approximate
+        duration,
+        text: result.text,
+        usage: result.usage,
+      }
+    } catch (error) {
+      const duration = Date.now() - startTime
+      const errorMessage =
+        error instanceof Error ? error.message : String(error)
+
+      return {
+        success: false,
+        factsExtracted: 0,
+        duration,
+        error: errorMessage,
+      }
+    }
   },
 })

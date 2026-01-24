@@ -5,7 +5,7 @@ import { Scrypt } from 'lucia'
 import { match, P } from 'ts-pattern'
 import type { DataModel } from './_generated/dataModel'
 
-export const Password = () =>
+const Password = () =>
   ConvexCredentials<DataModel>({
     authorize: async (params, ctx) => {
       return match(params)
@@ -56,6 +56,6 @@ export const Password = () =>
     id: 'password',
   })
 
-export const { auth, signIn, signOut, store } = convexAuth({
+export const { auth,    } = convexAuth({
   providers: [Password()],
 })

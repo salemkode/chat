@@ -4,7 +4,7 @@ import { createOpenRouter } from '@openrouter/ai-sdk-provider'
 import { action, mutation, query } from './_generated/server'
 import { v } from 'convex/values'
 import { getAuthUserId } from '@convex-dev/auth/server'
-import { createThread, continueThread } from '@convex-dev/agent'
+import { createThread } from '@convex-dev/agent'
 import type { Id } from './_generated/dataModel'
 import type { LanguageModel } from 'ai'
 import { selectModel, type ChatMode } from './modelRouter'
@@ -48,14 +48,14 @@ export function getRandomEmoji(): string {
   return CHAT_EMOJIS[Math.floor(Math.random() * CHAT_EMOJIS.length)]
 }
 
-// Create OpenRouter provider with API key from environment
+// Create OpenRouter provider
 const openrouter = createOpenRouter({
   apiKey: process.env.OPENROUTER_API_KEY!,
 })
 
 export const chatAgent = new Agent(components.agent, {
   name: 'chat',
-  languageModel: openrouter.chat('mistralai/devstral-2512:free'),
+  languageModel: openrouter.chat('meta-llama/llama-3-8b-instruct:free'),
   instructions: 'You are a helpful assistant.',
 })
 
@@ -63,28 +63,15 @@ export const generateMessage = action({
   args: {
     threadId: v.string(),
     text: v.string(),
-    model: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) throw new Error('Unauthorized')
 
-    // Dynamic model selection via OpenRouter
-    // User can pass model names like "openai/gpt-4o", "anthropic/claude-3-opus", etc.
-    const modelId = args.model || 'mistralai/devstral-2512:free'
-    const model = openrouter.chat(modelId)
-
     // Use the agent to stream the response
-    await chatAgent.streamText(
-      ctx,
-      { threadId: args.threadId },
-      // @ts-expect-error types are strict
-      { prompt: args.text },
-      {
-        saveStreamDeltas: true,
-        languageModel: model,
-      },
-    )
+    await chatAgent.streamText(ctx, { threadId: args.threadId }, { prompt: args.text }, {
+      saveStreamDeltas: true,
+    })
   },
 })
 
@@ -402,10 +389,10 @@ Use tools to search for relevant context when needed.`,
  */
 export function createInferenceAgent(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ctx: any,
-  threadId: string,
-  projectId: string | null,
-  userId: string,
+  _ctx: any,
+  _threadId: string,
+  _projectId: string | null,
+  _userId: string,
   languageModel: LanguageModel,
   mode: ChatMode,
 ): Agent {
@@ -416,7 +403,7 @@ export function createInferenceAgent(
       query: z.string().describe('The search query'),
     }),
     // eslint-disable-next-line @typescript-eslint/require-await
-    handler: async (_ctx, args): Promise<string> => {
+    handler: async (_ctx, args: { query: string }): Promise<string> => {
       // For now, return a placeholder
       // In a full implementation, this would perform vector search
       return `Found memories related to: ${args.query}`
@@ -496,7 +483,7 @@ export const sendMessage = action({
 
     // Store user message
     try {
-      const { thread } = await continueThread(ctx, components.agent, {
+      const { thread } = await chatAgent.continueThread(ctx, {
         threadId: args.threadId,
       })
 
@@ -551,9 +538,7 @@ export const sendMessage = action({
         ? `${contextSnapshot.context}\n\nUser: ${args.content}`
         : args.content
 
-      const result = await thread.generateText({
-        prompt,
-      })
+      const result = await thread.generateText({ prompt })
 
       // 7. Store messages (already done by agent.generateText)
       // Note: result.promptMessageId contains the user message ID

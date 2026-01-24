@@ -106,8 +106,8 @@ function NewChatIndex() {
 
         <div className="w-full max-w-3xl relative">
           <AIPromptInput
-            onSubmit={() => {
-              void handleSendMessage
+            onSubmit={(text) => {
+              void handleSendMessage(text)
             }}
             disabled={sending}
           />
