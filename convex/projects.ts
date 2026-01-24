@@ -77,7 +77,7 @@ export const renameProject = mutation({
     const userId = await getAuthUserId(ctx)
     if (!userId) throw new Error('Unauthorized')
 
-    const project = await ctx.db.get(args.projectId)
+    const project = await ctx.db.get('projects', args.projectId)
     if (!project) {
       return {
         success: false,
@@ -124,7 +124,7 @@ export const renameProject = mutation({
       }
     }
 
-    await ctx.db.patch(args.projectId, {
+    await ctx.db.patch('projects', args.projectId, {
       name: args.newName,
       lastActiveAt: Date.now(),
     })
@@ -144,7 +144,7 @@ export const archiveProject = mutation({
     const userId = await getAuthUserId(ctx)
     if (!userId) throw new Error('Unauthorized')
 
-    const project = await ctx.db.get(args.projectId)
+    const project = await ctx.db.get('projects', args.projectId)
     if (!project) {
       return {
         success: false,
@@ -159,7 +159,7 @@ export const archiveProject = mutation({
       }
     }
 
-    await ctx.db.patch(args.projectId, {
+    await ctx.db.patch('projects', args.projectId, {
       archivedAt: Date.now(),
     })
 
@@ -173,8 +173,8 @@ export const listProjects = query({
   args: {},
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx)
-    if (!userId) return [] 
-    
+    if (!userId) return []
+
     const projects = await ctx.db
       .query('projects')
       .withIndex('by_user_archived', (q) =>
@@ -197,7 +197,7 @@ export const updateLastActiveAt = mutation({
     const userId = await getAuthUserId(ctx)
     if (!userId) throw new Error('Unauthorized')
 
-    const project = await ctx.db.get(args.projectId)
+    const project = await ctx.db.get('projects', args.projectId)
 
     if (!project) {
       return {
@@ -213,13 +213,13 @@ export const updateLastActiveAt = mutation({
       }
     }
 
-    await ctx.db.patch(args.projectId, {
+    await ctx.db.patch('projects', args.projectId, {
       lastActiveAt: Date.now(),
     })
 
     return {
       success: true,
-    },
+    }
   },
 })
 
@@ -234,11 +234,31 @@ export const searchProjects = query({
     const projects = await ctx.db
       .query('projects')
       .withSearchIndex('search_name', (q) =>
-        q.search('search_name', args.searchQuery),
+        q
+          .search('name', args.searchQuery)
+          .eq('userId', userId)
+          .eq('archivedAt', undefined),
       )
       .take(10)
-      .collect()
 
     return projects
+  },
+})
+
+export const getByName = query({
+  args: {
+    name: v.string(),
+    userId: v.optional(v.id('users')),
+  },
+  handler: async (ctx, args) => {
+    const userId = args.userId || (await getAuthUserId(ctx))
+    if (!userId) return null
+
+    const projects = await ctx.db
+      .query('projects')
+      .withIndex('by_user', (q) => q.eq('userId', userId))
+      .collect()
+
+    return projects.find((p) => p.name === args.name) || null
   },
 })

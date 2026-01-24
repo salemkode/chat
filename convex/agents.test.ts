@@ -1291,7 +1291,14 @@ describe('NLP Classifier Agent', () => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any
 
-        const agent = createInferenceAgent(mockCtx, 'thread123', null, 'user123', mockLanguageModel, 'code')
+        const agent = createInferenceAgent(
+          mockCtx,
+          'thread123',
+          null,
+          'user123',
+          mockLanguageModel,
+          'code',
+        )
 
         expect(agent).toBeDefined()
       })
@@ -1304,7 +1311,14 @@ describe('NLP Classifier Agent', () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const mockLanguageModel = { provider: 'openai.chat' } as any
 
-        const agent = createInferenceAgent(mockCtx, 'thread123', null, 'user123', mockLanguageModel, 'learn')
+        const agent = createInferenceAgent(
+          mockCtx,
+          'thread123',
+          null,
+          'user123',
+          mockLanguageModel,
+          'learn',
+        )
 
         expect(agent).toBeDefined()
       })
@@ -1317,7 +1331,14 @@ describe('NLP Classifier Agent', () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const mockLanguageModel = { provider: 'anthropic.messages' } as any
 
-        const agent = createInferenceAgent(mockCtx, 'thread123', null, 'user123', mockLanguageModel, 'think')
+        const agent = createInferenceAgent(
+          mockCtx,
+          'thread123',
+          null,
+          'user123',
+          mockLanguageModel,
+          'think',
+        )
 
         expect(agent).toBeDefined()
       })
@@ -1330,7 +1351,14 @@ describe('NLP Classifier Agent', () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const mockLanguageModel = { provider: 'openai.chat' } as any
 
-        const agent = createInferenceAgent(mockCtx, 'thread123', null, 'user123', mockLanguageModel, 'create')
+        const agent = createInferenceAgent(
+          mockCtx,
+          'thread123',
+          null,
+          'user123',
+          mockLanguageModel,
+          'create',
+        )
 
         expect(agent).toBeDefined()
       })
@@ -1344,7 +1372,14 @@ describe('NLP Classifier Agent', () => {
         const mockLanguageModel = { provider: 'openai.chat' } as any
 
         // @ts-expect-error - accessing private property for testing
-        const agent = createInferenceAgent(mockCtx, 'thread123', null, 'user123', mockLanguageModel, 'code')
+        const agent = createInferenceAgent(
+          mockCtx,
+          'thread123',
+          null,
+          'user123',
+          mockLanguageModel,
+          'code',
+        )
 
         // Agent should have maxSteps set
         expect(agent).toBeDefined()

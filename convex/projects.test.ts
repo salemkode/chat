@@ -103,7 +103,7 @@ describe('Project CRUD API', () => {
             color: undefined,
           },
         })
-        return await ctx.db.get(id)
+        return await ctx.db.get('projects', id)
       })
 
       const result = await t
@@ -117,7 +117,7 @@ describe('Project CRUD API', () => {
       expect(result.name).toBe('New Name')
 
       const updated = await t.run(async (ctx) => {
-        return await ctx.db.get(projectId!._id)
+        return await ctx.db.get('projects', projectId!._id)
       })
 
       expect(updated!.name).toBe('New Name')
@@ -138,7 +138,7 @@ describe('Project CRUD API', () => {
             color: undefined,
           },
         })
-        return await ctx.db.get(id)
+        return await ctx.db.get('projects', id)
       })
 
       const beforeLastActive = projectId!.lastActiveAt
@@ -151,7 +151,7 @@ describe('Project CRUD API', () => {
         })
 
       const updated = await t.run(async (ctx) => {
-        return await ctx.db.get(projectId!._id)
+        return await ctx.db.get('projects', projectId!._id)
       })
 
       expect(updated!.lastActiveAt).toBeGreaterThan(beforeLastActive)
@@ -176,7 +176,7 @@ describe('Project CRUD API', () => {
       })
 
       await t.run(async (ctx) => {
-        await ctx.db.delete(fakeId)
+        await ctx.db.delete('projects', fakeId)
       })
 
       const result = await t
@@ -207,7 +207,7 @@ describe('Project CRUD API', () => {
             color: undefined,
           },
         })
-        return await ctx.db.get(id)
+        return await ctx.db.get('projects', id)
       })
 
       const result = await t
@@ -219,7 +219,7 @@ describe('Project CRUD API', () => {
       expect(result.success).toBe(true)
 
       const archived = await t.run(async (ctx) => {
-        return await ctx.db.get(projectId!._id)
+        return await ctx.db.get('projects', projectId!._id)
       })
 
       expect(archived!.archivedAt).toBeDefined()
@@ -241,7 +241,7 @@ describe('Project CRUD API', () => {
             color: 'blue',
           },
         })
-        return await ctx.db.get(id)
+        return await ctx.db.get('projects', id)
       })
 
       await t
@@ -251,7 +251,7 @@ describe('Project CRUD API', () => {
         })
 
       const archived = await t.run(async (ctx) => {
-        return await ctx.db.get(projectId!._id)
+        return await ctx.db.get('projects', projectId!._id)
       })
 
       expect(archived!.metadata).toEqual({

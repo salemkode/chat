@@ -1,5 +1,5 @@
 {
-  "defaultAgent": "auto",
+  "defaultAgent": "claude",
   "agents": {
     "claude": {
       "dangerouslyAllowAll": true
@@ -13,13 +13,7 @@
   },
   "routing": {
     "rules": [],
-    "default": "opencode"
-  },
-  "fallback": {
-    "enabled": true,
-    "priority": ["gemini"],
-    "autoRecovery": true,
-    "retryDelay": 2000
+    "default": "claude"
   },
   "execution": {
     "maxIterations": 20,
@@ -31,17 +25,15 @@
   },
   "autoMode": {
     "enabled": false,
-    "defaultMode": "good",
-    "fallbackOrder": ["opencode", "gemini"],
+    "fallbackOrder": ["claude"],
     "modeModels": {
-      "simple": "glm-4.7",
-      "medium": "glm-4.7",
-      "complex": "glm-4.7",
-      "expert": "glm-4.7"
+      "simple": "claude/haiku-4.5",
+      "medium": "claude/sonnet-4.5",
+      "complex": "claude/opus-4.5",
+      "expert": "claude/opus-4.5"
     },
     "review": {
       "promptUser": true,
-      "defaultMode": "good",
       "microTasks": [
         "typecheck",
         "lint",
@@ -56,7 +48,9 @@
       "enabled": true,
       "maxAttempts": 3,
       "escalationPath": {
-        "glm-4.7": "glm-4.7"
+        "claude/haiku-4.5": "claude/sonnet-4.5",
+        "claude/sonnet-4.5": "claude/opus-4.5",
+        "claude/opus-4.5": "claude/opus-4.5"
       }
     }
   }

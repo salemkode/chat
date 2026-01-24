@@ -1,0 +1,38 @@
+# Project UI Components - Progress Log
+
+**Started:** 2026-01-23
+**Last Updated:** 2026-01-23
+
+---
+
+## Completed Stories
+
+None yet.
+
+---
+
+## In Progress
+
+None yet.
+
+---
+
+## Upcoming Stories
+
+1. US-006.1: Sidebar Project List (3 days)
+2. US-006.2: Project Creation UI (2 days)
+3. US-006.3: Thread Management UI (2 days)
+4. US-006.4: Sidebar Virtualization (2 days)
+5. US-007.1: Chat Header with Project Context (1 day)
+6. US-007.2: Attachment Banner UI (3 days)
+7. US-007.3: @Mention Autocomplete (3 days)
+8. US-007.4: Message Context Indicator (1 day)
+
+---
+
+## Blockers
+
+- Requires project-core APIs for data
+- Requires context-injection UX state for banners
+
+---

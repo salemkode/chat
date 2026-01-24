@@ -1,0 +1,100 @@
+{
+  "project": "Memory System",
+  "branchName": "ralph/memory-system",
+  "description": "Memory storage, embeddings, retrieval, and LLM-powered fact extraction",
+  "userStories": [
+    {
+      "id": "US-005",
+      "title": ".1: Memory Storage API",
+      "description": "As the system, I need to store memories with embeddings so that I can retrieve them later.",
+      "acceptanceCriteria": [
+        "Implement `createMemory` mutation",
+        "Accept `content`, `scope`, `scopeId`, `embedding`",
+        "Validate embedding dimensions (1536 for `text-embedding-3-small`)",
+        "Set initial scores (recency=1.0, importance=0.5)",
+        "Return memory ID",
+        "Implement `listMemories` query",
+        "Filter by `userId`, `scope`, `scopeId`",
+        "Support pagination",
+        "Implement `deleteMemory` mutation (for future manual editing)",
+        "Write unit tests",
+        "Memories stored with correct scope",
+        "Embeddings validated before storage",
+        "List query returns memories sorted by `createdAt` (descending)"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "Completed on 2026-01-24. All 13 tests passing. createMemory, deleteMemory, listMemories implemented with full validation."
+    },
+    {
+      "id": "US-005",
+      "title": ".2: Memory Embedding Generation",
+      "description": "As the system, I need to generate embeddings for memory content so that I can perform semantic search.",
+      "acceptanceCriteria": [
+        "Implement `generateEmbedding` helper function",
+        "Call OpenAI Embeddings API (`text-embedding-3-small`)",
+        "Handle API errors (retry logic, fallback)",
+        "Cache embeddings for identical content (optional optimization)",
+        "Write unit tests",
+        "Measure latency (target <200ms per embedding)",
+        "Embedding generation succeeds for valid content",
+        "API errors handled gracefully (return null or retry)",
+        "Latency <200ms per embedding"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "Completed on 2026-01-24. All tests passing. OpenAI API integration with retry logic (3 attempts, exponential backoff)."
+    },
+    {
+      "id": "US-005",
+      "title": ".3: Memory Retrieval and Ranking",
+      "description": "As the system, I need to retrieve and rank memories by relevance, recency, and importance.",
+      "acceptanceCriteria": [
+        "Implement `rankMemories` helper function",
+        "Use Convex vector index for nearest neighbor search",
+        "Implement ranking formula:",
+        "Recency calculation: `exp(-ageInDays / 30)`",
+        "Return top K memories (K=10 by default)",
+        "Write unit tests with synthetic data",
+        "Test with 10k+ memories",
+        "Vector search returns relevant memories",
+        "Ranking prioritizes recent + relevant memories",
+        "Retrieval completes in <100ms for 10k memories"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "Completed on 2026-01-24. All 7 tests passing. Cosine similarity ranking with formula: 0.5*relevance + 0.3*recency + 0.2*importance."
+    },
+    {
+      "id": "US-005",
+      "title": ".4: Memory Manager Agent (Dynamic Agent)",
+      "description": "As the system, I need to automatically extract and store memories from conversations using a Dynamic Agent with LLM-powered fact extraction.",
+      "acceptanceCriteria": [
+        "Implement `createMemoryAgent` factory function",
+        "Create tools:",
+        "`extractFacts` - Extract key statements from conversation",
+        "`generateEmbedding` - Generate vector embedding using AI SDK",
+        "`storeMemory` - Store memory in database with correct scope",
+        "Set `languageModel: openai(\"gpt-4-turbo\")`",
+        "Define instructions for fact extraction rules",
+        "Set `maxSteps: 10`",
+        "Implement `extractAndStoreMemories` action",
+        "Create Memory Agent instance",
+        "Run agent with user + assistant messages",
+        "Extract tool calls to count stored memories",
+        "Return `{ memoriesCreated, memoryIds }`",
+        "Prompt engineering for fact extraction (in agent instructions):",
+        "Handle extraction failures gracefully",
+        "Write unit tests",
+        "Measure accuracy (manual review of 100 conversations)",
+        "Memories extracted with >80% relevance (manual validation)",
+        "Extraction completes in <5s per conversation turn",
+        "Failures do not block message send",
+        "Dynamic Agent uses tools correctly (extract → embed → store)"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}

@@ -49,7 +49,9 @@ export function ChatContainer() {
         currentThreadId = lastThread._id
         setSelectedThreadId(currentThreadId)
       } else {
-        currentThreadId = (await createThread({ title: text.substring(0, 30) })) as string
+        currentThreadId = (await createThread({
+          title: text.substring(0, 30),
+        })) as string
         setSelectedThreadId(currentThreadId)
       }
     }

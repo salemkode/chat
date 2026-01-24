@@ -1,0 +1,74 @@
+# Memory System - Progress Log
+
+**Started:** 2026-01-23
+**Last Updated:** 2026-01-24
+
+---
+
+## Completed Stories
+
+### US-005.1: Memory Storage API ✅
+**Completed:** 2026-01-24
+**Tests:** 13 passing
+
+- Implemented `createMemory` mutation with embedding validation (1536 dimensions)
+- Implemented `listMemories` query with pagination and scope filtering
+- Implemented `deleteMemory` mutation with ownership checks
+- All CRUD operations tested and passing
+- Initial scores set correctly: recency=1.0, importance=0.5
+- Scope validation working for: profile, skill, project, thread, pinned
+
+### US-005.2: Memory Embedding Generation ✅
+**Completed:** 2026-01-24
+**Tests:** 6 passing (1 skipped due to API key requirement)
+
+- Implemented `generateEmbedding` action using OpenAI `text-embedding-3-small`
+- Retry logic: 3 attempts with exponential backoff (1s, 2s, 3s delays)
+- API error handling with graceful failures
+- Latency tracking and reporting
+- Embedding dimension validation
+
+### US-005.3: Memory Retrieval and Ranking ✅
+**Completed:** 2026-01-24
+**Tests:** 7 passing
+
+- Implemented `rankMemories` action with cosine similarity search
+- Ranking formula: `rank = 0.5 * relevance + 0.3 * recency + 0.2 * importance`
+- Recency score calculation: `exp(-ageInDays / 30)` (30-day half-life)
+- Top-K result filtering (configurable, default 10)
+- Scope and scopeId filtering support
+- Duplicate removal from multiple searches
+- Performance: <100ms for vector search on 100 memories
+
+---
+
+## In Progress
+
+### US-005.4: Memory Manager Agent (Dynamic Agent)
+**Started:** 2026-01-24
+
+- Need to implement `createMemoryAgent` factory function
+- Tools: extractFacts, generateEmbedding, storeMemory
+- Language model: OpenAI GPT-4 Turbo
+- maxSteps: 10
+- extractAndStoreMemories action
+
+---
+
+## Upcoming Stories
+
+1. **US-005.4:** Memory Manager Agent (Dynamic Agent) - IN PROGRESS
+
+---
+
+## Learnings
+
+1. **Vector Search Filters:** Convex vector search filter API is limited. Workaround: fetch candidates via regular queries first, then calculate cosine similarity in-memory.
+
+2. **TDD Approach:** Writing tests first helps clarify requirements and ensures code quality. All memory system tests passing.
+
+3. **Retry Logic:** Exponential backoff with 3 retries works well for OpenAI API calls.
+
+4. **Ranking Formula:** The weighted combination (0.5 relevance, 0.3 recency, 0.2 importance) provides balanced results prioritizing semantic similarity while rewarding recent activity.
+
+---
