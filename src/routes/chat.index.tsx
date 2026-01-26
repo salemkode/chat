@@ -28,9 +28,8 @@ interface Model {
 
 function NewChatIndex() {
   const navigate = useNavigate()
-  const availableModels = useQuery(api.admin.listEnabledModels) as
-    | Model[]
-    | undefined
+  const availableModels =
+    (useQuery(api.admin.listEnabledModels) as Model[] | undefined) ?? []
   const [model, setModel] = useState<string | undefined>(undefined)
 
   useEffect(() => {
@@ -58,7 +57,7 @@ function NewChatIndex() {
         `pending-message-${threadId}`,
         JSON.stringify({ text, model }),
       )
-      navigate({ to: `/chat/${threadId}` })
+      void navigate({ to: `/chat/${threadId}` })
       await sendMessage({
         threadId,
         text,
@@ -105,7 +104,12 @@ function NewChatIndex() {
         </div>
 
         <div className="w-full max-w-3xl relative">
-          <AIPromptInput onSubmit={handleSendMessage} disabled={sending} />
+          <AIPromptInput
+            onSubmit={(text) => {
+              void handleSendMessage(text)
+            }}
+            disabled={sending}
+          />
           <div className="text-center mt-4">
             <p className="text-xs text-muted-foreground">
               AI can make mistakes. Check important info.

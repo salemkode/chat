@@ -1,17 +1,65 @@
 import { defineConfig } from 'eslint/config'
 import tseslint from 'typescript-eslint'
 import convexPlugin from '@convex-dev/eslint-plugin'
+import tsParser from '@typescript-eslint/parser'
 
 export default defineConfig([
-  // TypeScript configuration
-  ...tseslint.configs.recommendedTypeChecked,
+  // General configuration for all files
+  {
+    ignores: [
+      'node_modules/**',
+      'dist/**',
+      'build/**',
+      '.next/**',
+      '.netlify/**',
+      '.output/**',
+      '**/_generated/**',
+    ],
+  },
 
   // Convex recommended configuration
   ...convexPlugin.configs.recommended,
 
-  // General configuration for all files
+  // TypeScript-specific rules (with type checking)
   {
-    ignores: ['node_modules/**', 'dist/**', 'build/**', '.next/**'],
+    files: ['**/*.ts', '**/*.tsx'],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        project: ['./tsconfig.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+    plugins: {
+      '@typescript-eslint': tseslint.plugin,
+    },
+    rules: {
+      // Ensure no unused variables
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+        },
+      ],
+      // Require explicit return types for public functions
+      '@typescript-eslint/explicit-function-return-type': 'off',
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/no-misused-promises': 'error',
+      // Disallow the 'any' type
+      '@typescript-eslint/no-explicit-any': 'error',
+      // Disallow type assertions (casting)
+      '@typescript-eslint/no-unnecessary-type-assertion': 'error',
+      // Disallow the 'as' keyword for type assertions
+      '@typescript-eslint/consistent-type-assertions': [
+        'error',
+        {
+          assertionStyle: 'never',
+        },
+      ],
+      // Type-checked rules
+      '@typescript-eslint/await-thenable': 'error',
+    },
   },
 
   // Convex-specific configuration
@@ -27,31 +75,6 @@ export default defineConfig([
       ],
       // Require explicit table names in database operations
       '@convex-dev/explicit-table-ids': 'error',
-    },
-  },
-
-  // TypeScript-specific rules
-  {
-    files: ['**/*.ts', '**/*.tsx'],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-    },
-    rules: {
-      // Ensure no unused variables
-      '@typescript-eslint/no-unused-vars': [
-        'error',
-        {
-          argsIgnorePattern: '^_',
-          varsIgnorePattern: '^_',
-        },
-      ],
-      // Require explicit return types for public functions
-      '@typescript-eslint/explicit-function-return-type': 'off',
-      '@typescript-eslint/no-floating-promises': 'error',
-      '@typescript-eslint/no-misused-promises': 'error',
     },
   },
 

@@ -4,6 +4,7 @@ import * as React from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
+import type { Id } from '../../convex/_generated/dataModel'
 import {
   ChevronDown,
   ChevronRight,
@@ -32,7 +33,7 @@ import {
 } from '@/components/ui/sidebar'
 
 interface Section {
-  _id: string
+  _id: Id<'sections'>
   name: string
   emoji: string
   sortOrder: number
@@ -41,10 +42,10 @@ interface Section {
 }
 
 interface ThreadMetadata {
-  _id: string
+  _id: Id<'threadMetadata'>
   threadId: string
   emoji: string
-  sectionId?: string
+  sectionId?: Id<'sections'>
   userId: string
 }
 
@@ -94,7 +95,7 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 
 export function AppSidebar({
   selectedThreadId,
-  onSelectThread,
+  onSelectThread: _onSelectThread,
   ...props
 }: AppSidebarProps) {
   const navigate = useNavigate()
@@ -103,21 +104,21 @@ export function AppSidebar({
   const toggleSection = useMutation(api.sections.toggleSection)
 
   const handleThreadClick = (threadId: string) => {
-    navigate({ to: `/chat/${threadId}` })
+    void navigate({ to: `/chat/${threadId}` })
   }
 
   const handleNewChat = () => {
-    navigate({ to: '/chat' })
+    void navigate({ to: '/chat' })
   }
 
   const handleSectionToggle = async (
-    sectionId: string,
+    sectionId: Id<'sections'>,
     e: React.MouseEvent,
   ) => {
     e.preventDefault()
     e.stopPropagation()
     try {
-      await toggleSection({ id: sectionId as any })
+      await toggleSection({ id: sectionId })
     } catch (error) {
       console.error('Failed to toggle section:', error)
     }
@@ -155,7 +156,9 @@ export function AppSidebar({
             <SidebarGroup key={section._id}>
               <SidebarGroupLabel
                 className="cursor-pointer flex items-center justify-between hover:bg-accent/50 rounded-md px-2 py-1.5 transition-colors"
-                onClick={(e) => handleSectionToggle(section._id, e)}
+                onClick={(e) => {
+                  void handleSectionToggle(section._id, e)
+                }}
               >
                 {section.name}
                 <span className="flex items-center gap-2">

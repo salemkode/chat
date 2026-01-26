@@ -3,7 +3,7 @@ import { useQuery, useAction, useConvexAuth } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { useState, useEffect } from 'react'
 import { ChatMessageList } from '@/components/ChatMessageList'
-import { useUIMessages } from '@convex-dev/agent/react'
+import { useUIMessages } from '@/hooks/agent'
 import {
   Select,
   SelectContent,
@@ -32,9 +32,8 @@ function ChatPage() {
   const { chatId } = Route.useParams()
   const { isAuthenticated, isLoading } = useConvexAuth()
 
-  const availableModels = useQuery(api.admin.listEnabledModels) as
-    | Model[]
-    | undefined
+  const availableModels =
+    (useQuery(api.admin.listEnabledModels) as Model[] | undefined) ?? []
   const [model, setModel] = useState<string | undefined>(undefined)
 
   useEffect(() => {
@@ -128,7 +127,12 @@ function ChatPage() {
 
       <div className="p-4 border-t bg-background">
         <div className="max-w-4xl mx-auto">
-          <AIPromptInput onSubmit={handleSendMessage} disabled={sending} />
+          <AIPromptInput
+            onSubmit={(text) => {
+              void handleSendMessage(text)
+            }}
+            disabled={sending}
+          />
           <div className="text-center mt-2">
             <p className="text-[10px] text-muted-foreground">
               AI can make mistakes. Check important info.

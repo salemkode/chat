@@ -26,7 +26,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { useMutation, useAction } from 'convex/react'
-import { api } from '../../convex/_generated/api'
+import { api } from '../../../convex/_generated/api'
 import { useConvexAuth } from 'convex/react'
 
 const pages = [
@@ -103,7 +103,7 @@ export function AIPromptInput({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      handleSubmit()
+      void handleSubmit()
     }
   }
 
@@ -260,7 +260,9 @@ export function AIPromptInput({
               size="icon"
               className="h-10 w-10 rounded-full bg-zinc-200 text-zinc-900 hover:bg-zinc-300"
               disabled={!value.trim() || sending}
-              onClick={handleSubmit}
+              onClick={() => {
+                void handleSubmit()
+              }}
             >
               {sending ? (
                 <div className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-400 border-t-transparent" />

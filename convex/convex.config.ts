@@ -1,7 +1,8 @@
 import { defineApp } from 'convex/server'
-import agent from '@convex-dev/agent/convex.config'
+
+// Agent component has been migrated to local code
+// No longer using @convex-dev/agent component
 
 const app = defineApp()
-app.use(agent)
 
 export default app

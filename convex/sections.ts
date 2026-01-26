@@ -102,3 +102,63 @@ export const toggleSection = mutation({
     await ctx.db.patch("sections", args.id, { isExpanded: !section.isExpanded })
   },
 })
+
+// Move a thread to a different section
+export const moveThreadToSection = mutation({
+  args: {
+    threadId: v.id('threads'),
+    sectionId: v.optional(v.id('sections')),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId) throw new Error('Unauthorized')
+
+    // Verify thread ownership
+    const thread = await ctx.db.get("threads", args.threadId)
+    if (!thread || thread.userId !== userId) {
+      throw new Error('Thread not found')
+    }
+
+    // If sectionId is provided, verify section ownership
+    if (args.sectionId !== undefined) {
+      const section = await ctx.db.get("sections", args.sectionId)
+      if (!section || section.userId !== userId) {
+        throw new Error('Section not found')
+      }
+    }
+
+    // Update thread's section
+    await ctx.db.patch("threads", args.threadId, { sectionId: args.sectionId })
+  },
+})
+
+// Get threads count per section
+export const getSectionThreadCounts = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId) return []
+
+    const sections = await ctx.db
+      .query('sections')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .collect()
+
+    const counts = await Promise.all(
+      sections.map(async (section) => {
+        const threads = await ctx.db
+          .query('threads')
+          .withIndex('by_sectionId', (q) => q.eq('sectionId', section._id))
+          .collect()
+
+        return {
+          sectionId: section._id,
+          count: threads.length,
+        }
+      }),
+    )
+
+    return counts
+  },
+})
+

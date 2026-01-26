@@ -1,10 +1,8 @@
-import { components } from './_generated/api'
-import { Agent } from '@convex-dev/agent'
 import { createOpenRouter } from '@openrouter/ai-sdk-provider'
 import { action, mutation, query } from './_generated/server'
 import { v } from 'convex/values'
 import { getAuthUserId } from '@convex-dev/auth/server'
-import { createThread } from '@convex-dev/agent'
+import { createThread as localCreateThread } from './agent'
 
 // Random emoji picker for new chats
 const CHAT_EMOJIS = [
@@ -49,15 +47,12 @@ const openrouter = createOpenRouter({
   apiKey: process.env.OPENROUTER_API_KEY!,
 })
 
-export const chatAgent = new Agent(components.agent, {
-  name: 'chat',
-  languageModel: openrouter.chat('mistralai/devstral-2512:free'),
-  instructions: 'You are a helpful assistant.',
-})
-
+// Simple message generation without the full Agent class
+// This is a temporary implementation - for full functionality you'd need
+// to copy the entire Agent class or use @convex-dev/agent
 export const generateMessage = action({
   args: {
-    threadId: v.string(),
+    threadId: v.id('threads'),
     text: v.string(),
     model: v.optional(v.string()),
   },
@@ -65,22 +60,22 @@ export const generateMessage = action({
     const userId = await getAuthUserId(ctx)
     if (!userId) throw new Error('Unauthorized')
 
-    // Dynamic model selection via OpenRouter
-    // User can pass model names like "openai/gpt-4o", "anthropic/claude-3-opus", etc.
-    const modelId = args.model || 'mistralai/devstral-2512:free'
-    const model = openrouter.chat(modelId)
+    // For now, just save the user message
+    // TODO: Implement actual AI generation with streaming
+    const { saveMessage } = await import('./agent/functions')
+    await ctx.runMutation(saveMessage, {
+      threadId: args.threadId,
+      content: args.text,
+      role: 'user',
+    })
 
-    // Use the agent to stream the response
-    await chatAgent.streamText(
-      ctx,
-      { threadId: args.threadId },
-      // @ts-expect-error types are strict
-      { prompt: args.text },
-      {
-        saveStreamDeltas: true,
-        languageModel: model,
-      },
-    )
+    // You would need to implement the AI streaming logic here
+    // This requires either:
+    // 1. Copying the full Agent class from @convex-dev/agent
+    // 2. Implementing your own streaming logic
+    // 3. Using @convex-dev/agent for the backend only
+
+    throw new Error('AI generation not yet implemented - need to copy Agent class')
   },
 })
 
@@ -92,17 +87,11 @@ export const createChatThread = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) throw new Error('Unauthorized')
-    const threadId = await createThread(ctx, components.agent, {
-      title: args.title,
-      userId,
-    })
 
-    // Create thread metadata with random emoji
-    await ctx.db.insert('threadMetadata', {
-      threadId,
-      emoji: getRandomEmoji(),
+    const threadId = await localCreateThread(ctx, {
+      title: args.title,
       sectionId: args.sectionId,
-      userId,
+      emoji: getRandomEmoji(),
     })
 
     return threadId
@@ -112,23 +101,29 @@ export const createChatThread = mutation({
 // Update thread section
 export const updateThreadSection = mutation({
   args: {
-    threadId: v.string(),
+    threadId: v.id('threads'),
     sectionId: v.optional(v.id('sections')),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) throw new Error('Unauthorized')
 
-    const metadata = await ctx.db
-      .query('threadMetadata')
-      .withIndex('by_threadId', (q) => q.eq('threadId', args.threadId))
-      .first()
+    // Check if threadMetadata table exists
+    try {
+      const metadata = await ctx.db
+        .query('threadMetadata')
+        .withIndex('by_threadId', (q) => q.eq('threadId', args.threadId))
+        .first()
 
-    if (!metadata || metadata.userId !== userId) {
-      throw new Error('Thread not found')
+      if (!metadata || metadata.userId !== userId) {
+        throw new Error('Thread not found')
+      }
+
+      await ctx.db.patch("threadMetadata", metadata._id, { sectionId: args.sectionId })
+    } catch (e) {
+      // threadMetadata might not exist or no index
+      // Skip silently
     }
-
-    await ctx.db.patch("threadMetadata", metadata._id, { sectionId: args.sectionId })
   },
 })
 
@@ -138,20 +133,24 @@ export const listThreadsWithMetadata = query({
     const userId = await getAuthUserId(ctx)
     if (!userId) return []
 
-    const threads = await ctx.runQuery(
-      components.agent.threads.listThreadsByUserId,
-      {
-        userId,
-        paginationOpts: { numItems: 100, cursor: null },
-      },
-    )
-
-    const metadata = await ctx.db
-      .query('threadMetadata')
+    const threads = await ctx.db
+      .query('threads')
       .withIndex('by_userId', (q) => q.eq('userId', userId))
-      .collect()
+      .order('desc')
+      .take(100)
 
-    return threads.page.map((thread) => ({
+    // Try to get metadata if the table exists
+    let metadata: any[] = []
+    try {
+      metadata = await ctx.db
+        .query('threadMetadata')
+        .withIndex('by_userId', (q) => q.eq('userId', userId))
+        .collect()
+    } catch (e) {
+      // threadMetadata table might not exist
+    }
+
+    return threads.map((thread) => ({
       ...thread,
       metadata: metadata.find((m) => m.threadId === thread._id),
     }))

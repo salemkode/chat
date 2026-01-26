@@ -32,7 +32,12 @@ export function ChatInput({ onSendMessage, hasActiveThread }: ChatInputProps) {
   return (
     <div className="p-4 border-t border-border bg-background">
       <div className="max-w-4xl mx-auto">
-        <form onSubmit={handleSubmit} className="relative">
+        <form
+          onSubmit={(e) => {
+            void handleSubmit(e)
+          }}
+          className="relative"
+        >
           <input
             type="text"
             value={input}

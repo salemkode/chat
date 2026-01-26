@@ -15,7 +15,6 @@
   "dependencies": {
     "@ai-sdk/provider-utils": "^4.0.8",
     "@auth/core": "^0.37.4",
-    "@convex-dev/agent": "^0.3.2",
     "@convex-dev/auth": "^0.0.90",
     "@hookform/resolvers": "^5.2.2",
     "@openrouter/ai-sdk-provider": "^1.5.4",

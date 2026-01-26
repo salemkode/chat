@@ -21,10 +21,21 @@ function SignupPage() {
     setIsLoading(true)
 
     const formData = new FormData(event.currentTarget)
-    const name = formData.get('name') as string
-    const email = formData.get('email') as string
-    const password = formData.get('password') as string
-    const confirmPassword = formData.get('confirmPassword') as string
+    const name = formData.get('name')
+    const email = formData.get('email')
+    const password = formData.get('password')
+    const confirmPassword = formData.get('confirmPassword')
+
+    if (
+      typeof name !== 'string' ||
+      typeof email !== 'string' ||
+      typeof password !== 'string' ||
+      typeof confirmPassword !== 'string'
+    ) {
+      setError('Invalid form data')
+      setIsLoading(false)
+      return
+    }
 
     if (password !== confirmPassword) {
       setError('Passwords do not match.')
@@ -34,7 +45,7 @@ function SignupPage() {
 
     try {
       await signIn('password', { flow: 'signUp', name, email, password })
-      navigate({ to: '/chat' })
+      void navigate({ to: '/chat' })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to create account.')
     } finally {
@@ -56,7 +67,9 @@ function SignupPage() {
         <div className="flex flex-1 items-center justify-center">
           <div className="w-full max-w-xs">
             <SignupForm
-              onSubmit={handleSubmit}
+              onSubmit={(e) => {
+                void handleSubmit(e)
+              }}
               errorMessage={error}
               isLoading={isLoading}
             />

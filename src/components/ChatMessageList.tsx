@@ -1,12 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import { Brain, Clock, Calendar, Copy, Check } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { FunctionReturnType } from 'convex/server'
-import { api } from 'convex/_generated/api'
 import { Message } from './Message'
+import { FunctionReturnType } from 'convex/server'
+import { api } from '../../convex/_generated/api'
 
 interface ChatMessageListProps {
   messages: FunctionReturnType<typeof api.chat.listMessages>['page']
@@ -16,16 +12,16 @@ interface ChatMessageListProps {
 
 export function ChatMessageList({ messages, className }: ChatMessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [_copiedId, _setCopiedId] = useState<string | null>(null)
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   })
 
-  const handleCopy = async (text: string, id: string) => {
+  const _handleCopy = async (text: string, id: string) => {
     await navigator.clipboard.writeText(text)
-    setCopiedId(id)
-    setTimeout(() => setCopiedId(null), 2000)
+    _setCopiedId(id)
+    setTimeout(() => _setCopiedId(null), 2000)
   }
 
   if (messages.length === 0) {
@@ -54,13 +50,13 @@ export function ChatMessageList({ messages, className }: ChatMessageListProps) {
     )
   }
 
-  const formatTime = (timestamp?: string | number) => {
+  const _formatTime = (timestamp?: string | number) => {
     if (!timestamp) return ''
     const date = new Date(timestamp)
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }
 
-  const formatDate = (timestamp?: string | number) => {
+  const _formatDate = (timestamp?: string | number) => {
     if (!timestamp) return ''
     const date = new Date(timestamp)
     const today = new Date()

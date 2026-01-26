@@ -3,8 +3,8 @@ import { ChatHeader } from './chat-header'
 import { ChatInput } from './chat-input'
 import { ChatMessageList } from '@/components/ChatMessageList'
 import { useQuery, useAction, useMutation } from 'convex/react'
-import { api } from '../../convex/_generated/api'
-import { useUIMessages } from '@convex-dev/agent/react'
+import { api } from '../../../convex/_generated/api'
+import { useUIMessages } from '@/hooks/agent'
 import { useState } from 'react'
 
 interface Thread {
@@ -24,7 +24,7 @@ export function ChatContainer() {
 
   const { results: messages } = useUIMessages(
     api.chat.listMessages,
-    (selectedThreadId ? { threadId: selectedThreadId } : 'skip') as any,
+    selectedThreadId ? { threadId: selectedThreadId } : 'skip',
     { initialNumItems: 20 },
   )
 

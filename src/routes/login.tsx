@@ -21,12 +21,18 @@ function LoginPage() {
     setIsLoading(true)
 
     const formData = new FormData(event.currentTarget)
-    const email = formData.get('email') as string
-    const password = formData.get('password') as string
+    const email = formData.get('email')
+    const password = formData.get('password')
+
+    if (typeof email !== 'string' || typeof password !== 'string') {
+      setError('Invalid email or password')
+      setIsLoading(false)
+      return
+    }
 
     try {
       await signIn('password', { email, password, flow: 'signIn' })
-      navigate({ to: '/chat' })
+      void navigate({ to: '/chat' })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to sign in.')
     } finally {
@@ -48,7 +54,9 @@ function LoginPage() {
         <div className="flex flex-1 items-center justify-center">
           <div className="w-full max-w-xs">
             <LoginForm
-              onSubmit={handleSubmit}
+              onSubmit={(e) => {
+                void handleSubmit(e)
+              }}
               errorMessage={error}
               isLoading={isLoading}
             />
