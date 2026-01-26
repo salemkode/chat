@@ -29,7 +29,7 @@ export const getThread = query({
     const userId = await getAuthUserId(ctx);
     if (!userId) return null;
 
-    const thread = await ctx.db.get(args.threadId);
+    const thread = await ctx.db.get("threads", args.threadId);
     if (!thread || thread.userId !== userId) {
       return null;
     }
@@ -111,7 +111,7 @@ export const createThread = mutation({
       emoji: args.emoji,
       status: "active",
     });
-    return publicThread((await ctx.db.get(threadId))!);
+    return publicThread((await ctx.db.get("threads", threadId))!);
   },
   returns: v.object({
     _id: v.id("threads"),
@@ -139,7 +139,7 @@ export const updateThread = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Unauthorized");
 
-    const thread = await ctx.db.get(args.threadId);
+    const thread = await ctx.db.get("threads", args.threadId);
     assert(thread, `Thread ${args.threadId} not found`);
 
     // Check ownership
@@ -153,7 +153,7 @@ export const updateThread = mutation({
     );
 
     await ctx.db.patch("threads", threadId, cleanUpdates);
-    return publicThread((await ctx.db.get(threadId))!);
+    return publicThread((await ctx.db.get("threads", threadId))!);
   },
   returns: v.object({
     _id: v.id("threads"),
@@ -174,7 +174,7 @@ export const deleteThread = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Unauthorized");
 
-    const thread = await ctx.db.get(args.threadId);
+    const thread = await ctx.db.get("threads", args.threadId);
     if (!thread || thread.userId !== userId) {
       throw new Error("Thread not found");
     }
@@ -186,11 +186,11 @@ export const deleteThread = mutation({
       .collect();
 
     for (const message of messages) {
-      await ctx.db.delete(message._id);
+      await ctx.db.delete("messages", message._id);
     }
 
     // Delete the thread
-    await ctx.db.delete(args.threadId);
+    await ctx.db.delete("threads", args.threadId);
   },
   returns: v.null(),
 });

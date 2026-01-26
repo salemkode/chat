@@ -206,7 +206,7 @@ export const deleteFiles = mutation({
   handler: async (ctx, args) => {
     const deletedFileIds = await Promise.all(
       args.fileIds.map(async (fileId) => {
-        const file = await ctx.db.get(fileId)
+        const file = await ctx.db.get("files", fileId)
         if (!file) {
           console.error(`File ${fileId} not found when deleting, skipping...`)
           return null
@@ -219,7 +219,7 @@ export const deleteFiles = mutation({
             return null
           }
         }
-        await ctx.db.delete(fileId)
+        await ctx.db.delete("files", fileId)
         return fileId
       }),
     )

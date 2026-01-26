@@ -56,7 +56,7 @@ export const createUserMessage = mutation({
     if (!userId) throw new Error('Unauthorized')
 
     // Verify thread ownership
-    const thread = await ctx.db.get(args.threadId)
+    const thread = await ctx.db.get("threads", args.threadId)
     if (!thread || thread.userId !== userId) {
       throw new Error('Thread not found')
     }
@@ -77,7 +77,7 @@ export const createUserMessage = mutation({
       tool: false,
     })
 
-    return publicMessage((await ctx.db.get(messageId))!)
+    return publicMessage((await ctx.db.get("messages", messageId))!)
   },
   returns: v.object({
     _id: v.id('messages'),
@@ -116,7 +116,7 @@ export const listMessages = query({
     if (!userId) return { page: [], isDone: true, continueCursor: '' }
 
     // Verify thread ownership
-    const thread = await ctx.db.get(args.threadId)
+    const thread = await ctx.db.get("threads", args.threadId)
     if (!thread || thread.userId !== userId) {
       return { page: [], isDone: true, continueCursor: '' }
     }
@@ -187,7 +187,7 @@ export const getRecentMessages = query({
     const userId = await getAuthUserId(ctx)
     if (!userId) return []
 
-    const thread = await ctx.db.get(args.threadId)
+    const thread = await ctx.db.get("threads", args.threadId)
     if (!thread || thread.userId !== userId) {
       return []
     }
@@ -240,16 +240,16 @@ export const deleteMessage = mutation({
     const userId = await getAuthUserId(ctx)
     if (!userId) throw new Error('Unauthorized')
 
-    const message = await ctx.db.get(args.messageId)
+    const message = await ctx.db.get("messages", args.messageId)
     if (!message) throw new Error('Message not found')
 
     // Verify ownership through thread
-    const thread = await ctx.db.get(message.threadId)
+    const thread = await ctx.db.get("threads", message.threadId)
     if (!thread || thread.userId !== userId) {
       throw new Error('Unauthorized')
     }
 
-    await ctx.db.delete(args.messageId)
+    await ctx.db.delete("messages", args.messageId)
   },
   returns: v.null(),
 })
@@ -273,7 +273,7 @@ export async function addMessages(
     }
   },
 ) {
-  const thread = await ctx.db.get(args.threadId)
+  const thread = await ctx.db.get("threads", args.threadId)
   if (!thread) throw new Error('Thread not found')
 
   const userId = args.userId ?? thread.userId
@@ -299,7 +299,7 @@ export async function addMessages(
       tool: message.role === 'tool',
     })
 
-    results.push(publicMessage((await ctx.db.get(messageId))!))
+    results.push(publicMessage((await ctx.db.get("messages", messageId))!))
 
     // User messages start a new order
     if (isUser) {

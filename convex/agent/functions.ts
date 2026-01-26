@@ -161,10 +161,10 @@ export const deleteThread = mutation({
       .collect()
 
     for (const message of messages) {
-      await ctx.db.delete(message._id)
+      await ctx.db.delete("messages", message._id)
     }
 
     // Delete the thread
-    await ctx.db.delete(args.threadId)
+    await ctx.db.delete("threads", args.threadId)
   },
 })
