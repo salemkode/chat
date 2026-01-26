@@ -186,12 +186,7 @@ export default defineSchema({
     .index('refcount', ['refcount']),
 
   // ============================================
-  // VECTOR TABLES - For embeddings and search
-  // ============================================
-  ...vectorTables,
-
-  // ============================================
-  // EXISTING TABLES - Keep as-is
+  // ADMIN TABLES - For managing models and admins
   // ============================================
 
   // Admin-managed AI models
@@ -218,6 +213,11 @@ export default defineSchema({
   }).index('by_userId', ['userId']),
 
   // ============================================
+  // VECTOR TABLES - For embeddings and search
+  // ============================================
+  ...vectorTables,
+
+  // ============================================
   // Thread metadata - Stores extended metadata for threads
   // ============================================
   threadMetadata: defineTable({
@@ -242,17 +242,3 @@ export default defineSchema({
     .index('by_sectionId', ['sectionId'])
     .index('by_threadId', ['threadId']),
 })
-
-// Export for use with convex-helpers utilities
-export const schemaDefinition = {
-  threads,
-  messages,
-  streamingMessages,
-  streamDeltas,
-  memories,
-  files,
-  models,
-  admins,
-  sections,
-  threadMetadata,
-}
