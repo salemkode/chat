@@ -1,20 +1,26 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
 import React from 'react'
 import { useAuthActions } from '@convex-dev/auth/react'
-import { MessageSquare } from 'lucide-react'
+import { Loader2, MessageSquare } from 'lucide-react'
 
 import { LoginForm } from '@/components/login-form'
+import { useConvexAuth } from 'convex/react'
 
 export const Route = createFileRoute('/login')({
   component: LoginPage,
+  validateSearch: (search: Record<string, unknown>) => ({
+    redirect: search.redirect as string | undefined,
+  }),
 })
 
 function LoginPage() {
   const navigate = useNavigate()
+  const { redirect: redirectUrl } = useSearch({ from: '/login' })
   const { signIn } = useAuthActions()
   const [error, setError] = React.useState<string | null>(null)
   const [isLoading, setIsLoading] = React.useState(false)
 
+  const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth()
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setError(null)
@@ -26,12 +32,27 @@ function LoginPage() {
 
     try {
       await signIn('password', { email, password, flow: 'signIn' })
-      navigate({ to: '/chat' })
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to sign in.')
-    } finally {
       setIsLoading(false)
+      // Redirect to the original page or default to /chat
+      if (redirectUrl) {
+        void navigate({ to: redirectUrl })
+      } else {
+        void navigate({ to: '/chat' })
+      }
+    } catch (err) {
+      setIsLoading(false)
+      setError(err instanceof Error ? err.message : 'Unable to sign in.')
     }
+  }
+
+  if (isAuthLoading) {
+    return <div className="flex items-center justify-center h-screen">
+      <Loader2 className="size-4 animate-spin" />
+    </div>
+  }
+
+  if (isAuthenticated) {
+    void navigate({ to: redirectUrl || '/chat' })
   }
 
   return (
@@ -48,7 +69,9 @@ function LoginPage() {
         <div className="flex flex-1 items-center justify-center">
           <div className="w-full max-w-xs">
             <LoginForm
-              onSubmit={handleSubmit}
+              onSubmit={(event) => {
+                void handleSubmit(event)
+              }}
               errorMessage={error}
               isLoading={isLoading}
             />

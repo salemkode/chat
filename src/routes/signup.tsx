@@ -34,7 +34,7 @@ function SignupPage() {
 
     try {
       await signIn('password', { flow: 'signUp', name, email, password })
-      navigate({ to: '/chat' })
+      void navigate({ to: '/chat' })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to create account.')
     } finally {
@@ -56,7 +56,9 @@ function SignupPage() {
         <div className="flex flex-1 items-center justify-center">
           <div className="w-full max-w-xs">
             <SignupForm
-              onSubmit={handleSubmit}
+              onSubmit={(event) => {
+                void handleSubmit(event)
+              }}
               errorMessage={error}
               isLoading={isLoading}
             />
@@ -64,7 +66,7 @@ function SignupPage() {
         </div>
       </div>
       <div className="bg-muted relative hidden lg:flex items-center justify-center">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 via-purple-600/10 to-transparent" />
+        <div className="absolute inset-0 bg-linear-to-br from-blue-600/20 via-purple-600/10 to-transparent" />
         <img
           src="https://images.unsplash.com/photo-1557683316-973673baf926?w=800&q=80"
           alt="Abstract gradient background"

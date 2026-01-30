@@ -1,243 +1,118 @@
-import { useState } from 'react'
-import {
-  AtSign,
-  Paperclip,
-  Globe,
-  ArrowUp,
-  ChevronDown,
-  Check,
-  Search,
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
-import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
+'use client'
+
+import { useState, useRef, useEffect } from 'react'
+import { ArrowUp, Globe, Paperclip } from 'lucide-react'
 import { cn } from '@/lib/utils'
-
-const pages = [
-  { icon: '📋', label: 'Meeting Notes' },
-  { icon: '📊', label: 'Project Dashboard' },
-  { icon: '💡', label: 'Ideas & Brainstorming' },
-  { icon: '📅', label: 'Calendar & Events' },
-  { icon: '📑', label: 'Documentation' },
-  { icon: '🎯', label: 'Goals & Objectives' },
-  { icon: '💰', label: 'Budget Planning' },
-  { icon: '👥', label: 'Team Directory' },
-  { icon: '🔧', label: 'Technical Specs' },
-]
-
-type AgentMode = 'auto' | 'agent' | 'plan'
+import { ModelSelector } from './model-selector'
 
 interface AIPromptInputProps {
   onSubmit?: (value: string) => void
   disabled?: boolean
+  selectedModel?: string
+  onModelChange?: (modelId: string) => void
 }
 
 export function AIPromptInput({
   onSubmit,
   disabled = false,
+  selectedModel,
+  onModelChange,
 }: AIPromptInputProps) {
+  console.log('disabled', disabled)
   const [value, setValue] = useState('')
-  const [agentMode, setAgentMode] = useState<AgentMode>('auto')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [selectedPage, setSelectedPage] = useState<string | null>(null)
+  const [searchEnabled, setSearchEnabled] = useState(false)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  const filteredPages = pages.filter((page) =>
-    page.label.toLowerCase().includes(searchQuery.toLowerCase()),
-  )
+  useEffect(() => {
+    const textarea = textareaRef.current
+    if (textarea) {
+      textarea.style.height = '48px'
+      const scrollHeight = textarea.scrollHeight
+      textarea.style.height = `${Math.min(scrollHeight, 200)}px`
+    }
+  }, [value])
 
-  const agentModeLabel = {
-    auto: 'Auto',
-    agent: 'Agent Mode',
-    plan: 'Plan Mode',
-  }
-
-  const handleSubmit = () => {
-    if (value.trim() && onSubmit) {
+  const handleSubmit = (e?: React.FormEvent) => {
+    e?.preventDefault()
+    if (value.trim() && onSubmit && !disabled) {
       onSubmit(value)
       setValue('')
     }
   }
 
-  return (
-    <TooltipProvider>
-      <div className="w-full">
-        <div className="rounded-2xl border border-input bg-card p-4 shadow-lg">
-          <div className="mb-3">
-            <Popover>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <PopoverTrigger asChild>
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-2 rounded-full bg-secondary px-3 py-1.5 text-sm text-secondary-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                    >
-                      <AtSign className="h-4 w-4" />
-                      Add context
-                    </button>
-                  </PopoverTrigger>
-                </TooltipTrigger>
-                <TooltipContent side="top">
-                  Mention a person, page, or date
-                </TooltipContent>
-              </Tooltip>
-              <PopoverContent
-                className="w-64 rounded-xl p-0"
-                align="start"
-                sideOffset={8}
-              >
-                {/* Search input */}
-                <div className="flex items-center gap-2 border-b border-input px-3 py-2">
-                  <Search className="h-4 w-4 text-muted-foreground" />
-                  <Input
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search pages..."
-                    className="h-8 border-0 bg-transparent p-0 px-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:ring-0"
-                  />
-                </div>
-                {/* Pages list */}
-                <div className="p-2">
-                  <p className="mb-2 px-2 text-xs font-medium text-muted-foreground">
-                    Pages
-                  </p>
-                  <div className="max-h-64 overflow-y-auto">
-                    {filteredPages.map((page) => (
-                      <button
-                        type="button"
-                        key={page.label}
-                        onClick={() => {
-                          setSelectedPage(page.label)
-                          setSearchQuery('')
-                        }}
-                        className={cn(
-                          'flex w-full items-center gap-3 rounded-lg px-2 py-2 text-sm text-foreground transition-colors hover:bg-accent',
-                          selectedPage === page.label && 'bg-accent',
-                        )}
-                      >
-                        <span className="text-base">{page.icon}</span>
-                        {page.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSubmit()
+    }
+  }
 
-          {/* Textarea */}
+  return (
+    <div className="pointer-events-auto w-full">
+      <form
+        onSubmit={handleSubmit}
+        className="pointer-events-auto relative flex w-full min-w-0 flex-col items-stretch rounded-t-xl border border-white/20 bg-linear-to-b from-white/95 to-white/90 p-4 text-secondary-foreground backdrop-blur-3xl dark:border-gray-700/50 dark:from-gray-900/95 dark:to-gray-900/90 sm:max-w-3xl"
+      >
+        <div className="flex min-w-0 grow flex-row items-start">
           <textarea
+            ref={textareaRef}
+            name="input"
+            placeholder="Type your message here..."
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            onKeyDown={(e) => {
-              if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-                e.preventDefault()
-                handleSubmit()
-              }
-            }}
-            placeholder="Ask, search, or make anything..."
-            className="min-h-[60px] w-full resize-none bg-transparent text-lg text-muted-foreground placeholder:text-muted-foreground focus:outline-none"
-            rows={2}
+            onKeyDown={handleKeyDown}
+            disabled={disabled}
+            className="w-full min-w-0 resize-none bg-transparent text-base leading-6 text-foreground outline-none placeholder:text-muted-foreground/60 disabled:opacity-50"
+            aria-label="Message input"
+            autoComplete="off"
+            style={{ height: '48px' }}
           />
+        </div>
 
-          {/* Bottom toolbar */}
-          <div className="mt-4 flex items-center justify-between">
-            <div className="flex items-center gap-1">
-              {/* Attachment button */}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-9 gap-2 rounded-full px-3 text-muted-foreground hover:bg-secondary hover:text-foreground"
-              >
-                <Paperclip className="h-4 w-4" />
-              </Button>
-
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-9 gap-1 rounded-full px-3 text-muted-foreground hover:bg-secondary hover:text-foreground"
-                  >
-                    {agentModeLabel[agentMode]}
-                    <ChevronDown className="h-3 w-3" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent
-                  className="w-52 rounded-xl border-input bg-card p-2"
-                  align="start"
-                  sideOffset={8}
-                >
-                  <p className="mb-2 px-2 text-sm text-muted-foreground">
-                    Select Agent Mode
-                  </p>
-                  <div className="space-y-1">
-                    <button
-                      type="button"
-                      onClick={() => setAgentMode('auto')}
-                      className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-sm text-foreground transition-colors hover:bg-accent"
-                    >
-                      Auto
-                      {agentMode === 'auto' && <Check className="h-4 w-4" />}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setAgentMode('agent')}
-                      className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-sm text-foreground transition-colors hover:bg-accent"
-                    >
-                      <span className="flex items-center gap-2">
-                        Agent Mode
-                        <Badge className="bg-primary px-1.5 py-0 text-[10px] font-medium text-primary-foreground hover:bg-primary">
-                          Beta
-                        </Badge>
-                      </span>
-                      {agentMode === 'agent' && <Check className="h-4 w-4" />}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setAgentMode('plan')}
-                      className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-sm text-foreground transition-colors hover:bg-accent"
-                    >
-                      Plan Mode
-                      {agentMode === 'plan' && <Check className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </PopoverContent>
-              </Popover>
-
-              {/* All Sources dropdown */}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-9 gap-2 rounded-full px-3 text-muted-foreground hover:bg-secondary hover:text-foreground"
-              >
-                <Globe className="h-4 w-4" />
-                All Sources
-              </Button>
-            </div>
-
-            {/* Submit button */}
-            <Button
-              size="icon"
-              className="h-10 w-10 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
+        <div className="flex w-full min-w-0 flex-row-reverse justify-between items-center">
+          <div className="flex shrink-0 items-center justify-center">
+            <button
+              type="submit"
               disabled={disabled || !value.trim()}
-              onClick={handleSubmit}
+              aria-label={
+                value.trim() ? 'Send message' : 'Message requires text'
+              }
+              className="inline-flex items-center justify-center bg-primary font-semibold text-primary-foreground transition-colors hover:bg-primary/90 active:bg-primary disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-primary disabled:active:bg-primary size-9 rounded-lg p-2 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0"
             >
-              <ArrowUp className="h-5 w-5" />
-            </Button>
+              <ArrowUp className="size-5" aria-hidden="true" />
+            </button>
+          </div>
+
+          <div className="flex min-w-0 items-center gap-2">
+            <ModelSelector
+              selectedModel={selectedModel}
+              onModelChange={onModelChange}
+            />
+
+            <button
+              type="button"
+              onClick={() => setSearchEnabled(!searchEnabled)}
+              aria-label={searchEnabled ? 'Disable search' : 'Enable search'}
+              className={cn(
+                'inline-flex items-center justify-center h-8 rounded-lg px-2.5 text-xs font-medium transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
+                searchEnabled
+                  ? 'text-foreground bg-muted/60'
+                  : 'text-muted-foreground',
+              )}
+            >
+              <Globe className="size-4" />
+            </button>
+
+            <label
+              className="inline-flex h-8 cursor-pointer items-center rounded-lg px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0"
+              aria-label="Attach a file"
+            >
+              <input multiple className="sr-only" type="file" />
+              <Paperclip className="size-4" aria-hidden="true" />
+            </label>
           </div>
         </div>
-      </div>
-    </TooltipProvider>
+      </form>
+    </div>
   )
 }

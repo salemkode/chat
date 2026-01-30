@@ -44,11 +44,28 @@ export const listMessages = query({
     // If no threadId, return empty page structure
     if (!args.threadId) throw new Error('No threadId provided')
 
-    // Fetches the regular non-streaming messages.
-    const paginated = await listUIMessages(ctx, components.agent, args);
+    // Fetches regular non-streaming messages.
+    const paginated = await listUIMessages(ctx, components.agent, args)
 
-    const streams = await syncStreams(ctx, components.agent, args);
+    const streams = await syncStreams(ctx, components.agent, args)
 
-    return { ...paginated, streams };
+    return { ...paginated, streams }
+  },
+})
+
+export const createThread = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId) throw new Error('Unauthorized')
+
+    const thread = await ctx.runMutation(
+      components.agent.threads.createThread,
+      {
+        userId,
+      },
+    )
+
+    return thread._id
   },
 })

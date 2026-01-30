@@ -1,10 +1,20 @@
-import { components } from './_generated/api'
+import { components, internal } from './_generated/api'
 import { Agent } from '@convex-dev/agent'
 import { createOpenRouter } from '@openrouter/ai-sdk-provider'
-import { action, mutation, query } from './_generated/server'
+import { internalAction, mutation, query } from './_generated/server'
 import { v } from 'convex/values'
 import { getAuthUserId } from '@convex-dev/auth/server'
 import { createThread } from '@convex-dev/agent'
+import type { LanguageModel } from 'ai'
+import { match } from 'ts-pattern'
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
+import { openai } from '@ai-sdk/openai'
+import { anthropic } from '@ai-sdk/anthropic'
+import { google } from '@ai-sdk/google'
+import { azure } from '@ai-sdk/azure'
+import { groq } from '@ai-sdk/groq'
+import { deepseek } from '@ai-sdk/deepseek'
+import { xai } from '@ai-sdk/xai'
 
 // Random emoji picker for new chats
 const CHAT_EMOJIS = [
@@ -49,38 +59,99 @@ const openrouter = createOpenRouter({
   apiKey: process.env.OPENROUTER_API_KEY!,
 })
 
-export const chatAgent = new Agent(components.agent, {
-  name: 'chat',
-  languageModel: openrouter.chat('mistralai/devstral-2512:free'),
-  instructions: 'You are a helpful assistant.',
+function createAuthorAgent(
+  model: LanguageModel,
+) {
+  return new Agent(components.agent, {
+    name: 'Author',
+    languageModel: model,
+    maxSteps: 10, // Alternative to stopWhen: stepCountIs(10)
+  })
+}
+
+export const streamMessage = internalAction({
+  args: {
+    agent: v.union(v.literal('openrouter'), v.literal('openai'), v.literal('anthropic'), v.literal('google'), v.literal('azure'), v.literal('groq'), v.literal('deepseek'), v.literal('xai')),
+    modelId: v.string(),
+    prompt: v.string(),
+    threadId: v.string(),
+    customUrl: v.optional(v.string()),
+    apiKey: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const provider = match(args.agent)
+      .with('openrouter', () => {
+        return openrouter.chat(args.modelId)
+      })
+      .with('openai', () => {
+        if (!args.customUrl || !args.apiKey) return openai.chat(args.modelId);
+        const provider = createOpenAICompatible({
+          name: 'providerName',
+          apiKey: args.apiKey,
+          baseURL:  args.customUrl,
+          includeUsage: true, // Include usage information in streaming responses
+        })
+        return provider(args.modelId);
+      })
+      .with('anthropic', () => {
+        return anthropic.languageModel(args.modelId)
+      })
+      .with('google', () => {
+        return google.chat(args.modelId)
+      })
+      .with('azure', () => {
+        return azure.chat(args.modelId)
+      })
+      .with('groq', () => {
+        return groq(args.modelId)
+      })
+      .with('deepseek', () => {
+        return deepseek.chat(args.modelId)
+      })
+      .with('xai', () => {
+        return xai.chat(args.modelId)
+      })
+      .exhaustive()
+
+    // Create the agent
+    const agent = createAuthorAgent(provider)
+
+    // Stream the response
+    await agent.streamText(
+      ctx,
+      { threadId: args.threadId },
+      // @ts-expect-error types are strict
+      { prompt: args.prompt },
+      { saveStreamDeltas: true },
+    )
+  },
 })
 
-export const generateMessage = action({
+export const generateMessage = mutation({
   args: {
     threadId: v.string(),
-    text: v.string(),
-    model: v.optional(v.string()),
+    prompt: v.string(),
+    modelId: v.id('models'),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) throw new Error('Unauthorized')
 
-    // Dynamic model selection via OpenRouter
-    // User can pass model names like "openai/gpt-4o", "anthropic/claude-3-opus", etc.
-    const modelId = args.model || 'mistralai/devstral-2512:free'
-    const model = openrouter.chat(modelId)
+    const model = await ctx.db.get(args.modelId)
+    if (!model) throw new Error('Model not found');
+
+    const provider = await ctx.db.get(model.providerId)
+    if (!provider) throw new Error('Provider not found');
 
     // Use the agent to stream the response
-    await chatAgent.streamText(
-      ctx,
-      { threadId: args.threadId },
-      // @ts-expect-error types are strict
-      { prompt: args.text },
-      {
-        saveStreamDeltas: true,
-        languageModel: model,
-      },
-    )
+    await ctx.scheduler.runAfter(0, internal.agents.streamMessage, {
+      agent: provider.providerType,
+      modelId: model.modelId,
+      prompt: args.prompt,
+      threadId: args.threadId,
+      apiKey: provider.apiKey,
+      customUrl: provider.baseURL,
+    })
   },
 })
 
@@ -103,6 +174,7 @@ export const createChatThread = mutation({
       emoji: getRandomEmoji(),
       sectionId: args.sectionId,
       userId,
+      sortOrder: 0, // Default to not pinned
     })
 
     return threadId
@@ -132,6 +204,42 @@ export const updateThreadSection = mutation({
   },
 })
 
+// Toggle pin status for a thread
+export const togglePinThread = mutation({
+  args: {
+    threadId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId) {
+      throw new Error("Not authenticated")
+    }
+
+    // Find the metadata for this thread
+    const metadata = await ctx.db
+      .query('threadMetadata')
+      .withIndex('by_threadId', (q) => q.eq('threadId', args.threadId))
+      .first()
+
+    if (!metadata) {
+      throw new Error("Thread metadata not found")
+    }
+
+    if (metadata.userId !== userId) {
+      throw new Error("Not authorized to pin this thread")
+    }
+
+    // Toggle between 0 (not pinned) and 1 (pinned)
+    const newSortOrder = metadata.sortOrder === 1 ? 0 : 1
+
+    await ctx.db.patch("threadMetadata", metadata._id, {
+      sortOrder: newSortOrder
+    })
+
+    return newSortOrder
+  },
+})
+
 // List threads with metadata (grouped by section)
 export const listThreadsWithMetadata = query({
   handler: async (ctx) => {
@@ -148,12 +256,22 @@ export const listThreadsWithMetadata = query({
 
     const metadata = await ctx.db
       .query('threadMetadata')
-      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .withIndex('by_userId_sortOrder', (q) => q.eq('userId', userId))
       .collect()
+
+    // Sort threads: pinned (sortOrder=1) first, then by creation time
+    const sortedMetadata = metadata.sort((a, b) => {
+      // First sort by pinned status (descending - pinned first)
+      if (b.sortOrder !== a.sortOrder) {
+        return b.sortOrder - a.sortOrder
+      }
+      // Then sort by creation time (newest first)
+      return b._creationTime - a._creationTime
+    })
 
     return threads.page.map((thread) => ({
       ...thread,
-      metadata: metadata.find((m) => m.threadId === thread._id),
+      metadata: sortedMetadata.find((m) => m.threadId === thread._id),
     }))
   },
 })
