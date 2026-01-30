@@ -12,7 +12,11 @@ interface ChatMessageListProps {
   modelName?: string
 }
 
-export function ChatMessageList({ messages, className, modelName }: ChatMessageListProps) {
+export function ChatMessageList({
+  messages,
+  className,
+  modelName,
+}: ChatMessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -25,9 +29,12 @@ export function ChatMessageList({ messages, className, modelName }: ChatMessageL
 
   return (
     <div
-      className={cn('flex-1 overflow-y-auto px-4 pt-6 pb-32', className)}
+      className={cn(
+        'flex-1 overflow-y-auto pt-4 sm:pt-6 pb-28 sm:pb-32',
+        className,
+      )}
     >
-      <div className="space-y-6 container mx-auto">
+      <div className="space-y-4 sm:space-y-6 container">
         {messages.map((msg) => (
           <Message key={msg.id} message={msg} modelName={modelName} />
         ))}

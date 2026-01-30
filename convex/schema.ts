@@ -24,10 +24,34 @@ export default defineSchema({
       v.literal('groq'),
       v.literal('deepseek'),
       v.literal('xai'),
+      v.literal('openai-compatible'), // Generic OpenAI-compatible provider (OpenCode, etc.)
+      v.literal('opencode'), // OpenCode.ai provider
+      v.literal('mistral'),
+      v.literal('cohere'),
+      v.literal('perplexity'),
+      v.literal('fireworks'),
+      v.literal('together'),
+      v.literal('replicate'),
+      v.literal('moonshot'),
+      v.literal('qwen'),
+      v.literal('stepfun'),
     ),
     sortOrder: v.float64(),
     // Icon for the provider (used in model selector sidebar)
     icon: v.optional(v.string()), // e.g., "openai", "anthropic", "google", "meta"
+    // Provider-specific configuration
+    config: v.optional(
+      v.object({
+        // Organization ID for OpenAI
+        organization: v.optional(v.string()),
+        // Project ID for OpenAI
+        project: v.optional(v.string()),
+        // Headers to include in requests
+        headers: v.optional(v.record(v.string(), v.string())),
+        // Query parameters
+        queryParams: v.optional(v.record(v.string(), v.string())),
+      }),
+    ),
   })
     .index('by_enabled', ['isEnabled'])
     .index('by_providerType', ['providerType']),
@@ -70,10 +94,11 @@ export default defineSchema({
     isExpanded: v.boolean(),
   }).index('by_userId', ['userId']),
 
-  // Thread metadata (emoji, sectionId) linked to agent threads
+  // Thread metadata (emoji/icon, sectionId) linked to agent threads
   threadMetadata: defineTable({
     threadId: v.string(), // ID from @convex-dev/agent threads table
     emoji: v.string(),
+    icon: v.optional(v.string()), // Lucide icon name
     sectionId: v.optional(v.id('sections')),
     userId: v.id('users'),
     sortOrder: v.number(), // 1 = pinned, 0 = normal
@@ -241,5 +266,14 @@ export default defineSchema({
       v.literal('error'),
     ),
     errorMessage: v.optional(v.string()),
+  }).index('by_user', ['userId']),
+
+  // User settings and profile
+  userSettings: defineTable({
+    userId: v.id('users'),
+    displayName: v.optional(v.string()),
+    image: v.optional(v.string()),
+    bio: v.optional(v.string()),
+    updatedAt: v.number(),
   }).index('by_user', ['userId']),
 })

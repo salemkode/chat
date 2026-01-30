@@ -11,7 +11,9 @@ interface MarkdownContentProps {
 export function MarkdownContent({ content, className }: MarkdownContentProps) {
   return (
     <div
-      className={cn(`prose prose-sm dark:prose-invert max-w-none text-foreground overflow-hidden wrap-anywhere ${className || ''}`)}
+      className={cn(
+        `prose prose-sm dark:prose-invert max-w-none text-foreground overflow-hidden wrap-anywhere ${className || ''}`,
+      )}
       dir="auto"
     >
       <ReactMarkdown
@@ -31,17 +33,12 @@ export function MarkdownContent({ content, className }: MarkdownContentProps) {
             const match = /language-(\w+)/.exec(className || '')
             const language = match ? match[1] : ''
             const code = String(children).replace(/\n$/, '')
-            
+
             if (!className) {
               return <InlineCode>{children}</InlineCode>
             }
-            
-            return (
-              <CodeBlock 
-                code={code} 
-                language={language || undefined}
-              />
-            )
+
+            return <CodeBlock code={code} language={language || undefined} />
           },
           pre: ({ children }) => <>{children}</>,
           h1: ({ children }) => (
@@ -79,7 +76,7 @@ export function MarkdownContent({ content, className }: MarkdownContentProps) {
           ),
           img: () => <span aria-hidden={true}></span>,
           strong: ({ children }) => (
-            <strong className="font-bold text-muted-foreground" dir="auto">
+            <strong className="font-bold text-foreground" dir="auto">
               {children}
             </strong>
           ),
@@ -90,4 +87,3 @@ export function MarkdownContent({ content, className }: MarkdownContentProps) {
     </div>
   )
 }
-

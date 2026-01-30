@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
-import { Pin, X } from 'lucide-react'
+import { Pin, X, Image } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   Tooltip,
@@ -10,6 +10,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { ThreadIcon } from '@/components/ThreadIcon'
 
 interface Thread {
   _id: string
@@ -28,15 +29,20 @@ interface ThreadItemProps {
   onDelete?: (threadId: string) => void
 }
 
-export function ThreadItem({ thread, isActive, onPin, onDelete }: ThreadItemProps) {
+export function ThreadItem({
+  thread,
+  isActive,
+  onPin,
+  onDelete,
+}: ThreadItemProps) {
   const [isHovered, setIsHovered] = React.useState(false)
 
   return (
     <TooltipProvider delayDuration={300}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <div 
-            data-sidebar="menu-item" 
+          <div
+            data-sidebar="menu-item"
             className="group/menu-item relative px-2 mb-0.5"
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
@@ -44,12 +50,12 @@ export function ThreadItem({ thread, isActive, onPin, onDelete }: ThreadItemProp
             <Link
               to={`/chat/${thread._id}`}
               className={cn(
-                "group/link relative flex h-9 w-full items-center overflow-hidden rounded-lg px-2 py-1 text-sm outline-hidden",
-                "transition-colors duration-150 ease-snappy",
-                "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                "focus-visible:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring",
-                "hover:focus-visible:bg-sidebar-accent",
-                isActive && "bg-sidebar-accent text-sidebar-accent-foreground"
+                'group/link relative flex h-9 w-full items-center overflow-hidden rounded-lg px-2 py-1 text-sm outline-hidden',
+                'transition-colors duration-150 ease-snappy',
+                'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+                'focus-visible:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring',
+                'hover:focus-visible:bg-sidebar-accent',
+                isActive && 'bg-sidebar-accent text-sidebar-accent-foreground',
               )}
               data-status={isActive ? 'active' : undefined}
               aria-current={isActive ? 'page' : undefined}
@@ -65,37 +71,41 @@ export function ThreadItem({ thread, isActive, onPin, onDelete }: ThreadItemProp
                         readOnly
                         tabIndex={-1}
                         className={cn(
-                          "h-full w-full rounded bg-transparent px-1 py-1 text-left text-sm outline-hidden",
-                          "[unicode-bidi:plaintext] hover:truncate-none",
-                          "pointer-events-none cursor-pointer truncate overflow-hidden",
-                          isActive ? "text-sidebar-accent-foreground" : "text-muted-foreground"
+                          'h-full w-full rounded bg-transparent px-1 py-1 text-left text-sm outline-hidden',
+                          '[unicode-bidi:plaintext] hover:truncate-none',
+                          'pointer-events-none cursor-pointer truncate overflow-hidden',
+                          isActive
+                            ? 'text-sidebar-accent-foreground'
+                            : 'text-muted-foreground',
                         )}
                         dir="auto"
                         title={thread.title || 'Untitled Chat'}
                         type="text"
-                        value={`${thread.metadata?.emoji || '💬'} ${thread.title || 'Untitled Chat'}`}
+                        value={`${thread.title || 'Untitled Chat'}`}
                       />
                     </div>
                   </div>
                 </button>
 
                 {/* Action buttons - appear on hover */}
-                <div 
+                <div
                   className={cn(
-                    "mobile:hidden pointer-events-auto absolute top-0 -right-1 bottom-0 z-50 flex items-center justify-end text-muted-foreground",
-                    "transition-transform duration-200 ease-snappy",
-                    isHovered ? "translate-x-0 bg-sidebar-accent" : "translate-x-full"
+                    'mobile:hidden pointer-events-auto absolute top-0 -right-1 bottom-0 z-50 flex items-center justify-end text-muted-foreground',
+                    'transition-transform duration-200 ease-snappy',
+                    isHovered
+                      ? 'translate-x-0 bg-sidebar-accent'
+                      : 'translate-x-full',
                   )}
                 >
                   {/* Gradient fade effect */}
-                  <div 
+                  <div
                     className={cn(
-                      "pointer-events-none absolute top-0 right-full bottom-0 h-12 w-8 bg-linear-to-l from-sidebar-accent to-transparent",
-                      "transition-opacity duration-200",
-                      isHovered ? "opacity-100" : "opacity-0"
+                      'pointer-events-none absolute top-0 right-full bottom-0 h-12 w-8 bg-linear-to-l from-sidebar-accent to-transparent',
+                      'transition-opacity duration-200',
+                      isHovered ? 'opacity-100' : 'opacity-0',
                     )}
                   />
-                  
+
                   {/* Pin button */}
                   <Tooltip>
                     <TooltipTrigger asChild>

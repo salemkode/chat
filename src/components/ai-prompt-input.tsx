@@ -51,7 +51,7 @@ export function AIPromptInput({
     <div className="pointer-events-auto w-full">
       <form
         onSubmit={handleSubmit}
-        className="pointer-events-auto relative flex w-full min-w-0 flex-col items-stretch rounded-t-xl border border-white/20 bg-linear-to-b from-white/95 to-white/90 p-4 text-secondary-foreground bg-muted/80 backdrop-blur-2xl dark:border-gray-700/50 dark:from-gray-900/95 dark:to-gray-900/90 sm:max-w-3xl"
+        className="pointer-events-auto relative flex w-full min-w-0 flex-col items-stretch rounded-t-xl border border-border bg-linear-to-b from-background/95 to-background/90 p-3 sm:p-4 text-secondary-foreground bg-muted/80 backdrop-blur-2xl sm:max-w-3xl"
       >
         <div className="flex min-w-0 grow flex-row items-start">
           <textarea
@@ -94,10 +94,10 @@ export function AIPromptInput({
               onClick={() => setSearchEnabled(!searchEnabled)}
               aria-label={searchEnabled ? 'Disable search' : 'Enable search'}
               className={cn(
-                'inline-flex items-center justify-center h-8 rounded-lg px-2.5 text-xs font-medium transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
+                'inline-flex items-center justify-center h-8 rounded-lg px-2.5 text-xs font-medium transition-colors hover:bg-muted/60 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
                 searchEnabled
                   ? 'text-foreground bg-muted/60'
-                  : 'text-muted-foreground',
+                  : 'text-muted-foreground hover:text-foreground',
               )}
             >
               <Globe className="size-4" />

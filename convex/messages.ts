@@ -1,6 +1,7 @@
 import { query, mutation } from './_generated/server'
 import { v } from 'convex/values'
 import { getAuthUserId } from '@convex-dev/auth/server'
+import { ConvexError } from 'convex/values'
 
 export const list = query({
   args: {},
@@ -23,7 +24,12 @@ export const send = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
-    if (!userId) throw new Error('Unauthorized')
+    if (!userId) {
+      throw new ConvexError({
+        code: 'UNAUTHORIZED',
+        message: 'You must be logged in to send messages',
+      })
+    }
 
     await ctx.db.insert('messages', {
       body: args.body,

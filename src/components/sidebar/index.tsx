@@ -4,8 +4,7 @@ import * as React from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
-import { Monitor, Sun, Moon, Plus, Search, Pin, X, LogIn } from 'lucide-react'
-import { useTheme } from 'next-themes'
+import { Plus, Search, Pin, X, LogIn, User, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   Sidebar,
@@ -28,15 +27,23 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { SettingsDialog } from '@/components/settings-dialog'
+
+interface ThreadMetadata {
+  _id: string
+  threadId: string
+  emoji: string
+  sectionId?: string
+  userId: string
+  sortOrder: number // 1 = pinned, 0 = normal
+}
 
 interface Thread {
   _id: string
   title?: string
   _creationTime: number
-  metadata?: {
-    emoji?: string
-    sectionId?: string
-  }
+  metadata?: ThreadMetadata
 }
 
 interface AppSidebarProps {
@@ -46,52 +53,58 @@ interface AppSidebarProps {
 
 export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
   const navigate = useNavigate()
-  const { theme, setTheme } = useTheme()
   const [searchQuery, setSearchQuery] = React.useState('')
-  const [mounted, setMounted] = React.useState(false)
+  const [settingsOpen, setSettingsOpen] = React.useState(false)
 
   const threads = useQuery(api.agents.listThreadsWithMetadata) || []
   const togglePinThread = useMutation(api.agents.togglePinThread)
   const deleteThreadMutation = useMutation(api.chat.deleteThread)
-
-  React.useEffect(() => {
-    setMounted(true)
-  }, [])
+  const user = useQuery(api.users.viewer)
 
   // Filter threads based on search query
   const filteredThreads = React.useMemo(() => {
     if (!searchQuery.trim()) return threads
-    
+
     return threads.filter((thread: Thread) =>
-      thread.title?.toLowerCase().includes(searchQuery.toLowerCase())
+      thread.title?.toLowerCase().includes(searchQuery.toLowerCase()),
     )
   }, [threads, searchQuery])
 
-  // Group threads by date
+  // Group threads by pinned status and date
   const groupedThreads = React.useMemo(() => {
     const now = Date.now()
     const oneDay = 24 * 60 * 60 * 1000
-    
+
+    const pinned: Thread[] = []
     const today: Thread[] = []
     const yesterday: Thread[] = []
     const last7Days: Thread[] = []
+    const last30Days: Thread[] = []
     const older: Thread[] = []
 
     filteredThreads.forEach((thread: Thread) => {
+      // Check if pinned first
+      if (thread.metadata?.sortOrder === 1) {
+        pinned.push(thread)
+        return
+      }
+
       const age = now - thread._creationTime
-      
+
       if (age < oneDay) {
         today.push(thread)
       } else if (age < 2 * oneDay) {
         yesterday.push(thread)
       } else if (age < 7 * oneDay) {
         last7Days.push(thread)
+      } else if (age < 30 * oneDay) {
+        last30Days.push(thread)
       } else {
         older.push(thread)
       }
     })
 
-    return { today, yesterday, last7Days, older }
+    return { pinned, today, yesterday, last7Days, last30Days, older }
   }, [filteredThreads])
 
   const handleNewChat = () => {
@@ -121,51 +134,52 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
     }
   }
 
-  const handleThemeToggle = () => {
-    if (theme === 'light') setTheme('dark')
-    else if (theme === 'dark') setTheme('system')
-    else setTheme('light')
+  const renderThreadGroup = (
+    group: Thread[],
+    label: string,
+    showPinButton = true,
+  ) => {
+    if (group.length === 0) return null
+
+    return (
+      <>
+        <SidebarGroupLabel className="text-primary font-semibold text-xs uppercase tracking-wider mt-2 first:mt-0">
+          {label}
+        </SidebarGroupLabel>
+        {group.map((thread: Thread) => (
+          <ThreadItem
+            key={thread._id}
+            thread={thread}
+            isActive={selectedThreadId === thread._id}
+            onPin={handlePinThread}
+            onDelete={handleDeleteThread}
+            showPinButton={showPinButton}
+            isPinned={thread.metadata?.sortOrder === 1}
+          />
+        ))}
+      </>
+    )
   }
 
   return (
-    <Sidebar className={cn("border-r border-sidebar-border", className)}>
+    <Sidebar className={cn('border-r', className)}>
       <SidebarHeader className="relative pb-2">
-        {/* Theme Toggle - Mobile only in header */}
-        <div className="absolute top-2 right-2 sm:hidden">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-8"
-            onClick={handleThemeToggle}
-          >
-            {mounted && (
-              <>
-                <Monitor className={cn("h-4 w-4 transition-transform", theme === 'system' ? "scale-100" : "scale-0")} />
-                <Sun className={cn("h-4 w-4 transition-transform absolute", theme === 'light' ? "scale-100" : "scale-0")} />
-                <Moon className={cn("h-4 w-4 transition-transform absolute", theme === 'dark' ? "scale-100" : "scale-0")} />
-              </>
-            )}
-            {!mounted && <Monitor className="h-4 w-4" />}
-          </Button>
-        </div>
-
         {/* Logo */}
         <div className="flex items-center justify-center py-3">
-          <h1 className="text-lg font-semibold text-sidebar-foreground">Chat</h1>
+          <h1 className="text-lg font-semibold text-sidebar-foreground">
+            Chat
+          </h1>
         </div>
 
         {/* New Chat Button */}
-        <Button
-          onClick={handleNewChat}
-          className="w-full"
-        >
+        <Button onClick={handleNewChat} className="w-full">
           <Plus className="h-4 w-4 mr-2" />
           New Chat
         </Button>
 
         {/* Search */}
         <div className="relative mt-2">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-sidebar-foreground/60" />
           <Input
             placeholder="Search threads..."
             value={searchQuery}
@@ -178,70 +192,28 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="gap-1">
+              {/* Pinned Section */}
+              {renderThreadGroup(groupedThreads.pinned, '📌 Pinned', true)}
+
               {/* Today */}
-              {groupedThreads.today.length > 0 && (
-                <>
-                  <SidebarGroupLabel>Today</SidebarGroupLabel>
-                  {groupedThreads.today.map((thread: Thread) => (
-                    <ThreadItem
-                      key={thread._id}
-                      thread={thread}
-                      isActive={selectedThreadId === thread._id}
-                      onPin={handlePinThread}
-                      onDelete={handleDeleteThread}
-                    />
-                  ))}
-                </>
-              )}
+              {renderThreadGroup(groupedThreads.today, 'Today', true)}
 
               {/* Yesterday */}
-              {groupedThreads.yesterday.length > 0 && (
-                <>
-                  <SidebarGroupLabel>Yesterday</SidebarGroupLabel>
-                  {groupedThreads.yesterday.map((thread: Thread) => (
-                    <ThreadItem
-                      key={thread._id}
-                      thread={thread}
-                      isActive={selectedThreadId === thread._id}
-                      onPin={handlePinThread}
-                      onDelete={handleDeleteThread}
-                    />
-                  ))}
-                </>
-              )}
+              {renderThreadGroup(groupedThreads.yesterday, 'Yesterday', true)}
 
               {/* Last 7 Days */}
-              {groupedThreads.last7Days.length > 0 && (
-                <>
-                  <SidebarGroupLabel>Last 7 Days</SidebarGroupLabel>
-                  {groupedThreads.last7Days.map((thread: Thread) => (
-                    <ThreadItem
-                      key={thread._id}
-                      thread={thread}
-                      isActive={selectedThreadId === thread._id}
-                      onPin={handlePinThread}
-                      onDelete={handleDeleteThread}
-                    />
-                  ))}
-                </>
+              {renderThreadGroup(groupedThreads.last7Days, 'Last 7 Days', true)}
+
+              {/* Last 30 Days */}
+              {renderThreadGroup(
+                groupedThreads.last30Days,
+                'Last 30 Days',
+                true,
               )}
 
               {/* Older */}
-              {groupedThreads.older.length > 0 && (
-                <>
-                  <SidebarGroupLabel>Older</SidebarGroupLabel>
-                  {groupedThreads.older.map((thread: Thread) => (
-                    <ThreadItem
-                      key={thread._id}
-                      thread={thread}
-                      isActive={selectedThreadId === thread._id}
-                      onPin={handlePinThread}
-                      onDelete={handleDeleteThread}
-                    />
-                  ))}
-                </>
-              )}
+              {renderThreadGroup(groupedThreads.older, 'Older', true)}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -249,17 +221,76 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
 
       <SidebarFooter>
         <SidebarSeparator />
-        
-        {/* Login Button */}
-        <Button
-          variant="ghost"
-          className="w-full justify-start gap-3"
-          onClick={() => navigate({ to: '/auth/login' })}
-        >
-          <LogIn className="h-4 w-4" />
-          Login
-        </Button>
+
+        {user ? (
+          <>
+            {/* User Profile */}
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    className={cn(
+                      'flex w-full items-center gap-3 rounded-lg p-3 text-muted-foreground',
+                      'select-none hover:bg-sidebar-accent transition-colors',
+                      '[&_svg]:size-4',
+                    )}
+                    onClick={() => setSettingsOpen(true)}
+                  >
+                    <Avatar className="size-8 shrink-0">
+                      <AvatarImage
+                        src={user.settings?.image || user.image || undefined}
+                        alt={user.settings?.displayName || user.name || 'User'}
+                        className="object-cover"
+                      />
+                      <AvatarFallback className="bg-primary text-primary-foreground text-xs font-medium">
+                        {(() => {
+                          const name = user.settings?.displayName || user.name
+                          return name ? (
+                            name
+                              .split(' ')
+                              .map((n: string) => n[0])
+                              .join('')
+                              .toUpperCase()
+                              .slice(0, 2)
+                          ) : (
+                            <User className="size-4" />
+                          )
+                        })()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col items-start flex-1 min-w-0 text-left">
+                      <span className="text-sm font-medium text-foreground truncate">
+                        {user.settings?.displayName || user.name || 'User'}
+                      </span>
+                      <span className="text-xs text-muted-foreground truncate">
+                        {user.email || ''}
+                      </span>
+                    </div>
+                    <Settings className="size-4 text-sidebar-foreground/70 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p>Settings</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </>
+        ) : (
+          /* Login Button */
+          <Button
+            variant="ghost"
+            className="w-full justify-start gap-3"
+            onClick={() => navigate({ to: '/auth/login' })}
+          >
+            <LogIn className="h-4 w-4" />
+            Login
+          </Button>
+        )}
       </SidebarFooter>
+
+      {/* Settings Dialog */}
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </Sidebar>
   )
 }
@@ -269,9 +300,18 @@ interface ThreadItemProps {
   isActive?: boolean
   onPin: (threadId: string, e: React.MouseEvent) => void
   onDelete: (threadId: string, e: React.MouseEvent) => void
+  showPinButton?: boolean
+  isPinned?: boolean
 }
 
-function ThreadItem({ thread, isActive, onPin, onDelete }: ThreadItemProps) {
+function ThreadItem({
+  thread,
+  isActive,
+  onPin,
+  onDelete,
+  showPinButton = true,
+  isPinned = false,
+}: ThreadItemProps) {
   const [isHovered, setIsHovered] = React.useState(false)
   const navigate = useNavigate()
 
@@ -287,42 +327,51 @@ function ThreadItem({ thread, isActive, onPin, onDelete }: ThreadItemProps) {
               asChild
               isActive={isActive}
               className={cn(
-                "w-full",
-                isActive && "bg-sidebar-accent text-sidebar-accent-foreground"
+                'w-full relative pr-16',
+                isActive && 'bg-sidebar-accent text-sidebar-accent-foreground',
+                isPinned && 'font-medium',
               )}
             >
               <button
-                className="flex w-full items-center gap-2"
+                type="button"
+                className="flex w-full items-center gap-2 text-left"
                 onClick={() => navigate({ to: `/chat/${thread._id}` })}
               >
-                <span className="truncate">
+                <span className="truncate text-sm">
                   {thread.metadata?.emoji || '💬'} {thread.title || 'Untitled'}
                 </span>
               </button>
             </SidebarMenuButton>
-            
+
             {/* Hover Actions */}
-            <div 
+            <div
               className={cn(
-                "absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1 transition-opacity duration-200 z-10 bg-sidebar rounded-md p-0.5",
-                isHovered ? "opacity-100" : "opacity-0 pointer-events-none"
+                'absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1 transition-opacity duration-200 z-10 bg-sidebar rounded-md p-0.5',
+                isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none',
               )}
             >
+              {showPinButton && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    'h-6 w-6',
+                    isPinned
+                      ? 'text-primary'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onPin(thread._id, e)
+                  }}
+                >
+                  <Pin className={cn('h-3 w-3', isPinned && 'fill-current')} />
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7 bg-background"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onPin(thread._id, e)
-                }}
-              >
-                <Pin className="h-3 w-3" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10 bg-background"
+                className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10"
                 onClick={(e) => {
                   e.stopPropagation()
                   onDelete(thread._id, e)

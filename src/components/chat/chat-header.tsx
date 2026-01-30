@@ -6,7 +6,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Menu, Sparkles } from 'lucide-react'
+import { Menu, Sparkles, Sun, Moon } from 'lucide-react'
+import { useTheme } from '@/components/theme-provider'
+import { cn } from '@/lib/utils'
 
 interface ChatHeaderProps {
   title?: string
@@ -26,8 +28,16 @@ export function ChatHeader({
   model,
   onModelChange,
 }: ChatHeaderProps) {
+  const { theme, setTheme } = useTheme()
+
+  const handleThemeToggle = () => {
+    if (theme === 'light') setTheme('dark')
+    else if (theme === 'dark') setTheme('light')
+    else setTheme('light')
+  }
+
   return (
-    <header className="h-14 border-b border-border flex items-center justify-between px-4 bg-background/80 backdrop-blur-sm shrink-0">
+    <header className="h-14 border-b border-border flex items-center justify-between px-2 sm:px-4 bg-background/80 backdrop-blur-sm shrink-0">
       <div className="flex items-center gap-3">
         <Button
           variant="ghost"
@@ -43,21 +53,45 @@ export function ChatHeader({
         </div>
       </div>
 
-      <Select value={model} onValueChange={onModelChange}>
-        <SelectTrigger className="w-[160px] bg-secondary border-border text-foreground h-9">
-          <SelectValue placeholder="Select Model" />
-        </SelectTrigger>
-        <SelectContent className="bg-popover border-border text-popover-foreground">
-          {MODELS.map((m) => (
-            <SelectItem key={m.id} value={m.id}>
-              {m.name}
-              {m.isFree && (
-                <span className="ml-1 text-xs text-emerald-500">(Free)</span>
-              )}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <div className="flex items-center gap-2">
+        {/* Theme Toggle - Icons only */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative"
+          onClick={handleThemeToggle}
+        >
+          <Sun
+            className={cn(
+              'h-5 w-5 transition-all',
+              theme === 'dark' ? 'scale-0 opacity-0' : 'scale-100 opacity-100',
+            )}
+          />
+          <Moon
+            className={cn(
+              'h-5 w-5 absolute transition-all',
+              theme === 'dark' ? 'scale-100 opacity-100' : 'scale-0 opacity-0',
+            )}
+          />
+          <span className="sr-only">Toggle theme</span>
+        </Button>
+
+        <Select value={model} onValueChange={onModelChange}>
+          <SelectTrigger className="w-[160px] bg-secondary border-border text-foreground h-9">
+            <SelectValue placeholder="Select Model" />
+          </SelectTrigger>
+          <SelectContent className="bg-popover border-border text-popover-foreground">
+            {MODELS.map((m) => (
+              <SelectItem key={m.id} value={m.id}>
+                {m.name}
+                {m.isFree && (
+                  <span className="ml-1 text-xs text-emerald-500">(Free)</span>
+                )}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
     </header>
   )
 }

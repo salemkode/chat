@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
+import type { Id } from '../../convex/_generated/dataModel'
 
 export const Route = createFileRoute('/chat')({
   component: ChatLayout,
@@ -20,7 +21,12 @@ function ChatLayout() {
     from: '/chat/$chatId',
     shouldThrow: false,
     select: (params: unknown) => {
-      if (params && typeof params === 'object' && "chatId" in params && typeof params.chatId === 'string') {
+      if (
+        params &&
+        typeof params === 'object' &&
+        'chatId' in params &&
+        typeof params.chatId === 'string'
+      ) {
         return {
           chatId: params.chatId,
         }
@@ -31,12 +37,15 @@ function ChatLayout() {
     },
   })
   const availableModels = useQuery(api.admin.listEnabledModels)
-  const [selectedModelId, setSelectedModelId] = useState<string | undefined>(undefined)
+  const [selectedModelId, setSelectedModelId] = useState<string | undefined>(
+    undefined,
+  )
   useEffect(() => {
     if (availableModels && availableModels.length > 0 && !selectedModelId) {
-        const model = availableModels.sort((a, b) => a.sortOrder - b.sortOrder)[0].modelId
-        setSelectedModelId(model)
-      }
+      const model = availableModels.sort((a, b) => a.sortOrder - b.sortOrder)[0]
+        .modelId
+      setSelectedModelId(model)
+    }
   }, [availableModels, selectedModelId])
 
   const createThread = useMutation(api.agents.createChatThread)
@@ -69,7 +78,6 @@ function ChatLayout() {
     }
   }
 
-  
   return (
     <SidebarProvider className="h-screen">
       <AppSidebar selectedThreadId={null} />
@@ -79,7 +87,7 @@ function ChatLayout() {
 
         {/* Fixed bottom input */}
         <div className="absolute bottom-0 left-0 right-0 z-20">
-          <div className="w-full max-w-3xl mx-auto px-4">
+          <div className="w-full max-w-3xl mx-auto px-2 sm:px-4">
             <AIPromptInput
               onSubmit={(text) => void handleSendMessage(text)}
               selectedModel={selectedModelId}

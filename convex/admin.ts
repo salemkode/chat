@@ -1,18 +1,29 @@
 import { query, mutation, MutationCtx, QueryCtx } from './_generated/server'
 import { v } from 'convex/values'
 import { getAuthUserId } from '@convex-dev/auth/server'
+import { ConvexError } from 'convex/values'
 
 // Helper to check if user is admin
 async function requireAdmin(ctx: MutationCtx | QueryCtx) {
   const userId = await getAuthUserId(ctx)
-  if (!userId) throw new Error('Unauthorized')
+  if (!userId) {
+    throw new ConvexError({
+      code: 'UNAUTHORIZED',
+      message: 'You must be logged in to perform this action',
+    })
+  }
 
   const admin = await ctx.db
     .query('admins')
     .withIndex('by_userId', (q) => q.eq('userId', userId))
     .first()
 
-  if (!admin) throw new Error('Admin access required')
+  if (!admin) {
+    throw new ConvexError({
+      code: 'FORBIDDEN',
+      message: 'Admin access required to perform this action',
+    })
+  }
   return userId
 }
 
@@ -98,7 +109,7 @@ export const listModelsWithProviders = query({
             : null,
           isFavorite: favoriteModelIds.has(model._id),
         }
-      })
+      }),
     )
 
     // Sort providers by sortOrder
@@ -124,13 +135,18 @@ export const toggleFavoriteModel = mutation({
   args: { modelId: v.id('models') },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
-    if (!userId) throw new Error('Unauthorized')
+    if (!userId) {
+      throw new ConvexError({
+        code: 'UNAUTHORIZED',
+        message: 'You must be logged in to favorite a model',
+      })
+    }
 
     // Check if already favorited
     const existing = await ctx.db
       .query('userFavoriteModels')
       .withIndex('by_user_model', (q) =>
-        q.eq('userId', userId).eq('modelId', args.modelId)
+        q.eq('userId', userId).eq('modelId', args.modelId),
       )
       .first()
 
@@ -165,7 +181,7 @@ export const getProvider = query({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) return null
-    
+
     const provider = await ctx.db.get('providers', args.id)
     return provider
   },
@@ -208,17 +224,19 @@ export const updateProvider = mutation({
   args: {
     id: v.id('providers'),
     name: v.optional(v.string()),
-    providerType: v.optional(v.union(
-      v.literal('openrouter'),
-      v.literal('openai'),
-      v.literal('anthropic'),
-      v.literal('google'),
-      v.literal('azure'),
-      v.literal('groq'),
-      v.literal('deepseek'),
-      v.literal('xai'),
-      v.literal('cerebras')
-    )),
+    providerType: v.optional(
+      v.union(
+        v.literal('openrouter'),
+        v.literal('openai'),
+        v.literal('anthropic'),
+        v.literal('google'),
+        v.literal('azure'),
+        v.literal('groq'),
+        v.literal('deepseek'),
+        v.literal('xai'),
+        v.literal('cerebras'),
+      ),
+    ),
     apiKey: v.optional(v.string()),
     baseURL: v.optional(v.string()),
     isEnabled: v.optional(v.boolean()),
@@ -242,17 +260,21 @@ export const deleteProvider = mutation({
   args: { id: v.id('providers') },
   handler: async (ctx, args) => {
     await requireAdmin(ctx)
-    
+
     // Check if provider has any models
     const models = await ctx.db
       .query('models')
       .withIndex('by_providerId', (q) => q.eq('providerId', args.id))
       .collect()
-    
+
     if (models.length > 0) {
-      throw new Error('Cannot delete provider with existing models. Remove models first.')
+      throw new ConvexError({
+        code: 'VALIDATION_ERROR',
+        message:
+          'Cannot delete provider with existing models. Remove models first.',
+      })
     }
-    
+
     await ctx.db.delete('providers', args.id)
   },
 })

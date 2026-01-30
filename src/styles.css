@@ -4,10 +4,13 @@
 @custom-variant dark (&:is(.dark *));
 @plugin "@tailwindcss/typography";
 
+.container {
+  padding-inline: 1rem;
+}
+
 @layer theme {
   :root {
     --container-max: 100%;
-    --container-padding: 1rem;
   }
 
   @media (min-width: 640px) {
@@ -81,45 +84,66 @@
 }
 
 .dark {
-  --background: oklch(0.141 0.005 285.823);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.21 0.006 285.885);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.21 0.006 285.885);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.606 0.25 292.717);
-  --primary-foreground: oklch(0.969 0.016 293.756);
-  --secondary: oklch(0.274 0.006 286.033);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.274 0.006 286.033);
-  --muted-foreground: oklch(0.705 0.015 286.067);
-  --accent: oklch(0.274 0.006 286.033);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.38 0.189 293.745);
-  --chart-1: oklch(0.811 0.111 293.571);
-  --chart-2: oklch(0.606 0.25 292.717);
-  --chart-3: oklch(0.541 0.281 293.009);
-  --chart-4: oklch(0.491 0.27 292.581);
-  --chart-5: oklch(0.432 0.232 292.759);
-  --sidebar: oklch(0.21 0.006 285.885);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.606 0.25 292.717);
-  --sidebar-primary-foreground: oklch(0.969 0.016 293.756);
-  --sidebar-accent: oklch(0.274 0.006 286.033);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.38 0.189 293.745);
-  /* Chat input variables - dark mode */
-  --chat-input-background: oklch(0.18 0.006 285.885);
-  --chat-input-gradient: oklch(0.606 0.25 292.717);
-  --chat-background: oklch(0.141 0.005 285.823);
+  /* Dark mode - Less dark, more comfortable for reading */
+  /* Main background - lighter dark with subtle blue tint */
+  --background: oklch(0.24 0.025 270);
+  --foreground: oklch(0.95 0.01 285);
+
+  /* Cards and popovers - clearly elevated from background */
+  --card: oklch(0.28 0.02 270);
+  --card-foreground: oklch(0.95 0.01 285);
+  --popover: oklch(0.28 0.02 270);
+  --popover-foreground: oklch(0.95 0.01 285);
+
+  /* Primary - vibrant purple with good visibility */
+  --primary: oklch(0.68 0.2 285);
+  --primary-foreground: oklch(0.15 0.02 285);
+
+  /* Secondary - message bubbles, clearly distinct */
+  --secondary: oklch(0.35 0.03 275);
+  --secondary-foreground: oklch(0.95 0.01 285);
+
+  /* Muted - subtle but visible grey-blue */
+  --muted: oklch(0.32 0.02 275);
+  --muted-foreground: oklch(0.7 0.015 285);
+
+  /* Accent - interactive states, visible but not harsh */
+  --accent: oklch(0.38 0.03 285);
+  --accent-foreground: oklch(0.95 0.01 285);
+
+  /* Destructive - red with maintained vibrancy */
+  --destructive: oklch(0.65 0.22 25);
+
+  /* Borders - visible but subtle separation */
+  --border: oklch(0.35 0.02 275 / 50%);
+  --input: oklch(0.3 0.02 275 / 60%);
+  --ring: oklch(0.68 0.2 285 / 70%);
+
+  /* Charts - vibrant accent colors */
+  --chart-1: oklch(0.75 0.18 45);
+  --chart-2: oklch(0.7 0.15 175);
+  --chart-3: oklch(0.68 0.2 285);
+  --chart-4: oklch(0.75 0.12 95);
+  --chart-5: oklch(0.7 0.16 55);
+
+  /* Sidebar - lighter surface for better visibility */
+  --sidebar: oklch(0.28 0.02 280);
+  --sidebar-foreground: oklch(0.95 0.01 285);
+  --sidebar-primary: oklch(0.68 0.2 285);
+  --sidebar-primary-foreground: oklch(0.15 0.02 285);
+  --sidebar-accent: oklch(0.35 0.025 285);
+  --sidebar-accent-foreground: oklch(0.95 0.01 285);
+  --sidebar-border: oklch(0.4 0.02 280 / 50%);
+  --sidebar-ring: oklch(0.68 0.2 285 / 70%);
+
+  /* Chat-specific variables - adjusted for less dark theme */
+  --chat-input-background: oklch(0.26 0.025 275);
+  --chat-input-gradient: oklch(0.68 0.2 285);
+  --chat-background: oklch(0.24 0.025 275);
 }
 
 @theme {
-    --color-*: initial;
+  --color-*: initial;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -145,6 +169,16 @@
   --color-chart-3: hsl(197 37% 24%);
   --color-chart-4: hsl(43 74% 66%);
   --color-chart-5: hsl(27 87% 67%);
+
+  /* Sidebar colors */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
 
   /* Shadcnblocks.com extra colors */
   --color-muted-2: var(--muted-2);
@@ -218,18 +252,20 @@
     cursor: pointer;
   }
 
-  [class*="border"] {
-    @apply border-border;
+  /* Ensure border-* utility classes use the theme border color */
+  .border,
+  .border-t,
+  .border-r,
+  .border-b,
+  .border-l,
+  .border-x,
+  .border-y {
+    border-color: var(--border);
   }
 
-  p {
-    @apply text-muted-foreground;
-  }
-}
-
-@layer base {
+  /* Default text color for all elements - ensures proper inheritance in dark mode */
   body {
-    @apply bg-background text-foreground;
+    color: var(--foreground);
   }
 }
 
@@ -284,19 +320,19 @@
 }
 
 .small-scrollbar::-webkit-scrollbar-thumb {
-  background: hsl(var(--muted-foreground) / 0.3);
+  background: color-mix(in oklch, var(--muted-foreground), transparent 70%);
   border-radius: 2px;
 }
 
 .small-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--muted-foreground) / 0.5);
+  background: color-mix(in oklch, var(--muted-foreground), transparent 50%);
 }
 
 /* Scroll shadow effect */
 .scroll-shadow {
-  background: 
-    linear-gradient(to bottom, hsl(var(--sidebar)) 0%, transparent 10%),
-    linear-gradient(to top, hsl(var(--sidebar)) 0%, transparent 10%);
+  background:
+    linear-gradient(to bottom, var(--sidebar) 0%, transparent 10%),
+    linear-gradient(to top, var(--sidebar) 0%, transparent 10%);
   background-attachment: local, local;
 }
 
@@ -333,13 +369,4 @@
 
 .light\:scale-100\! {
   transform: scale(1) !important;
-}
-
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
 }

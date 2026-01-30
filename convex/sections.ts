@@ -1,6 +1,7 @@
 import { query, mutation } from './_generated/server'
 import { v } from 'convex/values'
 import { getAuthUserId } from '@convex-dev/auth/server'
+import { ConvexError } from 'convex/values'
 
 // List all sections for the current user
 export const listSections = query({
@@ -24,20 +25,17 @@ export const createSection = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
-    if (!userId) throw new Error('Unauthorized')
-
-    // Get current max sortOrder
-    const sections = await ctx.db
-      .query('sections')
-      .withIndex('by_userId', (q) => q.eq('userId', userId))
-      .collect()
-
-    const maxOrder = sections.reduce((max, s) => Math.max(max, s.sortOrder), -1)
+    if (!userId) {
+      throw new ConvexError({
+        code: 'UNAUTHORIZED',
+        message: 'You must be logged in to create a section',
+      })
+    }
 
     return await ctx.db.insert('sections', {
       name: args.name,
       emoji: args.emoji || '📁',
-      sortOrder: maxOrder + 1,
+      sortOrder: Date.now(),
       userId,
       isExpanded: true,
     })
@@ -55,11 +53,19 @@ export const updateSection = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
-    if (!userId) throw new Error('Unauthorized')
+    if (!userId) {
+      throw new ConvexError({
+        code: 'UNAUTHORIZED',
+        message: 'You must be logged in to update a section',
+      })
+    }
 
-    const section = await ctx.db.get("sections", args.id)
+    const section = await ctx.db.get('sections', args.id)
     if (!section || section.userId !== userId) {
-      throw new Error('Section not found')
+      throw new ConvexError({
+        code: 'NOT_FOUND',
+        message: 'Section not found or you do not have permission to update it',
+      })
     }
 
     const { id, ...updates } = args
@@ -67,7 +73,7 @@ export const updateSection = mutation({
       Object.entries(updates).filter(([_, v]) => v !== undefined),
     )
 
-    await ctx.db.patch("sections", id, cleanUpdates)
+    await ctx.db.patch('sections', id, cleanUpdates)
   },
 })
 
@@ -76,14 +82,22 @@ export const deleteSection = mutation({
   args: { id: v.id('sections') },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
-    if (!userId) throw new Error('Unauthorized')
-
-    const section = await ctx.db.get("sections", args.id)
-    if (!section || section.userId !== userId) {
-      throw new Error('Section not found')
+    if (!userId) {
+      throw new ConvexError({
+        code: 'UNAUTHORIZED',
+        message: 'You must be logged in to delete a section',
+      })
     }
 
-    await ctx.db.delete("sections", args.id)
+    const section = await ctx.db.get('sections', args.id)
+    if (!section || section.userId !== userId) {
+      throw new ConvexError({
+        code: 'NOT_FOUND',
+        message: 'Section not found or you do not have permission to delete it',
+      })
+    }
+
+    await ctx.db.delete('sections', args.id)
   },
 })
 
@@ -92,13 +106,21 @@ export const toggleSection = mutation({
   args: { id: v.id('sections') },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
-    if (!userId) throw new Error('Unauthorized')
-
-    const section = await ctx.db.get("sections", args.id)
-    if (!section || section.userId !== userId) {
-      throw new Error('Section not found')
+    if (!userId) {
+      throw new ConvexError({
+        code: 'UNAUTHORIZED',
+        message: 'You must be logged in to update a section',
+      })
     }
 
-    await ctx.db.patch("sections", args.id, { isExpanded: !section.isExpanded })
+    const section = await ctx.db.get('sections', args.id)
+    if (!section || section.userId !== userId) {
+      throw new ConvexError({
+        code: 'NOT_FOUND',
+        message: 'Section not found or you do not have permission to update it',
+      })
+    }
+
+    await ctx.db.patch('sections', args.id, { isExpanded: !section.isExpanded })
   },
 })
