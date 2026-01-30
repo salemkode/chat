@@ -162,7 +162,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
   }
 
   return (
-    <Sidebar className={cn('border-r', className)}>
+    <Sidebar className={cn('border-r border-sidebar-border', className)}>
       <SidebarHeader className="relative pb-2">
         {/* Logo */}
         <div className="flex items-center justify-center py-3">
