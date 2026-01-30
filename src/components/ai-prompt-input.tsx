@@ -51,7 +51,7 @@ export function AIPromptInput({
     <div className="pointer-events-auto w-full">
       <form
         onSubmit={handleSubmit}
-        className="pointer-events-auto relative flex w-full min-w-0 flex-col items-stretch rounded-t-xl border border-white/20 bg-linear-to-b from-white/95 to-white/90 p-4 text-secondary-foreground backdrop-blur-3xl dark:border-gray-700/50 dark:from-gray-900/95 dark:to-gray-900/90 sm:max-w-3xl"
+        className="pointer-events-auto relative flex w-full min-w-0 flex-col items-stretch rounded-t-xl border border-white/20 bg-linear-to-b from-white/95 to-white/90 p-4 text-secondary-foreground bg-muted/80 backdrop-blur-2xl dark:border-gray-700/50 dark:from-gray-900/95 dark:to-gray-900/90 sm:max-w-3xl"
       >
         <div className="flex min-w-0 grow flex-row items-start">
           <textarea
