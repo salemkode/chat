@@ -1,17 +1,15 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { cn } from '@/lib/utils'
 import { Search, Star, ChevronDown, Eye, Sparkles, Info } from 'lucide-react'
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import {
   Tooltip,
   TooltipContent,
@@ -92,21 +90,17 @@ interface Model {
   isFavorite: boolean
 }
 
-interface Provider {
-  _id: string
-  name: string
-  providerType: string
-  icon?: string
-}
+const STORAGE_KEY = 'selected-model-id'
 
 export function ModelSelector({
-  selectedModel,
+  selectedModel: externalSelectedModel,
   onModelChange,
   className,
 }: ModelSelectorProps) {
   const [open, setOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null)
+  const [internalSelectedModel, setInternalSelectedModel] = useState<string | undefined>(externalSelectedModel)
 
   const data = useQuery(api.admin.listModelsWithProviders)
   const toggleFavorite = useMutation(api.admin.toggleFavoriteModel)
@@ -114,6 +108,27 @@ export function ModelSelector({
   const providers = data?.providers || []
   const allModels = data?.models || []
   const favorites = data?.favorites || []
+
+  // Load saved model from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedModel = localStorage.getItem(STORAGE_KEY)
+      if (savedModel && !externalSelectedModel) {
+        setInternalSelectedModel(savedModel)
+        onModelChange?.(savedModel)
+      }
+    }
+  }, [])
+
+  // Sync with external selected model
+  useEffect(() => {
+    if (externalSelectedModel !== undefined) {
+      setInternalSelectedModel(externalSelectedModel)
+    }
+  }, [externalSelectedModel])
+
+  // Get the effective selected model (external takes priority, then internal, then first available)
+  const effectiveSelectedModel = externalSelectedModel ?? internalSelectedModel
 
   // Filter models based on search and selected provider
   const filteredModels = useMemo(() => {
@@ -137,9 +152,14 @@ export function ModelSelector({
   }, [allModels, favorites, selectedProvider, searchQuery])
 
   // Get current selected model info
-  const currentModel = allModels.find((m) => m.modelId === selectedModel)
+  const currentModel = allModels.find((m) => m.modelId === effectiveSelectedModel)
 
   const handleSelectModel = (model: Model) => {
+    setInternalSelectedModel(model.modelId)
+    // Save to localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY, model.modelId)
+    }
     onModelChange?.(model.modelId)
     setOpen(false)
   }
@@ -158,8 +178,8 @@ export function ModelSelector({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
         <button
           type="button"
           className={cn(
@@ -177,14 +197,15 @@ export function ModelSelector({
           <span className="font-medium">{currentModel?.displayName || 'Select model'}</span>
           <ChevronDown className="size-4 text-muted-foreground/60" />
         </button>
-      </DialogTrigger>
+      </PopoverTrigger>
 
-      <DialogContent className="max-w-2xl p-0 gap-0 overflow-hidden">
-        <DialogHeader className="px-4 py-3 border-b">
-          <DialogTitle className="text-lg font-semibold">Select Model</DialogTitle>
-        </DialogHeader>
-
-        <div className="flex h-[500px]">
+      <PopoverContent 
+        className="w-[400px] p-0 overflow-hidden" 
+        side="top" 
+        align="start"
+        sideOffset={8}
+      >
+        <div className="flex h-[400px]">
           {/* Provider sidebar */}
           <div className="w-14 border-r bg-muted/30 flex flex-col items-center py-2 gap-1">
             {/* Favorites */}
@@ -261,7 +282,7 @@ export function ModelSelector({
                       className={cn(
                         'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors cursor-pointer',
                         'hover:bg-muted/60',
-                        selectedModel === model.modelId && 'bg-muted'
+                        effectiveSelectedModel === model.modelId && 'bg-muted'
                       )}
                     >
                       {/* Provider icon */}
@@ -323,7 +344,7 @@ export function ModelSelector({
             </div>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </PopoverContent>
+    </Popover>
   )
 }

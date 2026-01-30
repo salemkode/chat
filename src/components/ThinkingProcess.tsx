@@ -5,6 +5,7 @@ import {
 } from '@/components/ui/reasoning'
 import { Sparkles } from 'lucide-react'
 import { MarkdownContent } from './MarkdownContent'
+import { useSmoothText } from '@convex-dev/agent/react'
 
 interface ThinkingProcessProps {
   text: string
@@ -12,6 +13,7 @@ interface ThinkingProcessProps {
 }
 
 export function ThinkingProcess({ text, isStreaming }: ThinkingProcessProps) {
+  const [thinkingContent] = useSmoothText(text, { startStreaming: isStreaming })
   return (
     <Reasoning isStreaming={isStreaming} className="mb-4">
       <ReasoningTrigger>
@@ -25,7 +27,7 @@ export function ThinkingProcess({ text, isStreaming }: ThinkingProcessProps) {
       <ReasoningContent className="mt-2 w-full">
         <div className="p-4 rounded-lg bg-muted/50 w-full">
           <div className="text-sm text-muted-foreground leading-relaxed">
-            <MarkdownContent content={text} className="max-w-none" />
+            <MarkdownContent content={thinkingContent} className="max-w-none" />
           </div>
         </div>
       </ReasoningContent>
