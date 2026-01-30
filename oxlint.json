@@ -1,0 +1,38 @@
+{
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn",
+    "perf": "warn",
+    "style": "warn",
+    "pedantic": "off",
+    "restriction": "off"
+  },
+  "plugins": [],
+  "ignore": [
+    "node_modules/**",
+    "dist/**",
+    "build/**",
+    ".next/**",
+    "netlify/**"
+  ],
+  "env": {
+    "browser": true,
+    "es2021": true
+  },
+  "overrides": [
+    {
+      "files": ["**/*.ts", "**/*.tsx"],
+      "settings": {
+        "typescript": {
+          "version": "detect"
+        }
+      }
+    },
+    {
+      "files": ["**/*.tsx"],
+      "env": {
+        "browser": true
+      }
+    }
+  ]
+}

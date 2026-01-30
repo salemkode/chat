@@ -1,6 +1,45 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
 @plugin "@tailwindcss/typography";
+
+@layer theme {
+  :root {
+    --container-max: 100%;
+    --container-padding: 1rem;
+  }
+
+  @media (min-width: 640px) {
+    :root {
+      --container-max: 540px;
+    }
+  }
+
+  @media (min-width: 768px) {
+    :root {
+      --container-max: 720px;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    :root {
+      --container-max: 960px;
+    }
+  }
+
+  @media (min-width: 1280px) {
+    :root {
+      --container-max: 1140px;
+    }
+  }
+
+  @media (min-width: 1536px) {
+    :root {
+      --container-max: 1320px;
+    }
+  }
+}
 
 :root {
   --radius: 0.65rem;
@@ -35,6 +74,10 @@
   --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
   --sidebar-border: oklch(0.92 0.004 286.32);
   --sidebar-ring: oklch(0.702 0.183 293.541);
+  /* Chat input variables */
+  --chat-input-background: oklch(0.98 0.002 286.375);
+  --chat-input-gradient: oklch(0.541 0.281 293.009);
+  --chat-background: oklch(1 0 0);
 }
 
 .dark {
@@ -69,6 +112,10 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.38 0.189 293.745);
+  /* Chat input variables - dark mode */
+  --chat-input-background: oklch(0.18 0.006 285.885);
+  --chat-input-gradient: oklch(0.606 0.25 292.717);
+  --chat-background: oklch(0.141 0.005 285.823);
 }
 
 @theme {
@@ -181,6 +228,117 @@
 }
 
 @layer base {
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Sidebar specific animations and effects */
+@theme {
+  /* Custom timing function for snappy animations */
+  --ease-snappy: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Animation durations */
+  --duration-snappy: 150ms;
+  --duration-normal: 200ms;
+  --duration-slow: 500ms;
+
+  /* Custom animations */
+  --animate-fade-in: fade-in 0.3s ease-out;
+  --animate-slide-in: slide-in 0.2s ease-out;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-in {
+  from {
+    transform: translateX(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Noise texture for sidebar background */
+.bg-noise {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  opacity: 0.03;
+}
+
+/* Small scrollbar styling */
+.small-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.small-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.small-scrollbar::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 2px;
+}
+
+.small-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Scroll shadow effect */
+.scroll-shadow {
+  background: 
+    linear-gradient(to bottom, hsl(var(--sidebar)) 0%, transparent 10%),
+    linear-gradient(to top, hsl(var(--sidebar)) 0%, transparent 10%);
+  background-attachment: local, local;
+}
+
+/* Ease snappy utility */
+.ease-snappy {
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Duration utilities */
+.duration-snappy {
+  transition-duration: 150ms;
+}
+
+/* Animation utilities */
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+/* Mobile breakpoint utilities */
+@media (max-width: 640px) {
+  .mobile\:block {
+    display: block;
+  }
+
+  .mobile\:hidden {
+    display: none;
+  }
+}
+
+/* Light mode specific overrides */
+.light\:opacity-0 {
+  opacity: 0;
+}
+
+.light\:scale-100\! {
+  transform: scale(1) !important;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
   body {
     @apply bg-background text-foreground;
   }
