@@ -1,10 +1,9 @@
-import { createFileRoute, useRouter } from '@tanstack/react-router'
-import { useQuery, useConvexAuth, useMutation } from 'convex/react'
+import { createFileRoute } from '@tanstack/react-router'
+import { useQuery, useConvexAuth } from 'convex/react'
 import { api } from '../../convex/_generated/api'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { ChatMessageList } from '@/components/ChatMessageList'
 import { useUIMessages } from '@convex-dev/agent/react'
-import { AIPromptInput } from '@/components/ai-prompt-input'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Loader2, MessageSquare } from 'lucide-react'
 
@@ -44,7 +43,7 @@ function ChatPage() {
   console.log('messages', messages)
 
   // Get thread title from thread data or metadata
-  const threadTitle = thread?.title || 'New Chat'
+  const threadTitle = ""//thread?.metadata?.title || 'New Chat'
 
   useEffect(() => {
     if (messages && messages.length > 0 && sending) {

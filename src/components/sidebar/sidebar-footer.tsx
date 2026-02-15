@@ -1,7 +1,8 @@
 'use client'
 
 import { Link } from '@tanstack/react-router'
-import { LogIn, LogOut, User, Settings } from 'lucide-react'
+import { LogIn, LogOut, Settings } from 'lucide-react'
+import { ProfileImage } from '../ui/profile-image'
 import { cn } from '@/lib/utils'
 import {
   Tooltip,
@@ -43,17 +44,11 @@ export function SidebarFooter({
                   )}
                   onClick={onSettings}
                 >
-                  {user?.image ? (
-                    <img
-                      src={user.image}
-                      alt={user.name || 'User'}
-                      className="size-8 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="size-8 rounded-full bg-primary/10 flex items-center justify-center">
-                      <User className="size-4 text-primary" />
-                    </div>
-                  )}
+                  <ProfileImage
+                    src={user?.image}
+                    name={user?.name}
+                    size="sm"
+                  />
                   <div className="flex flex-col items-start flex-1 min-w-0">
                     <span className="text-sm font-medium text-foreground truncate">
                       {user?.name || 'User'}

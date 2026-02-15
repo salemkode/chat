@@ -279,6 +279,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                         <AvatarFallback className="bg-primary text-primary-foreground text-xl font-medium">
                           {displayNameValue ? (
                             getInitials(displayNameValue)
+                          ) : user?.email ? (
+                            user.email.charAt(0).toUpperCase()
                           ) : (
                             <User className="size-8" />
                           )}

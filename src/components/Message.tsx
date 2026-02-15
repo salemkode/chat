@@ -18,7 +18,18 @@ export function Message({ message, modelName }: MessageProps) {
 
   // Check if thinking content exists (type assertion for thinking field)
   const thinking = message.parts.find((part) => part.type === 'reasoning')
+  const isFailed = message.status === 'failed'
 
+  if (message.status === 'failed') {
+    return (
+      <div className="w-full max-w-3xl mx-auto">
+        <div className="p-4 rounded-lg bg-red-600/20 border border-red-600 text-red-700">
+          <strong className="font-medium">Error:</strong>{' '}
+          {visibleText || 'An error occurred while generating the message.'}
+        </div>
+      </div>
+    )
+  }
   if (message.role === 'assistant') {
     return (
       <div className="w-full max-w-3xl mx-auto">
