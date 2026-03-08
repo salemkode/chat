@@ -1,10 +1,11 @@
 'use client'
 
 import * as React from 'react'
+import { useClerk, useUser } from '@clerk/clerk-react'
 import { useNavigate } from '@tanstack/react-router'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
-import { Plus, Search, Pin, X, LogIn, User, Settings } from 'lucide-react'
+import { Plus, Search, Pin, X, LogIn, LogOut, User, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   Sidebar,
@@ -59,7 +60,9 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
   const threads = useQuery(api.agents.listThreadsWithMetadata) || []
   const togglePinThread = useMutation(api.agents.togglePinThread)
   const deleteThreadMutation = useMutation(api.chat.deleteThread)
-  const user = useQuery(api.users.viewer)
+  const viewer = useQuery(api.users.viewer)
+  const { user: clerkUser } = useUser()
+  const { signOut } = useClerk()
 
   // Filter threads based on search query
   const filteredThreads = React.useMemo(() => {
@@ -222,7 +225,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
       <SidebarFooter>
         <SidebarSeparator />
 
-        {user ? (
+        {viewer || clerkUser ? (
           <>
             {/* User Profile */}
             <TooltipProvider delayDuration={300}>
@@ -239,13 +242,26 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
                   >
                     <Avatar className="size-8 shrink-0">
                       <AvatarImage
-                        src={user.settings?.image || user.image || undefined}
-                        alt={user.settings?.displayName || user.name || 'User'}
+                        src={
+                          viewer?.settings?.image ||
+                          viewer?.image ||
+                          clerkUser?.imageUrl ||
+                          undefined
+                        }
+                        alt={
+                          viewer?.settings?.displayName ||
+                          viewer?.name ||
+                          clerkUser?.fullName ||
+                          'User'
+                        }
                         className="object-cover"
                       />
                       <AvatarFallback className="bg-primary text-primary-foreground text-xs font-medium">
                         {(() => {
-                          const name = user.settings?.displayName || user.name
+                          const name =
+                            viewer?.settings?.displayName ||
+                            viewer?.name ||
+                            clerkUser?.fullName
                           return name ? (
                             name
                               .split(' ')
@@ -261,10 +277,15 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
                     </Avatar>
                     <div className="flex flex-col items-start flex-1 min-w-0 text-left">
                       <span className="text-sm font-medium text-foreground truncate">
-                        {user.settings?.displayName || user.name || 'User'}
+                        {viewer?.settings?.displayName ||
+                          viewer?.name ||
+                          clerkUser?.fullName ||
+                          'User'}
                       </span>
                       <span className="text-xs text-muted-foreground truncate">
-                        {user.email || ''}
+                        {viewer?.email ||
+                          clerkUser?.primaryEmailAddress?.emailAddress ||
+                          ''}
                       </span>
                     </div>
                     <Settings className="size-4 text-sidebar-foreground/70 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -275,13 +296,24 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
+
+            <Button
+              variant="ghost"
+              className="w-full justify-start gap-3"
+              onClick={() => {
+                void signOut()
+              }}
+            >
+              <LogOut className="h-4 w-4" />
+              Logout
+            </Button>
           </>
         ) : (
           /* Login Button */
           <Button
             variant="ghost"
             className="w-full justify-start gap-3"
-            onClick={() => navigate({ to: '/auth/login' })}
+            onClick={() => navigate({ to: '/login' })}
           >
             <LogIn className="h-4 w-4" />
             Login

@@ -1,30 +1,23 @@
-import { ConvexAuthProvider } from '@convex-dev/auth/react'
-import { ConvexHttpClient } from 'convex/browser';
+import { ClerkProvider, useAuth } from '@clerk/clerk-react'
 import { ConvexReactClient } from 'convex/react'
+import { ConvexProviderWithClerk } from 'convex/react-clerk'
 import type { ReactNode } from 'react'
 
-export const httpClient = new ConvexHttpClient(import.meta.env.VITE_CONVEX_URL as string);
 const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string)
-
-// localStorage adapter for Convex Auth
-const localStorageAdapter = {
-  getItem: (key: string) => {
-    return Promise.resolve(localStorage.getItem(key))
-  },
-  setItem: (key: string, value: string) => {
-    localStorage.setItem(key, value)
-    return Promise.resolve()
-  },
-  removeItem: (key: string) => {
-    localStorage.removeItem(key)
-    return Promise.resolve()
-  },
-}
+const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as
+  | string
+  | undefined
 
 export function ConvexClientProvider({ children }: { children: ReactNode }) {
+  if (!clerkPublishableKey) {
+    throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY environment variable')
+  }
+
   return (
-    <ConvexAuthProvider client={convex} storage={localStorageAdapter}>
-      {children}
-    </ConvexAuthProvider>
+    <ClerkProvider publishableKey={clerkPublishableKey}>
+      <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
+        {children}
+      </ConvexProviderWithClerk>
+    </ClerkProvider>
   )
 }

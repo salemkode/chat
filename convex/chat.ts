@@ -1,6 +1,6 @@
 import { query, mutation } from './_generated/server'
 import { v } from 'convex/values'
-import { getAuthUserId } from '@convex-dev/auth/server'
+import { getAuthUserId } from './lib/auth'
 import { components } from './_generated/api'
 import { paginationOptsValidator } from 'convex/server'
 import { listUIMessages, vStreamArgs, syncStreams } from '@convex-dev/agent'

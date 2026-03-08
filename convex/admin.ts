@@ -1,6 +1,6 @@
 import { query, mutation, MutationCtx, QueryCtx } from './_generated/server'
 import { v } from 'convex/values'
-import { getAuthUserId } from '@convex-dev/auth/server'
+import { getAuthUserId } from './lib/auth'
 import { ConvexError } from 'convex/values'
 
 // Helper to check if user is admin

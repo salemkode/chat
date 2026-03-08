@@ -1,9 +1,10 @@
+import { SignIn } from '@clerk/clerk-react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useQuery, useConvexAuth, useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { Button } from '@/components/ui/button'
 import { Loader2, ArrowLeft, Plus, Trash2, Edit2, Settings } from 'lucide-react'
-import { useState, useId } from 'react'
+import { useEffect, useId, useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -64,11 +65,22 @@ interface ModelFormData {
 function AdminPage() {
   const navigate = useNavigate()
   const { isAuthenticated, isLoading } = useConvexAuth()
-  const isAdmin = useQuery(api.admin.isAdmin)
+  const ensureCurrentUser = useMutation(api.users.ensureCurrentUser)
+  const [isUserReady, setIsUserReady] = useState(false)
+  const isAdmin = useQuery(
+    api.admin.isAdmin,
+    isAuthenticated && isUserReady ? {} : 'skip',
+  )
 
   // Queries
-  const providers = useQuery(api.admin.listAllProviders)
-  const models = useQuery(api.admin.listAllModels)
+  const providers = useQuery(
+    api.admin.listAllProviders,
+    isAuthenticated && isUserReady && isAdmin ? {} : 'skip',
+  )
+  const models = useQuery(
+    api.admin.listAllModels,
+    isAuthenticated && isUserReady && isAdmin ? {} : 'skip',
+  )
 
   // Mutations
   const addProvider = useMutation(api.admin.addProvider)
@@ -117,6 +129,29 @@ function AdminPage() {
     modelEnabled: useId(),
     modelFree: useId(),
   }
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setIsUserReady(false)
+      return
+    }
+
+    let isCancelled = false
+
+    void ensureCurrentUser({})
+      .then(() => {
+        if (!isCancelled) {
+          setIsUserReady(true)
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to initialize current user:', error)
+      })
+
+    return () => {
+      isCancelled = true
+    }
+  }, [ensureCurrentUser, isAuthenticated])
 
   const handleAddProvider = () => {
     void addProvider(providerForm).then(() => {
@@ -240,7 +275,14 @@ function AdminPage() {
     )
   }
   if (!isAuthenticated) {
-    void navigate({ to: '/login', search: { redirect: location.href } })
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+        <SignIn />
+      </div>
+    )
+  }
+
+  if (!isUserReady) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />

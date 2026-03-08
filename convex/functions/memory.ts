@@ -1,6 +1,6 @@
 import { action, internalMutation, mutation, query } from '../_generated/server'
 import { v } from 'convex/values'
-import { getAuthUserId } from '@convex-dev/auth/server'
+import { getAuthUserId } from '../lib/auth'
 import { components } from '../_generated/api'
 import { RAG } from '@convex-dev/rag'
 import { createOpenRouter } from '@openrouter/ai-sdk-provider'

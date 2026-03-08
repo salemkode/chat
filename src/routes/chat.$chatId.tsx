@@ -1,67 +1,57 @@
-import { createFileRoute, useRouter } from '@tanstack/react-router'
-import { useQuery, useConvexAuth, useMutation } from 'convex/react'
-import { api } from '../../convex/_generated/api'
-import { useState, useEffect, useCallback } from 'react'
-import { ChatMessageList } from '@/components/ChatMessageList'
-import { useUIMessages } from '@convex-dev/agent/react'
-import { AIPromptInput } from '@/components/ai-prompt-input'
-import { SidebarTrigger } from '@/components/ui/sidebar'
+import { SignIn } from '@clerk/clerk-react'
+import { createFileRoute } from '@tanstack/react-router'
+import {
+  Authenticated,
+  AuthLoading,
+  Unauthenticated,
+  useQuery,
+} from 'convex/react'
 import { Loader2, MessageSquare } from 'lucide-react'
+import { useUIMessages } from '@convex-dev/agent/react'
+import { ChatMessageList } from '@/components/ChatMessageList'
+import { SidebarTrigger } from '@/components/ui/sidebar'
+import { api } from '../../convex/_generated/api'
 
 export const Route = createFileRoute('/chat/$chatId')({
   component: ChatPage,
 })
 
 function ChatPage() {
-  const { chatId } = Route.useParams()
-  const { isAuthenticated, isLoading } = useConvexAuth()
+  return (
+    <>
+      <AuthLoading>
+        <div className="flex h-screen w-full items-center justify-center bg-background text-foreground">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </AuthLoading>
 
-  const availableModels = useQuery(api.admin.listEnabledModels)
-  const thread = useQuery(api.chat.getThread, { threadId: chatId })
-  const [sending, setSending] = useState(false)
-  const [selectedModelId, setSelectedModelId] = useState<string | undefined>(
-    undefined,
+      <Unauthenticated>
+        <div className="flex h-screen w-full items-center justify-center p-4 bg-background">
+          <SignIn />
+        </div>
+      </Unauthenticated>
+
+      <Authenticated>
+        <AuthenticatedChatPage />
+      </Authenticated>
+    </>
   )
+}
 
-  useEffect(() => {
-    if (availableModels && availableModels.length > 0 && !selectedModelId) {
-      setSelectedModelId(
-        availableModels.sort((a, b) => a.sortOrder - b.sortOrder)[0].modelId,
-      )
-    }
-  }, [availableModels, selectedModelId])
+function AuthenticatedChatPage() {
+  const { chatId } = Route.useParams()
+  const thread = useQuery(api.chat.getThread, { threadId: chatId })
 
   const { results: messages } = useUIMessages(
     api.chat.listMessages,
-    {
-      threadId: chatId,
-    },
+    { threadId: chatId },
     {
       initialNumItems: 30,
       stream: true,
     },
   )
-  console.log('messages', messages)
 
-  // Get thread title from thread data or metadata
   const threadTitle = thread?.title || 'New Chat'
-
-  useEffect(() => {
-    if (messages && messages.length > 0 && sending) {
-      const lastMessage = messages[messages.length - 1]
-      if (lastMessage && lastMessage.role === 'assistant') {
-        setSending(false)
-      }
-    }
-  }, [messages, sending])
-
-  if (isLoading || !isAuthenticated) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-background text-foreground">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    )
-  }
 
   return (
     <div className="flex h-full flex-col">

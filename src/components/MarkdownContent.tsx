@@ -1,12 +1,15 @@
 import { cn } from '@/lib/utils'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import remarkBreaks from 'remark-breaks'
 import { CodeBlock, InlineCode } from './CodeBlock'
 
 interface MarkdownContentProps {
   className?: string
   content: string
 }
+
+const REMARK_PLUGINS = [remarkGfm, remarkBreaks]
 
 export function MarkdownContent({ content, className }: MarkdownContentProps) {
   return (
@@ -17,7 +20,7 @@ export function MarkdownContent({ content, className }: MarkdownContentProps) {
       dir="auto"
     >
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={REMARK_PLUGINS}
         components={{
           p: ({ children }) => <p className="mb-4 last:mb-0">{children}</p>,
           ul: ({ children }) => (
@@ -29,7 +32,7 @@ export function MarkdownContent({ content, className }: MarkdownContentProps) {
             <ol className="list-decimal pl-6 mb-4 space-y-1">{children}</ol>
           ),
           li: ({ children }) => <li>{children}</li>,
-          code: ({ inline, className, children, ...props }: any) => {
+          code: ({ className, children }: any) => {
             const match = /language-(\w+)/.exec(className || '')
             const language = match ? match[1] : ''
             const code = String(children).replace(/\n$/, '')

@@ -1,6 +1,17 @@
 import { query, mutation } from './_generated/server'
-import { getAuthUserId } from '@convex-dev/auth/server'
+import { getAuthUserId } from './lib/auth'
 import { v } from 'convex/values'
+
+export const ensureCurrentUser = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx)
+    if (userId === null) {
+      throw new Error('Not authenticated')
+    }
+    return userId
+  },
+})
 
 export const viewer = query({
   args: {},

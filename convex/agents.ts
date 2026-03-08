@@ -8,7 +8,7 @@ import {
   query,
 } from './_generated/server'
 import { v } from 'convex/values'
-import { getAuthUserId } from '@convex-dev/auth/server'
+import { getAuthUserId } from './lib/auth'
 import { createThread } from '@convex-dev/agent'
 import type { LanguageModel } from 'ai'
 import { match } from 'ts-pattern'
