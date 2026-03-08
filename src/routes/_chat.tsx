@@ -1,14 +1,25 @@
-import { SignIn } from '@clerk/clerk-react'
-import { createFileRoute, Outlet, useNavigate, useParams } from '@tanstack/react-router'
-import { useMutation, useQuery, AuthLoading, Authenticated, Unauthenticated } from 'convex/react'
+import {
+  createFileRoute,
+  Outlet,
+  useNavigate,
+  useParams,
+} from '@tanstack/react-router'
+import {
+  AuthLoading,
+  Authenticated,
+  Unauthenticated,
+  useMutation,
+  useQuery,
+} from 'convex/react'
 import { Loader2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { AppSidebar } from '@/components/app-sidebar'
 import { AIPromptInput } from '@/components/ai-prompt-input'
+import { AppSidebar } from '@/components/app-sidebar'
+import { AuthRedirect } from '@/components/auth-redirect'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { api } from '../../convex/_generated/api'
 
-export const Route = createFileRoute('/chat')({
+export const Route = createFileRoute('/_chat')({
   component: ChatLayout,
 })
 
@@ -22,9 +33,7 @@ function ChatLayout() {
       </AuthLoading>
 
       <Unauthenticated>
-        <div className="flex h-screen w-full items-center justify-center p-4 bg-background">
-          <SignIn />
-        </div>
+        <AuthRedirect />
       </Unauthenticated>
 
       <Authenticated>
@@ -39,7 +48,7 @@ function AuthenticatedChatLayout() {
   const ensureCurrentUser = useMutation(api.users.ensureCurrentUser)
   const [isUserReady, setIsUserReady] = useState(false)
   const params = useParams({
-    from: '/chat/$chatId',
+    from: '/_chat/$chatId',
     shouldThrow: false,
     select: (routeParams: unknown) => {
       if (
@@ -104,7 +113,7 @@ function AuthenticatedChatLayout() {
 
       if (!threadId) {
         threadId = await createThread({ title: text.substring(0, 30) })
-        await navigate({ to: `/chat/${threadId}` })
+        await navigate({ to: '/$chatId', params: { chatId: threadId } })
       }
 
       await sendMessage({
@@ -127,7 +136,7 @@ function AuthenticatedChatLayout() {
 
   return (
     <SidebarProvider className="h-screen">
-      <AppSidebar selectedThreadId={null} />
+      <AppSidebar selectedThreadId={params?.chatId ?? null} />
 
       <SidebarInset className="relative">
         <Outlet />

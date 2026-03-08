@@ -39,7 +39,7 @@ export function AgentModeSelector({
   selectedModel,
   onModelChange,
 }: AgentModeSelectorProps) {
-  const availableModels = useQuery(api.admin.listEnabledModels);
+  const availableModels = useQuery(api.admin.listEnabledModels)
 
   const showModelSelector = !!onModelChange
 
@@ -54,7 +54,8 @@ export function AgentModeSelector({
           {showModelSelector && selectedModel ? (
             <>
               <Zap className="h-3 w-3" />
-              {availableModels?.find((m) => m.modelId === selectedModel)?.displayName || 'Model'}
+              {availableModels?.find((m) => m.modelId === selectedModel)
+                ?.displayName || 'Model'}
             </>
           ) : (
             agentModeLabel[agentMode]
@@ -79,7 +80,9 @@ export function AgentModeSelector({
               className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-sm text-zinc-300 transition-colors hover:bg-zinc-800"
             >
               Auto
-              {agentMode === 'auto' && <Check className="h-4 w-4 text-indigo-400" />}
+              {agentMode === 'auto' && (
+                <Check className="h-4 w-4 text-indigo-400" />
+              )}
             </button>
             <button
               type="button"
@@ -92,7 +95,9 @@ export function AgentModeSelector({
                   Beta
                 </Badge>
               </span>
-              {agentMode === 'agent' && <Check className="h-4 w-4 text-indigo-400" />}
+              {agentMode === 'agent' && (
+                <Check className="h-4 w-4 text-indigo-400" />
+              )}
             </button>
             <button
               type="button"
@@ -100,7 +105,9 @@ export function AgentModeSelector({
               className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-sm text-zinc-300 transition-colors hover:bg-zinc-800"
             >
               Plan Mode
-              {agentMode === 'plan' && <Check className="h-4 w-4 text-indigo-400" />}
+              {agentMode === 'plan' && (
+                <Check className="h-4 w-4 text-indigo-400" />
+              )}
             </button>
           </div>
         </div>
@@ -132,7 +139,9 @@ export function AgentModeSelector({
                           </Badge>
                         )}
                       </div>
-                      {selectedModel === model.modelId && <Check className="h-4 w-4 text-indigo-400" />}
+                      {selectedModel === model.modelId && (
+                        <Check className="h-4 w-4 text-indigo-400" />
+                      )}
                     </button>
                   ))}
               </div>

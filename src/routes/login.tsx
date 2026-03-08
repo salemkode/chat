@@ -16,11 +16,11 @@ function LoginPage() {
   const { isAuthenticated, isLoading } = useConvexAuth()
 
   const targetAfterLogin =
-    redirectUrl && redirectUrl !== '/' ? redirectUrl : '/chat'
+    redirectUrl && redirectUrl !== '/' ? redirectUrl : '/'
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      void navigate({ to: targetAfterLogin })
+      // void navigate({ to: targetAfterLogin, replace: true })
     }
   }, [isAuthenticated, isLoading, navigate, targetAfterLogin])
 

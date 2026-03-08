@@ -9,9 +9,6 @@ interface AppSidebarProps {
 
 export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
   return (
-    <NewAppSidebar 
-      selectedThreadId={selectedThreadId}
-      className={className}
-    />
+    <NewAppSidebar selectedThreadId={selectedThreadId} className={className} />
   )
 }

@@ -124,7 +124,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
   }, [filteredThreads])
 
   const handleNewChat = () => {
-    navigate({ to: '/chat' })
+    navigate({ to: '/' })
   }
 
   const handlePinThread = async (threadId: string, e: React.MouseEvent) => {
@@ -143,7 +143,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
     try {
       await deleteThreadMutation({ threadId: threadId as any })
       if (selectedThreadId === threadId) {
-        navigate({ to: '/chat' })
+        navigate({ to: '/' })
       }
     } catch (error) {
       console.error('Failed to delete thread:', error)
@@ -389,7 +389,12 @@ function ThreadItem({
               <button
                 type="button"
                 className="flex w-full items-center gap-2 text-left"
-                onClick={() => navigate({ to: `/chat/${thread._id}` })}
+                onClick={() =>
+                  navigate({
+                    to: '/$chatId',
+                    params: { chatId: thread._id },
+                  })
+                }
               >
                 <span className="truncate text-sm">
                   {thread.metadata?.emoji || '💬'} {thread.title || 'Untitled'}

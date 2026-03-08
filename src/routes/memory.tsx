@@ -5,6 +5,7 @@ import { formatDistanceToNow } from 'date-fns'
 import type { Id } from '../../convex/_generated/dataModel'
 import { api } from '../../convex/_generated/api'
 import { AppSidebar } from '@/components/app-sidebar'
+import { AuthRedirect } from '@/components/auth-redirect'
 import {
   SidebarInset,
   SidebarProvider,
@@ -153,11 +154,7 @@ function MemoryPage() {
   }
 
   if (!isAuthenticated) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-background text-foreground">
-        Sign in to manage memory.
-      </div>
-    )
+    return <AuthRedirect />
   }
 
   async function runSearch() {

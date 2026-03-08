@@ -13,11 +13,10 @@ import { Route as SignupRouteImport } from './routes/signup'
 import { Route as MemoryDemoRouteImport } from './routes/memory-demo'
 import { Route as MemoryRouteImport } from './routes/memory'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as ChatRouteImport } from './routes/chat'
 import { Route as AdminRouteImport } from './routes/admin'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as ChatIndexRouteImport } from './routes/chat.index'
-import { Route as ChatChatIdRouteImport } from './routes/chat.$chatId'
+import { Route as ChatRouteImport } from './routes/_chat'
+import { Route as ChatIndexRouteImport } from './routes/_chat.index'
+import { Route as ChatChatIdRouteImport } from './routes/_chat.$chatId'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -39,19 +38,13 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ChatRoute = ChatRouteImport.update({
-  id: '/chat',
-  path: '/chat',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const ChatRoute = ChatRouteImport.update({
+  id: '/_chat',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChatIndexRoute = ChatIndexRouteImport.update({
@@ -66,77 +59,68 @@ const ChatChatIdRoute = ChatChatIdRouteImport.update({
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
   '/admin': typeof AdminRoute
-  '/chat': typeof ChatRouteWithChildren
   '/login': typeof LoginRoute
   '/memory': typeof MemoryRoute
   '/memory-demo': typeof MemoryDemoRoute
   '/signup': typeof SignupRoute
-  '/chat/$chatId': typeof ChatChatIdRoute
-  '/chat/': typeof ChatIndexRoute
+  '/$chatId': typeof ChatChatIdRoute
+  '/': typeof ChatIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/login': typeof LoginRoute
   '/memory': typeof MemoryRoute
   '/memory-demo': typeof MemoryDemoRoute
   '/signup': typeof SignupRoute
-  '/chat/$chatId': typeof ChatChatIdRoute
-  '/chat': typeof ChatIndexRoute
+  '/$chatId': typeof ChatChatIdRoute
+  '/': typeof ChatIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/_chat': typeof ChatRouteWithChildren
   '/admin': typeof AdminRoute
-  '/chat': typeof ChatRouteWithChildren
   '/login': typeof LoginRoute
   '/memory': typeof MemoryRoute
   '/memory-demo': typeof MemoryDemoRoute
   '/signup': typeof SignupRoute
-  '/chat/$chatId': typeof ChatChatIdRoute
-  '/chat/': typeof ChatIndexRoute
+  '/_chat/$chatId': typeof ChatChatIdRoute
+  '/_chat/': typeof ChatIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | '/'
     | '/admin'
-    | '/chat'
     | '/login'
     | '/memory'
     | '/memory-demo'
     | '/signup'
-    | '/chat/$chatId'
-    | '/chat/'
+    | '/$chatId'
+    | '/'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/'
     | '/admin'
     | '/login'
     | '/memory'
     | '/memory-demo'
     | '/signup'
-    | '/chat/$chatId'
-    | '/chat'
+    | '/$chatId'
+    | '/'
   id:
     | '__root__'
-    | '/'
+    | '/_chat'
     | '/admin'
-    | '/chat'
     | '/login'
     | '/memory'
     | '/memory-demo'
     | '/signup'
-    | '/chat/$chatId'
-    | '/chat/'
+    | '/_chat/$chatId'
+    | '/_chat/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  AdminRoute: typeof AdminRoute
   ChatRoute: typeof ChatRouteWithChildren
+  AdminRoute: typeof AdminRoute
   LoginRoute: typeof LoginRoute
   MemoryRoute: typeof MemoryRoute
   MemoryDemoRoute: typeof MemoryDemoRoute
@@ -173,13 +157,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/chat': {
-      id: '/chat'
-      path: '/chat'
-      fullPath: '/chat'
-      preLoaderRoute: typeof ChatRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/admin': {
       id: '/admin'
       path: '/admin'
@@ -187,24 +164,24 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/_chat': {
+      id: '/_chat'
+      path: ''
+      fullPath: ''
+      preLoaderRoute: typeof ChatRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/chat/': {
-      id: '/chat/'
+    '/_chat/': {
+      id: '/_chat/'
       path: '/'
-      fullPath: '/chat/'
+      fullPath: '/'
       preLoaderRoute: typeof ChatIndexRouteImport
       parentRoute: typeof ChatRoute
     }
-    '/chat/$chatId': {
-      id: '/chat/$chatId'
+    '/_chat/$chatId': {
+      id: '/_chat/$chatId'
       path: '/$chatId'
-      fullPath: '/chat/$chatId'
+      fullPath: '/$chatId'
       preLoaderRoute: typeof ChatChatIdRouteImport
       parentRoute: typeof ChatRoute
     }
@@ -224,9 +201,8 @@ const ChatRouteChildren: ChatRouteChildren = {
 const ChatRouteWithChildren = ChatRoute._addFileChildren(ChatRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  AdminRoute: AdminRoute,
   ChatRoute: ChatRouteWithChildren,
+  AdminRoute: AdminRoute,
   LoginRoute: LoginRoute,
   MemoryRoute: MemoryRoute,
   MemoryDemoRoute: MemoryDemoRoute,

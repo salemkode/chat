@@ -48,7 +48,8 @@ export function ThreadItem({
             onMouseLeave={() => setIsHovered(false)}
           >
             <Link
-              to={`/chat/${thread._id}`}
+              to="/$chatId"
+              params={{ chatId: thread._id }}
               className={cn(
                 'group/link relative flex h-9 w-full items-center overflow-hidden rounded-lg px-2 py-1 text-sm outline-hidden',
                 'transition-colors duration-150 ease-snappy',

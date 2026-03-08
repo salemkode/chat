@@ -3,11 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -20,7 +16,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Camera, User, Loader2, X, Settings, Bell, Palette, Grid3X3, Database, Shield, Users, UserCircle } from 'lucide-react'
+import {
+  Camera,
+  User,
+  Loader2,
+  X,
+  Settings,
+  Bell,
+  Palette,
+  Grid3X3,
+  Database,
+  Shield,
+  Users,
+  UserCircle,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useTheme } from '@/components/theme-provider'
 
@@ -29,7 +38,15 @@ interface SettingsDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
-type SettingsTab = 'general' | 'notifications' | 'personalization' | 'apps' | 'data' | 'security' | 'parental' | 'account'
+type SettingsTab =
+  | 'general'
+  | 'notifications'
+  | 'personalization'
+  | 'apps'
+  | 'data'
+  | 'security'
+  | 'parental'
+  | 'account'
 
 interface SettingsItemProps {
   label: string
@@ -90,7 +107,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       }
       reader.readAsDataURL(file)
     },
-    []
+    [],
   )
 
   const handleSave = async () => {
@@ -124,7 +141,11 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const tabs = [
     { id: 'general' as SettingsTab, label: 'General', icon: Settings },
     { id: 'notifications' as SettingsTab, label: 'Notifications', icon: Bell },
-    { id: 'personalization' as SettingsTab, label: 'Personalization', icon: Palette },
+    {
+      id: 'personalization' as SettingsTab,
+      label: 'Personalization',
+      icon: Palette,
+    },
     { id: 'apps' as SettingsTab, label: 'Apps', icon: Grid3X3 },
     { id: 'data' as SettingsTab, label: 'Data controls', icon: Database },
     { id: 'security' as SettingsTab, label: 'Security', icon: Shield },
@@ -136,7 +157,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[800px] h-[600px] p-0 overflow-hidden gap-0 bg-background border border-border">
         <DialogTitle className="sr-only">Settings</DialogTitle>
-        
+
         <div className="flex h-full">
           {/* Sidebar */}
           <div className="w-[220px] bg-muted/30 border-r border-border flex flex-col">
@@ -150,7 +171,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                 <X className="size-4" />
               </Button>
             </div>
-            
+
             <nav className="flex-1 px-2 pb-4 space-y-0.5">
               {tabs.map((tab) => {
                 const Icon = tab.icon
@@ -162,7 +183,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                       'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
                       activeTab === tab.id
                         ? 'bg-muted text-foreground'
-                        : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                        : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
                     )}
                   >
                     <Icon className="size-4" />
@@ -180,9 +201,14 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               {activeTab === 'general' && (
                 <div className="space-y-6">
                   <h2 className="text-lg font-semibold">General</h2>
-                  
+
                   <SettingsItem label="Appearance">
-                    <Select value={theme} onValueChange={(value) => setTheme(value as 'light' | 'dark' | 'system')}>
+                    <Select
+                      value={theme}
+                      onValueChange={(value) =>
+                        setTheme(value as 'light' | 'dark' | 'system')
+                      }
+                    >
                       <SelectTrigger className="w-[140px]">
                         <SelectValue />
                       </SelectTrigger>
@@ -214,8 +240,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                     </Select>
                   </SettingsItem>
 
-                  <SettingsItem 
-                    label="Spoken language" 
+                  <SettingsItem
+                    label="Spoken language"
                     description="For best results, select the language you mainly speak. If it's not listed, it may still be supported via auto-detection."
                   >
                     <Select defaultValue="ar">
@@ -250,8 +276,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                     </div>
                   </SettingsItem>
 
-                  <SettingsItem 
-                    label="Separate Voice" 
+                  <SettingsItem
+                    label="Separate Voice"
                     description="Keep ChatGPT Voice in a separate full screen, without real time transcripts and visuals."
                   >
                     <Switch />
@@ -263,11 +289,11 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               {activeTab === 'account' && (
                 <div className="space-y-6">
                   <h2 className="text-lg font-semibold">Account</h2>
-                  
+
                   {/* Profile Image Section */}
                   <div className="flex items-center gap-6 py-4 border-b border-border/50">
-                    <div 
-                      className="relative group cursor-pointer" 
+                    <div
+                      className="relative group cursor-pointer"
                       onClick={handleImageClick}
                     >
                       <Avatar className="size-20 ring-4 ring-background shadow-lg">
@@ -289,7 +315,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                       <div
                         className={cn(
                           'absolute inset-0 rounded-full bg-black/40 flex items-center justify-center',
-                          'opacity-0 group-hover:opacity-100 transition-opacity duration-200'
+                          'opacity-0 group-hover:opacity-100 transition-opacity duration-200',
                         )}
                       >
                         <Camera className="size-5 text-white" />
@@ -358,7 +384,9 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                     <h3 className="font-medium mb-2">Account Information</h3>
                     <div className="p-4 rounded-lg bg-muted/50 space-y-2 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Member since</span>
+                        <span className="text-muted-foreground">
+                          Member since
+                        </span>
                         <span>
                           {user?._creationTime
                             ? new Date(user._creationTime).toLocaleDateString()
@@ -374,23 +402,27 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               {activeTab !== 'general' && activeTab !== 'account' && (
                 <div className="space-y-6">
                   <h2 className="text-lg font-semibold">
-                    {tabs.find(t => t.id === activeTab)?.label}
+                    {tabs.find((t) => t.id === activeTab)?.label}
                   </h2>
                   <p className="text-muted-foreground">
-                    Settings for {tabs.find(t => t.id === activeTab)?.label.toLowerCase()} will be available soon.
+                    Settings for{' '}
+                    {tabs.find((t) => t.id === activeTab)?.label.toLowerCase()}{' '}
+                    will be available soon.
                   </p>
                 </div>
               )}
             </div>
 
             {/* Footer */}
-            {(activeTab === 'account') && (
+            {activeTab === 'account' && (
               <div className="flex justify-end gap-3 px-8 py-4 border-t border-border bg-muted/30">
                 <Button variant="outline" onClick={() => onOpenChange(false)}>
                   Cancel
                 </Button>
                 <Button onClick={handleSave} disabled={isLoading}>
-                  {isLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
+                  {isLoading && (
+                    <Loader2 className="mr-2 size-4 animate-spin" />
+                  )}
                   Save Changes
                 </Button>
               </div>
