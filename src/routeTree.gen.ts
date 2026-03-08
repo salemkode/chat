@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as MemoryRouteImport } from './routes/memory'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as MemoryDemoRouteImport } from './routes/memory-demo'
 import { Route as LoginRouteImport } from './routes/login'
@@ -18,6 +19,11 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ChatIndexRouteImport } from './routes/chat.index'
 import { Route as ChatChatIdRouteImport } from './routes/chat.$chatId'
 
+const MemoryRoute = MemoryRouteImport.update({
+  id: '/memory',
+  path: '/memory',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
   path: '/signup',
@@ -64,6 +70,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/chat': typeof ChatRouteWithChildren
   '/login': typeof LoginRoute
+  '/memory': typeof MemoryRoute
   '/memory-demo': typeof MemoryDemoRoute
   '/signup': typeof SignupRoute
   '/chat/$chatId': typeof ChatChatIdRoute
@@ -73,6 +80,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/login': typeof LoginRoute
+  '/memory': typeof MemoryRoute
   '/memory-demo': typeof MemoryDemoRoute
   '/signup': typeof SignupRoute
   '/chat/$chatId': typeof ChatChatIdRoute
@@ -84,6 +92,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/chat': typeof ChatRouteWithChildren
   '/login': typeof LoginRoute
+  '/memory': typeof MemoryRoute
   '/memory-demo': typeof MemoryDemoRoute
   '/signup': typeof SignupRoute
   '/chat/$chatId': typeof ChatChatIdRoute
@@ -96,6 +105,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/chat'
     | '/login'
+    | '/memory'
     | '/memory-demo'
     | '/signup'
     | '/chat/$chatId'
@@ -105,6 +115,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/login'
+    | '/memory'
     | '/memory-demo'
     | '/signup'
     | '/chat/$chatId'
@@ -115,6 +126,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/chat'
     | '/login'
+    | '/memory'
     | '/memory-demo'
     | '/signup'
     | '/chat/$chatId'
@@ -126,6 +138,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   ChatRoute: typeof ChatRouteWithChildren
   LoginRoute: typeof LoginRoute
+  MemoryRoute: typeof MemoryRoute
   MemoryDemoRoute: typeof MemoryDemoRoute
   SignupRoute: typeof SignupRoute
 }
@@ -137,6 +150,13 @@ declare module '@tanstack/react-router' {
       path: '/signup'
       fullPath: '/signup'
       preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/memory': {
+      id: '/memory'
+      path: '/memory'
+      fullPath: '/memory'
+      preLoaderRoute: typeof MemoryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/memory-demo': {
@@ -208,6 +228,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   ChatRoute: ChatRouteWithChildren,
   LoginRoute: LoginRoute,
+  MemoryRoute: MemoryRoute,
   MemoryDemoRoute: MemoryDemoRoute,
   SignupRoute: SignupRoute,
 }

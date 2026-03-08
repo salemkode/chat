@@ -2,10 +2,20 @@
 
 import * as React from 'react'
 import { useClerk, useUser } from '@clerk/clerk-react'
-import { useNavigate } from '@tanstack/react-router'
+import { useNavigate, useRouterState } from '@tanstack/react-router'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
-import { Plus, Search, Pin, X, LogIn, LogOut, User, Settings } from 'lucide-react'
+import {
+  Plus,
+  Search,
+  Pin,
+  X,
+  LogIn,
+  User,
+  Settings,
+  Database,
+  LogOut,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   Sidebar,
@@ -54,6 +64,9 @@ interface AppSidebarProps {
 
 export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
   const navigate = useNavigate()
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  })
   const [searchQuery, setSearchQuery] = React.useState('')
   const [settingsOpen, setSettingsOpen] = React.useState(false)
 
@@ -178,6 +191,15 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
         <Button onClick={handleNewChat} className="w-full">
           <Plus className="h-4 w-4 mr-2" />
           New Chat
+        </Button>
+
+        <Button
+          variant={pathname.startsWith('/memory') ? 'secondary' : 'outline'}
+          className="w-full mt-2 justify-start"
+          onClick={() => navigate({ to: '/memory' })}
+        >
+          <Database className="h-4 w-4 mr-2" />
+          Memory
         </Button>
 
         {/* Search */}

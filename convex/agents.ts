@@ -66,9 +66,7 @@ const openrouter = createOpenRouter({
   apiKey: process.env.OPENROUTER_API_KEY!,
 })
 
-function createAuthorAgent(
-  model: LanguageModel,
-) {
+function createAuthorAgent(model: LanguageModel) {
   return new Agent(components.agent, {
     name: 'Author',
     languageModel: model,
@@ -298,6 +296,14 @@ export const streamMessage = internalAction({
         // @ts-ignore types are strict
         { prompt: args.prompt },
         { saveStreamDeltas: true },
+      )
+
+      await ctx.scheduler.runAfter(
+        0,
+        internal.functions.memoryExtraction.extractMemoriesFromThread,
+        {
+          threadId: args.threadId,
+        },
       )
     } catch (error) {
       // Log the error for debugging
