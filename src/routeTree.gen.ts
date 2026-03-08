@@ -14,9 +14,9 @@ import { Route as MemoryDemoRouteImport } from './routes/memory-demo'
 import { Route as MemoryRouteImport } from './routes/memory'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AdminRouteImport } from './routes/admin'
-import { Route as ChatRouteImport } from './routes/_chat'
-import { Route as ChatIndexRouteImport } from './routes/_chat.index'
-import { Route as ChatChatIdRouteImport } from './routes/_chat.$chatId'
+import { Route as LayoutRouteImport } from './routes/_layout'
+import { Route as LayoutIndexRouteImport } from './routes/_layout.index'
+import { Route as LayoutChatIdRouteImport } from './routes/_layout.$chatId'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -43,19 +43,19 @@ const AdminRoute = AdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ChatRoute = ChatRouteImport.update({
-  id: '/_chat',
+const LayoutRoute = LayoutRouteImport.update({
+  id: '/_layout',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ChatIndexRoute = ChatIndexRouteImport.update({
+const LayoutIndexRoute = LayoutIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => ChatRoute,
+  getParentRoute: () => LayoutRoute,
 } as any)
-const ChatChatIdRoute = ChatChatIdRouteImport.update({
+const LayoutChatIdRoute = LayoutChatIdRouteImport.update({
   id: '/$chatId',
   path: '/$chatId',
-  getParentRoute: () => ChatRoute,
+  getParentRoute: () => LayoutRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -64,8 +64,8 @@ export interface FileRoutesByFullPath {
   '/memory': typeof MemoryRoute
   '/memory-demo': typeof MemoryDemoRoute
   '/signup': typeof SignupRoute
-  '/$chatId': typeof ChatChatIdRoute
-  '/': typeof ChatIndexRoute
+  '/$chatId': typeof LayoutChatIdRoute
+  '/': typeof LayoutIndexRoute
 }
 export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
@@ -73,19 +73,19 @@ export interface FileRoutesByTo {
   '/memory': typeof MemoryRoute
   '/memory-demo': typeof MemoryDemoRoute
   '/signup': typeof SignupRoute
-  '/$chatId': typeof ChatChatIdRoute
-  '/': typeof ChatIndexRoute
+  '/$chatId': typeof LayoutChatIdRoute
+  '/': typeof LayoutIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/_chat': typeof ChatRouteWithChildren
+  '/_layout': typeof LayoutRouteWithChildren
   '/admin': typeof AdminRoute
   '/login': typeof LoginRoute
   '/memory': typeof MemoryRoute
   '/memory-demo': typeof MemoryDemoRoute
   '/signup': typeof SignupRoute
-  '/_chat/$chatId': typeof ChatChatIdRoute
-  '/_chat/': typeof ChatIndexRoute
+  '/_layout/$chatId': typeof LayoutChatIdRoute
+  '/_layout/': typeof LayoutIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -108,18 +108,18 @@ export interface FileRouteTypes {
     | '/'
   id:
     | '__root__'
-    | '/_chat'
+    | '/_layout'
     | '/admin'
     | '/login'
     | '/memory'
     | '/memory-demo'
     | '/signup'
-    | '/_chat/$chatId'
-    | '/_chat/'
+    | '/_layout/$chatId'
+    | '/_layout/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  ChatRoute: typeof ChatRouteWithChildren
+  LayoutRoute: typeof LayoutRouteWithChildren
   AdminRoute: typeof AdminRoute
   LoginRoute: typeof LoginRoute
   MemoryRoute: typeof MemoryRoute
@@ -164,44 +164,45 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_chat': {
-      id: '/_chat'
+    '/_layout': {
+      id: '/_layout'
       path: ''
       fullPath: ''
-      preLoaderRoute: typeof ChatRouteImport
+      preLoaderRoute: typeof LayoutRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_chat/': {
-      id: '/_chat/'
+    '/_layout/': {
+      id: '/_layout/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof ChatIndexRouteImport
-      parentRoute: typeof ChatRoute
+      preLoaderRoute: typeof LayoutIndexRouteImport
+      parentRoute: typeof LayoutRoute
     }
-    '/_chat/$chatId': {
-      id: '/_chat/$chatId'
+    '/_layout/$chatId': {
+      id: '/_layout/$chatId'
       path: '/$chatId'
       fullPath: '/$chatId'
-      preLoaderRoute: typeof ChatChatIdRouteImport
-      parentRoute: typeof ChatRoute
+      preLoaderRoute: typeof LayoutChatIdRouteImport
+      parentRoute: typeof LayoutRoute
     }
   }
 }
 
-interface ChatRouteChildren {
-  ChatChatIdRoute: typeof ChatChatIdRoute
-  ChatIndexRoute: typeof ChatIndexRoute
+interface LayoutRouteChildren {
+  LayoutChatIdRoute: typeof LayoutChatIdRoute
+  LayoutIndexRoute: typeof LayoutIndexRoute
 }
 
-const ChatRouteChildren: ChatRouteChildren = {
-  ChatChatIdRoute: ChatChatIdRoute,
-  ChatIndexRoute: ChatIndexRoute,
+const LayoutRouteChildren: LayoutRouteChildren = {
+  LayoutChatIdRoute: LayoutChatIdRoute,
+  LayoutIndexRoute: LayoutIndexRoute,
 }
 
-const ChatRouteWithChildren = ChatRoute._addFileChildren(ChatRouteChildren)
+const LayoutRouteWithChildren =
+  LayoutRoute._addFileChildren(LayoutRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
-  ChatRoute: ChatRouteWithChildren,
+  LayoutRoute: LayoutRouteWithChildren,
   AdminRoute: AdminRoute,
   LoginRoute: LoginRoute,
   MemoryRoute: MemoryRoute,

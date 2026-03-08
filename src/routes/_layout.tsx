@@ -19,7 +19,7 @@ import { AuthRedirect } from '@/components/auth-redirect'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { api } from '../../convex/_generated/api'
 
-export const Route = createFileRoute('/_chat')({
+export const Route = createFileRoute('/_layout')({
   component: ChatLayout,
 })
 
@@ -48,7 +48,7 @@ function AuthenticatedChatLayout() {
   const ensureCurrentUser = useMutation(api.users.ensureCurrentUser)
   const [isUserReady, setIsUserReady] = useState(false)
   const params = useParams({
-    from: '/_chat/$chatId',
+    from: '/_layout/$chatId',
     shouldThrow: false,
     select: (routeParams: unknown) => {
       if (

@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { Sparkles } from 'lucide-react'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 
-export const Route = createFileRoute('/_chat/')({
+export const Route = createFileRoute('/_layout/')({
   component: NewChatIndex,
 })
 

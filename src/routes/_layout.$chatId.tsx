@@ -12,7 +12,7 @@ import { ChatMessageList } from '@/components/ChatMessageList'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { api } from '../../convex/_generated/api'
 
-export const Route = createFileRoute('/_chat/$chatId')({
+export const Route = createFileRoute('/_layout/$chatId')({
   component: ChatPage,
 })
 
