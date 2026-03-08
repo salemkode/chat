@@ -15,11 +15,14 @@ function LoginPage() {
   const { redirect: redirectUrl } = useSearch({ from: '/login' })
   const { isAuthenticated, isLoading } = useConvexAuth()
 
+  const targetAfterLogin =
+    redirectUrl && redirectUrl !== '/' ? redirectUrl : '/chat'
+
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      void navigate({ to: redirectUrl || '/chat' })
+      void navigate({ to: targetAfterLogin })
     }
-  }, [isAuthenticated, isLoading, navigate, redirectUrl])
+  }, [isAuthenticated, isLoading, navigate, targetAfterLogin])
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-background">
