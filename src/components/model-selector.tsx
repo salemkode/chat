@@ -62,9 +62,7 @@ const providerIcons: Record<string, React.ReactNode> = {
 }
 
 // Default icon for unknown providers
-const DefaultProviderIcon = () => (
-  <Sparkles className="size-5" />
-)
+const DefaultProviderIcon = () => <Sparkles className="size-5" />
 
 interface ModelSelectorProps {
   selectedModel?: string
@@ -100,7 +98,9 @@ export function ModelSelector({
   const [open, setOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null)
-  const [internalSelectedModel, setInternalSelectedModel] = useState<string | undefined>(externalSelectedModel)
+  const [internalSelectedModel, setInternalSelectedModel] = useState<
+    string | undefined
+  >(externalSelectedModel)
 
   const data = useQuery(api.admin.listModelsWithProviders)
   const toggleFavorite = useMutation(api.admin.toggleFavoriteModel)
@@ -132,11 +132,12 @@ export function ModelSelector({
 
   // Filter models based on search and selected provider
   const filteredModels = useMemo(() => {
-    let models = selectedProvider === 'favorites' 
-      ? favorites 
-      : selectedProvider 
-        ? allModels.filter((m) => m.provider?._id === selectedProvider)
-        : allModels
+    let models =
+      selectedProvider === 'favorites'
+        ? favorites
+        : selectedProvider
+          ? allModels.filter((m) => m.provider?._id === selectedProvider)
+          : allModels
 
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
@@ -144,7 +145,7 @@ export function ModelSelector({
         (m) =>
           m.displayName.toLowerCase().includes(query) ||
           m.modelId.toLowerCase().includes(query) ||
-          m.description?.toLowerCase().includes(query)
+          m.description?.toLowerCase().includes(query),
       )
     }
 
@@ -152,7 +153,9 @@ export function ModelSelector({
   }, [allModels, favorites, selectedProvider, searchQuery])
 
   // Get current selected model info
-  const currentModel = allModels.find((m) => m.modelId === effectiveSelectedModel)
+  const currentModel = allModels.find(
+    (m) => m.modelId === effectiveSelectedModel,
+  )
 
   const handleSelectModel = (model: Model) => {
     setInternalSelectedModel(model.modelId)
@@ -186,22 +189,27 @@ export function ModelSelector({
             'flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm',
             'hover:bg-muted/40 transition-colors',
             'text-muted-foreground hover:text-foreground',
-            className
+            className,
           )}
         >
           {currentModel?.provider && (
             <span className="text-pink-500/60">
-              {getProviderIcon(currentModel.provider.providerType, currentModel.provider.icon)}
+              {getProviderIcon(
+                currentModel.provider.providerType,
+                currentModel.provider.icon,
+              )}
             </span>
           )}
-          <span className="font-medium">{currentModel?.displayName || 'Select model'}</span>
+          <span className="font-medium">
+            {currentModel?.displayName || 'Select model'}
+          </span>
           <ChevronDown className="size-4 text-muted-foreground/60" />
         </button>
       </PopoverTrigger>
 
-      <PopoverContent 
-        className="w-[400px] p-0 overflow-hidden" 
-        side="top" 
+      <PopoverContent
+        className="w-[400px] p-0 overflow-hidden"
+        side="top"
         align="start"
         sideOffset={8}
       >
@@ -214,15 +222,24 @@ export function ModelSelector({
                 <TooltipTrigger asChild>
                   <button
                     type="button"
-                    onClick={() => setSelectedProvider(selectedProvider === 'favorites' ? null : 'favorites')}
+                    onClick={() =>
+                      setSelectedProvider(
+                        selectedProvider === 'favorites' ? null : 'favorites',
+                      )
+                    }
                     className={cn(
                       'size-10 rounded-lg flex items-center justify-center transition-colors',
                       selectedProvider === 'favorites'
                         ? 'bg-primary/20 text-primary'
-                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                     )}
                   >
-                    <Star className={cn('size-5', selectedProvider === 'favorites' && 'fill-current')} />
+                    <Star
+                      className={cn(
+                        'size-5',
+                        selectedProvider === 'favorites' && 'fill-current',
+                      )}
+                    />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="right">Favorites</TooltipContent>
@@ -234,12 +251,18 @@ export function ModelSelector({
                   <TooltipTrigger asChild>
                     <button
                       type="button"
-                      onClick={() => setSelectedProvider(selectedProvider === provider._id ? null : provider._id)}
+                      onClick={() =>
+                        setSelectedProvider(
+                          selectedProvider === provider._id
+                            ? null
+                            : provider._id,
+                        )
+                      }
                       className={cn(
                         'size-10 rounded-lg flex items-center justify-center transition-colors',
                         selectedProvider === provider._id
                           ? 'bg-primary/20 text-primary'
-                          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                          : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                       )}
                     >
                       {getProviderIcon(provider.providerType, provider.icon)}
@@ -282,18 +305,24 @@ export function ModelSelector({
                       className={cn(
                         'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors cursor-pointer',
                         'hover:bg-muted/60',
-                        effectiveSelectedModel === model.modelId && 'bg-muted'
+                        effectiveSelectedModel === model.modelId && 'bg-muted',
                       )}
                     >
                       {/* Provider icon */}
                       <span className="text-muted-foreground shrink-0">
-                        {model.provider && getProviderIcon(model.provider.providerType, model.provider.icon)}
+                        {model.provider &&
+                          getProviderIcon(
+                            model.provider.providerType,
+                            model.provider.icon,
+                          )}
                       </span>
 
                       {/* Model info */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="font-medium truncate">{model.displayName}</span>
+                          <span className="font-medium truncate">
+                            {model.displayName}
+                          </span>
                           {model.isFree && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/20 text-green-600 dark:text-green-400">
                               Free
@@ -319,10 +348,15 @@ export function ModelSelector({
                             'p-1.5 rounded-md transition-colors',
                             model.isFavorite
                               ? 'text-yellow-500 hover:bg-yellow-500/20'
-                              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                              : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                           )}
                         >
-                          <Star className={cn('size-4', model.isFavorite && 'fill-current')} />
+                          <Star
+                            className={cn(
+                              'size-4',
+                              model.isFavorite && 'fill-current',
+                            )}
+                          />
                         </button>
                         <button
                           type="button"

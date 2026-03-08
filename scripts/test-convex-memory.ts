@@ -36,7 +36,9 @@ async function test() {
 
     console.log(`✅ Found ${results.length} results:`)
     for (const result of results) {
-      console.log(`  - ${result.path}:${result.startLine}-${result.endLine} (score: ${result.score.toFixed(2)})`)
+      console.log(
+        `  - ${result.path}:${result.startLine}-${result.endLine} (score: ${result.score.toFixed(2)})`,
+      )
       console.log(`    ${result.snippet.slice(0, 80)}...`)
     }
 

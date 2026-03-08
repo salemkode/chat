@@ -1,7 +1,7 @@
-import { SignIn } from '@clerk/clerk-react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useQuery, useConvexAuth, useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
+import { AuthRedirect } from '@/components/auth-redirect'
 import { Button } from '@/components/ui/button'
 import { Loader2, ArrowLeft, Plus, Trash2, Edit2, Settings } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
@@ -42,7 +42,7 @@ const PROVIDER_TYPES = [
   { value: 'cerebras', label: 'Cerebras' },
 ] as const
 
-type ProviderType = typeof PROVIDER_TYPES[number]['value']
+type ProviderType = (typeof PROVIDER_TYPES)[number]['value']
 
 interface ProviderFormData {
   name: string
@@ -93,7 +93,8 @@ function AdminPage() {
   // Form states
   const [providerDialogOpen, setProviderDialogOpen] = useState(false)
   const [modelDialogOpen, setModelDialogOpen] = useState(false)
-  const [editingProvider, setEditingProvider] = useState<Doc<'providers'> | null>(null)
+  const [editingProvider, setEditingProvider] =
+    useState<Doc<'providers'> | null>(null)
   const [editingModel, setEditingModel] = useState<Doc<'models'> | null>(null)
 
   const [providerForm, setProviderForm] = useState<ProviderFormData>({
@@ -275,11 +276,7 @@ function AdminPage() {
     )
   }
   if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-        <SignIn />
-      </div>
-    )
+    return <AuthRedirect />
   }
 
   if (!isUserReady) {
@@ -298,7 +295,7 @@ function AdminPage() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => void navigate({ to: '/chat' })}
+              onClick={() => void navigate({ to: '/' })}
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
@@ -342,7 +339,10 @@ function AdminPage() {
               <Settings className="h-5 w-5" />
               Providers
             </h3>
-            <Dialog open={providerDialogOpen} onOpenChange={setProviderDialogOpen}>
+            <Dialog
+              open={providerDialogOpen}
+              onOpenChange={setProviderDialogOpen}
+            >
               <DialogTrigger asChild>
                 <Button size="sm" onClick={() => openProviderDialog()}>
                   <Plus className="h-4 w-4 mr-2" />
@@ -367,7 +367,10 @@ function AdminPage() {
                       id={ids.providerName}
                       value={providerForm.name}
                       onChange={(e) =>
-                        setProviderForm({ ...providerForm, name: e.target.value })
+                        setProviderForm({
+                          ...providerForm,
+                          name: e.target.value,
+                        })
                       }
                       placeholder="My Provider"
                     />
@@ -377,7 +380,10 @@ function AdminPage() {
                     <Select
                       value={providerForm.providerType}
                       onValueChange={(value: ProviderType) =>
-                        setProviderForm({ ...providerForm, providerType: value })
+                        setProviderForm({
+                          ...providerForm,
+                          providerType: value,
+                        })
                       }
                     >
                       <SelectTrigger id={ids.providerType}>
@@ -399,18 +405,26 @@ function AdminPage() {
                       type="password"
                       value={providerForm.apiKey}
                       onChange={(e) =>
-                        setProviderForm({ ...providerForm, apiKey: e.target.value })
+                        setProviderForm({
+                          ...providerForm,
+                          apiKey: e.target.value,
+                        })
                       }
                       placeholder="sk-..."
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor={ids.providerBaseUrl}>Base URL (optional)</Label>
+                    <Label htmlFor={ids.providerBaseUrl}>
+                      Base URL (optional)
+                    </Label>
                     <Input
                       id={ids.providerBaseUrl}
                       value={providerForm.baseURL}
                       onChange={(e) =>
-                        setProviderForm({ ...providerForm, baseURL: e.target.value })
+                        setProviderForm({
+                          ...providerForm,
+                          baseURL: e.target.value,
+                        })
                       }
                       placeholder="https://api.example.com"
                     />
@@ -451,7 +465,9 @@ function AdminPage() {
                     Cancel
                   </Button>
                   <Button
-                    onClick={editingProvider ? handleUpdateProvider : handleAddProvider}
+                    onClick={
+                      editingProvider ? handleUpdateProvider : handleAddProvider
+                    }
                   >
                     {editingProvider ? 'Update' : 'Add'} Provider
                   </Button>
@@ -465,7 +481,9 @@ function AdminPage() {
               <Loader2 className="h-6 w-6 animate-spin" />
             </div>
           ) : providers.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No providers configured</p>
+            <p className="text-muted-foreground text-sm">
+              No providers configured
+            </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -479,7 +497,10 @@ function AdminPage() {
                 </thead>
                 <tbody>
                   {providers.map((provider) => (
-                    <tr key={provider._id} className="border-b border-border/50">
+                    <tr
+                      key={provider._id}
+                      className="border-b border-border/50"
+                    >
                       <td className="py-2 px-4">{provider.name}</td>
                       <td className="py-2 px-4 capitalize">
                         {provider.providerType}
@@ -564,7 +585,10 @@ function AdminPage() {
                       id={ids.modelDisplayName}
                       value={modelForm.displayName}
                       onChange={(e) =>
-                        setModelForm({ ...modelForm, displayName: e.target.value })
+                        setModelForm({
+                          ...modelForm,
+                          displayName: e.target.value,
+                        })
                       }
                       placeholder="GPT-4o"
                     />
@@ -654,7 +678,9 @@ function AdminPage() {
               <Loader2 className="h-6 w-6 animate-spin" />
             </div>
           ) : models.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No models configured</p>
+            <p className="text-muted-foreground text-sm">
+              No models configured
+            </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -692,7 +718,7 @@ function AdminPage() {
                       <td className="py-2 px-4">
                         <span
                           className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
-                                model.isFree
+                            model.isFree
                               ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
                               : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
                           }`}
@@ -705,7 +731,7 @@ function AdminPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                              onClick={() => openModelDialog(model)}
+                            onClick={() => openModelDialog(model)}
                           >
                             <Edit2 className="h-4 w-4" />
                           </Button>
@@ -729,4 +755,3 @@ function AdminPage() {
     </div>
   )
 }
-

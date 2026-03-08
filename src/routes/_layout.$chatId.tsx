@@ -1,4 +1,3 @@
-import { SignIn } from '@clerk/clerk-react'
 import { createFileRoute } from '@tanstack/react-router'
 import {
   Authenticated,
@@ -6,13 +5,14 @@ import {
   Unauthenticated,
   useQuery,
 } from 'convex/react'
-import { Loader2, MessageSquare } from 'lucide-react'
 import { useUIMessages } from '@convex-dev/agent/react'
+import { Loader2, MessageSquare } from 'lucide-react'
+import { AuthRedirect } from '@/components/auth-redirect'
 import { ChatMessageList } from '@/components/ChatMessageList'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { api } from '../../convex/_generated/api'
 
-export const Route = createFileRoute('/chat/$chatId')({
+export const Route = createFileRoute('/_layout/$chatId')({
   component: ChatPage,
 })
 
@@ -26,9 +26,7 @@ function ChatPage() {
       </AuthLoading>
 
       <Unauthenticated>
-        <div className="flex h-screen w-full items-center justify-center p-4 bg-background">
-          <SignIn />
-        </div>
+        <AuthRedirect />
       </Unauthenticated>
 
       <Authenticated>

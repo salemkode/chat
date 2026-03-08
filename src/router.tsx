@@ -8,7 +8,7 @@ export const getRouter = () => {
   return createRouter({
     routeTree,
     context: {
-      auth: undefined
+      auth: undefined,
     },
 
     scrollRestoration: true,
