@@ -1,4 +1,3 @@
-import { SignIn } from '@clerk/clerk-react'
 import {
   createFileRoute,
   Outlet,
@@ -8,8 +7,8 @@ import {
 import { useConvexAuth } from 'convex/react'
 import { Loader2, WifiOff } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { AppSidebar } from '@/components/app-sidebar'
 import { AIPromptInput } from '@/components/ai-prompt-input'
+import { AppSidebar } from '@/components/app-sidebar'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import {
   useDraft,
@@ -19,7 +18,7 @@ import {
   useSyncController,
 } from '@/offline/repositories'
 
-export const Route = createFileRoute('/chat')({
+export const Route = createFileRoute('/_layout')({
   component: ChatLayout,
 })
 
@@ -27,8 +26,7 @@ const STORAGE_KEY = 'selected-model-id'
 
 function ChatLayout() {
   const { isLoading } = useConvexAuth()
-  const { isAuthenticatedOrOffline, isOfflineReady, isOnline } =
-    useOfflineStatus()
+  const { isAuthenticatedOrOffline, isOfflineReady } = useOfflineStatus()
 
   if (isLoading && !isOfflineReady) {
     return (
@@ -39,15 +37,13 @@ function ChatLayout() {
   }
 
   if (!isAuthenticatedOrOffline) {
-    return isOnline ? (
-      <div className="flex h-screen w-full items-center justify-center p-4 bg-background">
-        <SignIn />
-      </div>
-    ) : (
+    return (
       <div className="flex h-screen w-full items-center justify-center bg-background px-6 text-center">
         <div className="max-w-md space-y-3">
           <WifiOff className="mx-auto size-8 text-muted-foreground" />
-          <h1 className="text-xl font-semibold">Internet connection required</h1>
+          <h1 className="text-xl font-semibold">
+            Internet connection required
+          </h1>
           <p className="text-sm text-muted-foreground">
             Sign in once while online to unlock offline access on this device.
           </p>
@@ -62,7 +58,7 @@ function ChatLayout() {
 function AuthenticatedChatLayout() {
   const navigate = useNavigate()
   const params = useParams({
-    from: '/chat/$chatId',
+    from: '/_layout/$chatId',
     shouldThrow: false,
     select: (routeParams: unknown) => {
       if (
@@ -117,13 +113,13 @@ function AuthenticatedChatLayout() {
     })
 
     if (result.threadId && result.threadId !== params?.chatId) {
-      await navigate({ to: `/chat/${result.threadId}` })
+      await navigate({ to: '/$chatId', params: { chatId: result.threadId } })
     }
   }
 
   return (
     <SidebarProvider className="h-screen">
-      <AppSidebar selectedThreadId={params?.chatId || null} />
+      <AppSidebar selectedThreadId={params?.chatId ?? null} />
 
       <SidebarInset className="relative">
         <Outlet />

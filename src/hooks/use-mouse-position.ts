@@ -8,7 +8,10 @@ interface MousePosition {
 }
 
 export function useMousePosition(): MousePosition {
-  const [mousePosition, setMousePosition] = React.useState<MousePosition>({ x: 0, y: 0 })
+  const [mousePosition, setMousePosition] = React.useState<MousePosition>({
+    x: 0,
+    y: 0,
+  })
 
   React.useEffect(() => {
     const updateMousePosition = (e: MouseEvent) => {

@@ -11,7 +11,10 @@ interface MessageProps {
   modelName?: string
 }
 
-export const Message = memo(function Message({ message, modelName }: MessageProps) {
+export const Message = memo(function Message({
+  message,
+  modelName,
+}: MessageProps) {
   const shouldSmoothText =
     message.role === 'assistant' && message.status === 'streaming'
   const [smoothedText] = useSmoothText(message.text, {
@@ -97,9 +100,13 @@ function areMessagePropsEqual(prev: MessageProps, next: MessageProps): boolean {
       return false
     }
     const prevText =
-      typeof prevPart === 'object' && 'text' in prevPart ? prevPart.text : undefined
+      typeof prevPart === 'object' && 'text' in prevPart
+        ? prevPart.text
+        : undefined
     const nextText =
-      typeof nextPart === 'object' && 'text' in nextPart ? nextPart.text : undefined
+      typeof nextPart === 'object' && 'text' in nextPart
+        ? nextPart.text
+        : undefined
     if (prevText !== nextText) {
       return false
     }

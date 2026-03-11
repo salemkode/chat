@@ -1,4 +1,3 @@
-import { SignIn } from '@clerk/clerk-react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useConvexAuth } from 'convex/react'
 import { Loader2, MessageSquare, WifiOff } from 'lucide-react'
@@ -10,14 +9,13 @@ import {
   useThread,
 } from '@/offline/repositories'
 
-export const Route = createFileRoute('/chat/$chatId')({
+export const Route = createFileRoute('/_layout/$chatId')({
   component: ChatPage,
 })
 
 function ChatPage() {
   const { isLoading } = useConvexAuth()
-  const { isAuthenticatedOrOffline, isOfflineReady, isOnline } =
-    useOfflineStatus()
+  const { isAuthenticatedOrOffline, isOfflineReady } = useOfflineStatus()
 
   if (isLoading && !isOfflineReady) {
     return (
@@ -28,11 +26,7 @@ function ChatPage() {
   }
 
   if (!isAuthenticatedOrOffline) {
-    return isOnline ? (
-      <div className="flex h-screen w-full items-center justify-center p-4 bg-background">
-        <SignIn />
-      </div>
-    ) : (
+    return (
       <div className="flex h-screen w-full items-center justify-center bg-background px-6 text-center">
         <div className="max-w-md space-y-3">
           <WifiOff className="mx-auto size-8 text-muted-foreground" />

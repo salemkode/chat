@@ -16,7 +16,7 @@ function SignupPage() {
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      void navigate({ to: '/chat' })
+      void navigate({ to: '/' })
     }
   }, [isAuthenticated, isLoading, navigate])
 

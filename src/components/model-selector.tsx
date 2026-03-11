@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Check, ChevronDown, Search, Sparkles, Star } from 'lucide-react'
+import { ChevronDown, Search, Sparkles, Star } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useModels } from '@/offline/repositories'
 import {
@@ -9,13 +9,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import { Input } from '@/components/ui/input'
-
-interface ModelSelectorProps {
-  selectedModel?: string
-  onModelChange?: (modelId: string) => void
-  className?: string
-}
 
 const STORAGE_KEY = 'selected-model-id'
 
@@ -23,13 +16,17 @@ export function ModelSelector({
   selectedModel: externalSelectedModel,
   onModelChange,
   className,
-}: ModelSelectorProps) {
+}: {
+  selectedModel?: string
+  onModelChange?: (modelId: string) => void
+  className?: string
+}) {
   const { models, setFavorite } = useModels()
   const [open, setOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [internalSelectedModel, setInternalSelectedModel] = useState<string | undefined>(
-    externalSelectedModel,
-  )
+  const [internalSelectedModel, setInternalSelectedModel] = useState<
+    string | undefined
+  >(externalSelectedModel)
 
   useEffect(() => {
     if (externalSelectedModel !== undefined) {
@@ -58,7 +55,8 @@ export function ModelSelector({
   }, [models, searchQuery])
 
   const currentModel = models.find(
-    (model) => model.modelId === (externalSelectedModel ?? internalSelectedModel),
+    (model) =>
+      model.modelId === (externalSelectedModel ?? internalSelectedModel),
   )
 
   const handleSelect = (modelId: string) => {
@@ -68,6 +66,14 @@ export function ModelSelector({
     }
     onModelChange?.(modelId)
     setOpen(false)
+  }
+
+  const handleToggleFavorite = async (modelId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    const model = models.find((m) => m.id === modelId)
+    if (model) {
+      await setFavorite(modelId, !model.isFavorite)
+    }
   }
 
   return (
@@ -90,14 +96,19 @@ export function ModelSelector({
         </button>
       </PopoverTrigger>
 
-      <PopoverContent className="w-[360px] p-0 overflow-hidden" side="top" align="start">
+      <PopoverContent
+        className="w-[360px] p-0 overflow-hidden"
+        side="top"
+        align="start"
+      >
         <div className="border-b border-border p-3">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
+            <input
+              type="text"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              className="pl-9"
+              className="w-full pl-9 pr-4 py-2 rounded-lg bg-muted/50 border-0 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20"
               placeholder="Search models"
             />
           </div>
@@ -125,7 +136,9 @@ export function ModelSelector({
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{model.displayName}</span>
-                      {isSelected ? <Check className="size-4 text-primary" /> : null}
+                      {isSelected && (
+                        <Sparkles className="size-4 text-primary" />
+                      )}
                     </div>
                     <div className="text-xs text-muted-foreground">
                       {model.modelId}
@@ -151,7 +164,9 @@ export function ModelSelector({
                     void setFavorite(model.id, !model.isFavorite)
                   }}
                 >
-                  <Star className={cn('size-4', model.isFavorite && 'fill-current')} />
+                  <Star
+                    className={cn('size-4', model.isFavorite && 'fill-current')}
+                  />
                 </button>
               </div>
             )

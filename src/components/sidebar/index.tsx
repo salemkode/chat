@@ -3,7 +3,17 @@
 import * as React from 'react'
 import { useClerk, useUser } from '@clerk/clerk-react'
 import { useNavigate } from '@tanstack/react-router'
-import { Plus, Search, Pin, X, LogIn, LogOut, User, Settings } from 'lucide-react'
+import {
+  Plus,
+  Search,
+  Pin,
+  X,
+  LogIn,
+  LogOut,
+  User,
+  Settings,
+  Database,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   Sidebar,
@@ -123,7 +133,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
   }, [filteredThreads])
 
   const handleNewChat = () => {
-    navigate({ to: '/chat' })
+    navigate({ to: '/' })
   }
 
   const handlePinThread = async (threadId: string, e: React.MouseEvent) => {
@@ -143,7 +153,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
     try {
       await deleteThread(threadId)
       if (selectedThreadId === threadId) {
-        navigate({ to: '/chat' })
+        navigate({ to: '/' })
       }
     } catch (error) {
       console.error('Failed to delete thread:', error)
@@ -191,6 +201,16 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
           New Chat
         </Button>
 
+        <Button
+          variant="outline"
+          className="w-full mt-2 justify-start"
+          onClick={() => navigate({ to: '/memory' })}
+        >
+          <Database className="h-4 w-4 mr-2" />
+          Memory
+        </Button>
+
+        {/* Search */}
         <div className="relative mt-2">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-sidebar-foreground/60" />
           <Input
@@ -210,7 +230,11 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
               {renderThreadGroup(groupedThreads.today, 'Today', true)}
               {renderThreadGroup(groupedThreads.yesterday, 'Yesterday', true)}
               {renderThreadGroup(groupedThreads.last7Days, 'Last 7 Days', true)}
-              {renderThreadGroup(groupedThreads.last30Days, 'Last 30 Days', true)}
+              {renderThreadGroup(
+                groupedThreads.last30Days,
+                'Last 30 Days',
+                true,
+              )}
               {renderThreadGroup(groupedThreads.older, 'Older', true)}
             </SidebarMenu>
           </SidebarGroupContent>
@@ -343,7 +367,9 @@ function ThreadItem({
               <button
                 type="button"
                 className="flex w-full items-center gap-2 text-left"
-                onClick={() => navigate({ to: `/chat/${thread.id}` })}
+                onClick={() =>
+                  navigate({ to: '/$chatId', params: { chatId: thread.id } })
+                }
               >
                 <span className="truncate text-sm">
                   {thread.metadata?.emoji || '💬'} {thread.title || 'Untitled'}

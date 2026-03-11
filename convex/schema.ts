@@ -240,14 +240,13 @@ export default defineSchema({
     userId: v.id('users'),
     title: v.string(),
     content: v.string(),
-    // Backwards-compatible fields from earlier memory extraction versions
-    contentHash: v.optional(v.string()),
-    ragKey: v.optional(v.string()),
-    originThreadId: v.optional(v.string()),
-    originMessageIds: v.optional(v.array(v.string())),
     category: v.optional(v.string()),
     tags: v.optional(v.array(v.string())),
+    ragKey: v.string(),
+    contentHash: v.string(),
     embedding: v.optional(v.array(v.number())),
+    originThreadId: v.optional(v.string()),
+    originMessageIds: v.optional(v.array(v.string())),
     source: v.union(
       v.literal('manual'),
       v.literal('extracted'),
@@ -257,13 +256,8 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index('by_user', ['userId'])
-    .index('by_updated', ['updatedAt'])
-    .index('by_category', ['userId', 'category'])
-    .vectorIndex('by_embedding', {
-      vectorField: 'embedding',
-      dimensions: 1536,
-      filterFields: ['userId', 'source', 'category'],
-    }),
+    .index('by_user_contentHash', ['userId', 'contentHash'])
+    .index('by_user_updated', ['userId', 'updatedAt']),
 
   // NEW: Thread-specific memories
   threadMemories: defineTable({
@@ -272,19 +266,20 @@ export default defineSchema({
     title: v.string(),
     content: v.string(),
     category: v.optional(v.string()),
+    tags: v.optional(v.array(v.string())),
+    ragKey: v.string(),
+    contentHash: v.string(),
     embedding: v.optional(v.array(v.number())),
+    originThreadId: v.optional(v.string()),
+    originMessageIds: v.optional(v.array(v.string())),
     source: v.union(v.literal('session'), v.literal('manual')),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index('by_thread', ['threadId'])
     .index('by_user', ['userId'])
-    .index('by_updated', ['updatedAt'])
-    .vectorIndex('by_embedding', {
-      vectorField: 'embedding',
-      dimensions: 1536,
-      filterFields: ['userId', 'threadId', 'source'],
-    }),
+    .index('by_thread_contentHash', ['threadId', 'contentHash'])
+    .index('by_thread_updated', ['threadId', 'updatedAt']),
 
   // NEW: Project memories (custom groups)
   projectMemories: defineTable({
@@ -293,19 +288,20 @@ export default defineSchema({
     title: v.string(),
     content: v.string(),
     category: v.optional(v.string()),
+    tags: v.optional(v.array(v.string())),
+    ragKey: v.string(),
+    contentHash: v.string(),
     embedding: v.optional(v.array(v.number())),
+    originThreadId: v.optional(v.string()),
+    originMessageIds: v.optional(v.array(v.string())),
     source: v.union(v.literal('manual'), v.literal('aggregated')),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index('by_project', ['projectId'])
     .index('by_user', ['userId'])
-    .index('by_updated', ['updatedAt'])
-    .vectorIndex('by_embedding', {
-      vectorField: 'embedding',
-      dimensions: 1536,
-      filterFields: ['userId', 'projectId', 'category'],
-    }),
+    .index('by_project_contentHash', ['projectId', 'contentHash'])
+    .index('by_project_updated', ['projectId', 'updatedAt']),
 
   // NEW: Projects table (for grouping threads)
   projects: defineTable({
@@ -330,6 +326,19 @@ export default defineSchema({
     ),
     errorMessage: v.optional(v.string()),
   }).index('by_user', ['userId']),
+
+  memoryExtractionState: defineTable({
+    threadId: v.string(),
+    userId: v.id('users'),
+    lastProcessedOrder: v.number(),
+    updatedAt: v.number(),
+    status: v.optional(
+      v.union(v.literal('idle'), v.literal('running'), v.literal('error')),
+    ),
+    error: v.optional(v.string()),
+  })
+    .index('by_thread', ['threadId'])
+    .index('by_user', ['userId']),
 
   // User settings and profile
   userSettings: defineTable({
