@@ -5,13 +5,12 @@ import {
   useVirtualizer,
 } from '@tanstack/react-virtual'
 import { cn } from '@/lib/utils'
-import { FunctionReturnType } from 'convex/server'
-import { api } from 'convex/_generated/api'
+import type { OfflineMessageRecord } from '@/offline/schema'
 import { Message } from './Message'
 import { EmptyChatState } from './EmptyChatState'
 
 interface ChatMessageListProps {
-  messages: FunctionReturnType<typeof api.chat.listMessages>['page']
+  messages: OfflineMessageRecord[]
   isLoading?: boolean
   className?: string
   modelName?: string

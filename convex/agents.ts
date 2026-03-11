@@ -22,6 +22,7 @@ import { deepseek } from '@ai-sdk/deepseek'
 import { xai } from '@ai-sdk/xai'
 import { ConvexError } from 'convex/values'
 import type { Id } from './_generated/dataModel'
+import { ensureOfflineSyncState, upsertOfflineThread } from './offlineHelpers'
 
 // Random emoji picker for new chats
 const CHAT_EMOJIS = [
@@ -476,12 +477,32 @@ export const createChatThread = mutation({
     })
 
     // Create thread metadata with random emoji
+    const emoji = getRandomEmoji()
+
     await ctx.db.insert('threadMetadata', {
       threadId,
-      emoji: getRandomEmoji(),
+      emoji,
       sectionId: args.sectionId,
       userId,
       sortOrder: 0, // Default to not pinned
+    })
+
+    await upsertOfflineThread(
+      ctx,
+      userId,
+      {
+        _id: threadId,
+        title: args.title,
+        _creationTime: Date.now(),
+        metadata: {
+          emoji,
+          sortOrder: 0,
+        },
+      },
+      Date.now(),
+    )
+    await ensureOfflineSyncState(ctx, userId, {
+      lastDeltaSyncAt: Date.now(),
     })
 
     return threadId
@@ -566,11 +587,74 @@ export const togglePinThread = mutation({
   },
 })
 
+export const setThreadPinned = mutation({
+  args: {
+    threadId: v.string(),
+    pinned: v.boolean(),
+    clientUpdatedAt: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId) {
+      throw new ConvexError({
+        code: 'UNAUTHORIZED',
+        message: 'You must be logged in to pin a thread',
+      })
+    }
+
+    const metadata = await ctx.db
+      .query('threadMetadata')
+      .withIndex('by_threadId', (q) => q.eq('threadId', args.threadId))
+      .first()
+
+    if (!metadata) {
+      throw new ConvexError({
+        code: 'NOT_FOUND',
+        message: 'Thread metadata not found',
+      })
+    }
+
+    if (metadata.userId !== userId) {
+      throw new ConvexError({
+        code: 'FORBIDDEN',
+        message: 'You are not authorized to pin this thread',
+      })
+    }
+
+    const now = args.clientUpdatedAt ?? Date.now()
+    await ctx.db.patch('threadMetadata', metadata._id, {
+      sortOrder: args.pinned ? 1 : 0,
+    })
+
+    const offlineThread = await ctx.db
+      .query('chatThreads')
+      .withIndex('by_user_remoteThreadId', (q) =>
+        q.eq('userId', userId).eq('remoteThreadId', args.threadId),
+      )
+      .unique()
+    if (offlineThread) {
+      await ctx.db.patch(offlineThread._id, {
+        pinned: args.pinned,
+        emoji: metadata.emoji,
+        icon: metadata.icon,
+        updatedAt: now,
+        version: now,
+      })
+    }
+    await ensureOfflineSyncState(ctx, userId, {
+      lastDeltaSyncAt: now,
+    })
+
+    return args.pinned ? 1 : 0
+  },
+})
+
 // Update thread icon
 export const updateThreadIcon = mutation({
   args: {
     threadId: v.string(),
     icon: v.string(),
+    clientUpdatedAt: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
@@ -602,8 +686,29 @@ export const updateThreadIcon = mutation({
     }
 
     // Update the icon
+    const now = args.clientUpdatedAt ?? Date.now()
+
     await ctx.db.patch('threadMetadata', metadata._id, {
       icon: args.icon,
+    })
+
+    const offlineThread = await ctx.db
+      .query('chatThreads')
+      .withIndex('by_user_remoteThreadId', (q) =>
+        q.eq('userId', userId).eq('remoteThreadId', args.threadId),
+      )
+      .unique()
+    if (offlineThread) {
+      await ctx.db.patch(offlineThread._id, {
+        icon: args.icon,
+        emoji: metadata.emoji,
+        pinned: metadata.sortOrder === 1,
+        updatedAt: now,
+        version: now,
+      })
+    }
+    await ensureOfflineSyncState(ctx, userId, {
+      lastDeltaSyncAt: now,
     })
 
     return args.icon

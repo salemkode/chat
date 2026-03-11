@@ -7,7 +7,9 @@ import {
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 import { ConvexClientProvider } from '@/components/ConvexClientProvider'
+import { OfflineBanner } from '@/components/offline-banner'
 import { ThemeProvider } from '@/components/theme-provider'
+import { OfflineProvider } from '@/offline/provider'
 
 import appCss from '../styles.css?url'
 
@@ -65,19 +67,6 @@ export const Route = createRootRoute({
         href: appCss,
       },
       {
-        rel: 'preconnect',
-        href: 'https://fonts.googleapis.com',
-      },
-      {
-        rel: 'preconnect',
-        href: 'https://fonts.gstatic.com',
-        crossOrigin: 'anonymous',
-      },
-      {
-        rel: 'stylesheet',
-        href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap',
-      },
-      {
         rel: 'manifest',
         href: '/manifest.json',
       },
@@ -104,18 +93,23 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <body>
         <ClientOnly>
           <ThemeProvider>
-            <ConvexClientProvider>{children}</ConvexClientProvider>
-            <TanStackDevtools
-              config={{
-                position: 'bottom-right',
-              }}
-              plugins={[
-                {
-                  name: 'Tanstack Router',
-                  render: <TanStackRouterDevtoolsPanel />,
-                },
-              ]}
-            />
+            <ConvexClientProvider>
+              <OfflineProvider>
+                <OfflineBanner />
+                {children}
+                <TanStackDevtools
+                  config={{
+                    position: 'bottom-right',
+                  }}
+                  plugins={[
+                    {
+                      name: 'Tanstack Router',
+                      render: <TanStackRouterDevtoolsPanel />,
+                    },
+                  ]}
+                />
+              </OfflineProvider>
+            </ConvexClientProvider>
           </ThemeProvider>
         </ClientOnly>
         <Scripts />

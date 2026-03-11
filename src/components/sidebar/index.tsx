@@ -3,8 +3,6 @@
 import * as React from 'react'
 import { useClerk, useUser } from '@clerk/clerk-react'
 import { useNavigate } from '@tanstack/react-router'
-import { useQuery, useMutation } from 'convex/react'
-import { api } from '../../../convex/_generated/api'
 import { Plus, Search, Pin, X, LogIn, LogOut, User, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -30,21 +28,23 @@ import {
 } from '@/components/ui/tooltip'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { SettingsDialog } from '@/components/settings-dialog'
-
-interface ThreadMetadata {
-  _id: string
-  threadId: string
-  emoji: string
-  sectionId?: string
-  userId: string
-  sortOrder: number // 1 = pinned, 0 = normal
-}
+import {
+  useOfflineStatus,
+  useSyncController,
+  useThreads,
+  useViewer,
+} from '@/offline/repositories'
 
 interface Thread {
-  _id: string
+  id: string
   title?: string
-  _creationTime: number
-  metadata?: ThreadMetadata
+  createdAt: number
+  lastMessageAt: number
+  pinned: boolean
+  metadata?: {
+    emoji: string
+    sortOrder: number
+  }
 }
 
 interface AppSidebarProps {
@@ -57,23 +57,37 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
   const [searchQuery, setSearchQuery] = React.useState('')
   const [settingsOpen, setSettingsOpen] = React.useState(false)
 
-  const threads = useQuery(api.agents.listThreadsWithMetadata) || []
-  const togglePinThread = useMutation(api.agents.togglePinThread)
-  const deleteThreadMutation = useMutation(api.chat.deleteThread)
-  const viewer = useQuery(api.users.viewer)
+  const { threads, setPinned, deleteThread } = useThreads()
+  const viewer = useViewer()
+  const { isAuthenticatedOrOffline } = useOfflineStatus()
+  const { clearOfflineData } = useSyncController()
   const { user: clerkUser } = useUser()
   const { signOut } = useClerk()
 
-  // Filter threads based on search query
-  const filteredThreads = React.useMemo(() => {
-    if (!searchQuery.trim()) return threads
+  const typedThreads = React.useMemo<Thread[]>(
+    () =>
+      threads.map((thread) => ({
+        id: thread.id,
+        title: thread.title,
+        createdAt: thread.createdAt,
+        lastMessageAt: thread.lastMessageAt,
+        pinned: thread.pinned,
+        metadata: {
+          emoji: thread.emoji,
+          sortOrder: thread.pinned ? 1 : 0,
+        },
+      })),
+    [threads],
+  )
 
-    return threads.filter((thread: Thread) =>
+  const filteredThreads = React.useMemo(() => {
+    if (!searchQuery.trim()) return typedThreads
+
+    return typedThreads.filter((thread) =>
       thread.title?.toLowerCase().includes(searchQuery.toLowerCase()),
     )
-  }, [threads, searchQuery])
+  }, [searchQuery, typedThreads])
 
-  // Group threads by pinned status and date
   const groupedThreads = React.useMemo(() => {
     const now = Date.now()
     const oneDay = 24 * 60 * 60 * 1000
@@ -85,15 +99,13 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
     const last30Days: Thread[] = []
     const older: Thread[] = []
 
-    filteredThreads.forEach((thread: Thread) => {
-      // Check if pinned first
-      if (thread.metadata?.sortOrder === 1) {
+    filteredThreads.forEach((thread) => {
+      if (thread.pinned) {
         pinned.push(thread)
         return
       }
 
-      const age = now - thread._creationTime
-
+      const age = now - (thread.lastMessageAt || thread.createdAt)
       if (age < oneDay) {
         today.push(thread)
       } else if (age < 2 * oneDay) {
@@ -118,7 +130,8 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
     e.preventDefault()
     e.stopPropagation()
     try {
-      await togglePinThread({ threadId })
+      const current = typedThreads.find((thread) => thread.id === threadId)
+      await setPinned(threadId, !(current?.pinned ?? false))
     } catch (error) {
       console.error('Failed to pin thread:', error)
     }
@@ -128,7 +141,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
     e.preventDefault()
     e.stopPropagation()
     try {
-      await deleteThreadMutation({ threadId: threadId as any })
+      await deleteThread(threadId)
       if (selectedThreadId === threadId) {
         navigate({ to: '/chat' })
       }
@@ -149,15 +162,15 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
         <SidebarGroupLabel className="text-primary font-semibold text-xs uppercase tracking-wider mt-2 first:mt-0">
           {label}
         </SidebarGroupLabel>
-        {group.map((thread: Thread) => (
+        {group.map((thread) => (
           <ThreadItem
-            key={thread._id}
+            key={thread.id}
             thread={thread}
-            isActive={selectedThreadId === thread._id}
+            isActive={selectedThreadId === thread.id}
             onPin={handlePinThread}
             onDelete={handleDeleteThread}
             showPinButton={showPinButton}
-            isPinned={thread.metadata?.sortOrder === 1}
+            isPinned={thread.pinned}
           />
         ))}
       </>
@@ -167,20 +180,17 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
   return (
     <Sidebar className={cn('border-r border-sidebar-border', className)}>
       <SidebarHeader className="relative pb-2">
-        {/* Logo */}
         <div className="flex items-center justify-center py-3">
           <h1 className="text-lg font-semibold text-sidebar-foreground">
             Chat
           </h1>
         </div>
 
-        {/* New Chat Button */}
         <Button onClick={handleNewChat} className="w-full">
           <Plus className="h-4 w-4 mr-2" />
           New Chat
         </Button>
 
-        {/* Search */}
         <div className="relative mt-2">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-sidebar-foreground/60" />
           <Input
@@ -196,26 +206,11 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu className="gap-1">
-              {/* Pinned Section */}
-              {renderThreadGroup(groupedThreads.pinned, '📌 Pinned', true)}
-
-              {/* Today */}
+              {renderThreadGroup(groupedThreads.pinned, 'Pinned', true)}
               {renderThreadGroup(groupedThreads.today, 'Today', true)}
-
-              {/* Yesterday */}
               {renderThreadGroup(groupedThreads.yesterday, 'Yesterday', true)}
-
-              {/* Last 7 Days */}
               {renderThreadGroup(groupedThreads.last7Days, 'Last 7 Days', true)}
-
-              {/* Last 30 Days */}
-              {renderThreadGroup(
-                groupedThreads.last30Days,
-                'Last 30 Days',
-                true,
-              )}
-
-              {/* Older */}
+              {renderThreadGroup(groupedThreads.last30Days, 'Last 30 Days', true)}
               {renderThreadGroup(groupedThreads.older, 'Older', true)}
             </SidebarMenu>
           </SidebarGroupContent>
@@ -225,9 +220,8 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
       <SidebarFooter>
         <SidebarSeparator />
 
-        {viewer || clerkUser ? (
+        {isAuthenticatedOrOffline ? (
           <>
-            {/* User Profile */}
             <TooltipProvider delayDuration={300}>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -242,45 +236,26 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
                   >
                     <Avatar className="size-8 shrink-0">
                       <AvatarImage
-                        src={
-                          viewer?.settings?.image ||
-                          viewer?.image ||
-                          clerkUser?.imageUrl ||
-                          undefined
-                        }
-                        alt={
-                          viewer?.settings?.displayName ||
-                          viewer?.name ||
-                          clerkUser?.fullName ||
-                          'User'
-                        }
+                        src={viewer?.image || clerkUser?.imageUrl || undefined}
+                        alt={viewer?.name || clerkUser?.fullName || 'User'}
                         className="object-cover"
                       />
                       <AvatarFallback className="bg-primary text-primary-foreground text-xs font-medium">
-                        {(() => {
-                          const name =
-                            viewer?.settings?.displayName ||
-                            viewer?.name ||
-                            clerkUser?.fullName
-                          return name ? (
-                            name
-                              .split(' ')
-                              .map((n: string) => n[0])
-                              .join('')
-                              .toUpperCase()
-                              .slice(0, 2)
-                          ) : (
-                            <User className="size-4" />
-                          )
-                        })()}
+                        {viewer?.name ? (
+                          viewer.name
+                            .split(' ')
+                            .map((part) => part[0])
+                            .join('')
+                            .toUpperCase()
+                            .slice(0, 2)
+                        ) : (
+                          <User className="size-4" />
+                        )}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col items-start flex-1 min-w-0 text-left">
                       <span className="text-sm font-medium text-foreground truncate">
-                        {viewer?.settings?.displayName ||
-                          viewer?.name ||
-                          clerkUser?.fullName ||
-                          'User'}
+                        {viewer?.name || clerkUser?.fullName || 'User'}
                       </span>
                       <span className="text-xs text-muted-foreground truncate">
                         {viewer?.email ||
@@ -288,7 +263,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
                           ''}
                       </span>
                     </div>
-                    <Settings className="size-4 text-sidebar-foreground/70 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <Settings className="size-4 text-sidebar-foreground/70" />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="top">
@@ -301,7 +276,10 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
               variant="ghost"
               className="w-full justify-start gap-3"
               onClick={() => {
-                void signOut()
+                void (async () => {
+                  await clearOfflineData()
+                  await signOut()
+                })()
               }}
             >
               <LogOut className="h-4 w-4" />
@@ -309,7 +287,6 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
             </Button>
           </>
         ) : (
-          /* Login Button */
           <Button
             variant="ghost"
             className="w-full justify-start gap-3"
@@ -321,7 +298,6 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
         )}
       </SidebarFooter>
 
-      {/* Settings Dialog */}
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </Sidebar>
   )
@@ -367,7 +343,7 @@ function ThreadItem({
               <button
                 type="button"
                 className="flex w-full items-center gap-2 text-left"
-                onClick={() => navigate({ to: `/chat/${thread._id}` })}
+                onClick={() => navigate({ to: `/chat/${thread.id}` })}
               >
                 <span className="truncate text-sm">
                   {thread.metadata?.emoji || '💬'} {thread.title || 'Untitled'}
@@ -375,7 +351,6 @@ function ThreadItem({
               </button>
             </SidebarMenuButton>
 
-            {/* Hover Actions */}
             <div
               className={cn(
                 'absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1 transition-opacity duration-200 z-10 bg-sidebar rounded-md p-0.5',
@@ -394,7 +369,7 @@ function ThreadItem({
                   )}
                   onClick={(e) => {
                     e.stopPropagation()
-                    onPin(thread._id, e)
+                    onPin(thread.id, e)
                   }}
                 >
                   <Pin className={cn('h-3 w-3', isPinned && 'fill-current')} />
@@ -406,7 +381,7 @@ function ThreadItem({
                 className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10"
                 onClick={(e) => {
                   e.stopPropagation()
-                  onDelete(thread._id, e)
+                  onDelete(thread.id, e)
                 }}
               >
                 <X className="h-3 w-3" />

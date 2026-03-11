@@ -1,43 +1,66 @@
 import { SignIn } from '@clerk/clerk-react'
-import { createFileRoute, Outlet, useNavigate, useParams } from '@tanstack/react-router'
-import { useMutation, useQuery, AuthLoading, Authenticated, Unauthenticated } from 'convex/react'
-import { Loader2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import {
+  createFileRoute,
+  Outlet,
+  useNavigate,
+  useParams,
+} from '@tanstack/react-router'
+import { useConvexAuth } from 'convex/react'
+import { Loader2, WifiOff } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import { AppSidebar } from '@/components/app-sidebar'
 import { AIPromptInput } from '@/components/ai-prompt-input'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
-import { api } from '../../convex/_generated/api'
+import {
+  useDraft,
+  useModels,
+  useOfflineStatus,
+  useSendMessage,
+  useSyncController,
+} from '@/offline/repositories'
 
 export const Route = createFileRoute('/chat')({
   component: ChatLayout,
 })
 
+const STORAGE_KEY = 'selected-model-id'
+
 function ChatLayout() {
-  return (
-    <>
-      <AuthLoading>
-        <div className="flex h-screen w-full items-center justify-center bg-background text-foreground">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      </AuthLoading>
+  const { isLoading } = useConvexAuth()
+  const { isAuthenticatedOrOffline, isOfflineReady, isOnline } =
+    useOfflineStatus()
 
-      <Unauthenticated>
-        <div className="flex h-screen w-full items-center justify-center p-4 bg-background">
-          <SignIn />
-        </div>
-      </Unauthenticated>
+  if (isLoading && !isOfflineReady) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background text-foreground">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
 
-      <Authenticated>
-        <AuthenticatedChatLayout />
-      </Authenticated>
-    </>
-  )
+  if (!isAuthenticatedOrOffline) {
+    return isOnline ? (
+      <div className="flex h-screen w-full items-center justify-center p-4 bg-background">
+        <SignIn />
+      </div>
+    ) : (
+      <div className="flex h-screen w-full items-center justify-center bg-background px-6 text-center">
+        <div className="max-w-md space-y-3">
+          <WifiOff className="mx-auto size-8 text-muted-foreground" />
+          <h1 className="text-xl font-semibold">Internet connection required</h1>
+          <p className="text-sm text-muted-foreground">
+            Sign in once while online to unlock offline access on this device.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  return <AuthenticatedChatLayout />
 }
 
 function AuthenticatedChatLayout() {
   const navigate = useNavigate()
-  const ensureCurrentUser = useMutation(api.users.ensureCurrentUser)
-  const [isUserReady, setIsUserReady] = useState(false)
   const params = useParams({
     from: '/chat/$chatId',
     shouldThrow: false,
@@ -53,81 +76,54 @@ function AuthenticatedChatLayout() {
       return { chatId: undefined }
     },
   })
-  const availableModels = useQuery(
-    api.admin.listEnabledModels,
-    isUserReady ? {} : 'skip',
-  )
+  const { models } = useModels()
+  const { send, disabledReason } = useSendMessage()
+  const { syncNow } = useSyncController()
+  const draftKey = params?.chatId || 'new'
+  const { draft, setDraft } = useDraft(draftKey)
   const [selectedModelId, setSelectedModelId] = useState<string | undefined>(
     undefined,
   )
 
   useEffect(() => {
-    if (availableModels && availableModels.length > 0 && !selectedModelId) {
-      const model = availableModels.sort((a, b) => a.sortOrder - b.sortOrder)[0]
-        .modelId
-      setSelectedModelId(model)
-    }
-  }, [availableModels, selectedModelId])
-
-  const createThread = useMutation(api.agents.createChatThread)
-  const sendMessage = useMutation(api.agents.generateMessage)
+    void syncNow()
+  }, [syncNow])
 
   useEffect(() => {
-    let isCancelled = false
-
-    void ensureCurrentUser({})
-      .then(() => {
-        if (!isCancelled) {
-          setIsUserReady(true)
-        }
-      })
-      .catch((error) => {
-        console.error('Failed to initialize current user:', error)
-      })
-
-    return () => {
-      isCancelled = true
+    const storedModel =
+      typeof window !== 'undefined'
+        ? localStorage.getItem(STORAGE_KEY) || undefined
+        : undefined
+    if (storedModel) {
+      setSelectedModelId(storedModel)
     }
-  }, [ensureCurrentUser])
+  }, [])
+
+  useEffect(() => {
+    if (selectedModelId || models.length === 0) return
+    setSelectedModelId(models[0]?.modelId)
+  }, [models, selectedModelId])
+
+  const selectedModelDocId = useMemo(
+    () => models.find((model) => model.modelId === selectedModelId)?.id,
+    [models, selectedModelId],
+  )
 
   async function handleSendMessage(text: string) {
-    if (!text.trim()) return
+    const result = await send({
+      text,
+      threadId: params?.chatId,
+      modelDocId: selectedModelDocId,
+    })
 
-    const model = availableModels?.find((m) => m.modelId === selectedModelId)
-    if (!model) {
-      console.error('Model not found:', selectedModelId)
-      return
+    if (result.threadId && result.threadId !== params?.chatId) {
+      await navigate({ to: `/chat/${result.threadId}` })
     }
-
-    try {
-      let threadId = params?.chatId
-
-      if (!threadId) {
-        threadId = await createThread({ title: text.substring(0, 30) })
-        await navigate({ to: `/chat/${threadId}` })
-      }
-
-      await sendMessage({
-        threadId,
-        prompt: text,
-        modelId: model._id,
-      })
-    } catch (error) {
-      console.error('Failed to send message:', error)
-    }
-  }
-
-  if (!isUserReady) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-background text-foreground">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    )
   }
 
   return (
     <SidebarProvider className="h-screen">
-      <AppSidebar selectedThreadId={null} />
+      <AppSidebar selectedThreadId={params?.chatId || null} />
 
       <SidebarInset className="relative">
         <Outlet />
@@ -135,9 +131,22 @@ function AuthenticatedChatLayout() {
         <div className="absolute bottom-0 left-0 right-0 z-20">
           <div className="w-full max-w-3xl mx-auto px-2 sm:px-4">
             <AIPromptInput
+              value={draft}
+              onValueChange={(value) => void setDraft(value)}
               onSubmit={(text) => void handleSendMessage(text)}
+              disabled={disabledReason === 'offline'}
+              footerText={
+                disabledReason === 'offline'
+                  ? 'Reconnect to send. Your draft stays on this device.'
+                  : undefined
+              }
               selectedModel={selectedModelId}
-              onModelChange={setSelectedModelId}
+              onModelChange={(modelId) => {
+                setSelectedModelId(modelId)
+                if (typeof window !== 'undefined') {
+                  localStorage.setItem(STORAGE_KEY, modelId)
+                }
+              }}
             />
           </div>
         </div>

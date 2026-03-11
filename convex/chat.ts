@@ -5,6 +5,7 @@ import { components } from './_generated/api'
 import { paginationOptsValidator } from 'convex/server'
 import { listUIMessages, vStreamArgs, syncStreams } from '@convex-dev/agent'
 import { ConvexError } from 'convex/values'
+import { ensureOfflineSyncState } from './offlineHelpers'
 
 export const listThreads = query({
   args: { paginationOpts: paginationOptsValidator },
@@ -21,7 +22,7 @@ export const listThreads = query({
 })
 
 export const deleteThread = mutation({
-  args: { threadId: v.id('threads') },
+  args: { threadId: v.id('threads'), clientUpdatedAt: v.optional(v.number()) },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) {
@@ -33,6 +34,27 @@ export const deleteThread = mutation({
 
     await ctx.runMutation(components.agent.threads.deleteAllForThreadIdAsync, {
       threadId: args.threadId,
+    })
+
+    const offlineThread = await ctx.db
+      .query('chatThreads')
+      .withIndex('by_user_remoteThreadId', (q) =>
+        q.eq('userId', userId).eq('remoteThreadId', args.threadId),
+      )
+      .unique()
+
+    const now = args.clientUpdatedAt ?? Date.now()
+
+    if (offlineThread) {
+      await ctx.db.patch(offlineThread._id, {
+        deletedAt: now,
+        updatedAt: now,
+        version: now,
+      })
+    }
+
+    await ensureOfflineSyncState(ctx, userId, {
+      lastDeltaSyncAt: now,
     })
   },
 })

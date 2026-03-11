@@ -51,6 +51,7 @@ export default defineSchema({
     sortOrder: v.float64(),
     // Icon for the provider (used in model selector sidebar)
     icon: v.optional(v.string()), // e.g., "openai", "anthropic", "google", "meta"
+    iconId: v.optional(v.id('_storage')), // Uploaded image ID
     // Provider-specific configuration
     config: v.optional(
       v.object({
@@ -77,6 +78,8 @@ export default defineSchema({
     isFree: v.boolean(),
     sortOrder: v.number(),
     providerId: v.id('providers'),
+    icon: v.optional(v.string()), // Fallback string icon
+    iconId: v.optional(v.id('_storage')), // Uploaded image ID
     // Model capabilities/tags
     capabilities: v.optional(v.array(v.string())), // e.g., ["reasoning", "vision", "code"]
   })
@@ -119,6 +122,49 @@ export default defineSchema({
     .index('by_sectionId', ['sectionId'])
     .index('by_threadId', ['threadId'])
     .index('by_userId_sortOrder', ['userId', 'sortOrder']),
+
+  // Offline mirror for thread metadata and index sync.
+  chatThreads: defineTable({
+    userId: v.id('users'),
+    remoteThreadId: v.string(),
+    title: v.string(),
+    emoji: v.string(),
+    icon: v.optional(v.string()),
+    pinned: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    lastMessageAt: v.number(),
+    deletedAt: v.optional(v.number()),
+    version: v.number(),
+  })
+    .index('by_user', ['userId'])
+    .index('by_user_remoteThreadId', ['userId', 'remoteThreadId'])
+    .index('by_user_version', ['userId', 'version']),
+
+  // Offline mirror for message history sync.
+  chatMessages: defineTable({
+    userId: v.id('users'),
+    threadId: v.string(),
+    remoteMessageId: v.string(),
+    role: v.union(v.literal('user'), v.literal('assistant')),
+    text: v.string(),
+    partsJson: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    deletedAt: v.optional(v.number()),
+    version: v.number(),
+  })
+    .index('by_user', ['userId'])
+    .index('by_thread', ['threadId'])
+    .index('by_thread_version', ['threadId', 'version'])
+    .index('by_user_remoteMessageId', ['userId', 'remoteMessageId']),
+
+  offlineSyncState: defineTable({
+    userId: v.id('users'),
+    lastFullSyncAt: v.optional(v.number()),
+    lastDeltaSyncAt: v.optional(v.number()),
+    schemaVersion: v.number(),
+  }).index('by_user', ['userId']),
 
   // Memory system: Files metadata
   memoryFiles: defineTable({
@@ -194,9 +240,14 @@ export default defineSchema({
     userId: v.id('users'),
     title: v.string(),
     content: v.string(),
+    // Backwards-compatible fields from earlier memory extraction versions
+    contentHash: v.optional(v.string()),
+    ragKey: v.optional(v.string()),
+    originThreadId: v.optional(v.string()),
+    originMessageIds: v.optional(v.array(v.string())),
     category: v.optional(v.string()),
     tags: v.optional(v.array(v.string())),
-    embedding: v.array(v.number()),
+    embedding: v.optional(v.array(v.number())),
     source: v.union(
       v.literal('manual'),
       v.literal('extracted'),
@@ -221,7 +272,7 @@ export default defineSchema({
     title: v.string(),
     content: v.string(),
     category: v.optional(v.string()),
-    embedding: v.array(v.number()),
+    embedding: v.optional(v.array(v.number())),
     source: v.union(v.literal('session'), v.literal('manual')),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -242,7 +293,7 @@ export default defineSchema({
     title: v.string(),
     content: v.string(),
     category: v.optional(v.string()),
-    embedding: v.array(v.number()),
+    embedding: v.optional(v.array(v.number())),
     source: v.union(v.literal('manual'), v.literal('aggregated')),
     createdAt: v.number(),
     updatedAt: v.number(),

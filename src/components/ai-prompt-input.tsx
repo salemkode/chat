@@ -10,6 +10,9 @@ interface AIPromptInputProps {
   disabled?: boolean
   selectedModel?: string
   onModelChange?: (modelId: string) => void
+  value?: string
+  onValueChange?: (value: string) => void
+  footerText?: string
 }
 
 export function AIPromptInput({
@@ -17,11 +20,24 @@ export function AIPromptInput({
   disabled = false,
   selectedModel,
   onModelChange,
+  value: controlledValue,
+  onValueChange,
+  footerText,
 }: AIPromptInputProps) {
-  console.log('disabled', disabled)
-  const [value, setValue] = useState('')
+  const [internalValue, setInternalValue] = useState('')
   const [searchEnabled, setSearchEnabled] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const value = controlledValue ?? internalValue
+
+  const setValue = (nextValue: string) => {
+    if (controlledValue !== undefined) {
+      onValueChange?.(nextValue)
+      return
+    }
+
+    setInternalValue(nextValue)
+    onValueChange?.(nextValue)
+  }
 
   useEffect(() => {
     const textarea = textareaRef.current
@@ -113,6 +129,9 @@ export function AIPromptInput({
           </div>
         </div>
       </form>
+      {footerText ? (
+        <p className="mt-2 px-1 text-xs text-muted-foreground">{footerText}</p>
+      ) : null}
     </div>
   )
 }

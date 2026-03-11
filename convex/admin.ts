@@ -27,6 +27,15 @@ async function requireAdmin(ctx: MutationCtx | QueryCtx) {
   return userId
 }
 
+// Generate upload URL for icons
+export const generateUploadUrl = mutation({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx)
+    return await ctx.storage.generateUploadUrl()
+  },
+})
+
 // Check if current user is admin
 export const isAdmin = query({
   args: {},
@@ -97,14 +106,28 @@ export const listModelsWithProviders = query({
     const modelsWithInfo = await Promise.all(
       models.map(async (model) => {
         const provider = providers.find((p) => p._id === model.providerId)
+        
+        let providerIconUrl = undefined
+        if (provider?.iconId) {
+          providerIconUrl = await ctx.storage.getUrl(provider.iconId)
+        }
+        
+        let modelIconUrl = undefined
+        if (model.iconId) {
+          modelIconUrl = await ctx.storage.getUrl(model.iconId)
+        }
+
         return {
           ...model,
+          iconUrl: modelIconUrl,
           provider: provider
             ? {
                 _id: provider._id,
                 name: provider.name,
                 providerType: provider.providerType,
                 icon: provider.icon,
+                iconId: provider.iconId,
+                iconUrl: providerIconUrl,
               }
             : null,
           isFavorite: favoriteModelIds.has(model._id),
@@ -113,14 +136,16 @@ export const listModelsWithProviders = query({
     )
 
     // Sort providers by sortOrder
-    const sortedProviders = providers
+    const sortedProviders = await Promise.all(providers
       .sort((a, b) => a.sortOrder - b.sortOrder)
-      .map((p) => ({
+      .map(async (p) => ({
         _id: p._id,
         name: p.name,
         providerType: p.providerType,
         icon: p.icon,
-      }))
+        iconId: p.iconId,
+        iconUrl: p.iconId ? await ctx.storage.getUrl(p.iconId) : undefined,
+      })))
 
     return {
       providers: sortedProviders,
@@ -166,6 +191,48 @@ export const toggleFavoriteModel = mutation({
   },
 })
 
+export const setFavoriteModel = mutation({
+  args: {
+    modelId: v.id('models'),
+    isFavorite: v.boolean(),
+    clientUpdatedAt: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId) {
+      throw new ConvexError({
+        code: 'UNAUTHORIZED',
+        message: 'You must be logged in to favorite a model',
+      })
+    }
+
+    const existing = await ctx.db
+      .query('userFavoriteModels')
+      .withIndex('by_user_model', (q) =>
+        q.eq('userId', userId).eq('modelId', args.modelId),
+      )
+      .first()
+
+    if (args.isFavorite) {
+      if (existing) {
+        return { favorited: true }
+      }
+
+      await ctx.db.insert('userFavoriteModels', {
+        userId,
+        modelId: args.modelId,
+        createdAt: args.clientUpdatedAt ?? Date.now(),
+      })
+      return { favorited: true }
+    }
+
+    if (existing) {
+      await ctx.db.delete(existing._id)
+    }
+    return { favorited: false }
+  },
+})
+
 // List all providers (admin only)
 export const listAllProviders = query({
   args: {},
@@ -205,6 +272,8 @@ export const addProvider = mutation({
     baseURL: v.optional(v.string()),
     isEnabled: v.boolean(),
     sortOrder: v.number(),
+    icon: v.optional(v.string()),
+    iconId: v.optional(v.id('_storage')),
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx)
@@ -215,6 +284,8 @@ export const addProvider = mutation({
       baseURL: args.baseURL,
       isEnabled: args.isEnabled,
       sortOrder: args.sortOrder,
+      icon: args.icon,
+      iconId: args.iconId,
     })
   },
 })
@@ -241,6 +312,8 @@ export const updateProvider = mutation({
     baseURL: v.optional(v.string()),
     isEnabled: v.optional(v.boolean()),
     sortOrder: v.optional(v.number()),
+    icon: v.optional(v.string()),
+    iconId: v.optional(v.id('_storage')),
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx)
@@ -288,6 +361,8 @@ export const addModel = mutation({
     isFree: v.boolean(),
     sortOrder: v.number(),
     providerId: v.id('providers'),
+    icon: v.optional(v.string()),
+    iconId: v.optional(v.id('_storage')),
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx)
@@ -304,6 +379,9 @@ export const updateModel = mutation({
     isEnabled: v.optional(v.boolean()),
     isFree: v.optional(v.boolean()),
     sortOrder: v.optional(v.number()),
+    icon: v.optional(v.string()),
+    iconId: v.optional(v.id('_storage')),
+    providerId: v.optional(v.id('providers')),
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx)

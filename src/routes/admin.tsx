@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Doc } from 'convex/_generated/dataModel'
+import { useOfflineStatus } from '@/offline/repositories'
 
 export const Route = createFileRoute('/admin')({
   component: AdminPage,
@@ -51,6 +52,8 @@ interface ProviderFormData {
   baseURL: string
   isEnabled: boolean
   sortOrder: number
+  icon: string
+  iconId: string
 }
 
 interface ModelFormData {
@@ -60,11 +63,14 @@ interface ModelFormData {
   isFree: boolean
   sortOrder: number
   providerId: string
+  icon: string
+  iconId: string
 }
 
 function AdminPage() {
   const navigate = useNavigate()
   const { isAuthenticated, isLoading } = useConvexAuth()
+  const { isOnline } = useOfflineStatus()
   const ensureCurrentUser = useMutation(api.users.ensureCurrentUser)
   const [isUserReady, setIsUserReady] = useState(false)
   const isAdmin = useQuery(
@@ -89,6 +95,7 @@ function AdminPage() {
   const addModel = useMutation(api.admin.addModel)
   const updateModel = useMutation(api.admin.updateModel)
   const deleteModel = useMutation(api.admin.deleteModel)
+  const generateUploadUrl = useMutation(api.admin.generateUploadUrl)
 
   // Form states
   const [providerDialogOpen, setProviderDialogOpen] = useState(false)
@@ -103,6 +110,8 @@ function AdminPage() {
     baseURL: '',
     isEnabled: true,
     sortOrder: 0,
+    icon: '',
+    iconId: '',
   })
 
   const [modelForm, setModelForm] = useState<ModelFormData>({
@@ -112,6 +121,8 @@ function AdminPage() {
     isFree: false,
     sortOrder: 0,
     providerId: '',
+    icon: '',
+    iconId: '',
   })
 
   // Unique IDs for form elements
@@ -131,6 +142,10 @@ function AdminPage() {
   }
 
   useEffect(() => {
+    if (!isOnline) {
+      return
+    }
+
     if (!isAuthenticated) {
       setIsUserReady(false)
       return
@@ -151,7 +166,25 @@ function AdminPage() {
     return () => {
       isCancelled = true
     }
-  }, [ensureCurrentUser, isAuthenticated])
+  }, [ensureCurrentUser, isAuthenticated, isOnline])
+
+  if (!isOnline) {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center px-6 text-center">
+        <div className="max-w-md space-y-3">
+          <Settings className="mx-auto size-8 text-muted-foreground" />
+          <h1 className="text-xl font-semibold">Admin is online-only</h1>
+          <p className="text-sm text-muted-foreground">
+            Provider keys, uploads, and model management are disabled while offline.
+          </p>
+          <Button variant="outline" onClick={() => navigate({ to: '/chat' })}>
+            <ArrowLeft className="mr-2 size-4" />
+            Back to chat
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
   const handleAddProvider = () => {
     void addProvider(providerForm).then(() => {
@@ -212,6 +245,8 @@ function AdminPage() {
       baseURL: '',
       isEnabled: true,
       sortOrder: 0,
+      icon: '',
+      iconId: '',
     })
   }
 
@@ -223,10 +258,38 @@ function AdminPage() {
       isFree: false,
       sortOrder: 0,
       providerId: '',
+      icon: '',
+      iconId: '',
     })
   }
 
-  const openProviderDialog = (provider?: Doc<'providers'>) => {
+  const handleProviderIconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const url = await generateUploadUrl()
+    const result = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': file.type },
+      body: file,
+    })
+    const { storageId } = await result.json()
+    setProviderForm({ ...providerForm, iconId: storageId, icon: '' })
+  }
+
+  const handleModelIconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const url = await generateUploadUrl()
+    const result = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': file.type },
+      body: file,
+    })
+    const { storageId } = await result.json()
+    setModelForm({ ...modelForm, iconId: storageId, icon: '' })
+  }
+
+  const openProviderDialog = (provider?: any) => {
     if (provider) {
       setEditingProvider(provider)
       setProviderForm({
@@ -236,6 +299,8 @@ function AdminPage() {
         baseURL: provider.baseURL || '',
         isEnabled: provider.isEnabled,
         sortOrder: provider.sortOrder,
+        icon: provider.icon || '',
+        iconId: provider.iconId || '',
       })
     } else {
       setEditingProvider(null)
@@ -244,7 +309,7 @@ function AdminPage() {
     setProviderDialogOpen(true)
   }
 
-  const openModelDialog = (model?: Doc<'models'>) => {
+  const openModelDialog = (model?: any) => {
     if (model) {
       setEditingModel(model)
       setModelForm({
@@ -254,6 +319,8 @@ function AdminPage() {
         isFree: model.isFree,
         sortOrder: model.sortOrder,
         providerId: model.providerId,
+        icon: model.icon || '',
+        iconId: model.iconId || '',
       })
     } else {
       setEditingModel(null)
@@ -429,6 +496,27 @@ function AdminPage() {
                       }
                     />
                   </div>
+                  <div className="grid gap-2">
+                    <Label>Provider Icon (Text/Emoji)</Label>
+                    <Input
+                      value={providerForm.icon}
+                      onChange={(e) =>
+                        setProviderForm({ ...providerForm, icon: e.target.value, iconId: '' })
+                      }
+                      placeholder="e.g. 🤖 or a string"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Or Upload Custom Icon Image</Label>
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleProviderIconUpload}
+                    />
+                    {providerForm.iconId && (
+                      <span className="text-xs text-green-600">Image uploaded!</span>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2">
                     <Checkbox
                       id={ids.providerIsEnabled}
@@ -603,6 +691,27 @@ function AdminPage() {
                       }
                     />
                   </div>
+                  <div className="grid gap-2">
+                    <Label>Model Icon (Text/Emoji)</Label>
+                    <Input
+                      value={modelForm.icon}
+                      onChange={(e) =>
+                        setModelForm({ ...modelForm, icon: e.target.value, iconId: '' })
+                      }
+                      placeholder="e.g. ✨ or a string"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Or Upload Custom Icon Image</Label>
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleModelIconUpload}
+                    />
+                    {modelForm.iconId && (
+                      <span className="text-xs text-green-600">Image uploaded!</span>
+                    )}
+                  </div>
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
                       <Checkbox
@@ -729,4 +838,3 @@ function AdminPage() {
     </div>
   )
 }
-

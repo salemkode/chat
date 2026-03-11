@@ -10,7 +10,6 @@
 
 import type * as admin from "../admin.js";
 import type * as agents from "../agents.js";
-import type * as auth from "../auth.js";
 import type * as chat from "../chat.js";
 import type * as functions_admin from "../functions/admin.js";
 import type * as functions_memory from "../functions/memory.js";
@@ -20,7 +19,10 @@ import type * as functions_memoryInternal from "../functions/memoryInternal.js";
 import type * as functions_memorySearch from "../functions/memorySearch.js";
 import type * as functions_memorySync from "../functions/memorySync.js";
 import type * as http from "../http.js";
+import type * as lib_auth from "../lib/auth.js";
 import type * as messages from "../messages.js";
+import type * as offline from "../offline.js";
+import type * as offlineHelpers from "../offlineHelpers.js";
 import type * as sections from "../sections.js";
 import type * as users from "../users.js";
 
@@ -33,7 +35,6 @@ import type {
 declare const fullApi: ApiFromModules<{
   admin: typeof admin;
   agents: typeof agents;
-  auth: typeof auth;
   chat: typeof chat;
   "functions/admin": typeof functions_admin;
   "functions/memory": typeof functions_memory;
@@ -43,7 +44,10 @@ declare const fullApi: ApiFromModules<{
   "functions/memorySearch": typeof functions_memorySearch;
   "functions/memorySync": typeof functions_memorySync;
   http: typeof http;
+  "lib/auth": typeof lib_auth;
   messages: typeof messages;
+  offline: typeof offline;
+  offlineHelpers: typeof offlineHelpers;
   sections: typeof sections;
   users: typeof users;
 }>;

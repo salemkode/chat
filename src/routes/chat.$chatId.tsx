@@ -1,56 +1,57 @@
 import { SignIn } from '@clerk/clerk-react'
 import { createFileRoute } from '@tanstack/react-router'
-import {
-  Authenticated,
-  AuthLoading,
-  Unauthenticated,
-  useQuery,
-} from 'convex/react'
-import { Loader2, MessageSquare } from 'lucide-react'
-import { useUIMessages } from '@convex-dev/agent/react'
+import { useConvexAuth } from 'convex/react'
+import { Loader2, MessageSquare, WifiOff } from 'lucide-react'
 import { ChatMessageList } from '@/components/ChatMessageList'
 import { SidebarTrigger } from '@/components/ui/sidebar'
-import { api } from '../../convex/_generated/api'
+import {
+  useMessages,
+  useOfflineStatus,
+  useThread,
+} from '@/offline/repositories'
 
 export const Route = createFileRoute('/chat/$chatId')({
   component: ChatPage,
 })
 
 function ChatPage() {
-  return (
-    <>
-      <AuthLoading>
-        <div className="flex h-screen w-full items-center justify-center bg-background text-foreground">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      </AuthLoading>
+  const { isLoading } = useConvexAuth()
+  const { isAuthenticatedOrOffline, isOfflineReady, isOnline } =
+    useOfflineStatus()
 
-      <Unauthenticated>
-        <div className="flex h-screen w-full items-center justify-center p-4 bg-background">
-          <SignIn />
-        </div>
-      </Unauthenticated>
+  if (isLoading && !isOfflineReady) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background text-foreground">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
 
-      <Authenticated>
-        <AuthenticatedChatPage />
-      </Authenticated>
-    </>
-  )
+  if (!isAuthenticatedOrOffline) {
+    return isOnline ? (
+      <div className="flex h-screen w-full items-center justify-center p-4 bg-background">
+        <SignIn />
+      </div>
+    ) : (
+      <div className="flex h-screen w-full items-center justify-center bg-background px-6 text-center">
+        <div className="max-w-md space-y-3">
+          <WifiOff className="mx-auto size-8 text-muted-foreground" />
+          <h1 className="text-xl font-semibold">Offline access unavailable</h1>
+          <p className="text-sm text-muted-foreground">
+            Sign in online once so this device can cache your chat history.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  return <AuthenticatedChatPage />
 }
 
 function AuthenticatedChatPage() {
   const { chatId } = Route.useParams()
-  const thread = useQuery(api.chat.getThread, { threadId: chatId })
-
-  const { results: messages } = useUIMessages(
-    api.chat.listMessages,
-    { threadId: chatId },
-    {
-      initialNumItems: 30,
-      stream: true,
-    },
-  )
-
+  const thread = useThread(chatId)
+  const { messages } = useMessages(chatId)
   const threadTitle = thread?.title || 'New Chat'
 
   return (

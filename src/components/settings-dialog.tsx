@@ -1,8 +1,6 @@
 'use client'
 
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { useQuery, useMutation } from 'convex/react'
-import { api } from '../../convex/_generated/api'
 import {
   Dialog,
   DialogContent,
@@ -23,6 +21,13 @@ import {
 import { Camera, User, Loader2, X, Settings, Bell, Palette, Grid3X3, Database, Shield, Users, UserCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useTheme } from '@/components/theme-provider'
+import { estimateOfflineStorageUsage } from '@/offline/session'
+import {
+  useOfflineStatus,
+  useSettings,
+  useSyncController,
+  useViewer,
+} from '@/offline/repositories'
 
 interface SettingsDialogProps {
   open: boolean
@@ -52,9 +57,10 @@ function SettingsItem({ label, description, children }: SettingsItemProps) {
 }
 
 export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
-  const user = useQuery(api.users.viewer)
-  const settings = useQuery(api.users.getSettings)
-  const updateSettings = useMutation(api.users.updateSettings)
+  const user = useViewer()
+  const { settings, updateSettings } = useSettings()
+  const { isOnline, lastSyncAt, isSyncing } = useOfflineStatus()
+  const { syncNow, clearOfflineData } = useSyncController()
   const { theme, setTheme } = useTheme()
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
@@ -62,6 +68,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const [bio, setBio] = useState('')
   const [image, setImage] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [storageSummary, setStorageSummary] = useState<string>('Checking...')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Initialize form values when settings load
@@ -72,6 +79,20 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       setImage(settings?.image || user?.image || null)
     }
   }, [settings, user])
+
+  useEffect(() => {
+    void (async () => {
+      const estimate = await estimateOfflineStorageUsage()
+      if (!estimate?.usage || !estimate?.quota) {
+        setStorageSummary('Unavailable in this browser')
+        return
+      }
+
+      const usageMb = (estimate.usage / 1024 / 1024).toFixed(1)
+      const quotaMb = (estimate.quota / 1024 / 1024).toFixed(1)
+      setStorageSummary(`${usageMb} MB of ${quotaMb} MB`)
+    })()
+  }, [open])
 
   const handleImageClick = () => {
     fileInputRef.current?.click()
@@ -360,8 +381,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Member since</span>
                         <span>
-                          {user?._creationTime
-                            ? new Date(user._creationTime).toLocaleDateString()
+                          {lastSyncAt
+                            ? new Date(lastSyncAt).toLocaleDateString()
                             : 'N/A'}
                         </span>
                       </div>
@@ -370,8 +391,61 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                 </div>
               )}
 
+              {activeTab === 'data' && (
+                <div className="space-y-6">
+                  <h2 className="text-lg font-semibold">Data controls</h2>
+
+                  <SettingsItem
+                    label="Offline availability"
+                    description={
+                      isOnline
+                        ? 'Your cached conversations are ready for offline reading on this device.'
+                        : 'Offline mode is active. Cached conversations stay available until you sign out or clear data.'
+                    }
+                  >
+                    <span className="text-sm font-medium">
+                      {isOnline ? 'Online' : 'Offline'}
+                    </span>
+                  </SettingsItem>
+
+                  <SettingsItem
+                    label="Last sync"
+                    description="Latest successful sync time for local cached chats and settings."
+                  >
+                    <span className="text-sm">
+                      {lastSyncAt ? new Date(lastSyncAt).toLocaleString() : 'Not synced yet'}
+                    </span>
+                  </SettingsItem>
+
+                  <SettingsItem
+                    label="Offline storage"
+                    description="Approximate browser storage used by cached conversations and assets."
+                  >
+                    <span className="text-sm">{storageSummary}</span>
+                  </SettingsItem>
+
+                  <div className="flex gap-3 pt-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => void syncNow()}
+                      disabled={!isOnline || isSyncing}
+                    >
+                      {isSyncing ? 'Syncing...' : 'Sync now'}
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={() => void clearOfflineData()}
+                    >
+                      Clear offline data
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               {/* Other tabs placeholder */}
-              {activeTab !== 'general' && activeTab !== 'account' && (
+              {activeTab !== 'general' &&
+                activeTab !== 'account' &&
+                activeTab !== 'data' && (
                 <div className="space-y-6">
                   <h2 className="text-lg font-semibold">
                     {tabs.find(t => t.id === activeTab)?.label}

@@ -1,14 +1,13 @@
 import { useSmoothText } from '@convex-dev/agent/react'
-import { FunctionReturnType } from 'convex/server'
-import { api } from 'convex/_generated/api'
 import { CopyButton } from './CopyButton'
 import { MarkdownContent } from './MarkdownContent'
 import { ThinkingProcess } from './ThinkingProcess'
 import { RefreshCw } from 'lucide-react'
 import { memo, useMemo } from 'react'
+import type { OfflineMessageRecord } from '@/offline/schema'
 
 interface MessageProps {
-  message: FunctionReturnType<typeof api.chat.listMessages>['page'][number]
+  message: OfflineMessageRecord
   modelName?: string
 }
 
