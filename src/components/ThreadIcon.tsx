@@ -1,7 +1,7 @@
 'use client'
 
-import * as LucideIcons from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
+import { MessageCircle } from 'lucide-react'
+import { getLucideIcon } from '@/lib/lucide'
 
 interface ThreadIconProps {
   iconName?: string
@@ -11,7 +11,7 @@ interface ThreadIconProps {
 }
 
 // Fallback icon when none specified
-const DefaultIcon = LucideIcons.MessageCircle
+const DefaultIcon = MessageCircle
 
 export function ThreadIcon({
   iconName,
@@ -27,9 +27,7 @@ export function ThreadIcon({
       .replace(/^(.)/, (_, char) => char.toUpperCase())
 
     // Get the icon from Lucide
-    const IconComponent = (
-      LucideIcons as unknown as Record<string, LucideIcon>
-    )[normalizedName]
+    const IconComponent = getLucideIcon(normalizedName)
 
     if (IconComponent) {
       return <IconComponent className={className} size={size} />

@@ -1,7 +1,8 @@
-// @ts-nocheck
 import { generateObject } from 'ai'
 import { internalAction } from '../_generated/server'
+import type { FunctionReturnType } from 'convex/server'
 import { v } from 'convex/values'
+import type { Id } from '../_generated/dataModel'
 import { z } from 'zod'
 import { components, internal } from '../_generated/api'
 import {
@@ -23,6 +24,13 @@ const extractionSchema = z.object({
   ),
 })
 
+type ThreadMessageBatch = FunctionReturnType<
+  typeof components.agent.messages.listMessagesByThreadId
+>
+type LinkedProject = FunctionReturnType<
+  typeof internal.functions.memoryInternal.listProjectsForThread
+>[number]
+
 function getExtractionErrorMessage(error: unknown) {
   if (error instanceof Error) {
     return error.message
@@ -33,10 +41,7 @@ function getExtractionErrorMessage(error: unknown) {
   }
 
   if (error && typeof error === 'object') {
-    const errorObj = error as {
-      message?: string
-      cause?: unknown
-    }
+    const errorObj = error as { message?: string }
     return errorObj.message || JSON.stringify(errorObj)
   }
 
@@ -69,6 +74,7 @@ export const extractMemoriesFromThread = internalAction({
     if (!thread?.userId) {
       return { created: 0, skipped: 0, processedMessages: 0 }
     }
+    const userId = thread.userId as Id<'users'>
 
     const existingState = await ctx.runQuery(
       internal.functions.memoryInternal.getExtractionStateByThread,
@@ -82,7 +88,7 @@ export const extractMemoriesFromThread = internalAction({
       internal.functions.memoryInternal.upsertExtractionState,
       {
         threadId: args.threadId,
-        userId: thread.userId,
+        userId,
         lastProcessedOrder,
         updatedAt: Date.now(),
         status: 'running',
@@ -104,7 +110,7 @@ export const extractMemoriesFromThread = internalAction({
       }> = []
 
       while (true) {
-        const batch: any = await ctx.runQuery(
+        const batch: ThreadMessageBatch = await ctx.runQuery(
           components.agent.messages.listMessagesByThreadId,
           {
             threadId: args.threadId,
@@ -119,9 +125,7 @@ export const extractMemoriesFromThread = internalAction({
         )
 
         messages.push(
-          ...batch.page.filter(
-            (message: any) => message.order > lastProcessedOrder,
-          ),
+          ...batch.page.filter((message) => message.order > lastProcessedOrder),
         )
 
         if (batch.isDone) break
@@ -133,7 +137,7 @@ export const extractMemoriesFromThread = internalAction({
           internal.functions.memoryInternal.upsertExtractionState,
           {
             threadId: args.threadId,
-            userId: thread.userId,
+            userId,
             lastProcessedOrder,
             updatedAt: Date.now(),
             status: 'idle',
@@ -160,7 +164,7 @@ export const extractMemoriesFromThread = internalAction({
           internal.functions.memoryInternal.upsertExtractionState,
           {
             threadId: args.threadId,
-            userId: thread.userId,
+            userId,
             lastProcessedOrder: lastOrder,
             updatedAt: Date.now(),
             status: 'idle',
@@ -173,17 +177,15 @@ export const extractMemoriesFromThread = internalAction({
       const projects = await ctx.runQuery(
         internal.functions.memoryInternal.listProjectsForThread,
         {
-          userId: thread.userId,
+          userId,
           threadId: args.threadId,
         },
       )
+      const project = projects[0] ?? null
 
-      const projectContext =
-        projects.length > 0
-          ? `Projects linked to this thread: ${projects
-              .map((project: any) => `${project.name} (${project._id})`)
-              .join(', ')}`
-          : 'No projects are currently linked to this thread.'
+      const projectContext = project
+        ? `Project linked to this thread: ${project.name} (${project._id})`
+        : 'No project is currently linked to this thread.'
 
       const { object } = await generateObject({
         model: openRouter.chat(MEMORY_EXTRACTION_MODEL),
@@ -193,7 +195,7 @@ export const extractMemoriesFromThread = internalAction({
           'Do not include transient status updates, one-off requests, or short-lived facts.',
           'Prefer user scope for durable user preferences and profile facts.',
           'Use thread scope for details that matter mainly to this conversation.',
-          'Use project scope only for facts that apply to the project(s) attached to this thread.',
+          'Use project scope only for facts that apply to the project attached to this thread.',
           'Return an empty array when nothing qualifies.',
           projectContext,
           '',
@@ -213,29 +215,27 @@ export const extractMemoriesFromThread = internalAction({
         }
 
         if (memory.scope === 'project') {
-          if (projects.length === 0) {
+          if (!project) {
             skipped += 1
             continue
           }
 
-          for (const project of projects) {
-            await ctx.runAction(
-              internal.functions.memoryInternal.createMemoryInScope,
-              {
-                scope: 'project',
-                userId: thread.userId,
-                projectId: project._id,
-                title: memory.title,
-                content: memory.content,
-                category: memory.category,
-                tags: memory.tags,
-                source: 'extracted',
-                originThreadId: args.threadId,
-                originMessageIds,
-              },
-            )
-            created += 1
-          }
+          await ctx.runAction(
+            internal.functions.memoryInternal.createMemoryInScope,
+            {
+              scope: 'project',
+              userId,
+              projectId: project._id,
+              title: memory.title,
+              content: memory.content,
+              category: memory.category,
+              tags: memory.tags,
+              source: 'extracted',
+              originThreadId: args.threadId,
+              originMessageIds,
+            },
+          )
+          created += 1
           continue
         }
 
@@ -243,7 +243,7 @@ export const extractMemoriesFromThread = internalAction({
           internal.functions.memoryInternal.createMemoryInScope,
           {
             scope: memory.scope,
-            userId: thread.userId,
+            userId,
             threadId: memory.scope === 'thread' ? args.threadId : undefined,
             title: memory.title,
             content: memory.content,
@@ -263,7 +263,7 @@ export const extractMemoriesFromThread = internalAction({
         internal.functions.memoryInternal.upsertExtractionState,
         {
           threadId: args.threadId,
-          userId: thread.userId,
+          userId,
           lastProcessedOrder: lastOrder,
           updatedAt: Date.now(),
           status: 'idle',
@@ -281,7 +281,7 @@ export const extractMemoriesFromThread = internalAction({
         internal.functions.memoryInternal.upsertExtractionState,
         {
           threadId: args.threadId,
-          userId: thread.userId,
+          userId,
           lastProcessedOrder,
           updatedAt: Date.now(),
           status: 'error',

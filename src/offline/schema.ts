@@ -14,6 +14,8 @@ export interface OfflineThreadRecord {
   title?: string
   emoji: string
   icon?: string
+  projectId?: string
+  projectName?: string
   pinned: boolean
   createdAt: number
   updatedAt: number
@@ -55,6 +57,15 @@ export interface OfflineModelRecord {
     iconId?: string
     iconUrl?: string
   } | null
+}
+
+export interface OfflineProjectRecord {
+  id: string
+  name: string
+  description?: string
+  threadCount: number
+  createdAt: number
+  updatedAt: number
 }
 
 export interface OfflineSettingsRecord {

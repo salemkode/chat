@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.base.json",
+  "include": [
+    "shared/**/*.ts",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "vite.config.ts",
+    "prettier.config.js",
+    "eslint.config.js"
+  ],
+  "exclude": [
+    "src/offline/sw.ts",
+    "src/routeTree.gen.ts",
+    "convex/**",
+    "scripts/**"
+  ]
+}

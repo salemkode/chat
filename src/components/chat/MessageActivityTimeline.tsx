@@ -1,30 +1,34 @@
 import { useSmoothText } from '@convex-dev/agent/react'
 import type { FunctionReturnType } from 'convex/server'
 import {
-  Check,
-  ChevronDown,
+  BookMarked,
+  Database,
   LoaderCircle,
+  PencilLine,
+  Search,
   Sparkles,
+  Trash2,
   TriangleAlert,
   Wrench,
+  type LucideIcon,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { api } from 'convex/_generated/api'
 import { MarkdownContent } from '@/components/MarkdownContent'
-import { Badge } from '@/components/ui/badge'
+import {
+  ChainOfThought,
+  ChainOfThoughtContent,
+  ChainOfThoughtItem,
+  ChainOfThoughtStep,
+  ChainOfThoughtTrigger,
+} from '@/components/ui/chain-of-thought'
 import { cn } from '@/lib/utils'
 
 type ChatMessage = FunctionReturnType<
   typeof api.chat.listMessages
 >['page'][number]
 type MessagePart = ChatMessage['parts'][number]
-type ToolResultPart = Extract<MessagePart, { type: 'tool-result' }>
 type PartRecord = MessagePart & Record<string, unknown>
-type OutputEnvelope = Record<string, unknown> & {
-  type: string
-  value?: unknown
-  reason?: unknown
-}
 
 type ActivityStatus = 'complete' | 'running' | 'pending' | 'error'
 
@@ -32,7 +36,6 @@ type ReasoningStep = {
   id: string
   kind: 'reasoning'
   title: string
-  subtitle: string
   status: ActivityStatus
   body: string
   redacted?: boolean
@@ -42,12 +45,8 @@ type ToolStep = {
   id: string
   kind: 'tool'
   title: string
-  subtitle: string
   status: ActivityStatus
   toolName: string
-  args?: unknown
-  output?: unknown
-  isError?: boolean
 }
 
 type ActivityStep = ReasoningStep | ToolStep
@@ -65,278 +64,120 @@ export function MessageActivityTimeline({
     () => buildActivitySteps(parts, messageStatus),
     [messageStatus, parts],
   )
+  const activeStepId = useMemo(() => getLastIncompleteStepId(steps), [steps])
 
   if (steps.length === 0) {
     return null
   }
 
   return (
-    <div className="mb-5 rounded-3xl border border-border/70 bg-card/85 p-3 shadow-sm backdrop-blur-sm">
-      <div className="space-y-3">
-        {steps.map((step) => (
-          <ActivityStepRow key={`${step.id}-${step.status}`} step={step} />
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function ActivityStepRow({ step }: { step: ActivityStep }) {
-  const canExpand =
-    step.kind === 'reasoning'
-      ? Boolean(step.body)
-      : step.args !== undefined || step.output !== undefined
-  const [isOpen, setIsOpen] = useState(step.status === 'error')
-
-  return (
-    <div
-      className={cn(
-        'min-w-0 rounded-2xl border px-4 py-4 transition-colors',
-        step.status === 'running' &&
-          'border-primary/20 bg-primary/5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]',
-        step.status === 'complete' && 'border-border/60 bg-background/60',
-        step.status === 'pending' && 'border-border/50 bg-background/40',
-        step.status === 'error' && 'border-destructive/20 bg-destructive/5',
-      )}
-    >
-      {canExpand ? (
-        <button
-          type="button"
-          className="flex w-full items-start gap-3 text-left"
-          onClick={() => setIsOpen((open) => !open)}
-        >
-          <StepSummary step={step} />
-          <ChevronDown
-            className={cn(
-              'mt-1 size-4 shrink-0 text-muted-foreground transition-transform',
-              isOpen && 'rotate-180',
-            )}
+    <div className="mb-5 px-1">
+      <ChainOfThought>
+        {steps.map((step, index) => (
+          <ActivityStepRow
+            key={`${step.id}-${step.status}`}
+            step={step}
+            isLast={index === steps.length - 1}
+            showActiveLoading={step.id === activeStepId}
           />
-        </button>
-      ) : (
-        <div className="flex w-full items-start gap-3">
-          <StepSummary step={step} />
-        </div>
-      )}
-
-      {step.kind === 'tool' ? <ToolStepPreview step={step} /> : null}
-
-      {canExpand && isOpen ? (
-        <div className="mt-3 border-t border-border/60 pt-3">
-          {step.kind === 'reasoning' ? (
-            <ReasoningStepBody step={step} />
-          ) : (
-            <ToolStepBody step={step} />
-          )}
-        </div>
-      ) : null}
+        ))}
+      </ChainOfThought>
     </div>
   )
 }
 
-function StepSummary({ step }: { step: ActivityStep }) {
-  return (
-    <div className="min-w-0 flex flex-1 items-start gap-3">
-      <div
-        className={cn(
-          'mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-xl border',
-          step.kind === 'reasoning' &&
-            'border-primary/20 bg-primary/10 text-primary',
-          step.kind === 'tool' &&
-            'border-border/70 bg-muted/60 text-foreground',
-        )}
-      >
-        {step.kind === 'reasoning' ? (
-          <Sparkles className="size-4 shrink-0" />
-        ) : (
-          <Wrench className="size-4 shrink-0" />
-        )}
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center justify-between gap-3">
-          <p className="truncate text-sm font-semibold text-foreground">
-            {step.title}
-          </p>
-          <StepStatusBadge status={step.status} />
-        </div>
-        <p
-          className={cn(
-            'mt-1 text-sm text-muted-foreground',
-            step.status === 'running' && 'shimmer text-muted-foreground/70',
-          )}
-        >
-          {step.subtitle}
-        </p>
-      </div>
-    </div>
-  )
-}
-
-function ToolStepPreview({ step }: { step: ToolStep }) {
-  const inputPreview = summarizeToolValue(step.args, 180)
-  const outputPreview = summarizeToolValue(step.output, 220)
-
-  if (!inputPreview && !outputPreview) {
-    return null
-  }
-
-  return (
-    <div className="mt-4 grid gap-2">
-      {inputPreview ? (
-        <PreviewBlock label="Input" value={inputPreview} tone="default" />
-      ) : null}
-      {outputPreview ? (
-        <PreviewBlock
-          label={step.isError ? 'Error' : 'Output'}
-          value={outputPreview}
-          tone={step.isError ? 'error' : 'default'}
-        />
-      ) : null}
-    </div>
-  )
-}
-
-function PreviewBlock({
-  label,
-  value,
-  tone,
+function ActivityStepRow({
+  step,
+  isLast,
+  showActiveLoading,
 }: {
-  label: string
-  value: string
-  tone: 'default' | 'error'
+  step: ActivityStep
+  isLast: boolean
+  showActiveLoading: boolean
 }) {
+  if (step.kind === 'reasoning') {
+    return (
+      <ReasoningRow
+        step={step}
+        isLast={isLast}
+        showActiveLoading={showActiveLoading}
+      />
+    )
+  }
+
+  const Icon = getStepIcon(step, showActiveLoading)
+
   return (
-    <div
-      className={cn(
-        'rounded-2xl border px-3 py-2.5 text-sm',
-        tone === 'error'
-          ? 'border-destructive/20 bg-destructive/5'
-          : 'border-border/70 bg-muted/40',
-      )}
+    <ChainOfThoughtStep
+      open={false}
+      className={cn(isLast && 'pb-0')}
+      data-last={isLast}
     >
-      <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-        {label}
-      </p>
-      <p
+      <ChainOfThoughtItem
         className={cn(
-          'whitespace-pre-wrap break-words leading-6',
-          tone === 'error' ? 'text-destructive' : 'text-foreground/90',
+          'flex items-center gap-2.5 py-1 text-sm',
+          step.status === 'error'
+            ? 'text-destructive'
+            : 'text-muted-foreground',
         )}
       >
-        {value}
-      </p>
-    </div>
+        <Icon className={getStepIconClassName(step, showActiveLoading)} />
+        <span className="truncate font-medium">{step.title}</span>
+      </ChainOfThoughtItem>
+    </ChainOfThoughtStep>
   )
 }
 
-function StepStatusBadge({ status }: { status: ActivityStatus }) {
-  if (status === 'running') {
-    return (
-      <Badge
-        variant="outline"
-        className="border-primary/20 bg-primary/5 text-primary"
-      >
-        <LoaderCircle className="size-3 animate-spin" />
-        Running
-      </Badge>
-    )
-  }
-
-  if (status === 'error') {
-    return (
-      <Badge
-        variant="outline"
-        className="border-destructive/20 bg-destructive/5 text-destructive"
-      >
-        <TriangleAlert className="size-3" />
-        Failed
-      </Badge>
-    )
-  }
-
-  if (status === 'pending') {
-    return (
-      <Badge variant="outline" className="border-border/60 bg-muted/40">
-        Queued
-      </Badge>
-    )
-  }
-
-  return (
-    <Badge
-      variant="outline"
-      className="border-emerald-500/20 bg-emerald-500/5 text-emerald-700 dark:text-emerald-300"
-    >
-      <Check className="size-3" />
-      Done
-    </Badge>
-  )
-}
-
-function ReasoningStepBody({ step }: { step: ReasoningStep }) {
+function ReasoningRow({
+  step,
+  isLast,
+  showActiveLoading,
+}: {
+  step: ReasoningStep
+  isLast: boolean
+  showActiveLoading: boolean
+}) {
+  const [isOpen, setIsOpen] = useState(step.status === 'running')
+  const Icon = getStepIcon(step, showActiveLoading)
   const [reasoningText] = useSmoothText(step.body, {
-    startStreaming: step.status === 'running',
+    startStreaming: showActiveLoading && step.status === 'running',
   })
 
-  if (step.redacted) {
-    return (
-      <p className="text-sm leading-6 text-muted-foreground">
-        {step.body || 'The provider kept the reasoning private.'}
-      </p>
-    )
-  }
-
   return (
-    <MarkdownContent
-      content={step.status === 'running' ? reasoningText : step.body}
-      className="max-w-none text-sm"
-    />
-  )
-}
-
-function ToolStepBody({ step }: { step: ToolStep }) {
-  return (
-    <div className="space-y-3">
-      {step.args !== undefined ? (
-        <StructuredValue label="Input" value={step.args} tone="default" />
-      ) : null}
-      {step.output !== undefined ? (
-        <StructuredValue
-          label={step.isError ? 'Error' : 'Output'}
-          value={step.output}
-          tone={step.isError ? 'error' : 'default'}
-        />
-      ) : null}
-    </div>
-  )
-}
-
-function StructuredValue({
-  label,
-  value,
-  tone,
-}: {
-  label: string
-  value: unknown
-  tone: 'default' | 'error'
-}) {
-  return (
-    <div className="space-y-2">
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-        {label}
-      </p>
-      <pre
-        className={cn(
-          'max-h-80 overflow-auto rounded-2xl border px-3 py-2 text-xs leading-6 whitespace-pre-wrap break-words',
-          tone === 'error'
-            ? 'border-destructive/20 bg-destructive/5 text-destructive'
-            : 'border-border/70 bg-muted/50 text-foreground',
-        )}
+    <ChainOfThoughtStep
+      open={isOpen}
+      onOpenChange={setIsOpen}
+      className={cn(isLast && 'pb-0')}
+      data-last={isLast}
+    >
+      <ChainOfThoughtTrigger
+        leftIcon={
+          <Icon className={getStepIconClassName(step, showActiveLoading)} />
+        }
+        swapIconOnHover={false}
+        className="py-1 font-medium"
       >
-        {formatStructuredValue(normalizeStructuredValue(value))}
-      </pre>
-    </div>
+        {step.title}
+      </ChainOfThoughtTrigger>
+      <ChainOfThoughtContent className="pt-2">
+        <div className="px-0.5 py-1">
+          {step.redacted ? (
+            <p className="text-sm leading-6 text-muted-foreground">
+              {step.body || 'The provider kept the reasoning private.'}
+            </p>
+          ) : (
+            <MarkdownContent
+              content={
+                showActiveLoading && step.status === 'running'
+                  ? reasoningText
+                  : step.body
+              }
+              className="max-w-none text-sm"
+            />
+          )}
+        </div>
+      </ChainOfThoughtContent>
+    </ChainOfThoughtStep>
   )
 }
 
@@ -352,17 +193,12 @@ function buildActivitySteps(
     const partType = getPartType(part)
 
     if (partType === 'reasoning') {
-      const reasoningText = getString(part.text) || ''
       steps.push({
         id: `reasoning-${index}`,
         kind: 'reasoning',
         title: 'Reasoning',
-        subtitle:
-          messageStatus === 'streaming'
-            ? summarizeText(reasoningText, 84) || 'Working through the request'
-            : summarizeText(reasoningText, 84) || 'Completed',
         status: messageStatus === 'streaming' ? 'running' : 'complete',
-        body: reasoningText,
+        body: getString(part.text) || '',
       })
       continue
     }
@@ -372,10 +208,6 @@ function buildActivitySteps(
         id: `reasoning-${index}`,
         kind: 'reasoning',
         title: 'Reasoning',
-        subtitle:
-          messageStatus === 'streaming'
-            ? 'Provider reasoning is still being prepared'
-            : 'Provider kept the reasoning private',
         status: messageStatus === 'streaming' ? 'running' : 'complete',
         body: 'This provider returned a redacted reasoning trace.',
         redacted: true,
@@ -384,57 +216,37 @@ function buildActivitySteps(
     }
 
     if (isToolCallLikePart(partType)) {
-      const step: ToolStep = {
-        id: getString(part.toolCallId) || `tool-${index}`,
-        kind: 'tool',
-        title: formatToolName(getToolName(part, partType)),
-        subtitle:
-          summarizeToolArgs(getToolArgs(part)) ||
-          (messageStatus === 'failed' ? 'Interrupted before completion' : 'Running'),
-        status: getToolCallStatus(part, messageStatus),
-        toolName: getToolName(part, partType),
-        args: getToolArgs(part),
-        output: getToolCallOutput(part),
-      }
-
-      toolSteps.set(step.id, step)
-      steps.push(step)
-      continue
-    }
-
-    if (isToolResultLikePart(partType)) {
-      const toolCallId = getString(part.toolCallId) || `tool-result-${index}`
-      const output = getToolResultOutput(part)
-      const isError = Boolean(part.isError)
-      const status = isError ? 'error' : 'complete'
-      const existing = toolSteps.get(toolCallId)
-
-      if (existing) {
-        existing.status = status
-        existing.subtitle =
-          summarizeToolValue(output, 88) ||
-          (isError ? 'Tool execution failed' : 'Completed')
-        existing.output = output
-        existing.isError = isError
-        if (part.args !== undefined) {
-          existing.args = part.args
-        }
-        continue
-      }
-
+      const toolCallId = getString(part.toolCallId) || `tool-${index}`
       const toolName = getToolName(part, partType)
       const step: ToolStep = {
         id: toolCallId,
         kind: 'tool',
-        title: formatToolName(toolName),
-        subtitle:
-          summarizeToolValue(output, 88) ||
-          (isError ? 'Tool execution failed' : 'Completed'),
-        status,
+        title: getToolDisplayTitle(toolName),
+        status: getToolCallStatus(part, messageStatus),
         toolName,
-        args: getToolArgs(part),
-        output,
-        isError,
+      }
+
+      toolSteps.set(toolCallId, step)
+      steps.push(step)
+      continue
+    }
+
+    if (partType === 'tool-result') {
+      const toolCallId = getString(part.toolCallId) || `tool-result-${index}`
+      const existing = toolSteps.get(toolCallId)
+
+      if (existing) {
+        existing.status = part.isError ? 'error' : 'complete'
+        continue
+      }
+
+      const toolName = getString(part.toolName) || 'tool'
+      const step: ToolStep = {
+        id: toolCallId,
+        kind: 'tool',
+        title: getToolDisplayTitle(toolName),
+        status: part.isError ? 'error' : 'complete',
+        toolName,
       }
 
       toolSteps.set(toolCallId, step)
@@ -445,100 +257,189 @@ function buildActivitySteps(
   return steps
 }
 
-function getPartType(part: PartRecord) {
-  return getString(part.type) || ''
+function getLastIncompleteStepId(steps: ActivityStep[]) {
+  for (let index = steps.length - 1; index >= 0; index -= 1) {
+    const step = steps[index]
+    if (step && (step.status === 'running' || step.status === 'pending')) {
+      return step.id
+    }
+  }
+
+  return null
+}
+
+function getStepIcon(
+  step: ActivityStep,
+  showActiveLoading: boolean,
+): LucideIcon {
+  if (
+    showActiveLoading &&
+    (step.status === 'running' || step.status === 'pending')
+  ) {
+    return LoaderCircle
+  }
+
+  if (step.status === 'error') {
+    return TriangleAlert
+  }
+
+  if (step.kind === 'reasoning') {
+    return Sparkles
+  }
+
+  if (step.toolName === 'exa_web_search' || step.toolName === 'web_search') {
+    return Search
+  }
+
+  if (step.toolName === 'memory_search') {
+    return Database
+  }
+
+  if (step.toolName === 'memory_add') {
+    return BookMarked
+  }
+
+  if (step.toolName === 'memory_update') {
+    return PencilLine
+  }
+
+  if (step.toolName === 'memory_delete') {
+    return Trash2
+  }
+
+  return Wrench
+}
+
+function getStepIconClassName(step: ActivityStep, showActiveLoading: boolean) {
+  const isTool = step.kind === 'tool'
+  const isSearchTool =
+    isTool &&
+    (step.toolName === 'exa_web_search' || step.toolName === 'web_search')
+  const isMemoryTool = isTool && step.toolName.startsWith('memory_')
+
+  return cn(
+    'size-4 shrink-0',
+    showActiveLoading &&
+      (step.status === 'running' || step.status === 'pending') &&
+      'animate-spin text-primary',
+    !showActiveLoading &&
+      step.kind === 'reasoning' &&
+      step.status !== 'error' &&
+      'text-primary',
+    !showActiveLoading &&
+      isSearchTool &&
+      step.status !== 'error' &&
+      'text-sky-600 dark:text-sky-300',
+    !showActiveLoading &&
+      isMemoryTool &&
+      step.status !== 'error' &&
+      'text-teal-600 dark:text-teal-300',
+    step.status === 'error' && 'text-destructive',
+  )
+}
+
+function getPartType(part: Record<string, unknown>) {
+  return typeof part.type === 'string' ? part.type : ''
 }
 
 function isToolCallLikePart(partType: string) {
-  return partType === 'tool-call' || (partType.startsWith('tool-') && !isToolResultLikePart(partType) && partType !== 'tool-calls')
+  return (
+    partType === 'tool-call' ||
+    (partType.startsWith('tool-') &&
+      partType !== 'tool-result' &&
+      partType !== 'tool-calls')
+  )
 }
 
-function isToolResultLikePart(partType: string) {
-  return partType === 'tool-result' || partType.endsWith('-result')
+function getToolName(part: PartRecord, partType: string) {
+  const explicitToolName = getString(part.toolName)
+
+  if (explicitToolName) {
+    return explicitToolName
+  }
+
+  if (partType.startsWith('tool-') && partType !== 'tool-call') {
+    return partType.slice(5)
+  }
+
+  return 'tool'
 }
 
 function getToolCallStatus(
   part: PartRecord,
   messageStatus: ChatMessage['status'],
 ): ActivityStatus {
-  if (Boolean(part.isError) || messageStatus === 'failed') {
+  const state = getString(part.state)?.toLowerCase()
+
+  if (state) {
+    if (
+      state.includes('error') ||
+      state.includes('failed') ||
+      state.includes('denied')
+    ) {
+      return 'error'
+    }
+
+    if (
+      state.includes('done') ||
+      state.includes('complete') ||
+      state.includes('output-available')
+    ) {
+      return 'complete'
+    }
+
+    if (
+      state.includes('input-available') ||
+      state.includes('running') ||
+      state.includes('started') ||
+      state.includes('in-progress')
+    ) {
+      return 'running'
+    }
+  }
+
+  if (messageStatus === 'failed') {
     return 'error'
   }
 
-  if (part.outputAvailable) {
-    return 'complete'
-  }
-
-  if (messageStatus === 'streaming' || messageStatus === 'pending') {
-    return 'running'
-  }
-
-  return 'pending'
+  return messageStatus === 'streaming' || messageStatus === 'pending'
+    ? 'running'
+    : 'pending'
 }
 
-function getToolName(part: PartRecord, partType: string) {
-  return (
-    getString(part.toolName) ||
-    getString(part.name) ||
-    (partType.startsWith('tool-') ? partType.slice(5) : 'tool')
-  )
-}
-
-function getToolArgs(part: PartRecord) {
-  if (part.args !== undefined) {
-    return part.args
+function getToolDisplayTitle(toolName: string) {
+  if (toolName === 'exa_web_search' || toolName === 'web_search') {
+    return 'Search'
   }
 
-  if (part.input !== undefined) {
-    return part.input
+  if (toolName === 'memory_search') {
+    return 'Memory'
   }
 
-  return undefined
-}
-
-function getToolCallOutput(part: PartRecord) {
-  if (part.output !== undefined) {
-    return part.output
+  if (toolName === 'memory_add') {
+    return 'Save Memory'
   }
 
-  if (part.result !== undefined) {
-    return part.result
+  if (toolName === 'memory_update') {
+    return 'Update Memory'
   }
 
-  return undefined
-}
-
-function summarizeToolArgs(args: unknown) {
-  return summarizeToolValue(args, 88)
-}
-
-function getToolResultOutput(part: PartRecord | ToolResultPart) {
-  if (part.output !== undefined) {
-    return part.output
+  if (toolName === 'memory_delete') {
+    return 'Delete Memory'
   }
 
-  if (part.result !== undefined) {
-    return part.result
-  }
-
-  if ('experimental_content' in part && part.experimental_content !== undefined) {
-    return part.experimental_content
-  }
-
-  return undefined
+  return formatToolName(toolName)
 }
 
 function formatToolName(toolName: string) {
-  const words = toolName
-    .replace(/[-_]+/g, ' ')
+  const normalized = toolName.replace(/^tool-/, '')
+  const words = normalized
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .split(' ')
+    .split(/[_-\s]+/)
     .filter(Boolean)
 
   if (words.length === 0) {
-    return 'Tool Call'
+    return 'Tool'
   }
 
   return words
@@ -550,188 +451,6 @@ function formatToolName(toolName: string) {
     .join(' ')
 }
 
-function summarizeToolValue(value: unknown, maxLength = 88) {
-  if (value == null) {
-    return ''
-  }
-
-  if (isOutputEnvelope(value)) {
-    if (value.type === 'text' || value.type === 'error-text') {
-      return summarizeText(getString(value.value) || '', maxLength)
-    }
-
-    if (value.type === 'json' || value.type === 'error-json') {
-      return summarizeValue(value.value, maxLength)
-    }
-
-    if (value.type === 'content') {
-      const textValue = (Array.isArray(value.value) ? value.value : [])
-        .map((item) => getContentLabel(item))
-        .join(' ')
-      return summarizeText(textValue, maxLength)
-    }
-
-    if (value.type === 'execution-denied') {
-      return summarizeText(
-        getString(value.reason) || 'Execution denied',
-        maxLength,
-      )
-    }
-  }
-
-  return summarizeValue(value, maxLength)
-}
-
-function summarizeValue(value: unknown, maxLength = 88) {
-  if (typeof value === 'string') {
-    return summarizeText(value, maxLength)
-  }
-
-  if (value == null) {
-    return ''
-  }
-
-  if (Array.isArray(value)) {
-    if (value.length === 0) {
-      return ''
-    }
-
-    if (value.every((item) => typeof item === 'string')) {
-      return summarizeText(value.join(', '), maxLength)
-    }
-
-    return `${value.length} item${value.length === 1 ? '' : 's'}`
-  }
-
-  if (isRecord(value)) {
-    const query = getString(value.query)
-    const title = getString(value.title)
-    const message = getString(value.message)
-    const text = getString(value.text)
-    const url = getString(value.url)
-    const resultCount = Array.isArray(value.results)
-      ? value.results.length
-      : null
-
-    if (resultCount !== null && query) {
-      return summarizeText(
-        `${resultCount} result${resultCount === 1 ? '' : 's'} for ${query}`,
-        maxLength,
-      )
-    }
-
-    if (query) {
-      return summarizeText(query, maxLength)
-    }
-
-    if (resultCount !== null) {
-      return `${resultCount} result${resultCount === 1 ? '' : 's'}`
-    }
-
-    if (title) {
-      return summarizeText(title, maxLength)
-    }
-
-    if (message) {
-      return summarizeText(message, maxLength)
-    }
-
-    if (text) {
-      return summarizeText(text, maxLength)
-    }
-
-    if (url) {
-      return summarizeText(url, maxLength)
-    }
-  }
-
-  try {
-    return summarizeText(JSON.stringify(value), maxLength)
-  } catch {
-    return ''
-  }
-}
-
-function summarizeText(value: string, maxLength = 88) {
-  const normalized = value.replace(/\s+/g, ' ').trim()
-
-  if (!normalized) {
-    return ''
-  }
-
-  if (normalized.length <= maxLength) {
-    return normalized
-  }
-
-  return `${normalized.slice(0, maxLength - 1).trimEnd()}...`
-}
-
-function normalizeStructuredValue(value: unknown) {
-  if (isOutputEnvelope(value)) {
-    if ('value' in value) {
-      return value.value
-    }
-
-    if (value.type === 'execution-denied') {
-      return getString(value.reason) || 'Execution denied'
-    }
-  }
-
-  return value
-}
-
-function formatStructuredValue(value: unknown) {
-  if (typeof value === 'string') {
-    return value
-  }
-
-  try {
-    return JSON.stringify(value, null, 2)
-  } catch {
-    return String(value)
-  }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
-}
-
 function getString(value: unknown) {
   return typeof value === 'string' ? value : undefined
-}
-
-function isOutputEnvelope(value: unknown): value is OutputEnvelope {
-  return isRecord(value) && typeof value.type === 'string'
-}
-
-function getContentLabel(item: unknown) {
-  if (!isRecord(item)) {
-    return ''
-  }
-
-  const text = getString(item.text)
-  if (text) {
-    return text
-  }
-
-  const filename = getString(item.filename)
-  if (filename) {
-    return filename
-  }
-
-  const url = getString(item.url)
-  if (url) {
-    return url
-  }
-
-  const mediaType = getString(item.mediaType) || getString(item.mimeType)
-  if (mediaType) {
-    return mediaType
-  }
-
-  if (typeof item.fileId === 'string') {
-    return item.fileId
-  }
-
-  return getString(item.type) || 'item'
 }

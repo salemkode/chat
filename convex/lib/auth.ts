@@ -1,4 +1,12 @@
 import type { UserIdentity } from 'convex/server'
+import type { MutationCtx, QueryCtx } from '../_generated/server'
+
+export type AuthCtx = MutationCtx | QueryCtx
+type WritableAuthCtx = MutationCtx
+
+function canWrite(ctx: AuthCtx): ctx is WritableAuthCtx {
+  return 'insert' in ctx.db && 'patch' in ctx.db
+}
 
 function getIdentityName(identity: UserIdentity) {
   if (identity.name) return identity.name
@@ -9,13 +17,11 @@ function getIdentityName(identity: UserIdentity) {
   return fullName || undefined
 }
 
-export async function getAuthUserId(ctx: any) {
+export async function getAuthUserId(ctx: AuthCtx) {
   const identity = await ctx.auth.getUserIdentity()
   if (identity === null) {
     return null
   }
-  const canWrite =
-    typeof ctx.db.insert === 'function' && typeof ctx.db.patch === 'function'
 
   const tokenIdentifier = identity.tokenIdentifier
   const email = identity.email
@@ -25,20 +31,18 @@ export async function getAuthUserId(ctx: any) {
 
   let user = await ctx.db
     .query('users')
-    .withIndex('by_tokenIdentifier', (q: any) =>
-      q.eq('tokenIdentifier', tokenIdentifier),
-    )
+    .withIndex('by_tokenIdentifier', (q) => q.eq('tokenIdentifier', tokenIdentifier))
     .unique()
 
   if (!user && email) {
     user = await ctx.db
       .query('users')
-      .withIndex('email', (q: any) => q.eq('email', email))
+      .withIndex('email', (q) => q.eq('email', email))
       .unique()
   }
 
   if (!user) {
-    if (!canWrite) {
+    if (!canWrite(ctx)) {
       return null
     }
     return await ctx.db.insert('users', {
@@ -73,7 +77,7 @@ export async function getAuthUserId(ctx: any) {
     patch.phone = phone
   }
 
-  if (canWrite && Object.keys(patch).length > 0) {
+  if (canWrite(ctx) && Object.keys(patch).length > 0) {
     await ctx.db.patch(user._id, patch)
   }
 

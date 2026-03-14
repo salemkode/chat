@@ -10,8 +10,28 @@ import {
   vStreamArgs,
 } from '@convex-dev/agent'
 import { ConvexError } from 'convex/values'
+import { threadMetadataValidator } from './lib/validators'
 
 type AgentThreadId = FunctionArgs<typeof components.agent.threads.getThread>['threadId']
+
+const threadDetailValidator = v.union(
+  v.null(),
+  v.object({
+    _id: v.string(),
+    _creationTime: v.number(),
+    title: v.optional(v.string()),
+    userId: v.optional(v.string()),
+    metadata: v.union(v.null(), threadMetadataValidator),
+    project: v.union(
+      v.null(),
+      v.object({
+        id: v.string(),
+        name: v.string(),
+        description: v.optional(v.string()),
+      }),
+    ),
+  }),
+)
 
 function isInvalidThreadIdError(error: unknown) {
   return (
@@ -36,6 +56,7 @@ export const listThreads = query({
 
 export const deleteThread = mutation({
   args: { threadId: v.string() },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) {
@@ -70,6 +91,7 @@ export const deleteThread = mutation({
     await ctx.runMutation(components.agent.threads.deleteAllForThreadIdAsync, {
       threadId: thread._id,
     })
+    return null
   },
 })
 
@@ -128,6 +150,7 @@ export const listMessages = query({
 
 export const createThread = mutation({
   args: {},
+  returns: v.string(),
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) {
@@ -152,6 +175,7 @@ export const getThread = query({
   args: {
     threadId: v.string(),
   },
+  returns: threadDetailValidator,
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) {
@@ -187,9 +211,23 @@ export const getThread = query({
       .withIndex('by_threadId', (q) => q.eq('threadId', thread._id))
       .first()
 
+    const project =
+      metadata?.projectId ? await ctx.db.get(metadata.projectId) : null
+
     return {
-      ...thread,
-      metadata,
+      _id: thread._id,
+      _creationTime: thread._creationTime,
+      title: thread.title,
+      userId: thread.userId,
+      metadata: metadata ?? null,
+      project:
+        project && project.userId === userId
+          ? {
+              id: project._id.toString(),
+              name: project.name,
+              description: project.description,
+            }
+          : null,
     }
   },
 })
@@ -218,11 +256,24 @@ function sanitizeFailedMessage(error: string | undefined): string {
     return 'The selected model is temporarily rate-limited upstream. Please try again shortly.'
   }
 
+  const accessDeniedModel = extractAccessDeniedModel(normalized)
+  if (accessDeniedModel) {
+    return `Your provider account does not have access to ${accessDeniedModel}. Choose another model or upgrade that provider plan.`
+  }
+
   return normalized
     .replace(/Last error:\s*/gi, '')
     .replace(/Provider returned error/gi, '')
     .replace(/\s+/g, ' ')
     .trim()
+}
+
+function extractAccessDeniedModel(error: string) {
+  const match =
+    /does not yet include access to ([^.,]+?)(?:[.!]|$)/i.exec(error) ||
+    /does not include access to ([^.,]+?)(?:[.!]|$)/i.exec(error)
+
+  return match?.[1]?.trim()
 }
 
 function isRetryableProviderRateLimit(error: string) {

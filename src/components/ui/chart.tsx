@@ -22,6 +22,8 @@ type ChartContextProps = {
   config: ChartConfig
 }
 
+type CSSVariableStyle = React.CSSProperties & Record<`--${string}`, string>
+
 const ChartContext = React.createContext<ChartContextProps | null>(null)
 
 function useChart() {
@@ -87,9 +89,7 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
 ${prefix} [data-chart=${id}] {
 ${colorConfig
   .map(([key, itemConfig]) => {
-    const color =
-      itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
-      itemConfig.color
+    const color = itemConfig.theme?.[theme as keyof typeof THEMES] || itemConfig.color
     return color ? `  --color-${key}: ${color};` : null
   })
   .join('\n')}
@@ -138,7 +138,7 @@ function ChartTooltipContent({
     const itemConfig = getPayloadConfigFromPayload(config, item, key)
     const value =
       !labelKey && typeof label === 'string'
-        ? config[label as keyof typeof config]?.label || label
+        ? config[label]?.label || label
         : itemConfig?.label
 
     if (labelFormatter) {
@@ -214,10 +214,10 @@ function ChartTooltipContent({
                             },
                           )}
                           style={
-                            {
+                            createCSSVariableStyle({
                               '--color-bg': indicatorColor,
                               '--color-border': indicatorColor,
-                            } as React.CSSProperties
+                            })
                           }
                         />
                       )
@@ -314,37 +314,47 @@ function getPayloadConfigFromPayload(
   payload: unknown,
   key: string,
 ) {
-  if (typeof payload !== 'object' || payload === null) {
+  if (!isRecord(payload)) {
     return undefined
   }
 
   const payloadPayload =
     'payload' in payload &&
-    typeof payload.payload === 'object' &&
-    payload.payload !== null
+    isRecord(payload.payload)
       ? payload.payload
       : undefined
 
   let configLabelKey: string = key
 
-  if (
-    key in payload &&
-    typeof payload[key as keyof typeof payload] === 'string'
-  ) {
-    configLabelKey = payload[key as keyof typeof payload] as string
+  if (hasStringKey(payload, key)) {
+    configLabelKey = payload[key]
   } else if (
     payloadPayload &&
-    key in payloadPayload &&
-    typeof payloadPayload[key as keyof typeof payloadPayload] === 'string'
+    hasStringKey(payloadPayload, key)
   ) {
-    configLabelKey = payloadPayload[
-      key as keyof typeof payloadPayload
-    ] as string
+    configLabelKey = payloadPayload[key]
   }
 
-  return configLabelKey in config
-    ? config[configLabelKey]
-    : config[key as keyof typeof config]
+  return config[configLabelKey] ?? config[key]
+}
+
+function createCSSVariableStyle(
+  styles: Record<`--${string}`, string | undefined>,
+): CSSVariableStyle {
+  return Object.fromEntries(
+    Object.entries(styles).filter(([, value]) => value !== undefined),
+  ) as CSSVariableStyle
+}
+
+function hasStringKey(
+  value: Record<string, unknown>,
+  key: string,
+): value is Record<string, string> {
+  return typeof value[key] === 'string'
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 export {

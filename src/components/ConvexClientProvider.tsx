@@ -3,22 +3,17 @@ import { useNavigate } from '@tanstack/react-router'
 import { ConvexQueryCacheProvider } from 'convex-helpers/react/cache'
 import { ConvexProvider, ConvexReactClient } from 'convex/react'
 import { useEffect, type ReactNode } from 'react'
+import { getRequiredEnv, toTypedRouteSearch } from '@/lib/parsers'
 
-const convex = new ConvexReactClient(
-  import.meta.env.VITE_CONVEX_URL as string,
-  {
-    expectAuth: true,
-  },
+const convex = new ConvexReactClient(getRequiredEnv(import.meta.env, 'VITE_CONVEX_URL'), {
+  expectAuth: true,
+})
+const clerkPublishableKey = getRequiredEnv(
+  import.meta.env,
+  'VITE_CLERK_PUBLISHABLE_KEY',
 )
-const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as
-  | string
-  | undefined
 
 export function ConvexClientProvider({ children }: { children: ReactNode }) {
-  if (!clerkPublishableKey) {
-    throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY environment variable')
-  }
-
   return (
     <ClerkWithRouterProvider publishableKey={clerkPublishableKey}>
       {children}
@@ -41,7 +36,7 @@ function ClerkWithRouterProvider({
 
     return navigate({
       to: url.pathname,
-      search: Object.keys(search).length > 0 ? (search as never) : undefined,
+      search: toTypedRouteSearch(search),
       hash: url.hash ? url.hash.slice(1) : undefined,
       replace,
     })

@@ -2,7 +2,9 @@
 
 export {}
 
-const sw = globalThis as unknown as ServiceWorkerGlobalScope
+declare const self: ServiceWorkerGlobalScope
+
+const sw = self
 
 const CACHE_PREFIXES = ['salemkode-chat-', 'workbox-']
 

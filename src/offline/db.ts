@@ -3,6 +3,7 @@ import type {
   OfflineDraftRecord,
   OfflineMessageRecord,
   OfflineModelRecord,
+  OfflineProjectRecord,
   OfflineSessionSnapshot,
   OfflineSettingsRecord,
   OfflineThreadRecord,
@@ -13,16 +14,19 @@ class OfflineDatabase extends Dexie {
   threads!: Table<OfflineThreadRecord, string>
   messages!: Table<OfflineMessageRecord, string>
   models!: Table<OfflineModelRecord, string>
+  projects!: Table<OfflineProjectRecord, string>
   settings!: Table<OfflineSettingsRecord, string>
   drafts!: Table<OfflineDraftRecord, string>
 
   constructor() {
     super('salemkode-chat-offline')
-    this.version(1).stores({
+    this.version(2).stores({
       session: 'id, userId, lastSyncedAt',
-      threads: 'id, updatedAt, lastMessageAt, pinned, deletedAt, version',
+      threads:
+        'id, projectId, updatedAt, lastMessageAt, pinned, deletedAt, version',
       messages: 'id, threadId, updatedAt, deletedAt, version',
       models: 'id, modelId, sortOrder, isFavorite',
+      projects: 'id, updatedAt, threadCount',
       settings: 'id, updatedAt',
       drafts: 'threadId, updatedAt',
     })
@@ -39,6 +43,7 @@ export async function clearOfflineDatabase() {
       offlineDb.threads,
       offlineDb.messages,
       offlineDb.models,
+      offlineDb.projects,
       offlineDb.settings,
       offlineDb.drafts,
     ],
@@ -48,6 +53,7 @@ export async function clearOfflineDatabase() {
         offlineDb.threads.clear(),
         offlineDb.messages.clear(),
         offlineDb.models.clear(),
+        offlineDb.projects.clear(),
         offlineDb.settings.clear(),
         offlineDb.drafts.clear(),
       ])

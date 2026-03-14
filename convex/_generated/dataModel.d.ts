@@ -306,6 +306,30 @@ export type DataModel = {
     searchIndexes: {};
     vectorIndexes: {};
   };
+  modelCollections: {
+    document: {
+      description?: string;
+      modelIds: Array<Id<"models">>;
+      name: string;
+      sortOrder: number;
+      _id: Id<"modelCollections">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "description"
+      | "modelIds"
+      | "name"
+      | "sortOrder";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_sortOrder: ["sortOrder", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
   models: {
     document: {
       capabilities?: Array<string>;
@@ -663,6 +687,8 @@ export type DataModel = {
     document: {
       emoji: string;
       icon?: string;
+      lastLabelUpdateAt: number;
+      projectId?: Id<"projects">;
       sectionId?: Id<"sections">;
       sortOrder: number;
       threadId: string;
@@ -675,6 +701,8 @@ export type DataModel = {
       | "_id"
       | "emoji"
       | "icon"
+      | "lastLabelUpdateAt"
+      | "projectId"
       | "sectionId"
       | "sortOrder"
       | "threadId"
@@ -682,6 +710,7 @@ export type DataModel = {
     indexes: {
       by_id: ["_id"];
       by_creation_time: ["_creationTime"];
+      by_projectId: ["projectId", "_creationTime"];
       by_sectionId: ["sectionId", "_creationTime"];
       by_threadId: ["threadId", "_creationTime"];
       by_userId: ["userId", "_creationTime"];

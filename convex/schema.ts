@@ -122,6 +122,13 @@ export default defineSchema({
     .index('by_enabled', ['isEnabled'])
     .index('by_providerId', ['providerId']),
 
+  modelCollections: defineTable({
+    name: v.string(),
+    description: v.optional(v.string()),
+    sortOrder: v.number(),
+    modelIds: v.array(v.id('models')),
+  }).index('by_sortOrder', ['sortOrder']),
+
   // User's favorite models
   userFavoriteModels: defineTable({
     userId: v.id('users'),
@@ -174,12 +181,15 @@ export default defineSchema({
     threadId: v.string(), // ID from @convex-dev/agent threads table
     emoji: v.string(),
     icon: v.optional(v.string()), // Lucide icon name
+    lastLabelUpdateAt: v.number(),
     sectionId: v.optional(v.id('sections')),
+    projectId: v.optional(v.id('projects')),
     userId: v.id('users'),
     sortOrder: v.number(), // 1 = pinned, 0 = normal
   })
     .index('by_userId', ['userId'])
     .index('by_sectionId', ['sectionId'])
+    .index('by_projectId', ['projectId'])
     .index('by_threadId', ['threadId'])
     .index('by_userId_sortOrder', ['userId', 'sortOrder']),
 

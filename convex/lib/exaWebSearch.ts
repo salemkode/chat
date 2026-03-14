@@ -5,6 +5,19 @@ const EXA_SEARCH_ENDPOINT = 'https://api.exa.ai/search'
 const DEFAULT_NUM_RESULTS = 5
 const MAX_NUM_RESULTS = 10
 const TOOL_TIMEOUT_MS = 15_000
+const exaResponseSchema = z.object({
+  results: z
+    .array(
+      z.object({
+        title: z.string().optional(),
+        url: z.string().optional(),
+        highlights: z.array(z.string()).optional(),
+        publishedDate: z.string().optional(),
+        published_date: z.string().optional(),
+      }),
+    )
+    .optional(),
+})
 
 function clampNumber(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
@@ -105,8 +118,8 @@ export const exaWebSearchTool = createTool({
         }
       }
 
-      const data: any = await response.json()
-      const rawResults: any[] = Array.isArray(data?.results) ? data.results : []
+      const data = exaResponseSchema.parse(await response.json())
+      const rawResults = data.results ?? []
 
       const results = rawResults
         .map((r) => {

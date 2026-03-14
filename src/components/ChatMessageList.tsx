@@ -12,17 +12,19 @@ import { Message } from './Message'
 import { EmptyChatState } from './EmptyChatState'
 
 interface ChatMessageListProps {
+  threadId: string
   messages: FunctionReturnType<typeof api.chat.listMessages>['page']
   isLoading?: boolean
   className?: string
-  modelName?: string
 }
 
+const CHAT_MESSAGE_LIST_WIDTH_CLASS = 'mx-auto w-full max-w-3xl px-2 sm:px-4'
+
 export function ChatMessageList({
+  threadId,
   messages,
   isLoading = false,
   className,
-  modelName,
 }: ChatMessageListProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const shouldAutoScrollRef = useRef(true)
@@ -83,7 +85,7 @@ export function ChatMessageList({
           className,
         )}
       >
-        <div className="container">
+        <div className={CHAT_MESSAGE_LIST_WIDTH_CLASS}>
           <MessageLoadingSkeleton />
           <MessageLoadingSkeleton />
         </div>
@@ -105,7 +107,7 @@ export function ChatMessageList({
       )}
     >
       <div
-        className="relative container"
+        className={cn('relative', CHAT_MESSAGE_LIST_WIDTH_CLASS)}
         style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
       >
         {rowVirtualizer.getVirtualItems().map((virtualRow: VirtualItem) => {
@@ -119,13 +121,31 @@ export function ChatMessageList({
               className="absolute left-0 top-0 w-full pb-4 sm:pb-6"
               style={{ transform: `translateY(${virtualRow.start}px)` }}
             >
-              <Message message={msg} modelName={modelName} />
+              <Message
+                threadId={threadId}
+                message={msg}
+                promptMessageId={findPromptMessageId(messages, virtualRow.index)}
+              />
             </div>
           )
         })}
       </div>
     </div>
   )
+}
+
+function findPromptMessageId(
+  messages: ChatMessageListProps['messages'],
+  assistantIndex: number,
+) {
+  for (let index = assistantIndex - 1; index >= 0; index -= 1) {
+    const message = messages[index]
+    if (message?.role === 'user') {
+      return message.id
+    }
+  }
+
+  return undefined
 }
 
 const AUTO_SCROLL_BOTTOM_THRESHOLD_PX = 120

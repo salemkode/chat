@@ -1,10 +1,15 @@
-// @ts-nocheck
-import { action, mutation, query } from '../_generated/server'
+import {
+  action,
+  mutation,
+  query,
+  type ActionCtx,
+  type QueryCtx,
+} from '../_generated/server'
 import { v, ConvexError } from 'convex/values'
 import { paginationOptsValidator } from 'convex/server'
-import { getAuthUserId } from '../lib/auth'
-import type { Id } from '../_generated/dataModel'
-import { components, internal } from '../_generated/api'
+import { type AuthCtx, getAuthUserId } from '../lib/auth'
+import type { Doc, Id } from '../_generated/dataModel'
+import { api, components, internal } from '../_generated/api'
 import { memoryRag, ensureOpenRouterConfigured } from './memoryRag'
 import {
   buildRagFilterValues,
@@ -18,8 +23,51 @@ import {
   userMemorySourceValidator,
 } from './memoryShared'
 
-async function requireUserId(ctx: any) {
-  const userId = await getAuthUserId(ctx)
+type MemoryQueryCtx = QueryCtx
+type MemoryActionCtx = ActionCtx
+type MemoryReaderCtx = MemoryQueryCtx | MemoryActionCtx
+type UserMemoryDoc = Doc<'userMemories'>
+type ThreadMemoryDoc = Doc<'threadMemories'>
+type ProjectMemoryDoc = Doc<'projectMemories'>
+
+const memoryListItemValidator = v.object({
+  memoryId: v.string(),
+  scope: memoryScopeValidator,
+  title: v.string(),
+  content: v.string(),
+  category: v.optional(v.string()),
+  tags: v.optional(v.array(v.string())),
+  source: v.string(),
+  userId: v.string(),
+  threadId: v.optional(v.string()),
+  projectId: v.optional(v.string()),
+  originThreadId: v.optional(v.string()),
+  originMessageIds: v.optional(v.array(v.string())),
+  createdAt: v.number(),
+  updatedAt: v.number(),
+})
+
+const paginatedMemoryResultValidator = v.object({
+  page: v.array(memoryListItemValidator),
+  isDone: v.boolean(),
+  continueCursor: v.union(v.null(), v.string()),
+  total: v.number(),
+})
+
+const projectListItemValidator = v.object({
+  id: v.string(),
+  name: v.string(),
+  description: v.optional(v.string()),
+  threadIds: v.array(v.string()),
+  createdAt: v.number(),
+  updatedAt: v.number(),
+})
+
+async function requireUserId(ctx: MemoryReaderCtx) {
+  const userId =
+    'db' in ctx
+      ? await getAuthUserId(ctx as AuthCtx)
+      : await ctx.runMutation(api.users.ensureCurrentUser, {})
   if (!userId) {
     throw new ConvexError({
       code: 'UNAUTHORIZED',
@@ -30,7 +78,7 @@ async function requireUserId(ctx: any) {
 }
 
 async function assertThreadOwnership(
-  ctx: any,
+  ctx: MemoryActionCtx,
   args: { threadId: string; userId: Id<'users'> },
 ) {
   const thread = await ctx.runQuery(components.agent.threads.getThread, {
@@ -46,7 +94,7 @@ async function assertThreadOwnership(
 }
 
 async function assertProjectOwnership(
-  ctx: any,
+  ctx: MemoryActionCtx,
   args: { projectId: Id<'projects'>; userId: Id<'users'> },
 ) {
   const project = await ctx.runQuery(
@@ -65,70 +113,68 @@ async function assertProjectOwnership(
 }
 
 async function listUserMemoryDocs(
-  ctx: any,
+  ctx: MemoryQueryCtx,
   userId: Id<'users'>,
 ): Promise<MemoryListItem[]> {
   const memories = await ctx.db
     .query('userMemories')
-    .withIndex('by_user_updated', (q: any) => q.eq('userId', userId))
+    .withIndex('by_user_updated', (q) => q.eq('userId', userId))
     .collect()
 
   return memories
     .sort(
-      (a: any, b: any) =>
+      (a: UserMemoryDoc, b: UserMemoryDoc) =>
         b.updatedAt - a.updatedAt || b._creationTime - a._creationTime,
     )
-    .map((memory: any) => formatMemory('user', memory))
+    .map((memory) => formatMemory('user', memory))
 }
 
 async function listThreadMemoryDocs(
-  ctx: any,
+  ctx: MemoryQueryCtx,
   userId: Id<'users'>,
   threadId?: string,
 ): Promise<MemoryListItem[]> {
   const memories = threadId
     ? await ctx.db
         .query('threadMemories')
-        .withIndex('by_thread_updated', (q: any) => q.eq('threadId', threadId))
+        .withIndex('by_thread_updated', (q) => q.eq('threadId', threadId))
         .collect()
     : await ctx.db
         .query('threadMemories')
-        .withIndex('by_user', (q: any) => q.eq('userId', userId))
+        .withIndex('by_user', (q) => q.eq('userId', userId))
         .collect()
 
   return memories
-    .filter((memory: any) => memory.userId === userId)
+    .filter((memory) => memory.userId === userId)
     .sort(
-      (a: any, b: any) =>
+      (a: ThreadMemoryDoc, b: ThreadMemoryDoc) =>
         b.updatedAt - a.updatedAt || b._creationTime - a._creationTime,
     )
-    .map((memory: any) => formatMemory('thread', memory))
+    .map((memory) => formatMemory('thread', memory))
 }
 
 async function listProjectMemoryDocs(
-  ctx: any,
+  ctx: MemoryQueryCtx,
   userId: Id<'users'>,
   projectId?: Id<'projects'>,
 ): Promise<MemoryListItem[]> {
   const memories = projectId
     ? await ctx.db
         .query('projectMemories')
-        .withIndex('by_project_updated', (q: any) =>
-          q.eq('projectId', projectId),
-        )
+        .withIndex('by_project_updated', (q) => q.eq('projectId', projectId))
         .collect()
     : await ctx.db
         .query('projectMemories')
-        .withIndex('by_user', (q: any) => q.eq('userId', userId))
+        .withIndex('by_user', (q) => q.eq('userId', userId))
         .collect()
 
   return memories
-    .filter((memory: any) => memory.userId === userId)
+    .filter((memory) => memory.userId === userId)
     .sort(
-      (a: any, b: any) =>
+      (a: ProjectMemoryDoc, b: ProjectMemoryDoc) =>
         b.updatedAt - a.updatedAt || b._creationTime - a._creationTime,
     )
-    .map((memory: any) => formatMemory('project', memory))
+    .map((memory) => formatMemory('project', memory))
 }
 
 export const createUserMemory = action({
@@ -138,6 +184,7 @@ export const createUserMemory = action({
     category: v.optional(v.string()),
     tags: v.optional(v.array(v.string())),
   },
+  returns: memoryListItemValidator,
   handler: async (ctx, args) => {
     ensureOpenRouterConfigured()
     const userId = await requireUserId(ctx)
@@ -165,6 +212,7 @@ export const createThreadMemory = action({
     category: v.optional(v.string()),
     tags: v.optional(v.array(v.string())),
   },
+  returns: memoryListItemValidator,
   handler: async (ctx, args) => {
     ensureOpenRouterConfigured()
     const userId = await requireUserId(ctx)
@@ -194,6 +242,7 @@ export const createProjectMemory = action({
     category: v.optional(v.string()),
     tags: v.optional(v.array(v.string())),
   },
+  returns: memoryListItemValidator,
   handler: async (ctx, args) => {
     ensureOpenRouterConfigured()
     const userId = await requireUserId(ctx)
@@ -223,6 +272,7 @@ export const listUserMemories = query({
     tags: v.optional(v.array(v.string())),
     query: v.optional(v.string()),
   },
+  returns: paginatedMemoryResultValidator,
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx)
     const memories = await listUserMemoryDocs(ctx, userId)
@@ -251,6 +301,7 @@ export const listThreadMemories = query({
     tags: v.optional(v.array(v.string())),
     query: v.optional(v.string()),
   },
+  returns: paginatedMemoryResultValidator,
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx)
 
@@ -292,6 +343,7 @@ export const listProjectMemories = query({
     tags: v.optional(v.array(v.string())),
     query: v.optional(v.string()),
   },
+  returns: paginatedMemoryResultValidator,
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx)
 
@@ -333,6 +385,7 @@ export const updateMemory = action({
     category: v.optional(v.string()),
     tags: v.optional(v.array(v.string())),
   },
+  returns: memoryListItemValidator,
   handler: async (ctx, args) => {
     ensureOpenRouterConfigured()
     const userId = await requireUserId(ctx)
@@ -354,6 +407,7 @@ export const deleteMemory = action({
     threadMemoryId: v.optional(v.id('threadMemories')),
     projectMemoryId: v.optional(v.id('projectMemories')),
   },
+  returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx)
 
@@ -372,6 +426,7 @@ export const createProject = mutation({
     name: v.string(),
     description: v.optional(v.string()),
   },
+  returns: v.object({ projectId: v.string() }),
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx)
 
@@ -389,6 +444,8 @@ export const createProject = mutation({
 })
 
 export const listProjects = query({
+  args: {},
+  returns: v.array(projectListItemValidator),
   handler: async (ctx) => {
     const userId = await requireUserId(ctx)
 
@@ -413,6 +470,19 @@ export const getProjectById = query({
   args: {
     projectId: v.id('projects'),
   },
+  returns: v.union(
+    v.null(),
+    v.object({
+      _id: v.id('projects'),
+      _creationTime: v.number(),
+      name: v.string(),
+      description: v.optional(v.string()),
+      userId: v.id('users'),
+      threadIds: v.optional(v.array(v.string())),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    }),
+  ),
   handler: async (ctx, args) => {
     const project = await ctx.db.get(args.projectId)
     return project ?? null
@@ -424,6 +494,7 @@ export const addThreadToProject = mutation({
     projectId: v.id('projects'),
     threadId: v.string(),
   },
+  returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx)
     const project = await ctx.db.get(args.projectId)
@@ -457,6 +528,29 @@ export const searchMemory = action({
     minScore: v.optional(v.number()),
     categories: v.optional(v.array(v.string())),
   },
+  returns: v.object({
+    text: v.string(),
+    hits: v.array(
+      v.object({
+        memoryId: v.string(),
+        scope: memoryScopeValidator,
+        title: v.string(),
+        content: v.string(),
+        category: v.optional(v.string()),
+        tags: v.optional(v.array(v.string())),
+        source: v.string(),
+        userId: v.string(),
+        threadId: v.optional(v.string()),
+        projectId: v.optional(v.string()),
+        originThreadId: v.optional(v.string()),
+        originMessageIds: v.optional(v.array(v.string())),
+        createdAt: v.number(),
+        updatedAt: v.number(),
+        score: v.optional(v.number()),
+        rank: v.number(),
+      }),
+    ),
+  }),
   handler: async (ctx, args) => {
     ensureOpenRouterConfigured()
     const userId = await requireUserId(ctx)
@@ -465,10 +559,7 @@ export const searchMemory = action({
 
     if (!args.query.trim()) {
       return {
-        results: [],
         text: '',
-        entries: [],
-        usage: undefined,
         hits: [],
       }
     }
@@ -638,11 +729,8 @@ export const searchMemory = action({
       .slice(0, maxResults)
 
     return {
-      results: rawSearch.results ?? [],
       text: rawSearch.text ?? '',
-      entries,
-      usage: rawSearch.usage,
-      hits,
+      hits: hits.map(({ metadata: _metadata, ...hit }) => hit),
     }
   },
 })

@@ -4,24 +4,37 @@ import {
   useNavigate,
   useParams,
 } from '@tanstack/react-router'
+import type { Id } from 'convex/_generated/dataModel'
 import { Loader2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { AIPromptInput } from '@/components/ai-prompt-input'
 import { AppSidebar } from '@/components/app-sidebar'
 import { AuthRedirect } from '@/components/auth-redirect'
+import {
+  ChatModelProvider,
+  useChatModel,
+} from '@/components/chat-model-context'
+import {
+  readPendingNewChatProjectId,
+  writePendingNewChatProjectId,
+} from '@/lib/project-selection'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import {
   useCachedSessionStatus,
   useDraft,
   useModels,
+  useProjects,
   useSendMessage,
+  useThread,
 } from '@/hooks/use-chat-data'
 
 export const Route = createFileRoute('/_layout')({
   component: ChatLayout,
 })
 
-const STORAGE_KEY = 'selected-model-id'
+function toModelDocId(value?: string): Id<'models'> | undefined {
+  return value as Id<'models'> | undefined
+}
 
 function ChatLayout() {
   const { isAuthenticatedOrOffline, isLoading, isOfflineReady } =
@@ -64,15 +77,17 @@ function AuthenticatedChatLayout() {
     <SidebarProvider className="h-screen">
       <AppSidebar selectedThreadId={threadId ?? null} />
 
-      <SidebarInset className="relative">
-        <Outlet />
+      <ChatModelProvider>
+        <SidebarInset className="relative">
+          <Outlet />
 
-        <div className="absolute bottom-0 left-0 right-0 z-20">
-          <div className="w-full max-w-3xl mx-auto px-2 sm:px-4">
-            <ChatComposer threadId={threadId} />
+          <div className="absolute bottom-0 left-0 right-0 z-20">
+            <div className="w-full max-w-3xl mx-auto px-2 sm:px-4">
+              <ChatComposer threadId={threadId} />
+            </div>
           </div>
-        </div>
-      </SidebarInset>
+        </SidebarInset>
+      </ChatModelProvider>
     </SidebarProvider>
   )
 }
@@ -80,30 +95,24 @@ function AuthenticatedChatLayout() {
 function ChatComposer({ threadId }: { threadId?: string }) {
   const navigate = useNavigate()
   const { models } = useModels()
+  const { projects } = useProjects()
   const { send, disabledReason } = useSendMessage()
+  const thread = useThread(threadId)
   const draftKey = threadId || 'new'
   const { draft, setDraft } = useDraft(draftKey)
-  const [selectedModelId, setSelectedModelId] = useState<string | undefined>(
+  const { selectedModelId, setSelectedModelId } = useChatModel()
+  const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>(
     undefined,
   )
 
   useEffect(() => {
-    const storedModel =
-      typeof window !== 'undefined'
-        ? localStorage.getItem(STORAGE_KEY) || undefined
-        : undefined
-    if (storedModel) {
-      setSelectedModelId(storedModel)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (selectedModelId || models.length === 0) {
+    if (threadId) {
+      setSelectedProjectId(thread?.projectId)
       return
     }
 
-    setSelectedModelId(models[0]?.modelId)
-  }, [models, selectedModelId])
+    setSelectedProjectId(readPendingNewChatProjectId())
+  }, [thread?.projectId, threadId])
 
   const selectedModelDocId = useMemo(
     () =>
@@ -116,14 +125,20 @@ function ChatComposer({ threadId }: { threadId?: string }) {
 
   async function handleSendMessage(
     text: string,
-    opts: { searchEnabled: boolean },
+    opts: { searchEnabled: boolean; projectId?: string; attachments: File[] },
   ) {
     const result = await send({
       text,
       threadId,
-      modelDocId: selectedModelDocId,
+      modelDocId: toModelDocId(selectedModelDocId),
+      projectId: opts.projectId as Id<'projects'> | undefined,
       searchEnabled: opts.searchEnabled,
+      attachments: opts.attachments,
     })
+
+    if (!threadId) {
+      writePendingNewChatProjectId(undefined)
+    }
 
     if (result.threadId && result.threadId !== threadId) {
       await navigate({ to: '/$chatId', params: { chatId: result.threadId } })
@@ -141,13 +156,43 @@ function ChatComposer({ threadId }: { threadId?: string }) {
           ? 'Offline mode is read-only. Cached chats stay available until you reconnect.'
           : undefined
       }
-      selectedModel={selectedModelId}
-      onModelChange={(modelId) => {
-        setSelectedModelId(modelId)
-        if (typeof window !== 'undefined') {
-          localStorage.setItem(STORAGE_KEY, modelId)
+      projects={projects}
+      selectedProjectId={selectedProjectId}
+      onProjectChange={(nextProjectId) => {
+        if (!threadId) {
+          setSelectedProjectId(nextProjectId)
+          writePendingNewChatProjectId(nextProjectId)
+          return
         }
+
+        if (!nextProjectId && thread?.projectId) {
+          return
+        }
+
+        if (
+          thread?.projectId &&
+          nextProjectId &&
+          thread.projectId !== nextProjectId
+        ) {
+          const nextProjectName =
+            projects.find(
+              (project: (typeof projects)[number]) => project.id === nextProjectId,
+            )?.name ||
+            'the selected project'
+
+          if (
+            !window.confirm(
+              `Move this chat from ${thread.projectName || 'its current project'} to ${nextProjectName}?`,
+            )
+          ) {
+            return
+          }
+        }
+
+        setSelectedProjectId(nextProjectId)
       }}
+      selectedModel={selectedModelId}
+      onModelChange={setSelectedModelId}
     />
   )
 }

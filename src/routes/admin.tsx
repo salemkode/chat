@@ -38,7 +38,11 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from '@/components/ui/chart'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
@@ -72,6 +76,14 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
 import { ScrollArea } from '@/components/ui/scroll-area'
 
 export const Route = createFileRoute('/admin')({
@@ -79,9 +91,12 @@ export const Route = createFileRoute('/admin')({
 })
 
 type DashboardData = FunctionReturnType<typeof api.admin.getDashboardData>
-type ProviderCatalogResult = FunctionReturnType<typeof api.admin.inspectProviderCatalog>
+type ProviderCatalogResult = FunctionReturnType<
+  typeof api.admin.inspectProviderCatalog
+>
 type AdminProvider = DashboardData['providers'][number]
 type AdminModel = DashboardData['models'][number]
+type AdminModelCollection = DashboardData['collections'][number]
 type ProviderType =
   | 'openrouter'
   | 'openai'
@@ -111,26 +126,90 @@ const PROVIDER_TYPES: Array<{
   label: string
   defaultBaseURL?: string
 }> = [
-  { value: 'openrouter', label: 'OpenRouter', defaultBaseURL: 'https://openrouter.ai/api/v1' },
-  { value: 'openai', label: 'OpenAI', defaultBaseURL: 'https://api.openai.com/v1' },
-  { value: 'anthropic', label: 'Anthropic', defaultBaseURL: 'https://api.anthropic.com/v1' },
-  { value: 'google', label: 'Google AI Studio', defaultBaseURL: 'https://generativelanguage.googleapis.com/v1beta' },
+  {
+    value: 'openrouter',
+    label: 'OpenRouter',
+    defaultBaseURL: 'https://openrouter.ai/api/v1',
+  },
+  {
+    value: 'openai',
+    label: 'OpenAI',
+    defaultBaseURL: 'https://api.openai.com/v1',
+  },
+  {
+    value: 'anthropic',
+    label: 'Anthropic',
+    defaultBaseURL: 'https://api.anthropic.com/v1',
+  },
+  {
+    value: 'google',
+    label: 'Google AI Studio',
+    defaultBaseURL: 'https://generativelanguage.googleapis.com/v1beta',
+  },
   { value: 'azure', label: 'Azure OpenAI' },
-  { value: 'groq', label: 'Groq', defaultBaseURL: 'https://api.groq.com/openai/v1' },
-  { value: 'deepseek', label: 'DeepSeek', defaultBaseURL: 'https://api.deepseek.com' },
+  {
+    value: 'groq',
+    label: 'Groq',
+    defaultBaseURL: 'https://api.groq.com/openai/v1',
+  },
+  {
+    value: 'deepseek',
+    label: 'DeepSeek',
+    defaultBaseURL: 'https://api.deepseek.com',
+  },
   { value: 'xai', label: 'xAI', defaultBaseURL: 'https://api.x.ai/v1' },
-  { value: 'cerebras', label: 'Cerebras', defaultBaseURL: 'https://api.cerebras.ai/v1' },
+  {
+    value: 'cerebras',
+    label: 'Cerebras',
+    defaultBaseURL: 'https://api.cerebras.ai/v1',
+  },
   { value: 'openai-compatible', label: 'OpenAI Compatible' },
-  { value: 'opencode', label: 'OpenCode', defaultBaseURL: 'https://api.opencode.ai/v1' },
-  { value: 'mistral', label: 'Mistral', defaultBaseURL: 'https://api.mistral.ai/v1' },
-  { value: 'cohere', label: 'Cohere', defaultBaseURL: 'https://api.cohere.ai/v1' },
-  { value: 'perplexity', label: 'Perplexity', defaultBaseURL: 'https://api.perplexity.ai' },
-  { value: 'fireworks', label: 'Fireworks', defaultBaseURL: 'https://api.fireworks.ai/inference/v1' },
-  { value: 'together', label: 'Together', defaultBaseURL: 'https://api.together.xyz/v1' },
+  {
+    value: 'opencode',
+    label: 'OpenCode',
+    defaultBaseURL: 'https://api.opencode.ai/v1',
+  },
+  {
+    value: 'mistral',
+    label: 'Mistral',
+    defaultBaseURL: 'https://api.mistral.ai/v1',
+  },
+  {
+    value: 'cohere',
+    label: 'Cohere',
+    defaultBaseURL: 'https://api.cohere.ai/v1',
+  },
+  {
+    value: 'perplexity',
+    label: 'Perplexity',
+    defaultBaseURL: 'https://api.perplexity.ai',
+  },
+  {
+    value: 'fireworks',
+    label: 'Fireworks',
+    defaultBaseURL: 'https://api.fireworks.ai/inference/v1',
+  },
+  {
+    value: 'together',
+    label: 'Together',
+    defaultBaseURL: 'https://api.together.xyz/v1',
+  },
   { value: 'replicate', label: 'Replicate' },
-  { value: 'moonshot', label: 'Moonshot', defaultBaseURL: 'https://api.moonshot.cn/v1' },
-  { value: 'qwen', label: 'Qwen', defaultBaseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1' },
-  { value: 'stepfun', label: 'StepFun', defaultBaseURL: 'https://api.stepfun.com/v1' },
+  {
+    value: 'moonshot',
+    label: 'Moonshot',
+    defaultBaseURL: 'https://api.moonshot.cn/v1',
+  },
+  {
+    value: 'qwen',
+    label: 'Qwen',
+    defaultBaseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+  },
+  {
+    value: 'stepfun',
+    label: 'StepFun',
+    defaultBaseURL: 'https://api.stepfun.com/v1',
+  },
 ] as const
 
 const usageChartConfig = {
@@ -180,6 +259,13 @@ interface ModelFormData {
   rateLimit?: RateLimitPolicy
 }
 
+interface ModelCollectionFormData {
+  name: string
+  description: string
+  sortOrder: number
+  modelIds: string[]
+}
+
 type StateUpdate<T> = Partial<T> | ((state: T) => T)
 
 type AdminSessionState = {
@@ -200,11 +286,18 @@ type ModelDialogState = {
   form: ModelFormData
 }
 
+type ModelCollectionDialogState = {
+  open: boolean
+  editingCollection: AdminModelCollection | null
+  form: ModelCollectionFormData
+}
+
 type DiscoveryState = {
   activeProviderId?: string
   result: ProviderCatalogResult | null
   discoveringProviderId?: string
   isImporting: boolean
+  selectedModelIds: string[]
 }
 
 type SettingsState = {
@@ -213,7 +306,10 @@ type SettingsState = {
 }
 
 function defaultBaseURL(providerType: ProviderType) {
-  return PROVIDER_TYPES.find((provider) => provider.value === providerType)?.defaultBaseURL ?? ''
+  return (
+    PROVIDER_TYPES.find((provider) => provider.value === providerType)
+      ?.defaultBaseURL ?? ''
+  )
 }
 
 function createProviderForm(sortOrder = 0): ProviderFormData {
@@ -256,6 +352,15 @@ function createModelForm(providerId = '', sortOrder = 0): ModelFormData {
   }
 }
 
+function createModelCollectionForm(sortOrder = 0): ModelCollectionFormData {
+  return {
+    name: '',
+    description: '',
+    sortOrder,
+    modelIds: [],
+  }
+}
+
 const initialAdminSessionState: AdminSessionState = {
   initializedUserId: null,
 }
@@ -274,11 +379,18 @@ const initialModelDialogState: ModelDialogState = {
   form: createModelForm(),
 }
 
+const initialModelCollectionDialogState: ModelCollectionDialogState = {
+  open: false,
+  editingCollection: null,
+  form: createModelCollectionForm(),
+}
+
 const initialDiscoveryState: DiscoveryState = {
   activeProviderId: undefined,
   result: null,
   discoveringProviderId: undefined,
   isImporting: false,
+  selectedModelIds: [],
 }
 
 const initialSettingsState: SettingsState = {
@@ -320,7 +432,10 @@ function getParsedJsonRecord(text: string, label: string) {
   } catch (error) {
     return {
       value: undefined,
-      error: error instanceof Error ? error.message : `${label} must be valid JSON object text.`,
+      error:
+        error instanceof Error
+          ? error.message
+          : `${label} must be valid JSON object text.`,
     }
   }
 }
@@ -358,10 +473,26 @@ function formatModelModalities(modalities?: {
   input?: string[]
   output?: string[]
 }) {
-  const values = [...(modalities?.input ?? []), ...(modalities?.output ?? [])]
-    .filter(Boolean)
+  const values = [
+    ...(modalities?.input ?? []),
+    ...(modalities?.output ?? []),
+  ].filter(Boolean)
 
   return values.length > 0 ? values.join(', ') : 'n/a'
+}
+
+function getCapabilitiesTextFromModalities(modalities?: {
+  input?: string[]
+  output?: string[]
+}) {
+  const capabilities = [
+    ...(modalities?.input ?? []),
+    ...(modalities?.output ?? []),
+  ]
+    .map((value) => value.trim().toLowerCase())
+    .filter((value) => value.length > 0 && value !== 'text')
+
+  return [...new Set(capabilities)].join(', ')
 }
 
 function getProviderName(
@@ -369,8 +500,8 @@ function getProviderName(
   providerId: string,
 ) {
   return (
-    providers?.find((provider: AdminProvider) => provider._id === providerId)?.name ??
-    'Unknown Provider'
+    providers?.find((provider: AdminProvider) => provider._id === providerId)
+      ?.name ?? 'Unknown Provider'
   )
 }
 
@@ -416,7 +547,7 @@ function AdminBackdrop() {
 }
 
 function AdminPage() {
-  "use no memo"
+  'use no memo'
 
   const navigate = useNavigate()
   const { isLoaded, isSignedIn, userId } = useAuth()
@@ -435,6 +566,11 @@ function AdminPage() {
     mergeReducer<ModelDialogState>,
     initialModelDialogState,
   )
+  const [modelCollectionDialogState, updateModelCollectionDialogState] =
+    useReducer(
+      mergeReducer<ModelCollectionDialogState>,
+      initialModelCollectionDialogState,
+    )
   const [discoveryState, updateDiscoveryState] = useReducer(
     mergeReducer<DiscoveryState>,
     initialDiscoveryState,
@@ -446,28 +582,36 @@ function AdminPage() {
   const initializedUserId = sessionState.initializedUserId
   const providerDialogOpen = providerDialogState.open
   const modelDialogOpen = modelDialogState.open
+  const modelCollectionDialogOpen = modelCollectionDialogState.open
   const editingProvider = providerDialogState.editingProvider
   const editingModel = modelDialogState.editingModel
+  const editingCollection = modelCollectionDialogState.editingCollection
   const providerIconPreviewUrl = providerDialogState.iconPreviewUrl
   const modelIconPreviewUrl = modelDialogState.iconPreviewUrl
   const activeDiscoveryProviderId = discoveryState.activeProviderId
   const discoveryResult = discoveryState.result
   const discoveringProviderId = discoveryState.discoveringProviderId
   const isImportingDiscovery = discoveryState.isImporting
+  const selectedDiscoveryModelIds = discoveryState.selectedModelIds
   const isSavingSettings = settingsState.isSavingSettings
   const providerForm = providerDialogState.form
   const modelForm = modelDialogState.form
+  const collectionForm = modelCollectionDialogState.form
   const globalRateLimitDraft = settingsState.globalRateLimitDraft
   const setInitializedUserId = (value: string | null) =>
     updateSessionState({ initializedUserId: value })
   const setProviderDialogOpen = (open: boolean) =>
     updateProviderDialogState({ open })
-  const setModelDialogOpen = (open: boolean) =>
-    updateModelDialogState({ open })
+  const setModelDialogOpen = (open: boolean) => updateModelDialogState({ open })
+  const setModelCollectionDialogOpen = (open: boolean) =>
+    updateModelCollectionDialogState({ open })
   const setEditingProvider = (provider: Doc<'providers'> | null) =>
     updateProviderDialogState({ editingProvider: provider })
   const setEditingModel = (model: Doc<'models'> | null) =>
     updateModelDialogState({ editingModel: model })
+  const setEditingCollection = (
+    editingCollection: AdminModelCollection | null,
+  ) => updateModelCollectionDialogState({ editingCollection })
   const setProviderIconPreviewUrl = (iconPreviewUrl: string | undefined) =>
     updateProviderDialogState({ iconPreviewUrl })
   const setModelIconPreviewUrl = (iconPreviewUrl: string | undefined) =>
@@ -476,10 +620,13 @@ function AdminPage() {
     updateDiscoveryState({ activeProviderId })
   const setDiscoveryResult = (result: ProviderCatalogResult | null) =>
     updateDiscoveryState({ result })
-  const setDiscoveringProviderId = (discoveringProviderId: string | undefined) =>
-    updateDiscoveryState({ discoveringProviderId })
+  const setDiscoveringProviderId = (
+    discoveringProviderId: string | undefined,
+  ) => updateDiscoveryState({ discoveringProviderId })
   const setIsImportingDiscovery = (isImporting: boolean) =>
     updateDiscoveryState({ isImporting })
+  const setSelectedDiscoveryModelIds = (selectedModelIds: string[]) =>
+    updateDiscoveryState({ selectedModelIds })
   const setIsSavingSettings = (value: boolean) =>
     updateSettingsState({ isSavingSettings: value })
   const setProviderForm = (update: StateUpdate<ProviderFormData>) =>
@@ -498,8 +645,17 @@ function AdminPage() {
           ? update(current.form)
           : { ...current.form, ...update },
     }))
-  const setGlobalRateLimit = (globalRateLimitDraft: RateLimitPolicy | undefined) =>
-    updateSettingsState({ globalRateLimitDraft })
+  const setCollectionForm = (update: StateUpdate<ModelCollectionFormData>) =>
+    updateModelCollectionDialogState((current) => ({
+      ...current,
+      form:
+        typeof update === 'function'
+          ? update(current.form)
+          : { ...current.form, ...update },
+    }))
+  const setGlobalRateLimit = (
+    globalRateLimitDraft: RateLimitPolicy | undefined,
+  ) => updateSettingsState({ globalRateLimitDraft })
   const isUserReady = isAuthenticated ? initializedUserId === userId : false
 
   const ids = {
@@ -511,6 +667,8 @@ function AdminPage() {
     modelDisplayName: useId(),
     modelProvider: useId(),
     modelSortOrder: useId(),
+    collectionName: useId(),
+    collectionSortOrder: useId(),
   }
 
   const isAdmin = useQuery(
@@ -532,6 +690,9 @@ function AdminPage() {
   const updateModel = useMutation(api.admin.updateModel)
   const deleteModel = useMutation(api.admin.deleteModel)
   const toggleModelEnabled = useMutation(api.admin.toggleModelEnabled)
+  const addModelCollection = useMutation(api.admin.addModelCollection)
+  const updateModelCollection = useMutation(api.admin.updateModelCollection)
+  const deleteModelCollection = useMutation(api.admin.deleteModelCollection)
   const updateAdminSettings = useMutation(api.admin.updateAdminSettings)
   const generateUploadUrl = useMutation(api.admin.generateUploadUrl)
 
@@ -558,6 +719,7 @@ function AdminPage() {
 
   const providers: DashboardData['providers'] = dashboard?.providers ?? []
   const models: DashboardData['models'] = dashboard?.models ?? []
+  const collections: DashboardData['collections'] = dashboard?.collections ?? []
   const users: DashboardData['users'] = dashboard?.users ?? []
   const summary = dashboard?.summary
   const globalRateLimit =
@@ -566,6 +728,60 @@ function AdminPage() {
   const defaultProviderId = providers[0]?._id ?? ''
   const nextProviderSortOrder = providers.length
   const nextModelSortOrder = models.length
+  const nextCollectionSortOrder = collections.length
+  const selectedModelProvider =
+    providers.find(
+      (provider: AdminProvider) => provider._id === modelForm.providerId,
+    ) ?? null
+  const hasDiscoveryForSelectedProvider =
+    discoveryResult?.ok && activeDiscoveryProviderId === modelForm.providerId
+  const discoveredModelsForSelectedProvider = useMemo(() => {
+    if (!hasDiscoveryForSelectedProvider || !discoveryResult) {
+      return []
+    }
+
+    const existingModelIds = new Set(
+      models
+        .filter(
+          (model: AdminModel) => model.providerId === modelForm.providerId,
+        )
+        .map((model: AdminModel) => model.modelId),
+    )
+
+    return discoveryResult.models.filter(
+      (model) => !existingModelIds.has(model.modelId),
+    )
+  }, [
+    discoveryResult,
+    hasDiscoveryForSelectedProvider,
+    modelForm.providerId,
+    models,
+  ])
+  const discoveredModelCountForSelectedProvider =
+    hasDiscoveryForSelectedProvider ? (discoveryResult?.modelCount ?? 0) : 0
+  const existingDiscoveredModelIds = useMemo(
+    () =>
+      new Set(
+        models
+          .filter(
+            (model: AdminModel) =>
+              !!activeDiscoveryProviderId &&
+              model.providerId === activeDiscoveryProviderId,
+          )
+          .map((model: AdminModel) => model.modelId),
+      ),
+    [activeDiscoveryProviderId, models],
+  )
+  const selectedDiscoveredModels = useMemo(() => {
+    if (!discoveryResult?.ok) {
+      return []
+    }
+
+    const selectedIds = new Set(selectedDiscoveryModelIds)
+    return discoveryResult.models.filter((model) =>
+      selectedIds.has(model.modelId),
+    )
+  }, [discoveryResult, selectedDiscoveryModelIds])
 
   const openProviderDialog = (provider?: AdminProvider) => {
     if (provider) {
@@ -575,7 +791,9 @@ function AdminPage() {
         name: provider.name,
         providerType: provider.providerType as ProviderType,
         apiKey: provider.apiKey,
-        baseURL: provider.baseURL ?? defaultBaseURL(provider.providerType as ProviderType),
+        baseURL:
+          provider.baseURL ??
+          defaultBaseURL(provider.providerType as ProviderType),
         description: provider.description ?? '',
         isEnabled: provider.isEnabled,
         sortOrder: provider.sortOrder,
@@ -615,7 +833,9 @@ function AdminPage() {
         capabilitiesText: model.capabilities?.join(', ') ?? '',
         ownedBy: model.ownedBy ?? '',
         contextWindow: model.contextWindow ? String(model.contextWindow) : '',
-        maxOutputTokens: model.maxOutputTokens ? String(model.maxOutputTokens) : '',
+        maxOutputTokens: model.maxOutputTokens
+          ? String(model.maxOutputTokens)
+          : '',
         rateLimit: model.rateLimit as RateLimitPolicy | undefined,
       })
     } else {
@@ -625,6 +845,61 @@ function AdminPage() {
     }
 
     setModelDialogOpen(true)
+  }
+
+  const openCollectionDialog = (collection?: AdminModelCollection) => {
+    if (collection) {
+      setEditingCollection(collection)
+      setCollectionForm({
+        name: collection.name,
+        description: collection.description ?? '',
+        sortOrder: collection.sortOrder,
+        modelIds: collection.modelIds,
+      })
+    } else {
+      setEditingCollection(null)
+      setCollectionForm(createModelCollectionForm(nextCollectionSortOrder))
+    }
+
+    setModelCollectionDialogOpen(true)
+  }
+
+  const applyDiscoveredModelToForm = (
+    discoveredModel: ProviderCatalogResult['models'][number],
+  ) => {
+    const providerId = modelForm.providerId || defaultProviderId
+    const capabilitiesText = getCapabilitiesTextFromModalities(
+      discoveredModel.modalities,
+    )
+
+    setModelIconPreviewUrl(undefined)
+    setModelForm((current) => ({
+      ...createModelForm(providerId, current.sortOrder || nextModelSortOrder),
+      providerId,
+      sortOrder: current.sortOrder || nextModelSortOrder,
+      modelId: discoveredModel.modelId,
+      displayName: discoveredModel.displayName,
+      description: discoveredModel.description ?? '',
+      ownedBy: discoveredModel.ownedBy ?? '',
+      contextWindow: discoveredModel.contextWindow
+        ? String(discoveredModel.contextWindow)
+        : '',
+      maxOutputTokens: discoveredModel.maxOutputTokens
+        ? String(discoveredModel.maxOutputTokens)
+        : '',
+      capabilitiesText,
+    }))
+  }
+
+  const resetModelFormToCustom = () => {
+    const providerId = modelForm.providerId || defaultProviderId
+
+    setModelIconPreviewUrl(undefined)
+    setModelForm((current) => ({
+      ...createModelForm(providerId, current.sortOrder || nextModelSortOrder),
+      providerId,
+      sortOrder: current.sortOrder || nextModelSortOrder,
+    }))
   }
 
   const uploadIcon = async (file: File) => {
@@ -661,7 +936,10 @@ function AdminPage() {
   }
 
   const handleSaveProvider = () => {
-    const headersResult = getParsedJsonRecord(providerForm.headersJson, 'Headers')
+    const headersResult = getParsedJsonRecord(
+      providerForm.headersJson,
+      'Headers',
+    )
     if (headersResult.error) {
       toast.error(headersResult.error)
       return
@@ -695,7 +973,9 @@ function AdminPage() {
         providerForm.iconType === 'upload'
           ? (providerForm.iconId as Id<'_storage'> | undefined)
           : undefined,
-      rateLimit: providerForm.rateLimit?.enabled ? providerForm.rateLimit : undefined,
+      rateLimit: providerForm.rateLimit?.enabled
+        ? providerForm.rateLimit
+        : undefined,
       config:
         providerForm.organization ||
         providerForm.project ||
@@ -723,7 +1003,9 @@ function AdminPage() {
         setProviderIconPreviewUrl(undefined)
       })
       .catch((error) => {
-        toast.error(error instanceof Error ? error.message : 'Failed to save provider')
+        toast.error(
+          error instanceof Error ? error.message : 'Failed to save provider',
+        )
       })
   }
 
@@ -751,7 +1033,9 @@ function AdminPage() {
           : undefined,
       capabilities: capabilities.length > 0 ? capabilities : undefined,
       ownedBy: modelForm.ownedBy.trim() || undefined,
-      contextWindow: modelForm.contextWindow ? Number(modelForm.contextWindow) : undefined,
+      contextWindow: modelForm.contextWindow
+        ? Number(modelForm.contextWindow)
+        : undefined,
       maxOutputTokens: modelForm.maxOutputTokens
         ? Number(modelForm.maxOutputTokens)
         : undefined,
@@ -771,7 +1055,49 @@ function AdminPage() {
         setModelIconPreviewUrl(undefined)
       })
       .catch((error) => {
-        toast.error(error instanceof Error ? error.message : 'Failed to save model')
+        toast.error(
+          error instanceof Error ? error.message : 'Failed to save model',
+        )
+      })
+  }
+
+  const handleSaveCollection = () => {
+    const name = collectionForm.name.trim()
+    if (!name) {
+      toast.error('Collection name is required')
+      return
+    }
+
+    const selectedModelIds = models
+      .filter((model: AdminModel) =>
+        collectionForm.modelIds.includes(model._id),
+      )
+      .map((model: AdminModel) => model._id as Doc<'models'>['_id'])
+
+    const payload = {
+      name,
+      description: collectionForm.description.trim() || undefined,
+      sortOrder: collectionForm.sortOrder,
+      modelIds: selectedModelIds,
+    }
+
+    const request = editingCollection
+      ? updateModelCollection({ id: editingCollection._id, ...payload })
+      : addModelCollection(payload)
+
+    return request
+      .then(() => {
+        toast.success(
+          editingCollection ? 'Collection updated' : 'Collection created',
+        )
+        setModelCollectionDialogOpen(false)
+        setEditingCollection(null)
+        setCollectionForm(createModelCollectionForm(nextCollectionSortOrder))
+      })
+      .catch((error) => {
+        toast.error(
+          error instanceof Error ? error.message : 'Failed to save collection',
+        )
       })
   }
 
@@ -793,7 +1119,10 @@ function AdminPage() {
             organization: providerForm.organization || undefined,
             project: providerForm.project || undefined,
             headers: parseJsonRecord(providerForm.headersJson, 'Headers'),
-            queryParams: parseJsonRecord(providerForm.queryParamsJson, 'Query params'),
+            queryParams: parseJsonRecord(
+              providerForm.queryParamsJson,
+              'Query params',
+            ),
           },
         }
 
@@ -808,6 +1137,7 @@ function AdminPage() {
       .then((result) => {
         setDiscoveryResult(result)
         setActiveDiscoveryProviderId(source.providerId)
+        setSelectedDiscoveryModelIds([])
         if (result.ok) {
           toast.success(`Fetched ${result.modelCount} models`)
         } else {
@@ -815,7 +1145,9 @@ function AdminPage() {
         }
       })
       .catch((error) => {
-        toast.error(error instanceof Error ? error.message : 'Failed to inspect provider')
+        toast.error(
+          error instanceof Error ? error.message : 'Failed to inspect provider',
+        )
       })
       .finally(() => {
         setDiscoveringProviderId(undefined)
@@ -828,42 +1160,74 @@ function AdminPage() {
       return
     }
 
+    if (selectedDiscoveredModels.length === 0) {
+      toast.error('Select at least one model to import.')
+      return
+    }
+
     setIsImportingDiscovery(true)
 
     return importDiscoveredModels({
       providerId: activeDiscoveryProviderId as Doc<'providers'>['_id'],
-      models: discoveryResult.models,
+      models: selectedDiscoveredModels,
       enableImportedModels: true,
     })
       .then((result) => {
-        toast.success(`Imported ${result.inserted} new models, updated ${result.updated}.`)
+        toast.success(
+          `Imported ${result.inserted} new models, updated ${result.updated}.`,
+        )
+        setSelectedDiscoveryModelIds([])
       })
       .catch((error) => {
-        toast.error(error instanceof Error ? error.message : 'Failed to import models')
+        toast.error(
+          error instanceof Error ? error.message : 'Failed to import models',
+        )
       })
       .finally(() => {
         setIsImportingDiscovery(false)
       })
   }
 
+  const toggleDiscoveryModelSelection = (modelId: string) => {
+    setSelectedDiscoveryModelIds(
+      selectedDiscoveryModelIds.includes(modelId)
+        ? selectedDiscoveryModelIds.filter(
+            (selectedId) => selectedId !== modelId,
+          )
+        : [...selectedDiscoveryModelIds, modelId],
+    )
+  }
+
+  const selectAllDiscoveredModels = () => {
+    setSelectedDiscoveryModelIds(
+      discoveryResult?.ok
+        ? discoveryResult.models.map((model) => model.modelId)
+        : [],
+    )
+  }
+
+  const clearDiscoveredModelSelection = () => {
+    setSelectedDiscoveryModelIds([])
+  }
+
   const handleSaveGlobalRateLimit = () => {
     setIsSavingSettings(true)
 
     return updateAdminSettings({
-        defaultRateLimit: globalRateLimit?.enabled ? globalRateLimit : undefined,
-      })
+      defaultRateLimit: globalRateLimit?.enabled ? globalRateLimit : undefined,
+    })
       .then(() => {
         toast.success('Admin settings updated')
       })
       .catch((error) => {
-        toast.error(error instanceof Error ? error.message : 'Failed to save settings')
+        toast.error(
+          error instanceof Error ? error.message : 'Failed to save settings',
+        )
       })
       .finally(() => {
         setIsSavingSettings(false)
       })
   }
-
-  const discoveryPreview = useMemo(() => discoveryResult?.models.slice(0, 25) ?? [], [discoveryResult])
 
   if (isLoading || (isAuthenticated && !isUserReady)) {
     return (
@@ -888,7 +1252,11 @@ function AdminPage() {
 
           <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="space-y-3">
-              <Button variant="ghost" size="sm" onClick={() => void navigate({ to: '/' })}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => void navigate({ to: '/' })}
+              >
                 <ArrowLeft className="mr-2 size-4" />
                 Back to chat
               </Button>
@@ -901,245 +1269,286 @@ function AdminPage() {
                   Model and provider dashboard
                 </h1>
                 <p className="max-w-3xl text-sm text-muted-foreground md:text-base">
-                  Manage provider APIs, sync model catalogs, tune per-model visibility,
-                  assign icons, monitor account usage, and apply layered rate limits.
+                  Manage provider APIs, sync model catalogs, tune per-model
+                  visibility, assign icons, monitor account usage, and apply
+                  layered rate limits.
                 </p>
               </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              <Badge variant={isAdmin ? 'default' : 'secondary'} className="h-9 px-3">
-                {isAdmin ? 'Admin enabled' : 'Admin missing'}
-              </Badge>
-              <Button variant="outline" onClick={() => window.location.reload()}>
+              <Button
+                variant="outline"
+                onClick={() => window.location.reload()}
+              >
                 <RefreshCcw className="mr-2 size-4" />
                 Refresh
               </Button>
-              <Dialog open={providerDialogOpen} onOpenChange={setProviderDialogOpen}>
+              <Dialog
+                open={providerDialogOpen}
+                onOpenChange={setProviderDialogOpen}
+              >
                 <DialogTrigger asChild>
                   <Button onClick={() => openProviderDialog()}>
                     <Plus className="mr-2 size-4" />
                     Add provider
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-h-[90vh] max-w-4xl overflow-hidden">
+                <DialogContent className="max-h-[90vh] max-w-5xl overflow-hidden">
                   <DialogHeader>
                     <DialogTitle>
                       {editingProvider ? 'Edit provider' : 'Add provider'}
                     </DialogTitle>
                     <DialogDescription>
-                      Configure API access, icon handling, discovery settings, and optional
-                      provider-level limits.
+                      Configure API access, icon handling, discovery settings,
+                      and optional provider-level limits.
                     </DialogDescription>
                   </DialogHeader>
 
                   <ScrollArea className="max-h-[70vh] pr-6">
-                    <div className="grid gap-6 py-4">
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div className="grid gap-2">
-                          <Label htmlFor={ids.providerName}>Name</Label>
-                          <Input
-                            id={ids.providerName}
-                            value={providerForm.name}
-                            onChange={(event) =>
-                              setProviderForm((current) => ({
-                                ...current,
-                                name: event.target.value,
-                              }))
-                            }
-                            placeholder="Primary OpenRouter"
-                          />
-                        </div>
+                    <div className="py-4">
+                      <Tabs defaultValue="configuration" className="grid gap-4">
+                        <TabsList className="grid w-full grid-cols-3">
+                          <TabsTrigger value="configuration">
+                            Configuration
+                          </TabsTrigger>
+                          <TabsTrigger value="icon">Icon</TabsTrigger>
+                          <TabsTrigger value="limitation">
+                            Limitation
+                          </TabsTrigger>
+                        </TabsList>
 
-                        <div className="grid gap-2">
-                          <Label htmlFor={ids.providerType}>Provider type</Label>
-                          <Select
-                            value={providerForm.providerType}
-                            onValueChange={(value) =>
-                              setProviderForm((current) => ({
-                                ...current,
-                                providerType: value as ProviderType,
-                                baseURL: editingProvider
-                                  ? current.baseURL
-                                  : current.baseURL || defaultBaseURL(value as ProviderType),
-                              }))
-                            }
-                          >
-                            <SelectTrigger id={ids.providerType}>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {PROVIDER_TYPES.map((provider) => (
-                                <SelectItem key={provider.value} value={provider.value}>
-                                  {provider.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
+                        <TabsContent value="configuration" className="mt-0">
+                          <div className="grid gap-4 rounded-2xl bg-muted/10 p-4 md:grid-cols-2">
+                            <div className="grid gap-2">
+                              <Label htmlFor={ids.providerName}>Name</Label>
+                              <Input
+                                id={ids.providerName}
+                                value={providerForm.name}
+                                onChange={(event) =>
+                                  setProviderForm((current) => ({
+                                    ...current,
+                                    name: event.target.value,
+                                  }))
+                                }
+                                placeholder="Primary OpenRouter"
+                              />
+                            </div>
 
-                        <div className="grid gap-2 md:col-span-2">
-                          <Label>Description</Label>
-                          <Textarea
-                            value={providerForm.description}
-                            onChange={(event) =>
-                              setProviderForm((current) => ({
-                                ...current,
-                                description: event.target.value,
-                              }))
-                            }
-                            placeholder="Primary provider used for curated paid models."
-                          />
-                        </div>
+                            <div className="grid gap-2">
+                              <Label htmlFor={ids.providerType}>
+                                Provider type
+                              </Label>
+                              <Select
+                                value={providerForm.providerType}
+                                onValueChange={(value) =>
+                                  setProviderForm((current) => ({
+                                    ...current,
+                                    providerType: value as ProviderType,
+                                    baseURL: editingProvider
+                                      ? current.baseURL
+                                      : current.baseURL ||
+                                        defaultBaseURL(value as ProviderType),
+                                  }))
+                                }
+                              >
+                                <SelectTrigger id={ids.providerType}>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {PROVIDER_TYPES.map((provider) => (
+                                    <SelectItem
+                                      key={provider.value}
+                                      value={provider.value}
+                                    >
+                                      {provider.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
 
-                        <div className="grid gap-2">
-                          <Label htmlFor={ids.providerApiKey}>API key</Label>
-                          <Input
-                            id={ids.providerApiKey}
-                            type="password"
-                            value={providerForm.apiKey}
-                            onChange={(event) =>
-                              setProviderForm((current) => ({
-                                ...current,
-                                apiKey: event.target.value,
-                              }))
-                            }
-                            placeholder="sk-..."
-                          />
-                        </div>
+                            <div className="grid gap-2 md:col-span-2">
+                              <Label>Description</Label>
+                              <Textarea
+                                value={providerForm.description}
+                                onChange={(event) =>
+                                  setProviderForm((current) => ({
+                                    ...current,
+                                    description: event.target.value,
+                                  }))
+                                }
+                                placeholder="Primary provider used for curated paid models."
+                              />
+                            </div>
 
-                        <div className="grid gap-2">
-                          <Label htmlFor={ids.providerBaseUrl}>Base URL</Label>
-                          <Input
-                            id={ids.providerBaseUrl}
-                            value={providerForm.baseURL}
-                            onChange={(event) =>
-                              setProviderForm((current) => ({
-                                ...current,
-                                baseURL: event.target.value,
-                              }))
-                            }
-                            placeholder="https://api.example.com/v1"
-                          />
-                        </div>
+                            <div className="grid gap-2">
+                              <Label htmlFor={ids.providerApiKey}>
+                                API key
+                              </Label>
+                              <Input
+                                id={ids.providerApiKey}
+                                type="password"
+                                value={providerForm.apiKey}
+                                onChange={(event) =>
+                                  setProviderForm((current) => ({
+                                    ...current,
+                                    apiKey: event.target.value,
+                                  }))
+                                }
+                                placeholder="sk-..."
+                              />
+                            </div>
 
-                        <div className="grid gap-2">
-                          <Label>OpenAI organization</Label>
-                          <Input
-                            value={providerForm.organization}
-                            onChange={(event) =>
-                              setProviderForm((current) => ({
-                                ...current,
-                                organization: event.target.value,
-                              }))
-                            }
-                            placeholder="org_..."
-                          />
-                        </div>
+                            <div className="grid gap-2">
+                              <Label htmlFor={ids.providerBaseUrl}>
+                                Base URL
+                              </Label>
+                              <Input
+                                id={ids.providerBaseUrl}
+                                value={providerForm.baseURL}
+                                onChange={(event) =>
+                                  setProviderForm((current) => ({
+                                    ...current,
+                                    baseURL: event.target.value,
+                                  }))
+                                }
+                                placeholder="https://api.example.com/v1"
+                              />
+                            </div>
 
-                        <div className="grid gap-2">
-                          <Label>OpenAI project</Label>
-                          <Input
-                            value={providerForm.project}
-                            onChange={(event) =>
-                              setProviderForm((current) => ({
-                                ...current,
-                                project: event.target.value,
-                              }))
-                            }
-                            placeholder="proj_..."
-                          />
-                        </div>
+                            <div className="grid gap-2">
+                              <Label>OpenAI organization</Label>
+                              <Input
+                                value={providerForm.organization}
+                                onChange={(event) =>
+                                  setProviderForm((current) => ({
+                                    ...current,
+                                    organization: event.target.value,
+                                  }))
+                                }
+                                placeholder="org_..."
+                              />
+                            </div>
 
-                        <div className="grid gap-2">
-                          <Label>Headers JSON</Label>
-                          <Textarea
-                            value={providerForm.headersJson}
-                            onChange={(event) =>
-                              setProviderForm((current) => ({
-                                ...current,
-                                headersJson: event.target.value,
-                              }))
-                            }
-                            placeholder={'{\n  "HTTP-Referer": "https://example.com"\n}'}
-                          />
-                        </div>
+                            <div className="grid gap-2">
+                              <Label>OpenAI project</Label>
+                              <Input
+                                value={providerForm.project}
+                                onChange={(event) =>
+                                  setProviderForm((current) => ({
+                                    ...current,
+                                    project: event.target.value,
+                                  }))
+                                }
+                                placeholder="proj_..."
+                              />
+                            </div>
 
-                        <div className="grid gap-2">
-                          <Label>Query params JSON</Label>
-                          <Textarea
-                            value={providerForm.queryParamsJson}
-                            onChange={(event) =>
-                              setProviderForm((current) => ({
-                                ...current,
-                                queryParamsJson: event.target.value,
-                              }))
-                            }
-                            placeholder={'{\n  "api-version": "2024-10-01-preview"\n}'}
-                          />
-                        </div>
+                            <div className="grid gap-2">
+                              <Label>Headers JSON</Label>
+                              <Textarea
+                                value={providerForm.headersJson}
+                                onChange={(event) =>
+                                  setProviderForm((current) => ({
+                                    ...current,
+                                    headersJson: event.target.value,
+                                  }))
+                                }
+                                placeholder={
+                                  '{\n  "HTTP-Referer": "https://example.com"\n}'
+                                }
+                              />
+                            </div>
 
-                        <div className="grid gap-2">
-                          <Label>Sort order</Label>
-                          <Input
-                            type="number"
-                            value={providerForm.sortOrder}
-                            onChange={(event) =>
-                              setProviderForm((current) => ({
-                                ...current,
-                                sortOrder: Number(event.target.value) || 0,
-                              }))
-                            }
-                          />
-                        </div>
+                            <div className="grid gap-2">
+                              <Label>Query params JSON</Label>
+                              <Textarea
+                                value={providerForm.queryParamsJson}
+                                onChange={(event) =>
+                                  setProviderForm((current) => ({
+                                    ...current,
+                                    queryParamsJson: event.target.value,
+                                  }))
+                                }
+                                placeholder={
+                                  '{\n  "api-version": "2024-10-01-preview"\n}'
+                                }
+                              />
+                            </div>
 
-                        <div className="flex items-center gap-3 pt-6">
-                          <Switch
-                            checked={providerForm.isEnabled}
-                            onCheckedChange={(checked) =>
-                              setProviderForm((current) => ({
-                                ...current,
-                                isEnabled: checked,
-                              }))
-                            }
-                          />
-                          <div className="grid gap-1">
-                            <Label>Provider enabled</Label>
-                            <p className="text-xs text-muted-foreground">
-                              Disabled providers stay in admin, but their models disappear from chat.
-                            </p>
+                            <div className="grid gap-2">
+                              <Label>Sort order</Label>
+                              <Input
+                                type="number"
+                                value={providerForm.sortOrder}
+                                onChange={(event) =>
+                                  setProviderForm((current) => ({
+                                    ...current,
+                                    sortOrder: Number(event.target.value) || 0,
+                                  }))
+                                }
+                              />
+                            </div>
+
+                            <div className="flex items-center gap-3 pt-6">
+                              <Switch
+                                checked={providerForm.isEnabled}
+                                onCheckedChange={(checked) =>
+                                  setProviderForm((current) => ({
+                                    ...current,
+                                    isEnabled: checked,
+                                  }))
+                                }
+                              />
+                              <div className="grid gap-1">
+                                <Label>Provider enabled</Label>
+                                <p className="text-xs text-muted-foreground">
+                                  Disabled providers stay in admin, but their
+                                  models disappear from chat.
+                                </p>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
+                        </TabsContent>
 
-                      <IconPickerField
-                        label="Provider icon"
-                        icon={providerForm.icon}
-                        iconType={providerForm.iconType}
-                        iconId={providerForm.iconId}
-                        iconUrl={providerIconPreviewUrl}
-                        onChange={(value) =>
-                          setProviderForm((current) => ({
-                            ...current,
-                            icon: value.icon,
-                            iconType: value.iconType,
-                            iconId: value.iconId,
-                          }))
-                        }
-                        onUpload={handleProviderIconUpload}
-                      />
+                        <TabsContent value="icon" className="mt-0">
+                          <div className="rounded-2xl border border-border bg-muted/10 p-4">
+                            <IconPickerField
+                              label="Provider icon"
+                              icon={providerForm.icon}
+                              iconType={providerForm.iconType}
+                              iconId={providerForm.iconId}
+                              iconUrl={providerIconPreviewUrl}
+                              onChange={(value) =>
+                                setProviderForm((current) => ({
+                                  ...current,
+                                  icon: value.icon,
+                                  iconType: value.iconType,
+                                  iconId: value.iconId,
+                                }))
+                              }
+                              onUpload={handleProviderIconUpload}
+                            />
+                          </div>
+                        </TabsContent>
 
-                      <RateLimitEditor
-                        label="Provider rate limit"
-                        description="Apply limits to every request routed through this provider."
-                        value={providerForm.rateLimit}
-                        onChange={(value) =>
-                          setProviderForm((current) => ({
-                            ...current,
-                            rateLimit: value,
-                          }))
-                        }
-                      />
+                        <TabsContent value="limitation" className="mt-0">
+                          <div className="rounded-2xl border border-border bg-muted/10 p-4">
+                            <RateLimitEditor
+                              label="Provider rate limit"
+                              description="Apply limits to every request routed through this provider."
+                              value={providerForm.rateLimit}
+                              onChange={(value) =>
+                                setProviderForm((current) => ({
+                                  ...current,
+                                  rateLimit: value,
+                                }))
+                              }
+                            />
+                          </div>
+                        </TabsContent>
+                      </Tabs>
                     </div>
                   </ScrollArea>
 
@@ -1157,11 +1566,16 @@ function AdminPage() {
                       Inspect API
                     </Button>
                     <div className="flex gap-2">
-                      <Button variant="outline" onClick={() => setProviderDialogOpen(false)}>
+                      <Button
+                        variant="outline"
+                        onClick={() => setProviderDialogOpen(false)}
+                      >
                         Cancel
                       </Button>
                       <Button onClick={() => void handleSaveProvider()}>
-                        {editingProvider ? 'Update provider' : 'Create provider'}
+                        {editingProvider
+                          ? 'Update provider'
+                          : 'Create provider'}
                       </Button>
                     </div>
                   </DialogFooter>
@@ -1175,11 +1589,421 @@ function AdminPage() {
                     Add model
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-h-[90vh] max-w-4xl overflow-hidden">
+                <DialogContent className="max-h-[90vh] w-[min(94vw,72rem)] max-w-none overflow-hidden">
                   <DialogHeader>
-                    <DialogTitle>{editingModel ? 'Edit model' : 'Add model'}</DialogTitle>
+                    <DialogTitle>
+                      {editingModel ? 'Edit model' : 'Add model'}
+                    </DialogTitle>
                     <DialogDescription>
-                      Configure visibility, metadata, icon assignment, and model-level limits.
+                      Configure visibility, metadata, icon assignment, and
+                      model-level limits.
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <ScrollArea className="max-h-[70vh] pr-6">
+                    <div className="grid gap-6 py-4">
+                      <div className="grid gap-2 md:max-w-sm">
+                        <Label htmlFor={ids.modelProvider}>Provider</Label>
+                        <Select
+                          value={modelForm.providerId}
+                          onValueChange={(value) =>
+                            setModelForm((current) => ({
+                              ...current,
+                              providerId: value,
+                            }))
+                          }
+                        >
+                          <SelectTrigger id={ids.modelProvider}>
+                            <SelectValue placeholder="Choose provider" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {providers.map((provider: AdminProvider) => (
+                              <SelectItem
+                                key={provider._id}
+                                value={provider._id}
+                              >
+                                {provider.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {!editingModel ? (
+                        <div className="grid gap-4 rounded-2xl bg-muted/20 p-5">
+                          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                            <div className="space-y-1">
+                              <h3 className="text-sm font-medium">
+                                Choose a model to add
+                              </h3>
+                              <p className="text-sm text-muted-foreground">
+                                Search the selected provider catalog or start
+                                from a blank custom model. After selection,
+                                every option below stays editable.
+                              </p>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                selectedModelProvider
+                                  ? void handleInspectProvider(
+                                      selectedModelProvider,
+                                    )
+                                  : undefined
+                              }
+                              disabled={
+                                !selectedModelProvider ||
+                                discoveringProviderId ===
+                                  selectedModelProvider._id
+                              }
+                            >
+                              {selectedModelProvider &&
+                              discoveringProviderId ===
+                                selectedModelProvider._id ? (
+                                <Loader2 className="mr-2 size-4 animate-spin" />
+                              ) : (
+                                <RefreshCcw className="mr-2 size-4" />
+                              )}
+                              {hasDiscoveryForSelectedProvider
+                                ? 'Refresh catalog'
+                                : 'Load catalog'}
+                            </Button>
+                          </div>
+
+                          <div className="overflow-hidden rounded-xl border border-border/50 bg-background/90">
+                            <Command>
+                              <CommandInput placeholder="Search models to add" />
+                              <CommandList className="max-h-[280px]">
+                                <CommandGroup heading="Custom">
+                                  <CommandItem
+                                    value="custom blank manual model"
+                                    onSelect={() => resetModelFormToCustom()}
+                                    className="items-start gap-3 py-3"
+                                  >
+                                    <div className="flex size-9 items-center justify-center rounded-lg border border-border/50 bg-muted/70">
+                                      <Plus className="size-4" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium">
+                                          Blank custom model
+                                        </span>
+                                        {!modelForm.modelId ? (
+                                          <Badge variant="secondary">
+                                            Selected
+                                          </Badge>
+                                        ) : null}
+                                      </div>
+                                      <p className="text-xs text-muted-foreground">
+                                        Start from an empty form and configure
+                                        the model manually.
+                                      </p>
+                                    </div>
+                                  </CommandItem>
+                                </CommandGroup>
+
+                                <CommandGroup
+                                  heading={
+                                    hasDiscoveryForSelectedProvider
+                                      ? `Provider catalog (${discoveredModelsForSelectedProvider.length} available)`
+                                      : 'Provider catalog'
+                                  }
+                                >
+                                  {discoveredModelsForSelectedProvider.map(
+                                    (
+                                      model: ProviderCatalogResult['models'][number],
+                                    ) => (
+                                      <CommandItem
+                                        key={model.modelId}
+                                        value={`${model.displayName} ${model.modelId} ${model.ownedBy ?? ''} ${formatModelModalities(model.modalities)}`}
+                                        onSelect={() =>
+                                          applyDiscoveredModelToForm(model)
+                                        }
+                                        className="items-start gap-3 py-3"
+                                      >
+                                        <div className="flex size-9 items-center justify-center rounded-lg border border-border/50 bg-muted/70">
+                                          <Sparkles className="size-4" />
+                                        </div>
+                                        <div className="min-w-0 flex-1 space-y-1">
+                                          <div className="flex items-center gap-2">
+                                            <span className="font-medium">
+                                              {model.displayName}
+                                            </span>
+                                            {model.modelId ===
+                                            modelForm.modelId ? (
+                                              <Badge variant="secondary">
+                                                Selected
+                                              </Badge>
+                                            ) : null}
+                                          </div>
+                                          <p className="truncate font-mono text-xs text-muted-foreground">
+                                            {model.modelId}
+                                          </p>
+                                        </div>
+                                      </CommandItem>
+                                    ),
+                                  )}
+                                </CommandGroup>
+
+                                <CommandEmpty>No matching models.</CommandEmpty>
+                              </CommandList>
+                            </Command>
+                          </div>
+
+                          <p className="text-xs text-muted-foreground">
+                            {!selectedModelProvider
+                              ? 'Choose a provider to load and search its available models.'
+                              : hasDiscoveryForSelectedProvider
+                                ? discoveredModelsForSelectedProvider.length > 0
+                                  ? `${discoveredModelsForSelectedProvider.length} of ${discoveredModelCountForSelectedProvider} discovered models are not added yet.`
+                                  : 'All discovered models for this provider are already in the catalog.'
+                                : 'Load this provider catalog to search discovered models, or keep using a blank custom model.'}
+                          </p>
+                        </div>
+                      ) : null}
+
+                      <Tabs defaultValue="collection" className="grid gap-4">
+                        <TabsList className="grid w-full grid-cols-3">
+                          <TabsTrigger value="collection">
+                            Collection
+                          </TabsTrigger>
+                          <TabsTrigger value="icon">Icon</TabsTrigger>
+                          <TabsTrigger value="limitation">
+                            Limitation
+                          </TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent value="collection" className="mt-0">
+                          <div className="grid gap-4 rounded-2xl bg-muted/10 p-4 md:grid-cols-2">
+                            <div className="grid gap-2">
+                              <Label htmlFor={ids.modelId}>Model ID</Label>
+                              <Input
+                                id={ids.modelId}
+                                value={modelForm.modelId}
+                                onChange={(event) =>
+                                  setModelForm((current) => ({
+                                    ...current,
+                                    modelId: event.target.value,
+                                  }))
+                                }
+                                placeholder="openai/gpt-4o"
+                              />
+                            </div>
+
+                            <div className="grid gap-2">
+                              <Label htmlFor={ids.modelDisplayName}>
+                                Display name
+                              </Label>
+                              <Input
+                                id={ids.modelDisplayName}
+                                value={modelForm.displayName}
+                                onChange={(event) =>
+                                  setModelForm((current) => ({
+                                    ...current,
+                                    displayName: event.target.value,
+                                  }))
+                                }
+                                placeholder="GPT-4o"
+                              />
+                            </div>
+
+                            <div className="grid gap-2 md:col-span-2">
+                              <Label>Description</Label>
+                              <Textarea
+                                value={modelForm.description}
+                                onChange={(event) =>
+                                  setModelForm((current) => ({
+                                    ...current,
+                                    description: event.target.value,
+                                  }))
+                                }
+                                placeholder="Fast multimodal general-purpose model."
+                              />
+                            </div>
+
+                            <div className="grid gap-2">
+                              <Label htmlFor={ids.modelSortOrder}>
+                                Sort order
+                              </Label>
+                              <Input
+                                id={ids.modelSortOrder}
+                                type="number"
+                                value={modelForm.sortOrder}
+                                onChange={(event) =>
+                                  setModelForm((current) => ({
+                                    ...current,
+                                    sortOrder: Number(event.target.value) || 0,
+                                  }))
+                                }
+                              />
+                            </div>
+
+                            <div className="grid gap-2">
+                              <Label>Capabilities</Label>
+                              <Input
+                                value={modelForm.capabilitiesText}
+                                onChange={(event) =>
+                                  setModelForm((current) => ({
+                                    ...current,
+                                    capabilitiesText: event.target.value,
+                                  }))
+                                }
+                                placeholder="reasoning, vision, code"
+                              />
+                            </div>
+
+                            <div className="grid gap-2">
+                              <Label>Owner</Label>
+                              <Input
+                                value={modelForm.ownedBy}
+                                onChange={(event) =>
+                                  setModelForm((current) => ({
+                                    ...current,
+                                    ownedBy: event.target.value,
+                                  }))
+                                }
+                                placeholder="openai"
+                              />
+                            </div>
+
+                            <div className="flex items-center gap-6 pt-6 md:col-span-2">
+                              <div className="flex items-center gap-3">
+                                <Switch
+                                  checked={modelForm.isEnabled}
+                                  onCheckedChange={(checked) =>
+                                    setModelForm((current) => ({
+                                      ...current,
+                                      isEnabled: checked,
+                                    }))
+                                  }
+                                />
+                                <Label>Visible in chat</Label>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <Checkbox
+                                  checked={modelForm.isFree}
+                                  onCheckedChange={(checked) =>
+                                    setModelForm((current) => ({
+                                      ...current,
+                                      isFree: Boolean(checked),
+                                    }))
+                                  }
+                                />
+                                <Label>Free tier model</Label>
+                              </div>
+                            </div>
+                          </div>
+                        </TabsContent>
+
+                        <TabsContent value="icon" className="mt-0">
+                          <div className="rounded-2xl bg-muted/10 p-4">
+                            <IconPickerField
+                              label="Model icon"
+                              icon={modelForm.icon}
+                              iconType={modelForm.iconType}
+                              iconId={modelForm.iconId}
+                              iconUrl={modelIconPreviewUrl}
+                              onChange={(value) =>
+                                setModelForm((current) => ({
+                                  ...current,
+                                  icon: value.icon,
+                                  iconType: value.iconType,
+                                  iconId: value.iconId,
+                                }))
+                              }
+                              onUpload={handleModelIconUpload}
+                            />
+                          </div>
+                        </TabsContent>
+
+                        <TabsContent value="limitation" className="mt-0">
+                          <div className="grid gap-4 rounded-2xl bg-muted/10 p-4">
+                            <div className="grid gap-4 md:grid-cols-2">
+                              <div className="grid gap-2">
+                                <Label>Context window</Label>
+                                <Input
+                                  type="number"
+                                  value={modelForm.contextWindow}
+                                  onChange={(event) =>
+                                    setModelForm((current) => ({
+                                      ...current,
+                                      contextWindow: event.target.value,
+                                    }))
+                                  }
+                                  placeholder="128000"
+                                />
+                              </div>
+
+                              <div className="grid gap-2">
+                                <Label>Max output tokens</Label>
+                                <Input
+                                  type="number"
+                                  value={modelForm.maxOutputTokens}
+                                  onChange={(event) =>
+                                    setModelForm((current) => ({
+                                      ...current,
+                                      maxOutputTokens: event.target.value,
+                                    }))
+                                  }
+                                  placeholder="16384"
+                                />
+                              </div>
+                            </div>
+
+                            <RateLimitEditor
+                              label="Model rate limit"
+                              description="Apply the strictest limit last, after the global and provider policies."
+                              value={modelForm.rateLimit}
+                              onChange={(value) =>
+                                setModelForm((current) => ({
+                                  ...current,
+                                  rateLimit: value,
+                                }))
+                              }
+                            />
+                          </div>
+                        </TabsContent>
+                      </Tabs>
+                    </div>
+                  </ScrollArea>
+
+                  <DialogFooter>
+                    <Button
+                      variant="outline"
+                      onClick={() => setModelDialogOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button onClick={() => void handleSaveModel()}>
+                      {editingModel ? 'Update model' : 'Create model'}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              <Dialog
+                open={modelCollectionDialogOpen}
+                onOpenChange={setModelCollectionDialogOpen}
+              >
+                <DialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    onClick={() => openCollectionDialog()}
+                  >
+                    <Plus className="mr-2 size-4" />
+                    Add collection
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-h-[90vh] max-w-3xl overflow-hidden">
+                  <DialogHeader>
+                    <DialogTitle>
+                      {editingCollection ? 'Edit collection' : 'Add collection'}
+                    </DialogTitle>
+                    <DialogDescription>
+                      Build a named group from your current models. Collections
+                      only reference existing models, so any model edits stay in
+                      sync automatically.
                     </DialogDescription>
                   </DialogHeader>
 
@@ -1187,81 +2011,30 @@ function AdminPage() {
                     <div className="grid gap-6 py-4">
                       <div className="grid gap-4 md:grid-cols-2">
                         <div className="grid gap-2">
-                          <Label htmlFor={ids.modelId}>Model ID</Label>
+                          <Label htmlFor={ids.collectionName}>Name</Label>
                           <Input
-                            id={ids.modelId}
-                            value={modelForm.modelId}
+                            id={ids.collectionName}
+                            value={collectionForm.name}
                             onChange={(event) =>
-                              setModelForm((current) => ({
+                              setCollectionForm((current) => ({
                                 ...current,
-                                modelId: event.target.value,
+                                name: event.target.value,
                               }))
                             }
-                            placeholder="openai/gpt-4o"
+                            placeholder="Reasoning models"
                           />
                         </div>
 
                         <div className="grid gap-2">
-                          <Label htmlFor={ids.modelDisplayName}>Display name</Label>
+                          <Label htmlFor={ids.collectionSortOrder}>
+                            Sort order
+                          </Label>
                           <Input
-                            id={ids.modelDisplayName}
-                            value={modelForm.displayName}
-                            onChange={(event) =>
-                              setModelForm((current) => ({
-                                ...current,
-                                displayName: event.target.value,
-                              }))
-                            }
-                            placeholder="GPT-4o"
-                          />
-                        </div>
-
-                        <div className="grid gap-2 md:col-span-2">
-                          <Label>Description</Label>
-                          <Textarea
-                            value={modelForm.description}
-                            onChange={(event) =>
-                              setModelForm((current) => ({
-                                ...current,
-                                description: event.target.value,
-                              }))
-                            }
-                            placeholder="Fast multimodal general-purpose model."
-                          />
-                        </div>
-
-                        <div className="grid gap-2">
-                          <Label htmlFor={ids.modelProvider}>Provider</Label>
-                          <Select
-                            value={modelForm.providerId}
-                            onValueChange={(value) =>
-                              setModelForm((current) => ({
-                                ...current,
-                                providerId: value,
-                              }))
-                            }
-                          >
-                            <SelectTrigger id={ids.modelProvider}>
-                              <SelectValue placeholder="Choose provider" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {providers.map((provider: AdminProvider) => (
-                                <SelectItem key={provider._id} value={provider._id}>
-                                  {provider.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="grid gap-2">
-                          <Label htmlFor={ids.modelSortOrder}>Sort order</Label>
-                          <Input
-                            id={ids.modelSortOrder}
+                            id={ids.collectionSortOrder}
                             type="number"
-                            value={modelForm.sortOrder}
+                            value={collectionForm.sortOrder}
                             onChange={(event) =>
-                              setModelForm((current) => ({
+                              setCollectionForm((current) => ({
                                 ...current,
                                 sortOrder: Number(event.target.value) || 0,
                               }))
@@ -1269,129 +2042,127 @@ function AdminPage() {
                           />
                         </div>
 
-                        <div className="grid gap-2">
-                          <Label>Capabilities</Label>
-                          <Input
-                            value={modelForm.capabilitiesText}
+                        <div className="grid gap-2 md:col-span-2">
+                          <Label>Description</Label>
+                          <Textarea
+                            value={collectionForm.description}
                             onChange={(event) =>
-                              setModelForm((current) => ({
+                              setCollectionForm((current) => ({
                                 ...current,
-                                capabilitiesText: event.target.value,
+                                description: event.target.value,
                               }))
                             }
-                            placeholder="reasoning, vision, code"
+                            placeholder="A curated set of models for long-form reasoning and coding."
                           />
-                        </div>
-
-                        <div className="grid gap-2">
-                          <Label>Owner</Label>
-                          <Input
-                            value={modelForm.ownedBy}
-                            onChange={(event) =>
-                              setModelForm((current) => ({
-                                ...current,
-                                ownedBy: event.target.value,
-                              }))
-                            }
-                            placeholder="openai"
-                          />
-                        </div>
-
-                        <div className="grid gap-2">
-                          <Label>Context window</Label>
-                          <Input
-                            type="number"
-                            value={modelForm.contextWindow}
-                            onChange={(event) =>
-                              setModelForm((current) => ({
-                                ...current,
-                                contextWindow: event.target.value,
-                              }))
-                            }
-                            placeholder="128000"
-                          />
-                        </div>
-
-                        <div className="grid gap-2">
-                          <Label>Max output tokens</Label>
-                          <Input
-                            type="number"
-                            value={modelForm.maxOutputTokens}
-                            onChange={(event) =>
-                              setModelForm((current) => ({
-                                ...current,
-                                maxOutputTokens: event.target.value,
-                              }))
-                            }
-                            placeholder="16384"
-                          />
-                        </div>
-
-                        <div className="flex items-center gap-6 pt-6 md:col-span-2">
-                          <div className="flex items-center gap-3">
-                            <Switch
-                              checked={modelForm.isEnabled}
-                              onCheckedChange={(checked) =>
-                                setModelForm((current) => ({
-                                  ...current,
-                                  isEnabled: checked,
-                                }))
-                              }
-                            />
-                            <Label>Visible in chat</Label>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <Checkbox
-                              checked={modelForm.isFree}
-                              onCheckedChange={(checked) =>
-                                setModelForm((current) => ({
-                                  ...current,
-                                  isFree: Boolean(checked),
-                                }))
-                              }
-                            />
-                            <Label>Free tier model</Label>
-                          </div>
                         </div>
                       </div>
 
-                      <IconPickerField
-                        label="Model icon"
-                        icon={modelForm.icon}
-                        iconType={modelForm.iconType}
-                        iconId={modelForm.iconId}
-                        iconUrl={modelIconPreviewUrl}
-                        onChange={(value) =>
-                          setModelForm((current) => ({
-                            ...current,
-                            icon: value.icon,
-                            iconType: value.iconType,
-                            iconId: value.iconId,
-                          }))
-                        }
-                        onUpload={handleModelIconUpload}
-                      />
+                      <div className="grid gap-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h3 className="text-sm font-medium">Models</h3>
+                            <p className="text-sm text-muted-foreground">
+                              Select from the models already configured in the
+                              catalog.
+                            </p>
+                          </div>
+                          <Badge variant="secondary">
+                            {collectionForm.modelIds.length} selected
+                          </Badge>
+                        </div>
 
-                      <RateLimitEditor
-                        label="Model rate limit"
-                        description="Apply the strictest limit last, after the global and provider policies."
-                        value={modelForm.rateLimit}
-                        onChange={(value) =>
-                          setModelForm((current) => ({
-                            ...current,
-                            rateLimit: value,
-                          }))
-                        }
-                      />
+                        <div className="overflow-hidden rounded-xl border border-border">
+                          <ScrollArea className="h-[320px]">
+                            <div className="grid gap-2 p-3">
+                              {models.length > 0 ? (
+                                models.map((model: AdminModel) => {
+                                  const isSelected =
+                                    collectionForm.modelIds.includes(model._id)
+
+                                  return (
+                                    <label
+                                      key={model._id}
+                                      className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-background p-3 transition-colors hover:bg-muted/40"
+                                    >
+                                      <Checkbox
+                                        checked={isSelected}
+                                        onCheckedChange={(checked) =>
+                                          setCollectionForm((current) => ({
+                                            ...current,
+                                            modelIds: checked
+                                              ? [
+                                                  ...new Set([
+                                                    ...current.modelIds,
+                                                    model._id,
+                                                  ]),
+                                                ]
+                                              : current.modelIds.filter(
+                                                  (modelId) =>
+                                                    modelId !== model._id,
+                                                ),
+                                          }))
+                                        }
+                                      />
+                                      <div className="mt-0.5 flex size-9 items-center justify-center rounded-lg border border-border bg-muted">
+                                        <EntityIcon
+                                          icon={model.icon}
+                                          iconType={model.iconType as IconType}
+                                          iconUrl={
+                                            model.iconUrl ||
+                                            model.providerIconUrl
+                                          }
+                                        />
+                                      </div>
+                                      <div className="min-w-0 flex-1 space-y-1">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                          <span className="font-medium">
+                                            {model.displayName}
+                                          </span>
+                                          <Badge variant="outline">
+                                            {model.providerName}
+                                          </Badge>
+                                          {!model.isEnabled ? (
+                                            <Badge variant="secondary">
+                                              Hidden
+                                            </Badge>
+                                          ) : null}
+                                        </div>
+                                        <p className="truncate font-mono text-xs text-muted-foreground">
+                                          {model.modelId}
+                                        </p>
+                                        {model.description ? (
+                                          <p className="text-xs text-muted-foreground">
+                                            {model.description}
+                                          </p>
+                                        ) : null}
+                                      </div>
+                                    </label>
+                                  )
+                                })
+                              ) : (
+                                <div className="rounded-xl border border-dashed border-border p-6 text-sm text-muted-foreground">
+                                  Add models first, then create collections from
+                                  them here.
+                                </div>
+                              )}
+                            </div>
+                          </ScrollArea>
+                        </div>
+                      </div>
                     </div>
                   </ScrollArea>
 
                   <DialogFooter>
-                    <Button variant="outline" onClick={() => setModelDialogOpen(false)}>
+                    <Button
+                      variant="outline"
+                      onClick={() => setModelCollectionDialogOpen(false)}
+                    >
                       Cancel
                     </Button>
-                    <Button onClick={() => void handleSaveModel()}>
-                      {editingModel ? 'Update model' : 'Create model'}
+                    <Button onClick={() => void handleSaveCollection()}>
+                      {editingCollection
+                        ? 'Update collection'
+                        : 'Create collection'}
                     </Button>
                   </DialogFooter>
                 </DialogContent>
@@ -1405,7 +2176,8 @@ function AdminPage() {
             <CardHeader>
               <CardTitle>Admin access required</CardTitle>
               <CardDescription>
-                This user is authenticated but not registered in the `admins` table.
+                This user is authenticated but not registered in the `admins`
+                table.
               </CardDescription>
             </CardHeader>
           </Card>
@@ -1446,14 +2218,26 @@ function AdminPage() {
               <Card className="border-border bg-card shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
                 <CardHeader>
                   <CardTitle>Usage trend</CardTitle>
-                  <CardDescription>Requests and tokens over the last 7 days.</CardDescription>
+                  <CardDescription>
+                    Requests and tokens over the last 7 days.
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <ChartContainer config={usageChartConfig} className="h-[280px] w-full">
+                  <ChartContainer
+                    config={usageChartConfig}
+                    className="h-[280px] w-full"
+                  >
                     <AreaChart data={dashboard.usageSeries}>
                       <CartesianGrid vertical={false} />
-                      <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} />
-                      <ChartTooltip content={<ChartTooltipContent indicator="dot" />} />
+                      <XAxis
+                        dataKey="date"
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                      />
+                      <ChartTooltip
+                        content={<ChartTooltipContent indicator="dot" />}
+                      />
                       <Area
                         dataKey="requests"
                         type="monotone"
@@ -1478,34 +2262,39 @@ function AdminPage() {
               <Card className="border-border bg-card shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
                 <CardHeader>
                   <CardTitle>Top accounts</CardTitle>
-                  <CardDescription>Who is using the catalog the most.</CardDescription>
+                  <CardDescription>
+                    Who is using the catalog the most.
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="grid gap-3">
-                  {users.slice(0, 5).map((user: DashboardData['users'][number]) => (
-                    <div
-                      key={user.userId}
-                      className="flex items-center justify-between rounded-xl border border-border bg-muted px-4 py-3"
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate font-medium">{user.name}</p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {user.email || 'No email'}
-                        </p>
+                  {users
+                    .slice(0, 5)
+                    .map((user: DashboardData['users'][number]) => (
+                      <div
+                        key={user.userId}
+                        className="flex items-center justify-between rounded-xl border border-border bg-muted px-4 py-3"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate font-medium">{user.name}</p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {user.email || 'No email'}
+                          </p>
+                        </div>
+                        <div className="text-right text-xs text-muted-foreground">
+                          <p>{formatCompactNumber(user.requests)} req</p>
+                          <p>{formatCompactNumber(user.tokens)} tokens</p>
+                        </div>
                       </div>
-                      <div className="text-right text-xs text-muted-foreground">
-                        <p>{formatCompactNumber(user.requests)} req</p>
-                        <p>{formatCompactNumber(user.tokens)} tokens</p>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
                 </CardContent>
               </Card>
             </div>
 
             <Tabs defaultValue="providers" className="grid gap-4">
-              <TabsList className="grid w-full grid-cols-4 lg:w-[520px]">
+              <TabsList className="grid w-full grid-cols-5 lg:w-[640px]">
                 <TabsTrigger value="providers">Providers</TabsTrigger>
                 <TabsTrigger value="models">Models</TabsTrigger>
+                <TabsTrigger value="collections">Collections</TabsTrigger>
                 <TabsTrigger value="usage">Usage</TabsTrigger>
                 <TabsTrigger value="settings">Settings</TabsTrigger>
               </TabsList>
@@ -1515,7 +2304,8 @@ function AdminPage() {
                   <CardHeader>
                     <CardTitle>Providers</CardTitle>
                     <CardDescription>
-                      Manage provider credentials, inspect API model catalogs, and apply provider-wide limits.
+                      Manage provider credentials, inspect API model catalogs,
+                      and apply provider-wide limits.
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -1562,7 +2352,11 @@ function AdminPage() {
                                     })
                                   }
                                 />
-                                <Badge variant={provider.isEnabled ? 'default' : 'secondary'}>
+                                <Badge
+                                  variant={
+                                    provider.isEnabled ? 'default' : 'secondary'
+                                  }
+                                >
                                   {provider.isEnabled ? 'Enabled' : 'Disabled'}
                                 </Badge>
                               </div>
@@ -1575,19 +2369,28 @@ function AdminPage() {
                             </TableCell>
                             <TableCell>
                               <div className="space-y-1 text-xs text-muted-foreground">
-                                <p>{formatCompactNumber(provider.usage.requests)} requests</p>
-                                <p>{formatCompactNumber(provider.usage.tokens)} tokens</p>
+                                <p>
+                                  {formatCompactNumber(provider.usage.requests)}{' '}
+                                  requests
+                                </p>
+                                <p>
+                                  {formatCompactNumber(provider.usage.tokens)}{' '}
+                                  tokens
+                                </p>
                                 <p>{provider.usage.users} accounts</p>
                               </div>
                             </TableCell>
                             <TableCell className="text-xs text-muted-foreground">
                               <p>{formatDateTime(provider.lastDiscoveredAt)}</p>
                               {provider.lastDiscoveryError ? (
-                                <p className="max-w-48 truncate text-destructive">
-                                  {provider.lastDiscoveryError}
+                                <p className="text-destructive">
+                                  Discovery failed
                                 </p>
                               ) : (
-                                <p>{provider.lastDiscoveredModelCount ?? 0} models</p>
+                                <p>
+                                  {provider.lastDiscoveredModelCount ?? 0}{' '}
+                                  models
+                                </p>
                               )}
                             </TableCell>
                             <TableCell className="text-right">
@@ -1595,8 +2398,12 @@ function AdminPage() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => void handleInspectProvider(provider)}
-                                  disabled={discoveringProviderId === provider._id}
+                                  onClick={() =>
+                                    void handleInspectProvider(provider)
+                                  }
+                                  disabled={
+                                    discoveringProviderId === provider._id
+                                  }
                                 >
                                   {discoveringProviderId === provider._id ? (
                                     <Loader2 className="mr-2 size-4 animate-spin" />
@@ -1605,14 +2412,20 @@ function AdminPage() {
                                   )}
                                   Inspect
                                 </Button>
-                                <Button variant="outline" size="sm" onClick={() => openProviderDialog(provider)}>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => openProviderDialog(provider)}
+                                >
                                   Edit
                                 </Button>
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   className="text-destructive"
-                                  onClick={() => void deleteProvider({ id: provider._id })}
+                                  onClick={() =>
+                                    void deleteProvider({ id: provider._id })
+                                  }
                                 >
                                   Delete
                                 </Button>
@@ -1630,72 +2443,192 @@ function AdminPage() {
                     <CardHeader>
                       <CardTitle>Provider inspection result</CardTitle>
                       <CardDescription>
-                        {discoveryResult.source.endpoint || discoveryResult.source.baseURL || 'Provider discovery'}
+                        {discoveryResult.source.endpoint ||
+                          discoveryResult.source.baseURL ||
+                          'Provider discovery'}
                       </CardDescription>
                       <CardAction>
                         {activeDiscoveryProviderId ? (
-                          <Button onClick={() => void handleImportDiscovery()} disabled={!discoveryResult.ok || isImportingDiscovery}>
+                          <Button
+                            onClick={() => void handleImportDiscovery()}
+                            disabled={
+                              !discoveryResult.ok ||
+                              isImportingDiscovery ||
+                              selectedDiscoveredModels.length === 0
+                            }
+                          >
                             {isImportingDiscovery ? (
                               <Loader2 className="mr-2 size-4 animate-spin" />
                             ) : (
                               <Plus className="mr-2 size-4" />
                             )}
-                            Import {discoveryResult.modelCount} models
+                            Import {selectedDiscoveredModels.length} selected
                           </Button>
                         ) : (
-                          <Badge variant="secondary">Save provider to import</Badge>
+                          <Badge variant="secondary">
+                            Save provider to import
+                          </Badge>
                         )}
                       </CardAction>
                     </CardHeader>
                     <CardContent className="grid gap-4">
                       <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                        <Badge variant={discoveryResult.ok ? 'default' : 'destructive'}>
-                          {discoveryResult.ok ? 'Discovery succeeded' : 'Discovery failed'}
+                        <Badge
+                          variant={
+                            discoveryResult.ok ? 'default' : 'destructive'
+                          }
+                        >
+                          {discoveryResult.ok
+                            ? 'Discovery succeeded'
+                            : 'Discovery failed'}
                         </Badge>
-                        <Badge variant="secondary">{discoveryResult.providerType}</Badge>
+                        <Badge variant="secondary">
+                          {discoveryResult.providerType}
+                        </Badge>
                         <Badge variant="secondary">
                           {discoveryResult.modelCount} models
                         </Badge>
+                        {discoveryResult.ok ? (
+                          <Badge variant="secondary">
+                            {selectedDiscoveredModels.length} selected
+                          </Badge>
+                        ) : null}
                         <Badge variant="secondary">
                           {discoveryResult.source.discoveryMode}
                         </Badge>
                       </div>
-                      {discoveryResult.error ? (
-                        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-destructive dark:border-red-950 dark:bg-red-950">
-                          {discoveryResult.error}
+                      {discoveryResult.ok ? (
+                        <div className="grid gap-4">
+                          <div className="flex flex-col gap-3 rounded-xl border border-border bg-muted/20 p-4 md:flex-row md:items-center md:justify-between">
+                            <div className="space-y-1">
+                              <p className="text-sm font-medium">
+                                Search and select models to import
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                Inspect keeps the full provider catalog
+                                available. Search by name, model ID, owner, or
+                                capabilities, then import only the models you
+                                need.
+                              </p>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={selectAllDiscoveredModels}
+                                disabled={discoveryResult.models.length === 0}
+                              >
+                                Select all
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={clearDiscoveredModelSelection}
+                                disabled={
+                                  selectedDiscoveryModelIds.length === 0
+                                }
+                              >
+                                Clear
+                              </Button>
+                            </div>
+                          </div>
+
+                          <div className="overflow-hidden rounded-xl border border-border bg-background">
+                            <Command>
+                              <CommandInput placeholder="Search inspected models" />
+                              <CommandList className="max-h-[420px]">
+                                <CommandGroup
+                                  heading={`Discovered models (${discoveryResult.modelCount})`}
+                                >
+                                  {discoveryResult.models.map(
+                                    (
+                                      model: ProviderCatalogResult['models'][number],
+                                    ) => {
+                                      const isSelected =
+                                        selectedDiscoveryModelIds.includes(
+                                          model.modelId,
+                                        )
+                                      const isImported =
+                                        existingDiscoveredModelIds.has(
+                                          model.modelId,
+                                        )
+
+                                      return (
+                                        <CommandItem
+                                          key={model.modelId}
+                                          value={`${model.displayName} ${model.modelId} ${model.ownedBy ?? ''} ${formatModelModalities(model.modalities)}`}
+                                          onSelect={() =>
+                                            toggleDiscoveryModelSelection(
+                                              model.modelId,
+                                            )
+                                          }
+                                          className="items-start gap-3 py-3"
+                                        >
+                                          <Checkbox
+                                            checked={isSelected}
+                                            tabIndex={-1}
+                                            aria-hidden="true"
+                                            className="pointer-events-none mt-1"
+                                          />
+                                          <div className="min-w-0 flex-1 space-y-1">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                              <span className="font-medium">
+                                                {model.displayName}
+                                              </span>
+                                              {isImported ? (
+                                                <Badge variant="secondary">
+                                                  Added
+                                                </Badge>
+                                              ) : null}
+                                              {isSelected ? (
+                                                <Badge variant="outline">
+                                                  Selected
+                                                </Badge>
+                                              ) : null}
+                                            </div>
+                                            <p className="truncate font-mono text-xs text-muted-foreground">
+                                              {model.modelId}
+                                            </p>
+                                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                                              <span>
+                                                Owner:{' '}
+                                                {model.ownedBy || 'Unknown'}
+                                              </span>
+                                              <span>
+                                                Context:{' '}
+                                                {model.contextWindow
+                                                  ? formatTokenCount(
+                                                      model.contextWindow,
+                                                    )
+                                                  : 'n/a'}
+                                              </span>
+                                              <span>
+                                                Max output:{' '}
+                                                {model.maxOutputTokens
+                                                  ? formatTokenCount(
+                                                      model.maxOutputTokens,
+                                                    )
+                                                  : 'n/a'}
+                                              </span>
+                                            </div>
+                                            <p className="text-xs text-muted-foreground">
+                                              Modalities:{' '}
+                                              {formatModelModalities(
+                                                model.modalities,
+                                              )}
+                                            </p>
+                                          </div>
+                                        </CommandItem>
+                                      )
+                                    },
+                                  )}
+                                </CommandGroup>
+                                <CommandEmpty>No matching models.</CommandEmpty>
+                              </CommandList>
+                            </Command>
+                          </div>
                         </div>
                       ) : null}
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Model</TableHead>
-                            <TableHead>Owner</TableHead>
-                            <TableHead>Context</TableHead>
-                            <TableHead>Max output</TableHead>
-                            <TableHead>Modalities</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {discoveryPreview.map((model: ProviderCatalogResult['models'][number]) => (
-                            <TableRow key={model.modelId}>
-                              <TableCell>
-                                <div className="space-y-1">
-                                  <p className="font-medium">{model.displayName}</p>
-                                  <p className="font-mono text-xs text-muted-foreground">
-                                    {model.modelId}
-                                  </p>
-                                </div>
-                              </TableCell>
-                              <TableCell>{model.ownedBy || 'Unknown'}</TableCell>
-                              <TableCell>{model.contextWindow ?? 'n/a'}</TableCell>
-                              <TableCell>{model.maxOutputTokens ?? 'n/a'}</TableCell>
-                              <TableCell className="text-xs text-muted-foreground">
-                                {formatModelModalities(model.modalities)}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
                     </CardContent>
                   </Card>
                 ) : null}
@@ -1706,7 +2639,8 @@ function AdminPage() {
                   <CardHeader>
                     <CardTitle>Models</CardTitle>
                     <CardDescription>
-                      Show or hide models, set icons per model, and tune custom per-model limits.
+                      Show or hide models, set icons per model, and tune custom
+                      per-model limits.
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -1731,18 +2665,24 @@ function AdminPage() {
                                   <EntityIcon
                                     icon={model.icon}
                                     iconType={model.iconType as IconType}
-                                    iconUrl={model.iconUrl || model.providerIconUrl}
+                                    iconUrl={
+                                      model.iconUrl || model.providerIconUrl
+                                    }
                                   />
                                 </div>
                                 <div className="min-w-0">
-                                  <p className="font-medium">{model.displayName}</p>
+                                  <p className="font-medium">
+                                    {model.displayName}
+                                  </p>
                                   <p className="truncate font-mono text-xs text-muted-foreground">
                                     {model.modelId}
                                   </p>
                                 </div>
                               </div>
                             </TableCell>
-                            <TableCell>{getProviderName(providers, model.providerId)}</TableCell>
+                            <TableCell>
+                              {getProviderName(providers, model.providerId)}
+                            </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-3">
                                 <Switch
@@ -1754,7 +2694,11 @@ function AdminPage() {
                                     })
                                   }
                                 />
-                                <Badge variant={model.isEnabled ? 'default' : 'secondary'}>
+                                <Badge
+                                  variant={
+                                    model.isEnabled ? 'default' : 'secondary'
+                                  }
+                                >
                                   {model.isEnabled ? (
                                     <>
                                       <Eye className="mr-1 size-3.5" />
@@ -1770,21 +2714,32 @@ function AdminPage() {
                               </div>
                             </TableCell>
                             <TableCell className="text-xs text-muted-foreground">
-                              <p>{formatCompactNumber(model.usage.requests)} requests</p>
-                              <p>{formatCompactNumber(model.usage.tokens)} tokens</p>
+                              <p>
+                                {formatCompactNumber(model.usage.requests)}{' '}
+                                requests
+                              </p>
+                              <p>
+                                {formatCompactNumber(model.usage.tokens)} tokens
+                              </p>
                             </TableCell>
                             <TableCell>{model.usage.users}</TableCell>
                             <TableCell>{model.favorites}</TableCell>
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-2">
-                                <Button variant="outline" size="sm" onClick={() => openModelDialog(model)}>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => openModelDialog(model)}
+                                >
                                   Edit
                                 </Button>
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   className="text-destructive"
-                                  onClick={() => void deleteModel({ id: model._id })}
+                                  onClick={() =>
+                                    void deleteModel({ id: model._id })
+                                  }
                                 >
                                   Delete
                                 </Button>
@@ -1798,12 +2753,137 @@ function AdminPage() {
                 </Card>
               </TabsContent>
 
-              <TabsContent value="usage" className="grid gap-4 xl:grid-cols-[1.2fr_1fr]">
+              <TabsContent value="collections" className="grid gap-4">
+                <Card className="border-border bg-card shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
+                  <CardHeader>
+                    <CardTitle>Collections</CardTitle>
+                    <CardDescription>
+                      Curate reusable groups of existing models without
+                      duplicating their configuration.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Collection</TableHead>
+                          <TableHead>Models</TableHead>
+                          <TableHead>Sort</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {collections.length > 0 ? (
+                          collections.map(
+                            (collection: AdminModelCollection) => {
+                              const hiddenModels = collection.models.filter(
+                                (model) => !model.isEnabled,
+                              ).length
+
+                              return (
+                                <TableRow key={collection._id}>
+                                  <TableCell>
+                                    <div className="space-y-1">
+                                      <div className="flex items-center gap-2">
+                                        <p className="font-medium">
+                                          {collection.name}
+                                        </p>
+                                        <Badge variant="secondary">
+                                          {collection.modelCount} models
+                                        </Badge>
+                                      </div>
+                                      {collection.description ? (
+                                        <p className="max-w-xl text-sm text-muted-foreground">
+                                          {collection.description}
+                                        </p>
+                                      ) : null}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex flex-wrap gap-2">
+                                      {collection.models
+                                        .slice(0, 4)
+                                        .map((model) => (
+                                          <Badge
+                                            key={model._id}
+                                            variant="outline"
+                                            className="gap-1.5"
+                                          >
+                                            <span>{model.displayName}</span>
+                                            <span className="text-muted-foreground">
+                                              ({model.providerName})
+                                            </span>
+                                          </Badge>
+                                        ))}
+                                      {collection.modelCount > 4 ? (
+                                        <Badge variant="outline">
+                                          +{collection.modelCount - 4} more
+                                        </Badge>
+                                      ) : null}
+                                      {hiddenModels > 0 ? (
+                                        <Badge variant="secondary">
+                                          {hiddenModels} hidden
+                                        </Badge>
+                                      ) : null}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>{collection.sortOrder}</TableCell>
+                                  <TableCell className="text-right">
+                                    <div className="flex justify-end gap-2">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                          openCollectionDialog(collection)
+                                        }
+                                      >
+                                        Edit
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-destructive"
+                                        onClick={() =>
+                                          void deleteModelCollection({
+                                            id: collection._id,
+                                          })
+                                        }
+                                      >
+                                        Delete
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              )
+                            },
+                          )
+                        ) : (
+                          <TableRow>
+                            <TableCell
+                              colSpan={4}
+                              className="py-10 text-center text-sm text-muted-foreground"
+                            >
+                              No collections yet. Create one from the current
+                              model catalog.
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent
+                value="usage"
+                className="grid gap-4 xl:grid-cols-[1.2fr_1fr]"
+              >
                 <Card className="border-border bg-card shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
                   <CardHeader>
                     <CardTitle>Model usage</CardTitle>
                     <CardDescription>
-                      Requests, tokens, and the last active account view per model.
+                      Requests, tokens, and the last active account view per
+                      model.
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -1829,16 +2909,24 @@ function AdminPage() {
                             <TableRow key={model._id}>
                               <TableCell>
                                 <div className="space-y-1">
-                                  <p className="font-medium">{model.displayName}</p>
+                                  <p className="font-medium">
+                                    {model.displayName}
+                                  </p>
                                   <p className="font-mono text-xs text-muted-foreground">
                                     {model.modelId}
                                   </p>
                                 </div>
                               </TableCell>
-                              <TableCell>{formatCompactNumber(model.usage.requests)}</TableCell>
-                              <TableCell>{formatTokenCount(model.usage.tokens)}</TableCell>
+                              <TableCell>
+                                {formatCompactNumber(model.usage.requests)}
+                              </TableCell>
+                              <TableCell>
+                                {formatTokenCount(model.usage.tokens)}
+                              </TableCell>
                               <TableCell>{model.usage.users}</TableCell>
-                              <TableCell>{formatDateTime(model.usage.lastUsedAt)}</TableCell>
+                              <TableCell>
+                                {formatDateTime(model.usage.lastUsedAt)}
+                              </TableCell>
                             </TableRow>
                           ))}
                       </TableBody>
@@ -1850,7 +2938,8 @@ function AdminPage() {
                   <CardHeader>
                     <CardTitle>Account activity</CardTitle>
                     <CardDescription>
-                      Which accounts are using models, and how much they consume.
+                      Which accounts are using models, and how much they
+                      consume.
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -1864,31 +2953,43 @@ function AdminPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {users.slice(0, 12).map((user: DashboardData['users'][number]) => (
-                          <TableRow key={user.userId}>
-                            <TableCell>
-                              <div className="space-y-1">
-                                <p className="font-medium">{user.name}</p>
-                                <p className="text-xs text-muted-foreground">{user.email || 'No email'}</p>
-                              </div>
-                            </TableCell>
-                            <TableCell>{formatCompactNumber(user.requests)}</TableCell>
-                            <TableCell>{formatTokenCount(user.tokens)}</TableCell>
-                            <TableCell>{user.models}</TableCell>
-                          </TableRow>
-                        ))}
+                        {users
+                          .slice(0, 12)
+                          .map((user: DashboardData['users'][number]) => (
+                            <TableRow key={user.userId}>
+                              <TableCell>
+                                <div className="space-y-1">
+                                  <p className="font-medium">{user.name}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {user.email || 'No email'}
+                                  </p>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {formatCompactNumber(user.requests)}
+                              </TableCell>
+                              <TableCell>
+                                {formatTokenCount(user.tokens)}
+                              </TableCell>
+                              <TableCell>{user.models}</TableCell>
+                            </TableRow>
+                          ))}
                       </TableBody>
                     </Table>
                   </CardContent>
                 </Card>
               </TabsContent>
 
-              <TabsContent value="settings" className="grid gap-4 xl:grid-cols-[1fr_0.8fr]">
+              <TabsContent
+                value="settings"
+                className="grid gap-4 xl:grid-cols-[1fr_0.8fr]"
+              >
                 <Card className="border-border bg-card shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
                   <CardHeader>
                     <CardTitle>Global message policy</CardTitle>
                     <CardDescription>
-                      This limit applies to every message before provider and model-specific overrides.
+                      This limit applies to every message before provider and
+                      model-specific overrides.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="grid gap-4">
@@ -1899,7 +3000,10 @@ function AdminPage() {
                       onChange={setGlobalRateLimit}
                     />
                     <div className="flex justify-end">
-                      <Button onClick={() => void handleSaveGlobalRateLimit()} disabled={isSavingSettings}>
+                      <Button
+                        onClick={() => void handleSaveGlobalRateLimit()}
+                        disabled={isSavingSettings}
+                      >
                         {isSavingSettings ? (
                           <Loader2 className="mr-2 size-4 animate-spin" />
                         ) : (
@@ -1915,31 +3019,43 @@ function AdminPage() {
                   <CardHeader>
                     <CardTitle>Current limit order</CardTitle>
                     <CardDescription>
-                      Requests are checked in this order. The first failed rule blocks the send.
+                      Requests are checked in this order. The first failed rule
+                      blocks the send.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="grid gap-4 text-sm text-muted-foreground">
                     <div className="rounded-xl border border-border bg-muted p-4">
-                      <p className="font-medium text-foreground">1. Global default</p>
+                      <p className="font-medium text-foreground">
+                        1. Global default
+                      </p>
                       <p>
-                        Applies to all models when enabled. Useful for app-wide per-user or global caps.
+                        Applies to all models when enabled. Useful for app-wide
+                        per-user or global caps.
                       </p>
                     </div>
                     <div className="rounded-xl border border-border bg-muted p-4">
-                      <p className="font-medium text-foreground">2. Provider policy</p>
+                      <p className="font-medium text-foreground">
+                        2. Provider policy
+                      </p>
                       <p>
-                        Applies to every model inside a provider, including custom OpenAI-compatible endpoints.
+                        Applies to every model inside a provider, including
+                        custom OpenAI-compatible endpoints.
                       </p>
                     </div>
                     <div className="rounded-xl border border-border bg-muted p-4">
-                      <p className="font-medium text-foreground">3. Model policy</p>
+                      <p className="font-medium text-foreground">
+                        3. Model policy
+                      </p>
                       <p>
-                        Applies only to the selected model and is the final gate before the generation starts.
+                        Applies only to the selected model and is the final gate
+                        before the generation starts.
                       </p>
                     </div>
                     <Separator />
                     <p>
-                      The implementation uses the Convex rate limiter component at message send time, so the limits are transactional and enforced server-side.
+                      The implementation uses the Convex rate limiter component
+                      at message send time, so the limits are transactional and
+                      enforced server-side.
                     </p>
                   </CardContent>
                 </Card>

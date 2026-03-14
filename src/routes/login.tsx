@@ -8,13 +8,11 @@ import {
 import { createFileRoute, Navigate, useSearch } from '@tanstack/react-router'
 import { Loader2 } from 'lucide-react'
 import { getPostLoginRedirectTarget } from '@/lib/auth-redirect'
+import { parseRouteSearchRedirects } from '@/lib/parsers'
 
 export const Route = createFileRoute('/login')({
   component: LoginPage,
-  validateSearch: (search: Record<string, unknown>) => ({
-    redirect: search.redirect as string | undefined,
-    redirect_url: search.redirect_url as string | undefined,
-  }),
+  validateSearch: parseRouteSearchRedirects,
 })
 
 function LoginPage() {

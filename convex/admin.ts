@@ -11,68 +11,210 @@ import { internal } from './_generated/api'
 import { ConvexError, v } from 'convex/values'
 import { getAuthUserId } from './lib/auth'
 import { fetchProviderCatalog } from './lib/providerCatalog'
+import {
+  discoveredModelValidator,
+  iconTypeValidator,
+  modalitiesValidator,
+  providerCatalogResultValidator,
+  providerConfigValidator,
+  providerTypeValidator,
+  rateLimitPolicyValidator,
+} from './lib/validators'
+import type { Id } from './_generated/dataModel'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
-const providerTypeValidator = v.union(
-  v.literal('openrouter'),
-  v.literal('openai'),
-  v.literal('anthropic'),
-  v.literal('google'),
-  v.literal('azure'),
-  v.literal('groq'),
-  v.literal('deepseek'),
-  v.literal('xai'),
-  v.literal('cerebras'),
-  v.literal('openai-compatible'),
-  v.literal('opencode'),
-  v.literal('mistral'),
-  v.literal('cohere'),
-  v.literal('perplexity'),
-  v.literal('fireworks'),
-  v.literal('together'),
-  v.literal('replicate'),
-  v.literal('moonshot'),
-  v.literal('qwen'),
-  v.literal('stepfun'),
-)
-
-const iconTypeValidator = v.union(
-  v.literal('emoji'),
-  v.literal('lucide'),
-  v.literal('upload'),
-)
-
-const rateLimitPolicyValidator = v.object({
-  enabled: v.boolean(),
-  scope: v.union(v.literal('global'), v.literal('user')),
-  kind: v.union(v.literal('fixed window'), v.literal('token bucket')),
-  rate: v.number(),
-  period: v.number(),
-  capacity: v.optional(v.number()),
-  shards: v.optional(v.number()),
+const adminSettingsValidator = v.object({
+  _id: v.optional(v.id('adminSettings')),
+  key: v.string(),
+  defaultRateLimit: v.optional(rateLimitPolicyValidator),
+  updatedAt: v.number(),
 })
 
-const providerConfigValidator = v.object({
-  organization: v.optional(v.string()),
-  project: v.optional(v.string()),
-  headers: v.optional(v.record(v.string(), v.string())),
-  queryParams: v.optional(v.record(v.string(), v.string())),
+const providerBaseValidator = v.object({
+  _id: v.id('providers'),
+  _creationTime: v.number(),
+  apiKey: v.string(),
+  baseURL: v.optional(v.string()),
+  description: v.optional(v.string()),
+  isEnabled: v.boolean(),
+  name: v.string(),
+  providerType: providerTypeValidator,
+  sortOrder: v.number(),
+  icon: v.optional(v.string()),
+  iconType: v.optional(iconTypeValidator),
+  iconId: v.optional(v.id('_storage')),
+  rateLimit: v.optional(rateLimitPolicyValidator),
+  lastDiscoveredAt: v.optional(v.number()),
+  lastDiscoveryError: v.optional(v.string()),
+  lastDiscoveredModelCount: v.optional(v.number()),
+  config: v.optional(providerConfigValidator),
 })
 
-const modalitiesValidator = v.object({
-  input: v.array(v.string()),
-  output: v.array(v.string()),
+const providerWithIconUrlValidator = v.object({
+  _id: v.id('providers'),
+  _creationTime: v.number(),
+  apiKey: v.string(),
+  baseURL: v.optional(v.string()),
+  description: v.optional(v.string()),
+  isEnabled: v.boolean(),
+  name: v.string(),
+  providerType: providerTypeValidator,
+  sortOrder: v.number(),
+  icon: v.optional(v.string()),
+  iconType: v.optional(iconTypeValidator),
+  iconId: v.optional(v.id('_storage')),
+  rateLimit: v.optional(rateLimitPolicyValidator),
+  lastDiscoveredAt: v.optional(v.number()),
+  lastDiscoveryError: v.optional(v.string()),
+  lastDiscoveredModelCount: v.optional(v.number()),
+  config: v.optional(providerConfigValidator),
+  iconUrl: v.optional(v.string()),
 })
 
-const discoveredModelValidator = v.object({
+const providerSummaryValidator = v.object({
+  _id: v.id('providers'),
+  name: v.string(),
+  providerType: providerTypeValidator,
+  icon: v.optional(v.string()),
+  iconType: v.optional(iconTypeValidator),
+  iconId: v.optional(v.id('_storage')),
+  iconUrl: v.optional(v.string()),
+})
+
+const modelBaseValidator = v.object({
+  _id: v.id('models'),
+  _creationTime: v.number(),
   modelId: v.string(),
   displayName: v.string(),
   description: v.optional(v.string()),
+  isEnabled: v.boolean(),
+  isFree: v.boolean(),
+  sortOrder: v.number(),
+  providerId: v.id('providers'),
+  icon: v.optional(v.string()),
+  iconType: v.optional(iconTypeValidator),
+  iconId: v.optional(v.id('_storage')),
+  capabilities: v.optional(v.array(v.string())),
   ownedBy: v.optional(v.string()),
   contextWindow: v.optional(v.number()),
   maxOutputTokens: v.optional(v.number()),
   modalities: v.optional(modalitiesValidator),
+  rateLimit: v.optional(rateLimitPolicyValidator),
+  discoveredAt: v.optional(v.number()),
+  lastSyncedAt: v.optional(v.number()),
+})
+
+const modelWithProviderValidator = v.object({
+  _id: v.id('models'),
+  _creationTime: v.number(),
+  modelId: v.string(),
+  displayName: v.string(),
+  description: v.optional(v.string()),
+  isEnabled: v.boolean(),
+  isFree: v.boolean(),
+  sortOrder: v.number(),
+  providerId: v.id('providers'),
+  icon: v.optional(v.string()),
+  iconType: v.optional(iconTypeValidator),
+  iconId: v.optional(v.id('_storage')),
+  capabilities: v.optional(v.array(v.string())),
+  ownedBy: v.optional(v.string()),
+  contextWindow: v.optional(v.number()),
+  maxOutputTokens: v.optional(v.number()),
+  modalities: v.optional(modalitiesValidator),
+  rateLimit: v.optional(rateLimitPolicyValidator),
+  discoveredAt: v.optional(v.number()),
+  lastSyncedAt: v.optional(v.number()),
+  iconUrl: v.optional(v.string()),
+  provider: v.union(v.null(), providerSummaryValidator),
+  isFavorite: v.boolean(),
+})
+
+const dashboardProviderValidator = v.object({
+  _id: v.id('providers'),
+  _creationTime: v.number(),
+  apiKey: v.string(),
+  baseURL: v.optional(v.string()),
+  description: v.optional(v.string()),
+  isEnabled: v.boolean(),
+  name: v.string(),
+  providerType: providerTypeValidator,
+  sortOrder: v.number(),
+  icon: v.optional(v.string()),
+  iconType: v.optional(iconTypeValidator),
+  iconId: v.optional(v.id('_storage')),
+  rateLimit: v.optional(rateLimitPolicyValidator),
+  lastDiscoveredAt: v.optional(v.number()),
+  lastDiscoveryError: v.optional(v.string()),
+  lastDiscoveredModelCount: v.optional(v.number()),
+  config: v.optional(providerConfigValidator),
+  iconUrl: v.optional(v.string()),
+  modelCount: v.number(),
+  enabledModelCount: v.number(),
+  usage: v.object({
+    requests: v.number(),
+    tokens: v.number(),
+    users: v.number(),
+    lastUsedAt: v.optional(v.number()),
+  }),
+})
+
+const dashboardModelValidator = v.object({
+  _id: v.id('models'),
+  _creationTime: v.number(),
+  modelId: v.string(),
+  displayName: v.string(),
+  description: v.optional(v.string()),
+  isEnabled: v.boolean(),
+  isFree: v.boolean(),
+  sortOrder: v.number(),
+  providerId: v.id('providers'),
+  icon: v.optional(v.string()),
+  iconType: v.optional(iconTypeValidator),
+  iconId: v.optional(v.id('_storage')),
+  capabilities: v.optional(v.array(v.string())),
+  ownedBy: v.optional(v.string()),
+  contextWindow: v.optional(v.number()),
+  maxOutputTokens: v.optional(v.number()),
+  modalities: v.optional(modalitiesValidator),
+  rateLimit: v.optional(rateLimitPolicyValidator),
+  discoveredAt: v.optional(v.number()),
+  lastSyncedAt: v.optional(v.number()),
+  iconUrl: v.optional(v.string()),
+  providerName: v.string(),
+  providerIconUrl: v.optional(v.string()),
+  favorites: v.number(),
+  usage: v.object({
+    requests: v.number(),
+    tokens: v.number(),
+    users: v.number(),
+    lastUsedAt: v.optional(v.number()),
+  }),
+})
+
+const collectionModelSummaryValidator = v.object({
+  _id: v.id('models'),
+  modelId: v.string(),
+  displayName: v.string(),
+  providerId: v.id('providers'),
+  providerName: v.string(),
+  isEnabled: v.boolean(),
+  icon: v.optional(v.string()),
+  iconType: v.optional(iconTypeValidator),
+  iconUrl: v.optional(v.string()),
+  providerIconUrl: v.optional(v.string()),
+})
+
+const dashboardModelCollectionValidator = v.object({
+  _id: v.id('modelCollections'),
+  _creationTime: v.number(),
+  name: v.string(),
+  description: v.optional(v.string()),
+  sortOrder: v.number(),
+  modelIds: v.array(v.id('models')),
+  modelCount: v.number(),
+  models: v.array(collectionModelSummaryValidator),
 })
 
 async function requireAdmin(ctx: MutationCtx | QueryCtx) {
@@ -125,6 +267,26 @@ function normalizeIsFree(modelId: string) {
   return modelId.includes(':free') || modelId.endsWith('-free')
 }
 
+async function normalizeCollectionModelIds(
+  ctx: MutationCtx,
+  modelIds: Id<'models'>[],
+) {
+  const uniqueModelIds = [...new Set(modelIds)]
+  const models = await Promise.all(
+    uniqueModelIds.map((modelId) => ctx.db.get(modelId)),
+  )
+  const missingModelId = uniqueModelIds.find((_, index) => !models[index])
+
+  if (missingModelId) {
+    throw new ConvexError({
+      code: 'VALIDATION_ERROR',
+      message: `Model ${missingModelId} does not exist.`,
+    })
+  }
+
+  return uniqueModelIds
+}
+
 export const getAdminContext = internalQuery({
   args: {},
   handler: async (ctx) => {
@@ -147,6 +309,7 @@ export const getAdminContext = internalQuery({
 
 export const generateUploadUrl = mutation({
   args: {},
+  returns: v.string(),
   handler: async (ctx) => {
     await requireAdmin(ctx)
     return await ctx.storage.generateUploadUrl()
@@ -155,6 +318,7 @@ export const generateUploadUrl = mutation({
 
 export const isAdmin = query({
   args: {},
+  returns: v.boolean(),
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) {
@@ -172,6 +336,7 @@ export const isAdmin = query({
 
 export const getAdminSettings = query({
   args: {},
+  returns: adminSettingsValidator,
   handler: async (ctx) => {
     await requireAdmin(ctx)
     return await getCurrentAdminSettings(ctx)
@@ -182,6 +347,7 @@ export const updateAdminSettings = mutation({
   args: {
     defaultRateLimit: v.optional(rateLimitPolicyValidator),
   },
+  returns: v.id('adminSettings'),
   handler: async (ctx, args) => {
     await requireAdmin(ctx)
     const existing = await ctx.db
@@ -206,6 +372,7 @@ export const updateAdminSettings = mutation({
 
 export const listAllProviders = query({
   args: {},
+  returns: v.array(providerWithIconUrlValidator),
   handler: async (ctx) => {
     await requireAdmin(ctx)
     const providers = await ctx.db.query('providers').collect()
@@ -215,7 +382,7 @@ export const listAllProviders = query({
         .map(async (provider) => ({
           ...provider,
           iconUrl: provider.iconId
-            ? await ctx.storage.getUrl(provider.iconId)
+            ? ((await ctx.storage.getUrl(provider.iconId)) ?? undefined)
             : undefined,
         })),
     )
@@ -224,13 +391,42 @@ export const listAllProviders = query({
 
 export const listAllModels = query({
   args: {},
+  returns: v.array(
+    v.object({
+      _id: v.id('models'),
+      _creationTime: v.number(),
+      modelId: v.string(),
+      displayName: v.string(),
+      description: v.optional(v.string()),
+      isEnabled: v.boolean(),
+      isFree: v.boolean(),
+      sortOrder: v.number(),
+      providerId: v.id('providers'),
+      icon: v.optional(v.string()),
+      iconType: v.optional(iconTypeValidator),
+      iconId: v.optional(v.id('_storage')),
+      capabilities: v.optional(v.array(v.string())),
+      ownedBy: v.optional(v.string()),
+      contextWindow: v.optional(v.number()),
+      maxOutputTokens: v.optional(v.number()),
+      modalities: v.optional(modalitiesValidator),
+      rateLimit: v.optional(rateLimitPolicyValidator),
+      discoveredAt: v.optional(v.number()),
+      lastSyncedAt: v.optional(v.number()),
+      iconUrl: v.optional(v.string()),
+      providerName: v.string(),
+      provider: v.optional(providerBaseValidator),
+    }),
+  ),
   handler: async (ctx) => {
     await requireAdmin(ctx)
     const [models, providers] = await Promise.all([
       ctx.db.query('models').collect(),
       ctx.db.query('providers').collect(),
     ])
-    const providerMap = new Map(providers.map((provider) => [provider._id, provider]))
+    const providerMap = new Map(
+      providers.map((provider) => [provider._id, provider]),
+    )
 
     return await Promise.all(
       models
@@ -239,7 +435,9 @@ export const listAllModels = query({
           const provider = providerMap.get(model.providerId)
           return {
             ...model,
-            iconUrl: model.iconId ? await ctx.storage.getUrl(model.iconId) : undefined,
+            iconUrl: model.iconId
+              ? ((await ctx.storage.getUrl(model.iconId)) ?? undefined)
+              : undefined,
             providerName: provider?.name ?? 'Unknown Provider',
             provider,
           }
@@ -250,6 +448,7 @@ export const listAllModels = query({
 
 export const listEnabledModels = query({
   args: {},
+  returns: v.array(modelBaseValidator),
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) {
@@ -267,7 +466,9 @@ export const listEnabledModels = query({
         .collect(),
     ])
 
-    const enabledProviderIds = new Set(providers.map((provider) => provider._id))
+    const enabledProviderIds = new Set(
+      providers.map((provider) => provider._id),
+    )
 
     return models
       .filter((model) => enabledProviderIds.has(model.providerId))
@@ -277,6 +478,11 @@ export const listEnabledModels = query({
 
 export const listModelsWithProviders = query({
   args: {},
+  returns: v.object({
+    providers: v.array(providerSummaryValidator),
+    favorites: v.array(modelWithProviderValidator),
+    models: v.array(modelWithProviderValidator),
+  }),
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) {
@@ -298,8 +504,12 @@ export const listModelsWithProviders = query({
         .collect(),
     ])
 
-    const favoriteModelIds = new Set(favorites.map((favorite) => favorite.modelId))
-    const providerMap = new Map(providers.map((provider) => [provider._id, provider]))
+    const favoriteModelIds = new Set(
+      favorites.map((favorite) => favorite.modelId),
+    )
+    const providerMap = new Map(
+      providers.map((provider) => [provider._id, provider]),
+    )
 
     const modelsWithInfo = await Promise.all(
       models
@@ -307,10 +517,10 @@ export const listModelsWithProviders = query({
         .map(async (model) => {
           const provider = providerMap.get(model.providerId)
           const providerIconUrl = provider?.iconId
-            ? await ctx.storage.getUrl(provider.iconId)
+            ? ((await ctx.storage.getUrl(provider.iconId)) ?? undefined)
             : undefined
           const modelIconUrl = model.iconId
-            ? await ctx.storage.getUrl(model.iconId)
+            ? ((await ctx.storage.getUrl(model.iconId)) ?? undefined)
             : undefined
 
           return {
@@ -342,20 +552,25 @@ export const listModelsWithProviders = query({
           icon: provider.icon,
           iconType: provider.iconType,
           iconId: provider.iconId,
-          iconUrl: provider.iconId ? await ctx.storage.getUrl(provider.iconId) : undefined,
+          iconUrl: provider.iconId
+            ? ((await ctx.storage.getUrl(provider.iconId)) ?? undefined)
+            : undefined,
         })),
     )
 
     return {
       providers: sortedProviders,
       favorites: modelsWithInfo.filter((model) => model.isFavorite),
-      models: modelsWithInfo.sort((left, right) => left.sortOrder - right.sortOrder),
+      models: modelsWithInfo.sort(
+        (left, right) => left.sortOrder - right.sortOrder,
+      ),
     }
   },
 })
 
 export const toggleFavoriteModel = mutation({
   args: { modelId: v.id('models') },
+  returns: v.object({ favorited: v.boolean() }),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) {
@@ -392,6 +607,7 @@ export const setFavoriteModel = mutation({
     isFavorite: v.boolean(),
     clientUpdatedAt: v.optional(v.number()),
   },
+  returns: v.object({ favorited: v.boolean() }),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) {
@@ -444,6 +660,7 @@ export const addProvider = mutation({
     rateLimit: v.optional(rateLimitPolicyValidator),
     config: v.optional(providerConfigValidator),
   },
+  returns: v.id('providers'),
   handler: async (ctx, args) => {
     await requireAdmin(ctx)
     return await ctx.db.insert('providers', {
@@ -501,7 +718,8 @@ export const deleteProvider = mutation({
     if (models.length > 0) {
       throw new ConvexError({
         code: 'VALIDATION_ERROR',
-        message: 'Cannot delete provider with existing models. Remove models first.',
+        message:
+          'Cannot delete provider with existing models. Remove models first.',
       })
     }
 
@@ -528,6 +746,7 @@ export const addModel = mutation({
     modalities: v.optional(modalitiesValidator),
     rateLimit: v.optional(rateLimitPolicyValidator),
   },
+  returns: v.id('models'),
   handler: async (ctx, args) => {
     await requireAdmin(ctx)
     return await ctx.db.insert('models', args)
@@ -576,6 +795,73 @@ export const deleteModel = mutation({
   args: { id: v.id('models') },
   handler: async (ctx, args) => {
     await requireAdmin(ctx)
+    const [collections, favorites] = await Promise.all([
+      ctx.db.query('modelCollections').collect(),
+      ctx.db.query('userFavoriteModels').collect(),
+    ])
+
+    await Promise.all([
+      ...collections
+        .filter((collection) => collection.modelIds.includes(args.id))
+        .map((collection) =>
+          ctx.db.patch(collection._id, {
+            modelIds: collection.modelIds.filter(
+              (modelId) => modelId !== args.id,
+            ),
+          }),
+        ),
+      ...favorites
+        .filter((favorite) => favorite.modelId === args.id)
+        .map((favorite) => ctx.db.delete(favorite._id)),
+    ])
+
+    await ctx.db.delete(args.id)
+  },
+})
+
+export const addModelCollection = mutation({
+  args: {
+    name: v.string(),
+    description: v.optional(v.string()),
+    sortOrder: v.number(),
+    modelIds: v.array(v.id('models')),
+  },
+  returns: v.id('modelCollections'),
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx)
+    const modelIds = await normalizeCollectionModelIds(ctx, args.modelIds)
+
+    return await ctx.db.insert('modelCollections', {
+      ...args,
+      modelIds,
+    })
+  },
+})
+
+export const updateModelCollection = mutation({
+  args: {
+    id: v.id('modelCollections'),
+    name: v.optional(v.string()),
+    description: v.optional(v.string()),
+    sortOrder: v.optional(v.number()),
+    modelIds: v.optional(v.array(v.id('models'))),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx)
+    const { id, modelIds, ...updates } = args
+    await ctx.db.patch(id, {
+      ...cleanUpdates(updates),
+      ...(modelIds !== undefined
+        ? { modelIds: await normalizeCollectionModelIds(ctx, modelIds) }
+        : {}),
+    })
+  },
+})
+
+export const deleteModelCollection = mutation({
+  args: { id: v.id('modelCollections') },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx)
     await ctx.db.delete(args.id)
   },
 })
@@ -586,6 +872,7 @@ export const importDiscoveredModels = mutation({
     models: v.array(discoveredModelValidator),
     enableImportedModels: v.optional(v.boolean()),
   },
+  returns: v.object({ inserted: v.number(), updated: v.number() }),
   handler: async (ctx, args) => {
     await requireAdmin(ctx)
 
@@ -597,7 +884,10 @@ export const importDiscoveredModels = mutation({
       existingModels.map((model) => [model.modelId, model]),
     )
     const nextSortOrder =
-      existingModels.reduce((max, model) => Math.max(max, model.sortOrder), -1) + 1
+      existingModels.reduce(
+        (max, model) => Math.max(max, model.sortOrder),
+        -1,
+      ) + 1
     const enableImportedModels = args.enableImportedModels ?? true
     let inserted = 0
     let updated = 0
@@ -658,6 +948,7 @@ export const inspectProviderCatalog = action({
     baseURL: v.optional(v.string()),
     config: v.optional(providerConfigValidator),
   },
+  returns: providerCatalogResultValidator,
   handler: async (ctx, args) => {
     const adminContext = await ctx.runQuery(internal.admin.getAdminContext, {})
     if (!adminContext.isAdmin) {
@@ -719,6 +1010,40 @@ export const recordModelUsage = internalMutation({
 
 export const getDashboardData = query({
   args: {},
+  returns: v.object({
+    settings: adminSettingsValidator,
+    summary: v.object({
+      totalProviders: v.number(),
+      enabledProviders: v.number(),
+      totalModels: v.number(),
+      visibleModels: v.number(),
+      hiddenModels: v.number(),
+      totalRequests30d: v.number(),
+      totalTokens30d: v.number(),
+      activeUsers30d: v.number(),
+    }),
+    usageSeries: v.array(
+      v.object({
+        date: v.string(),
+        requests: v.number(),
+        tokens: v.number(),
+      }),
+    ),
+    providers: v.array(dashboardProviderValidator),
+    models: v.array(dashboardModelValidator),
+    collections: v.array(dashboardModelCollectionValidator),
+    users: v.array(
+      v.object({
+        userId: v.string(),
+        name: v.string(),
+        email: v.optional(v.string()),
+        requests: v.number(),
+        tokens: v.number(),
+        models: v.number(),
+        lastUsedAt: v.number(),
+      }),
+    ),
+  }),
   handler: async (ctx) => {
     await requireAdmin(ctx)
 
@@ -726,9 +1051,18 @@ export const getDashboardData = query({
     const since30d = now - 30 * DAY_MS
     const since7d = now - 7 * DAY_MS
 
-    const [providers, models, users, favorites, settings, usageEvents] = await Promise.all([
+    const [
+      providers,
+      models,
+      collections,
+      users,
+      favorites,
+      settings,
+      usageEvents,
+    ] = await Promise.all([
       ctx.db.query('providers').collect(),
       ctx.db.query('models').collect(),
+      ctx.db.query('modelCollections').collect(),
       ctx.db.query('users').collect(),
       ctx.db.query('userFavoriteModels').collect(),
       getCurrentAdminSettings(ctx),
@@ -739,7 +1073,9 @@ export const getDashboardData = query({
     ])
 
     const usageLast30d = usageEvents
-    const usageLast7d = usageEvents.filter((event) => event.createdAt >= since7d)
+    const usageLast7d = usageEvents.filter(
+      (event) => event.createdAt >= since7d,
+    )
     const favoritesByModelId = new Map<string, number>()
     for (const favorite of favorites) {
       favoritesByModelId.set(
@@ -749,16 +1085,31 @@ export const getDashboardData = query({
     }
 
     const usageByProviderId = new Map<
-      string,
-      { requests: number; tokens: number; users: Set<string>; lastUsedAt: number }
+      Id<'providers'>,
+      {
+        requests: number
+        tokens: number
+        users: Set<string>
+        lastUsedAt: number
+      }
     >()
     const usageByModelId = new Map<
-      string,
-      { requests: number; tokens: number; users: Set<string>; lastUsedAt: number }
+      Id<'models'>,
+      {
+        requests: number
+        tokens: number
+        users: Set<string>
+        lastUsedAt: number
+      }
     >()
     const usageByUserId = new Map<
-      string,
-      { requests: number; tokens: number; models: Set<string>; lastUsedAt: number }
+      Id<'users'>,
+      {
+        requests: number
+        tokens: number
+        models: Set<string>
+        lastUsedAt: number
+      }
     >()
 
     for (const event of usageLast30d) {
@@ -771,7 +1122,10 @@ export const getDashboardData = query({
       providerUsage.requests += 1
       providerUsage.tokens += event.totalTokens
       providerUsage.users.add(event.userId)
-      providerUsage.lastUsedAt = Math.max(providerUsage.lastUsedAt, event.createdAt)
+      providerUsage.lastUsedAt = Math.max(
+        providerUsage.lastUsedAt,
+        event.createdAt,
+      )
       usageByProviderId.set(event.providerId, providerUsage)
 
       const modelUsage = usageByModelId.get(event.modelId) ?? {
@@ -807,7 +1161,8 @@ export const getDashboardData = query({
       })
       const dayEnd = dayStart.getTime() + DAY_MS
       const dayEvents = usageLast7d.filter(
-        (event) => event.createdAt >= dayStart.getTime() && event.createdAt < dayEnd,
+        (event) =>
+          event.createdAt >= dayStart.getTime() && event.createdAt < dayEnd,
       )
       return {
         date: label,
@@ -820,13 +1175,18 @@ export const getDashboardData = query({
       providers
         .sort((left, right) => left.sortOrder - right.sortOrder)
         .map(async (provider) => {
-          const providerModels = models.filter((model) => model.providerId === provider._id)
+          const providerModels = models.filter(
+            (model) => model.providerId === provider._id,
+          )
           const usage = usageByProviderId.get(provider._id)
           return {
             ...provider,
-            iconUrl: provider.iconId ? await ctx.storage.getUrl(provider.iconId) : undefined,
+            iconUrl: provider.iconId
+              ? ((await ctx.storage.getUrl(provider.iconId)) ?? undefined)
+              : undefined,
             modelCount: providerModels.length,
-            enabledModelCount: providerModels.filter((model) => model.isEnabled).length,
+            enabledModelCount: providerModels.filter((model) => model.isEnabled)
+              .length,
             usage: {
               requests: usage?.requests ?? 0,
               tokens: usage?.tokens ?? 0,
@@ -837,7 +1197,9 @@ export const getDashboardData = query({
         }),
     )
 
-    const providerMap = new Map(providerRows.map((provider) => [provider._id, provider]))
+    const providerMap = new Map(
+      providerRows.map((provider) => [provider._id, provider]),
+    )
 
     const modelRows = await Promise.all(
       models
@@ -847,7 +1209,9 @@ export const getDashboardData = query({
           const provider = providerMap.get(model.providerId)
           return {
             ...model,
-            iconUrl: model.iconId ? await ctx.storage.getUrl(model.iconId) : undefined,
+            iconUrl: model.iconId
+              ? ((await ctx.storage.getUrl(model.iconId)) ?? undefined)
+              : undefined,
             providerName: provider?.name ?? 'Unknown Provider',
             providerIconUrl: provider?.iconUrl,
             favorites: favoritesByModelId.get(model._id) ?? 0,
@@ -860,6 +1224,36 @@ export const getDashboardData = query({
           }
         }),
     )
+
+    const modelRowMap = new Map(modelRows.map((model) => [model._id, model]))
+
+    const collectionRows = collections
+      .sort((left, right) => left.sortOrder - right.sortOrder)
+      .map((collection) => {
+        const collectionModels = collection.modelIds
+          .map((modelId) => modelRowMap.get(modelId))
+          .filter((model): model is (typeof modelRows)[number] =>
+            Boolean(model),
+          )
+          .map((model) => ({
+            _id: model._id,
+            modelId: model.modelId,
+            displayName: model.displayName,
+            providerId: model.providerId,
+            providerName: model.providerName,
+            isEnabled: model.isEnabled,
+            icon: model.icon,
+            iconType: model.iconType,
+            iconUrl: model.iconUrl,
+            providerIconUrl: model.providerIconUrl,
+          }))
+
+        return {
+          ...collection,
+          modelCount: collectionModels.length,
+          models: collectionModels,
+        }
+      })
 
     const userRows = [...usageByUserId.entries()]
       .map(([userId, usage]) => {
@@ -876,13 +1270,17 @@ export const getDashboardData = query({
       })
       .sort((left, right) => right.tokens - left.tokens)
 
-    const totalTokens = usageLast30d.reduce((sum, event) => sum + event.totalTokens, 0)
+    const totalTokens = usageLast30d.reduce(
+      (sum, event) => sum + event.totalTokens,
+      0,
+    )
 
     return {
       settings,
       summary: {
         totalProviders: providers.length,
-        enabledProviders: providers.filter((provider) => provider.isEnabled).length,
+        enabledProviders: providers.filter((provider) => provider.isEnabled)
+          .length,
         totalModels: models.length,
         visibleModels: models.filter((model) => model.isEnabled).length,
         hiddenModels: models.filter((model) => !model.isEnabled).length,
@@ -893,6 +1291,7 @@ export const getDashboardData = query({
       usageSeries,
       providers: providerRows,
       models: modelRows,
+      collections: collectionRows,
       users: userRows,
     }
   },

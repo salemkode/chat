@@ -8,16 +8,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  parseRateLimitKind,
+  parseRateLimitScope,
+} from '@/lib/parsers'
+import type { RateLimitPolicy } from '../../../shared/admin-types'
 
-export type RateLimitPolicy = {
-  enabled: boolean
-  scope: 'global' | 'user'
-  kind: 'fixed window' | 'token bucket'
-  rate: number
-  period: number
-  capacity?: number
-  shards?: number
-}
+export type { RateLimitPolicy }
 
 const DEFAULT_POLICY: RateLimitPolicy = {
   enabled: false,
@@ -80,7 +77,7 @@ export function RateLimitEditor({
             onValueChange={(next) =>
               onChange({
                 ...policy,
-                scope: next as RateLimitPolicy['scope'],
+                scope: parseRateLimitScope(next),
               })
             }
           >
@@ -101,7 +98,7 @@ export function RateLimitEditor({
             onValueChange={(next) =>
               onChange({
                 ...policy,
-                kind: next as RateLimitPolicy['kind'],
+                kind: parseRateLimitKind(next),
               })
             }
           >

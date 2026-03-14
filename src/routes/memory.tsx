@@ -1,9 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useAuth } from '@clerk/clerk-react'
 import { useAction } from 'convex/react'
-import { useReducer } from 'react'
+import { useEffect, useReducer } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import type { Id } from '../../convex/_generated/dataModel'
+import type { FunctionReturnType } from 'convex/server'
 import { api } from '../../convex/_generated/api'
 import { AppSidebar } from '@/components/app-sidebar'
 import { AuthRedirect } from '@/components/auth-redirect'
@@ -40,6 +41,15 @@ export const Route = createFileRoute('/memory')({
 
 type MemoryScope = 'all' | 'user' | 'thread' | 'project'
 type EditableScope = Exclude<MemoryScope, 'all'>
+type ThreadSummary = FunctionReturnType<typeof api.agents.listThreadsWithMetadata>[number]
+type ProjectSummary = {
+  id: string
+  name: string
+  description?: string
+  threadCount: number
+  createdAt: number
+  updatedAt: number
+}
 
 type MemoryItem = {
   memoryId: string
@@ -141,6 +151,12 @@ function mergeReducer<T extends object>(state: T, action: StateUpdate<T>) {
 function MemoryPage() {
   "use no memo"
 
+  const projectsApi = (api as typeof api & {
+    projects: {
+      listProjects: unknown
+    }
+  }).projects
+
   const { isLoaded, isSignedIn } = useAuth()
   const isAuthenticated = isSignedIn ?? false
   const isLoading = !isLoaded
@@ -166,7 +182,7 @@ function MemoryPage() {
   )
 
   const threads = useQuery(api.agents.listThreadsWithMetadata) || []
-  const projects = useQuery(api.functions.memory.listProjects) || []
+  const projects = (useQuery(projectsApi.listProjects as never) || []) as ProjectSummary[]
   const userMemories = useQuery(api.functions.memory.listUserMemories, {
     paginationOpts: { cursor: null, numItems: 200 },
     category: filters.category === 'all' ? undefined : filters.category,
@@ -193,6 +209,23 @@ function MemoryPage() {
   const updateMemory = useAction(api.functions.memory.updateMemory)
   const deleteMemory = useAction(api.functions.memory.deleteMemory)
   const searchMemory = useAction(api.functions.memory.searchMemory)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    const params = new URLSearchParams(window.location.search)
+    const scope = params.get('scope')
+    const projectId = params.get('projectId')
+
+    if (scope === 'project' && projectId && filters.projectId === 'all') {
+      updateFilters({
+        scope: 'project',
+        projectId,
+      })
+    }
+  }, [filters.projectId])
 
   const allListedMemories = [
     ...(userMemories?.page ?? []),
@@ -258,7 +291,7 @@ function MemoryPage() {
         maxResults: 20,
       })
       .then((result) => {
-        updateSearchState({ results: result.hits as MemoryItem[] })
+        updateSearchState({ results: result.hits })
       })
       .catch((error) => {
         updateRequestState({
@@ -496,7 +529,7 @@ function MemoryPage() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">Select thread</SelectItem>
-                          {threads.map((thread: any) => (
+                          {threads.map((thread: ThreadSummary) => (
                             <SelectItem key={thread._id} value={thread._id}>
                               {thread.title || 'Untitled thread'}
                             </SelectItem>
@@ -520,7 +553,7 @@ function MemoryPage() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">Select project</SelectItem>
-                          {projects.map((project: any) => (
+                          {projects.map((project: ProjectSummary) => (
                             <SelectItem key={project.id} value={project.id}>
                               {project.name}
                             </SelectItem>
@@ -638,7 +671,7 @@ function MemoryPage() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">All threads</SelectItem>
-                          {threads.map((thread: any) => (
+                          {threads.map((thread: ThreadSummary) => (
                             <SelectItem key={thread._id} value={thread._id}>
                               {thread.title || 'Untitled thread'}
                             </SelectItem>
@@ -662,7 +695,7 @@ function MemoryPage() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">All projects</SelectItem>
-                          {projects.map((project: any) => (
+                          {projects.map((project: ProjectSummary) => (
                             <SelectItem key={project.id} value={project.id}>
                               {project.name}
                             </SelectItem>

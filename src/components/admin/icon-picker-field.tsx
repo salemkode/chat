@@ -1,5 +1,3 @@
-import * as LucideIcons from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -7,6 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { getLucideIcon, lucideIconNames } from '@/lib/lucide'
 import { cn } from '@/lib/utils'
 import { EntityIcon, type IconType } from '@/components/admin/entity-icon'
 
@@ -29,12 +28,7 @@ const ICON_PRESETS = [
   'Gem',
 ] as const
 
-const LUCIDE_ICON_NAMES = Object.entries(
-  LucideIcons as unknown as Record<string, LucideIcon>,
-)
-  .filter(([name, value]) => /^[A-Z]/.test(name) && typeof value === 'function')
-  .map(([name]) => name)
-  .sort((left, right) => left.localeCompare(right))
+const LUCIDE_ICON_NAMES = lucideIconNames
 
 export function IconPickerField({
   label,
@@ -135,9 +129,7 @@ export function IconPickerField({
           <ScrollArea className="h-56 rounded-lg border border-border bg-background p-2">
             <div className="grid grid-cols-4 gap-2 pr-3">
               {filteredIcons.slice(0, 120).map((iconName) => {
-                const IconComponent = (
-                  LucideIcons as unknown as Record<string, LucideIcon>
-                )[iconName]
+                const IconComponent = getLucideIcon(iconName)
 
                 return (
                   <button

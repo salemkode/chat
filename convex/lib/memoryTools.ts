@@ -34,7 +34,7 @@ const memorySearchInputSchema = z.object({
   projectId: z
     .string()
     .optional()
-    .describe('Required only when project scope has multiple linked projects.'),
+    .describe('Optional when the current chat already has a linked project.'),
   maxResults: z
     .number()
     .int()
@@ -60,7 +60,7 @@ const memoryAddInputSchema = z.object({
   projectId: z
     .string()
     .optional()
-    .describe('Required only when project scope has multiple linked projects.'),
+    .describe('Optional when the current chat already has a linked project.'),
 })
 
 const memoryUpdateInputSchema = z.object({
@@ -145,12 +145,7 @@ async function resolveProjectId(
     return linkedProjects[0]!._id
   }
 
-  const choices = linkedProjects
-    .map((project: LinkedProject) => `${project.name} (${project._id})`)
-    .join(', ')
-  throw new Error(
-    `Multiple projects are linked to this thread. Specify projectId: ${choices}`,
-  )
+  throw new Error('No project is linked to the current thread')
 }
 
 async function searchMemoryHits(

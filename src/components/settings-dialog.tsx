@@ -22,16 +22,22 @@ import {
   Settings,
   Bell,
   Palette,
+  Moon,
+  Monitor,
+  Sun,
   Grid3X3,
   Database,
   Shield,
   Users,
   UserCircle,
 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useOnlineStatus } from '@/hooks/use-online-status'
 import { useTheme } from '@/components/theme-provider'
 import { useSettings, useViewer } from '@/hooks/use-chat-data'
+import { readFileReaderResultAsString } from '@/lib/parsers'
+import { normalizeHexColor, type ThemeMode } from '@/lib/theme'
 
 interface SettingsDialogProps {
   open: boolean
@@ -41,7 +47,7 @@ interface SettingsDialogProps {
 type SettingsTab =
   | 'general'
   | 'notifications'
-  | 'personalization'
+  | 'theme'
   | 'apps'
   | 'data'
   | 'security'
@@ -72,12 +78,13 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const user = useViewer()
   const { settings, updateSettings } = useSettings()
   const { isOnline } = useOnlineStatus()
-  const { theme, setTheme } = useTheme()
+  const { theme, setTheme, primaryColor, setPrimaryColor } = useTheme()
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
   const [displayName, setDisplayName] = useState('')
   const [bio, setBio] = useState('')
   const [image, setImage] = useState<string | null>(null)
+  const [primaryColorInput, setPrimaryColorInput] = useState(primaryColor)
   const [isLoading, setIsLoading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -89,6 +96,10 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       setImage(settings?.image || user?.image || null)
     }
   }, [settings, user])
+
+  useEffect(() => {
+    setPrimaryColorInput(primaryColor)
+  }, [primaryColor])
 
   const handleImageClick = () => {
     fileInputRef.current?.click()
@@ -102,7 +113,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       // Convert to base64
       const reader = new FileReader()
       reader.onloadend = () => {
-        const base64 = reader.result as string
+        const base64 = readFileReaderResultAsString(reader.result)
         setImage(base64)
       }
       reader.readAsDataURL(file)
@@ -139,18 +150,61 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const emailValue = user?.email || ''
 
   const tabs = [
-    { id: 'general' as SettingsTab, label: 'General', icon: Settings },
-    { id: 'notifications' as SettingsTab, label: 'Notifications', icon: Bell },
+    { id: 'general', label: 'General', icon: Settings },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
     {
-      id: 'personalization' as SettingsTab,
-      label: 'Personalization',
+      id: 'theme',
+      label: 'Theme',
       icon: Palette,
     },
-    { id: 'apps' as SettingsTab, label: 'Apps', icon: Grid3X3 },
-    { id: 'data' as SettingsTab, label: 'Data controls', icon: Database },
-    { id: 'security' as SettingsTab, label: 'Security', icon: Shield },
-    { id: 'parental' as SettingsTab, label: 'Parental controls', icon: Users },
-    { id: 'account' as SettingsTab, label: 'Account', icon: UserCircle },
+    { id: 'apps', label: 'Apps', icon: Grid3X3 },
+    { id: 'data', label: 'Data controls', icon: Database },
+    { id: 'security', label: 'Security', icon: Shield },
+    { id: 'parental', label: 'Parental controls', icon: Users },
+    { id: 'account', label: 'Account', icon: UserCircle },
+  ] satisfies Array<{ id: SettingsTab; label: string; icon: LucideIcon }>
+
+  const themeOptions = [
+    {
+      id: 'light',
+      label: 'Light',
+      description: 'Bright neutral surfaces for daytime use.',
+      icon: Sun,
+      previewClassName:
+        'bg-[linear-gradient(135deg,#ffffff_0%,#f3f4f6_60%,#dbeafe_100%)] border-zinc-200',
+    },
+    {
+      id: 'dark',
+      label: 'Dark',
+      description: 'A darker workspace for low-light environments.',
+      icon: Moon,
+      previewClassName:
+        'bg-[linear-gradient(135deg,#0f172a_0%,#111827_55%,#1d4ed8_100%)] border-slate-700',
+    },
+    {
+      id: 'system',
+      label: 'System',
+      description: 'Matches your device appearance automatically.',
+      icon: Monitor,
+      previewClassName:
+        'bg-[linear-gradient(135deg,#f8fafc_0%,#dbeafe_45%,#0f172a_100%)] border-slate-300',
+    },
+  ] satisfies Array<{
+    id: ThemeMode
+    label: string
+    description: string
+    icon: LucideIcon
+    previewClassName: string
+  }>
+
+  const presetColors = [
+    '#8b5cf6',
+    '#2563eb',
+    '#0891b2',
+    '#059669',
+    '#ea580c',
+    '#dc2626',
+    '#db2777',
   ]
 
   return (
@@ -201,31 +255,6 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               {activeTab === 'general' && (
                 <div className="space-y-6">
                   <h2 className="text-lg font-semibold">General</h2>
-
-                  <SettingsItem label="Appearance">
-                    <Select
-                      value={theme}
-                      onValueChange={(value) =>
-                        setTheme(value as 'light' | 'dark' | 'system')
-                      }
-                    >
-                      <SelectTrigger className="w-[140px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="system">System</SelectItem>
-                        <SelectItem value="light">Light</SelectItem>
-                        <SelectItem value="dark">Dark</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </SettingsItem>
-
-                  <SettingsItem label="Accent color">
-                    <div className="flex items-center gap-2">
-                      <div className="size-3 rounded-full bg-blue-500" />
-                      <span className="text-sm">Blue</span>
-                    </div>
-                  </SettingsItem>
 
                   <SettingsItem label="Language">
                     <Select defaultValue="auto">
@@ -282,6 +311,117 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                   >
                     <Switch />
                   </SettingsItem>
+                </div>
+              )}
+
+              {activeTab === 'theme' && (
+                <div className="space-y-6">
+                  <div className="space-y-1">
+                    <h2 className="text-lg font-semibold">Theme</h2>
+                    <p className="text-sm text-muted-foreground">
+                      Theme preferences are stored locally on this device only.
+                    </p>
+                  </div>
+
+                  <div
+                    className="grid gap-3 md:grid-cols-3"
+                    style={
+                      {
+                        '--primary-color-preview': primaryColor,
+                      } as React.CSSProperties
+                    }
+                  >
+                    {themeOptions.map((option) => {
+                      const Icon = option.icon
+                      const isSelected = theme === option.id
+
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => setTheme(option.id)}
+                          className={cn(
+                            'rounded-2xl border p-4 text-left transition-colors',
+                            isSelected
+                              ? 'border-primary bg-primary/5'
+                              : 'border-border hover:border-primary/40 hover:bg-muted/40',
+                          )}
+                        >
+                          <div
+                            className={cn(
+                              'mb-4 h-24 rounded-xl border',
+                              option.previewClassName,
+                            )}
+                          />
+                          <div className="flex items-center gap-2 text-sm font-medium">
+                            <Icon className="size-4" />
+                            {option.label}
+                          </div>
+                          <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                            {option.description}
+                          </p>
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  <SettingsItem
+                    label="Primary color"
+                    description="Used for buttons, active states, highlights, and sidebar accents."
+                  >
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="color"
+                        value={primaryColor}
+                        onChange={(event) => setPrimaryColor(event.target.value)}
+                        className="h-10 w-14 cursor-pointer rounded-md border border-input bg-background p-1"
+                        aria-label="Theme primary color"
+                      />
+                      <Input
+                        value={primaryColorInput}
+                        onChange={(event) => {
+                          const nextValue = event.target.value
+                          setPrimaryColorInput(nextValue)
+
+                          if (/^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(nextValue)) {
+                            setPrimaryColor(
+                              normalizeHexColor(nextValue, primaryColor),
+                            )
+                          }
+                        }}
+                        onBlur={() => {
+                          const normalized = normalizeHexColor(
+                            primaryColorInput,
+                            primaryColor,
+                          )
+                          setPrimaryColor(normalized)
+                          setPrimaryColorInput(normalized)
+                        }}
+                        className="w-[120px] font-mono uppercase"
+                      />
+                    </div>
+                  </SettingsItem>
+
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium">Preset colors</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {presetColors.map((color) => (
+                        <button
+                          key={color}
+                          type="button"
+                          onClick={() => setPrimaryColor(color)}
+                          className={cn(
+                            'size-9 rounded-full border-2 transition-transform hover:scale-105',
+                            primaryColor === color
+                              ? 'border-foreground'
+                              : 'border-border',
+                          )}
+                          style={{ backgroundColor: color }}
+                          aria-label={`Use ${color} as the primary color`}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -422,6 +562,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
               {/* Other tabs placeholder */}
               {activeTab !== 'general' &&
+                activeTab !== 'theme' &&
                 activeTab !== 'account' &&
                 activeTab !== 'data' && (
                   <div className="space-y-6">

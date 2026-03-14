@@ -93,8 +93,10 @@
   --card-foreground: oklch(0.141 0.005 285.823);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.141 0.005 285.823);
-  --primary: oklch(0.541 0.281 293.009);
-  --primary-foreground: oklch(0.969 0.016 293.756);
+  --custom-primary: #8b5cf6;
+  --custom-primary-foreground: #f8fafc;
+  --primary: var(--custom-primary);
+  --primary-foreground: var(--custom-primary-foreground);
   --secondary: oklch(0.967 0.001 286.375);
   --secondary-foreground: oklch(0.21 0.006 285.885);
   --muted: oklch(0.967 0.001 286.375);
@@ -104,83 +106,61 @@
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.92 0.004 286.32);
   --input: oklch(0.92 0.004 286.32);
-  --ring: oklch(0.702 0.183 293.541);
+  --ring: color-mix(in srgb, var(--custom-primary) 45%, white 55%);
   --chart-1: oklch(0.811 0.111 293.571);
   --chart-2: oklch(0.606 0.25 292.717);
-  --chart-3: oklch(0.541 0.281 293.009);
+  --chart-3: var(--custom-primary);
   --chart-4: oklch(0.491 0.27 292.581);
   --chart-5: oklch(0.432 0.232 292.759);
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.141 0.005 285.823);
-  --sidebar-primary: oklch(0.541 0.281 293.009);
-  --sidebar-primary-foreground: oklch(0.969 0.016 293.756);
+  --sidebar-primary: var(--custom-primary);
+  --sidebar-primary-foreground: var(--custom-primary-foreground);
   --sidebar-accent: oklch(0.967 0.001 286.375);
   --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
   --sidebar-border: oklch(0.92 0.004 286.32);
-  --sidebar-ring: oklch(0.702 0.183 293.541);
+  --sidebar-ring: color-mix(in srgb, var(--custom-primary) 45%, white 55%);
   /* Chat input variables */
   --chat-input-background: oklch(0.98 0.002 286.375);
-  --chat-input-gradient: oklch(0.541 0.281 293.009);
+  --chat-input-gradient: var(--custom-primary);
   --chat-background: oklch(1 0 0);
 }
 
 .dark {
-  /* Dark mode - Less dark, more comfortable for reading */
-  /* Main background - lighter dark with subtle blue tint */
-  --background: oklch(0.24 0.025 270);
-  --foreground: oklch(0.95 0.01 285);
-
-  /* Cards and popovers - clearly elevated from background */
-  --card: oklch(0.28 0.02 270);
-  --card-foreground: oklch(0.95 0.01 285);
-  --popover: oklch(0.28 0.02 270);
-  --popover-foreground: oklch(0.95 0.01 285);
-
-  /* Primary - vibrant purple with good visibility */
-  --primary: oklch(0.68 0.2 285);
-  --primary-foreground: oklch(0.15 0.02 285);
-
-  /* Secondary - message bubbles, clearly distinct */
-  --secondary: oklch(0.35 0.03 275);
-  --secondary-foreground: oklch(0.95 0.01 285);
-
-  /* Muted - subtle but visible grey-blue */
-  --muted: oklch(0.32 0.02 275);
-  --muted-foreground: oklch(0.7 0.015 285);
-
-  /* Accent - interactive states, visible but not harsh */
-  --accent: oklch(0.38 0.03 285);
-  --accent-foreground: oklch(0.95 0.01 285);
-
-  /* Destructive - red with maintained vibrancy */
+  --background: oklch(0.2 0.012 265);
+  --foreground: oklch(0.96 0.004 286);
+  --card: oklch(0.24 0.012 265);
+  --card-foreground: oklch(0.96 0.004 286);
+  --popover: oklch(0.24 0.012 265);
+  --popover-foreground: oklch(0.96 0.004 286);
+  --primary: var(--custom-primary);
+  --primary-foreground: var(--custom-primary-foreground);
+  --secondary: oklch(0.29 0.01 265);
+  --secondary-foreground: oklch(0.96 0.004 286);
+  --muted: oklch(0.27 0.01 265);
+  --muted-foreground: oklch(0.72 0.01 286);
+  --accent: oklch(0.32 0.012 265);
+  --accent-foreground: oklch(0.96 0.004 286);
   --destructive: oklch(0.65 0.22 25);
-
-  /* Borders - visible but subtle separation */
-  --border: oklch(0.35 0.02 275 / 50%);
-  --input: oklch(0.3 0.02 275 / 60%);
-  --ring: oklch(0.68 0.2 285 / 70%);
-
-  /* Charts - vibrant accent colors */
-  --chart-1: oklch(0.75 0.18 45);
-  --chart-2: oklch(0.7 0.15 175);
-  --chart-3: oklch(0.68 0.2 285);
-  --chart-4: oklch(0.75 0.12 95);
-  --chart-5: oklch(0.7 0.16 55);
-
-  /* Sidebar - lighter surface for better visibility */
-  --sidebar: oklch(0.28 0.02 280);
-  --sidebar-foreground: oklch(0.95 0.01 285);
-  --sidebar-primary: oklch(0.68 0.2 285);
-  --sidebar-primary-foreground: oklch(0.15 0.02 285);
-  --sidebar-accent: oklch(0.35 0.025 285);
-  --sidebar-accent-foreground: oklch(0.95 0.01 285);
-  --sidebar-border: oklch(0.35 0.02 275);
-  --sidebar-ring: oklch(0.68 0.2 285 / 70%);
-
-  /* Chat-specific variables - adjusted for less dark theme */
-  --chat-input-background: oklch(0.26 0.025 275);
-  --chat-input-gradient: oklch(0.68 0.2 285);
-  --chat-background: oklch(0.24 0.025 275);
+  --border: oklch(0.36 0.01 265 / 50%);
+  --input: oklch(0.29 0.01 265 / 70%);
+  --ring: color-mix(in srgb, var(--custom-primary) 60%, transparent);
+  --chart-1: oklch(0.64 0.15 250);
+  --chart-2: oklch(0.7 0.13 190);
+  --chart-3: var(--custom-primary);
+  --chart-4: oklch(0.76 0.14 100);
+  --chart-5: oklch(0.72 0.14 40);
+  --sidebar: oklch(0.23 0.012 265);
+  --sidebar-foreground: oklch(0.96 0.004 286);
+  --sidebar-primary: var(--custom-primary);
+  --sidebar-primary-foreground: var(--custom-primary-foreground);
+  --sidebar-accent: oklch(0.3 0.012 265);
+  --sidebar-accent-foreground: oklch(0.96 0.004 286);
+  --sidebar-border: oklch(0.33 0.01 265);
+  --sidebar-ring: color-mix(in srgb, var(--custom-primary) 60%, transparent);
+  --chat-input-background: oklch(0.22 0.012 265);
+  --chat-input-gradient: var(--custom-primary);
+  --chat-background: oklch(0.2 0.012 265);
 }
 
 @theme {

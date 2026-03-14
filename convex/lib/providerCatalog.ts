@@ -197,6 +197,22 @@ function toNumber(value: unknown) {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function getRecordArray(
+  value: unknown,
+  key?: string,
+): Record<string, unknown>[] {
+  const source = key && isRecord(value) ? value[key] : value
+  if (!Array.isArray(source)) {
+    return []
+  }
+
+  return source.filter(isRecord)
+}
+
 function titleCaseSegment(value: string) {
   return value
     .split(/[-_/.:]+/)
@@ -256,13 +272,9 @@ function normalizeOpenRouterModel(raw: Record<string, unknown>): DiscoveredModel
   }
 
   const architecture =
-    raw.architecture && typeof raw.architecture === 'object'
-      ? (raw.architecture as Record<string, unknown>)
-      : undefined
+    isRecord(raw.architecture) ? raw.architecture : undefined
   const topProvider =
-    raw.top_provider && typeof raw.top_provider === 'object'
-      ? (raw.top_provider as Record<string, unknown>)
-      : undefined
+    isRecord(raw.top_provider) ? raw.top_provider : undefined
 
   return {
     modelId,
@@ -421,9 +433,9 @@ export async function fetchProviderCatalog(args: {
         throw new Error(await response.text())
       }
 
-      const payload = (await response.json()) as { models?: Record<string, unknown>[] }
+      const payload = await response.json()
       const models = dedupeAndSort(
-        (payload.models ?? [])
+        getRecordArray(payload, 'models')
           .map(normalizeGoogleModel)
           .filter((model): model is DiscoveredModel => Boolean(model)),
       )
@@ -456,9 +468,9 @@ export async function fetchProviderCatalog(args: {
         throw new Error(await response.text())
       }
 
-      const payload = (await response.json()) as { data?: Record<string, unknown>[] }
+      const payload = await response.json()
       const models = dedupeAndSort(
-        (payload.data ?? [])
+        getRecordArray(payload, 'data')
           .map(normalizeAnthropicModel)
           .filter((model): model is DiscoveredModel => Boolean(model)),
       )
@@ -503,10 +515,10 @@ export async function fetchProviderCatalog(args: {
       throw new Error(await response.text())
     }
 
-    const payload = (await response.json()) as
-      | { data?: Record<string, unknown>[] }
-      | Record<string, unknown>[]
-    const rawModels = Array.isArray(payload) ? payload : payload.data ?? []
+    const payload = await response.json()
+    const rawModels = Array.isArray(payload)
+      ? getRecordArray(payload)
+      : getRecordArray(payload, 'data')
     const normalizer =
       args.providerType === 'openrouter'
         ? normalizeOpenRouterModel

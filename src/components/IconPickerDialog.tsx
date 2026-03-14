@@ -11,8 +11,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import * as LucideIcons from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
+import { getLucideIcon } from '@/lib/lucide'
 
 // Popular Lucide icons for chat/thread topics
 const POPULAR_ICONS = [
@@ -376,9 +375,7 @@ export function IconPickerDialog({
   }
 
   const renderIcon = (iconName: string) => {
-    const IconComponent = (
-      LucideIcons as unknown as Record<string, LucideIcon>
-    )[iconName]
+    const IconComponent = getLucideIcon(iconName)
     if (IconComponent) {
       return <IconComponent className="w-6 h-6" />
     }

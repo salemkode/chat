@@ -280,7 +280,7 @@ export type ResponseStreamProps = {
   speed?: number // 1-100, where 1 is slowest and 100 is fastest
   className?: string
   onComplete?: () => void
-  as?: keyof React.JSX.IntrinsicElements // Element type to render
+  as?: React.ElementType<{ className?: string; children?: React.ReactNode }>
   fadeDuration?: number // Custom fade duration in ms (overrides speed)
   segmentDelay?: number // Custom delay between segments in ms (overrides speed)
   characterChunkSize?: number // Custom characters per frame for typewriter mode (overrides speed)
@@ -384,9 +384,13 @@ function ResponseStream({
     }
   }
 
-  const Container = as as keyof React.JSX.IntrinsicElements
+  const Container = as
 
-  return <Container className={className}>{renderContent()}</Container>
+  return (
+    <Container className={className}>
+      {renderContent()}
+    </Container>
+  )
 }
 
 export { useTextStream, ResponseStream }

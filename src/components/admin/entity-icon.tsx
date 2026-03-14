@@ -1,8 +1,8 @@
-import * as LucideIcons from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { getLucideIcon } from '@/lib/lucide'
+import type { IconType } from '../../../shared/admin-types'
 
-export type IconType = 'emoji' | 'lucide' | 'upload' | undefined
+export type { IconType }
 
 export function EntityIcon({
   icon,
@@ -39,9 +39,7 @@ export function EntityIcon({
     iconType === 'lucide' && icon
       ? icon
       : fallback
-  const IconComponent = (
-    LucideIcons as unknown as Record<string, LucideIcon>
-  )[iconName]
+  const IconComponent = getLucideIcon(iconName)
 
   if (IconComponent) {
     return <IconComponent className={cn('size-5', className)} />

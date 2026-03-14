@@ -50,7 +50,18 @@ export declare const api: {
         };
         sortOrder: number;
       },
-      any
+      Id<"models">
+    >;
+    addModelCollection: FunctionReference<
+      "mutation",
+      "public",
+      {
+        description?: string;
+        modelIds: Array<Id<"models">>;
+        name: string;
+        sortOrder: number;
+      },
+      Id<"modelCollections">
     >;
     addProvider: FunctionReference<
       "mutation",
@@ -102,12 +113,18 @@ export declare const api: {
         };
         sortOrder: number;
       },
-      any
+      Id<"providers">
     >;
     deleteModel: FunctionReference<
       "mutation",
       "public",
       { id: Id<"models"> },
+      any
+    >;
+    deleteModelCollection: FunctionReference<
+      "mutation",
+      "public",
+      { id: Id<"modelCollections"> },
       any
     >;
     deleteProvider: FunctionReference<
@@ -116,9 +133,189 @@ export declare const api: {
       { id: Id<"providers"> },
       any
     >;
-    generateUploadUrl: FunctionReference<"mutation", "public", {}, any>;
-    getAdminSettings: FunctionReference<"query", "public", {}, any>;
-    getDashboardData: FunctionReference<"query", "public", {}, any>;
+    generateUploadUrl: FunctionReference<"mutation", "public", {}, string>;
+    getAdminSettings: FunctionReference<
+      "query",
+      "public",
+      {},
+      {
+        _id?: Id<"adminSettings">;
+        defaultRateLimit?: {
+          capacity?: number;
+          enabled: boolean;
+          kind: "fixed window" | "token bucket";
+          period: number;
+          rate: number;
+          scope: "global" | "user";
+          shards?: number;
+        };
+        key: string;
+        updatedAt: number;
+      }
+    >;
+    getDashboardData: FunctionReference<
+      "query",
+      "public",
+      {},
+      {
+        collections: Array<{
+          _creationTime: number;
+          _id: Id<"modelCollections">;
+          description?: string;
+          modelCount: number;
+          modelIds: Array<Id<"models">>;
+          models: Array<{
+            _id: Id<"models">;
+            displayName: string;
+            icon?: string;
+            iconType?: "emoji" | "lucide" | "upload";
+            iconUrl?: string;
+            isEnabled: boolean;
+            modelId: string;
+            providerIconUrl?: string;
+            providerId: Id<"providers">;
+            providerName: string;
+          }>;
+          name: string;
+          sortOrder: number;
+        }>;
+        models: Array<{
+          _creationTime: number;
+          _id: Id<"models">;
+          capabilities?: Array<string>;
+          contextWindow?: number;
+          description?: string;
+          discoveredAt?: number;
+          displayName: string;
+          favorites: number;
+          icon?: string;
+          iconId?: Id<"_storage">;
+          iconType?: "emoji" | "lucide" | "upload";
+          iconUrl?: string;
+          isEnabled: boolean;
+          isFree: boolean;
+          lastSyncedAt?: number;
+          maxOutputTokens?: number;
+          modalities?: { input: Array<string>; output: Array<string> };
+          modelId: string;
+          ownedBy?: string;
+          providerIconUrl?: string;
+          providerId: Id<"providers">;
+          providerName: string;
+          rateLimit?: {
+            capacity?: number;
+            enabled: boolean;
+            kind: "fixed window" | "token bucket";
+            period: number;
+            rate: number;
+            scope: "global" | "user";
+            shards?: number;
+          };
+          sortOrder: number;
+          usage: {
+            lastUsedAt?: number;
+            requests: number;
+            tokens: number;
+            users: number;
+          };
+        }>;
+        providers: Array<{
+          _creationTime: number;
+          _id: Id<"providers">;
+          apiKey: string;
+          baseURL?: string;
+          config?: {
+            headers?: Record<string, string>;
+            organization?: string;
+            project?: string;
+            queryParams?: Record<string, string>;
+          };
+          description?: string;
+          enabledModelCount: number;
+          icon?: string;
+          iconId?: Id<"_storage">;
+          iconType?: "emoji" | "lucide" | "upload";
+          iconUrl?: string;
+          isEnabled: boolean;
+          lastDiscoveredAt?: number;
+          lastDiscoveredModelCount?: number;
+          lastDiscoveryError?: string;
+          modelCount: number;
+          name: string;
+          providerType:
+            | "openrouter"
+            | "openai"
+            | "anthropic"
+            | "google"
+            | "azure"
+            | "groq"
+            | "deepseek"
+            | "xai"
+            | "cerebras"
+            | "openai-compatible"
+            | "opencode"
+            | "mistral"
+            | "cohere"
+            | "perplexity"
+            | "fireworks"
+            | "together"
+            | "replicate"
+            | "moonshot"
+            | "qwen"
+            | "stepfun";
+          rateLimit?: {
+            capacity?: number;
+            enabled: boolean;
+            kind: "fixed window" | "token bucket";
+            period: number;
+            rate: number;
+            scope: "global" | "user";
+            shards?: number;
+          };
+          sortOrder: number;
+          usage: {
+            lastUsedAt?: number;
+            requests: number;
+            tokens: number;
+            users: number;
+          };
+        }>;
+        settings: {
+          _id?: Id<"adminSettings">;
+          defaultRateLimit?: {
+            capacity?: number;
+            enabled: boolean;
+            kind: "fixed window" | "token bucket";
+            period: number;
+            rate: number;
+            scope: "global" | "user";
+            shards?: number;
+          };
+          key: string;
+          updatedAt: number;
+        };
+        summary: {
+          activeUsers30d: number;
+          enabledProviders: number;
+          hiddenModels: number;
+          totalModels: number;
+          totalProviders: number;
+          totalRequests30d: number;
+          totalTokens30d: number;
+          visibleModels: number;
+        };
+        usageSeries: Array<{ date: string; requests: number; tokens: number }>;
+        users: Array<{
+          email?: string;
+          lastUsedAt: number;
+          models: number;
+          name: string;
+          requests: number;
+          tokens: number;
+          userId: string;
+        }>;
+      }
+    >;
     importDiscoveredModels: FunctionReference<
       "mutation",
       "public",
@@ -135,7 +332,7 @@ export declare const api: {
         }>;
         providerId: Id<"providers">;
       },
-      any
+      { inserted: number; updated: number }
     >;
     inspectProviderCatalog: FunctionReference<
       "action",
@@ -172,13 +369,395 @@ export declare const api: {
           | "qwen"
           | "stepfun";
       },
-      any
+      {
+        error?: string;
+        fetchedAt: number;
+        modelCount: number;
+        models: Array<{
+          contextWindow?: number;
+          description?: string;
+          displayName: string;
+          maxOutputTokens?: number;
+          modalities?: { input: Array<string>; output: Array<string> };
+          modelId: string;
+          ownedBy?: string;
+        }>;
+        ok: boolean;
+        providerType:
+          | "openrouter"
+          | "openai"
+          | "anthropic"
+          | "google"
+          | "azure"
+          | "groq"
+          | "deepseek"
+          | "xai"
+          | "cerebras"
+          | "openai-compatible"
+          | "opencode"
+          | "mistral"
+          | "cohere"
+          | "perplexity"
+          | "fireworks"
+          | "together"
+          | "replicate"
+          | "moonshot"
+          | "qwen"
+          | "stepfun";
+        source: {
+          baseURL?: string;
+          discoveryMode:
+            | "openai-compatible"
+            | "openrouter"
+            | "anthropic"
+            | "google"
+            | "unsupported";
+          endpoint?: string;
+          note?: string;
+        };
+      }
     >;
-    isAdmin: FunctionReference<"query", "public", {}, any>;
-    listAllModels: FunctionReference<"query", "public", {}, any>;
-    listAllProviders: FunctionReference<"query", "public", {}, any>;
-    listEnabledModels: FunctionReference<"query", "public", {}, any>;
-    listModelsWithProviders: FunctionReference<"query", "public", {}, any>;
+    isAdmin: FunctionReference<"query", "public", {}, boolean>;
+    listAllModels: FunctionReference<
+      "query",
+      "public",
+      {},
+      Array<{
+        _creationTime: number;
+        _id: Id<"models">;
+        capabilities?: Array<string>;
+        contextWindow?: number;
+        description?: string;
+        discoveredAt?: number;
+        displayName: string;
+        icon?: string;
+        iconId?: Id<"_storage">;
+        iconType?: "emoji" | "lucide" | "upload";
+        iconUrl?: string;
+        isEnabled: boolean;
+        isFree: boolean;
+        lastSyncedAt?: number;
+        maxOutputTokens?: number;
+        modalities?: { input: Array<string>; output: Array<string> };
+        modelId: string;
+        ownedBy?: string;
+        provider?: {
+          _creationTime: number;
+          _id: Id<"providers">;
+          apiKey: string;
+          baseURL?: string;
+          config?: {
+            headers?: Record<string, string>;
+            organization?: string;
+            project?: string;
+            queryParams?: Record<string, string>;
+          };
+          description?: string;
+          icon?: string;
+          iconId?: Id<"_storage">;
+          iconType?: "emoji" | "lucide" | "upload";
+          isEnabled: boolean;
+          lastDiscoveredAt?: number;
+          lastDiscoveredModelCount?: number;
+          lastDiscoveryError?: string;
+          name: string;
+          providerType:
+            | "openrouter"
+            | "openai"
+            | "anthropic"
+            | "google"
+            | "azure"
+            | "groq"
+            | "deepseek"
+            | "xai"
+            | "cerebras"
+            | "openai-compatible"
+            | "opencode"
+            | "mistral"
+            | "cohere"
+            | "perplexity"
+            | "fireworks"
+            | "together"
+            | "replicate"
+            | "moonshot"
+            | "qwen"
+            | "stepfun";
+          rateLimit?: {
+            capacity?: number;
+            enabled: boolean;
+            kind: "fixed window" | "token bucket";
+            period: number;
+            rate: number;
+            scope: "global" | "user";
+            shards?: number;
+          };
+          sortOrder: number;
+        };
+        providerId: Id<"providers">;
+        providerName: string;
+        rateLimit?: {
+          capacity?: number;
+          enabled: boolean;
+          kind: "fixed window" | "token bucket";
+          period: number;
+          rate: number;
+          scope: "global" | "user";
+          shards?: number;
+        };
+        sortOrder: number;
+      }>
+    >;
+    listAllProviders: FunctionReference<
+      "query",
+      "public",
+      {},
+      Array<{
+        _creationTime: number;
+        _id: Id<"providers">;
+        apiKey: string;
+        baseURL?: string;
+        config?: {
+          headers?: Record<string, string>;
+          organization?: string;
+          project?: string;
+          queryParams?: Record<string, string>;
+        };
+        description?: string;
+        icon?: string;
+        iconId?: Id<"_storage">;
+        iconType?: "emoji" | "lucide" | "upload";
+        iconUrl?: string;
+        isEnabled: boolean;
+        lastDiscoveredAt?: number;
+        lastDiscoveredModelCount?: number;
+        lastDiscoveryError?: string;
+        name: string;
+        providerType:
+          | "openrouter"
+          | "openai"
+          | "anthropic"
+          | "google"
+          | "azure"
+          | "groq"
+          | "deepseek"
+          | "xai"
+          | "cerebras"
+          | "openai-compatible"
+          | "opencode"
+          | "mistral"
+          | "cohere"
+          | "perplexity"
+          | "fireworks"
+          | "together"
+          | "replicate"
+          | "moonshot"
+          | "qwen"
+          | "stepfun";
+        rateLimit?: {
+          capacity?: number;
+          enabled: boolean;
+          kind: "fixed window" | "token bucket";
+          period: number;
+          rate: number;
+          scope: "global" | "user";
+          shards?: number;
+        };
+        sortOrder: number;
+      }>
+    >;
+    listEnabledModels: FunctionReference<
+      "query",
+      "public",
+      {},
+      Array<{
+        _creationTime: number;
+        _id: Id<"models">;
+        capabilities?: Array<string>;
+        contextWindow?: number;
+        description?: string;
+        discoveredAt?: number;
+        displayName: string;
+        icon?: string;
+        iconId?: Id<"_storage">;
+        iconType?: "emoji" | "lucide" | "upload";
+        isEnabled: boolean;
+        isFree: boolean;
+        lastSyncedAt?: number;
+        maxOutputTokens?: number;
+        modalities?: { input: Array<string>; output: Array<string> };
+        modelId: string;
+        ownedBy?: string;
+        providerId: Id<"providers">;
+        rateLimit?: {
+          capacity?: number;
+          enabled: boolean;
+          kind: "fixed window" | "token bucket";
+          period: number;
+          rate: number;
+          scope: "global" | "user";
+          shards?: number;
+        };
+        sortOrder: number;
+      }>
+    >;
+    listModelsWithProviders: FunctionReference<
+      "query",
+      "public",
+      {},
+      {
+        favorites: Array<{
+          _creationTime: number;
+          _id: Id<"models">;
+          capabilities?: Array<string>;
+          contextWindow?: number;
+          description?: string;
+          discoveredAt?: number;
+          displayName: string;
+          icon?: string;
+          iconId?: Id<"_storage">;
+          iconType?: "emoji" | "lucide" | "upload";
+          iconUrl?: string;
+          isEnabled: boolean;
+          isFavorite: boolean;
+          isFree: boolean;
+          lastSyncedAt?: number;
+          maxOutputTokens?: number;
+          modalities?: { input: Array<string>; output: Array<string> };
+          modelId: string;
+          ownedBy?: string;
+          provider: null | {
+            _id: Id<"providers">;
+            icon?: string;
+            iconId?: Id<"_storage">;
+            iconType?: "emoji" | "lucide" | "upload";
+            iconUrl?: string;
+            name: string;
+            providerType:
+              | "openrouter"
+              | "openai"
+              | "anthropic"
+              | "google"
+              | "azure"
+              | "groq"
+              | "deepseek"
+              | "xai"
+              | "cerebras"
+              | "openai-compatible"
+              | "opencode"
+              | "mistral"
+              | "cohere"
+              | "perplexity"
+              | "fireworks"
+              | "together"
+              | "replicate"
+              | "moonshot"
+              | "qwen"
+              | "stepfun";
+          };
+          providerId: Id<"providers">;
+          rateLimit?: {
+            capacity?: number;
+            enabled: boolean;
+            kind: "fixed window" | "token bucket";
+            period: number;
+            rate: number;
+            scope: "global" | "user";
+            shards?: number;
+          };
+          sortOrder: number;
+        }>;
+        models: Array<{
+          _creationTime: number;
+          _id: Id<"models">;
+          capabilities?: Array<string>;
+          contextWindow?: number;
+          description?: string;
+          discoveredAt?: number;
+          displayName: string;
+          icon?: string;
+          iconId?: Id<"_storage">;
+          iconType?: "emoji" | "lucide" | "upload";
+          iconUrl?: string;
+          isEnabled: boolean;
+          isFavorite: boolean;
+          isFree: boolean;
+          lastSyncedAt?: number;
+          maxOutputTokens?: number;
+          modalities?: { input: Array<string>; output: Array<string> };
+          modelId: string;
+          ownedBy?: string;
+          provider: null | {
+            _id: Id<"providers">;
+            icon?: string;
+            iconId?: Id<"_storage">;
+            iconType?: "emoji" | "lucide" | "upload";
+            iconUrl?: string;
+            name: string;
+            providerType:
+              | "openrouter"
+              | "openai"
+              | "anthropic"
+              | "google"
+              | "azure"
+              | "groq"
+              | "deepseek"
+              | "xai"
+              | "cerebras"
+              | "openai-compatible"
+              | "opencode"
+              | "mistral"
+              | "cohere"
+              | "perplexity"
+              | "fireworks"
+              | "together"
+              | "replicate"
+              | "moonshot"
+              | "qwen"
+              | "stepfun";
+          };
+          providerId: Id<"providers">;
+          rateLimit?: {
+            capacity?: number;
+            enabled: boolean;
+            kind: "fixed window" | "token bucket";
+            period: number;
+            rate: number;
+            scope: "global" | "user";
+            shards?: number;
+          };
+          sortOrder: number;
+        }>;
+        providers: Array<{
+          _id: Id<"providers">;
+          icon?: string;
+          iconId?: Id<"_storage">;
+          iconType?: "emoji" | "lucide" | "upload";
+          iconUrl?: string;
+          name: string;
+          providerType:
+            | "openrouter"
+            | "openai"
+            | "anthropic"
+            | "google"
+            | "azure"
+            | "groq"
+            | "deepseek"
+            | "xai"
+            | "cerebras"
+            | "openai-compatible"
+            | "opencode"
+            | "mistral"
+            | "cohere"
+            | "perplexity"
+            | "fireworks"
+            | "together"
+            | "replicate"
+            | "moonshot"
+            | "qwen"
+            | "stepfun";
+        }>;
+      }
+    >;
     makeAdmin: FunctionReference<
       "mutation",
       "public",
@@ -190,13 +769,13 @@ export declare const api: {
       "mutation",
       "public",
       { clientUpdatedAt?: number; isFavorite: boolean; modelId: Id<"models"> },
-      any
+      { favorited: boolean }
     >;
     toggleFavoriteModel: FunctionReference<
       "mutation",
       "public",
       { modelId: Id<"models"> },
-      any
+      { favorited: boolean }
     >;
     toggleModelEnabled: FunctionReference<
       "mutation",
@@ -224,7 +803,7 @@ export declare const api: {
           shards?: number;
         };
       },
-      any
+      Id<"adminSettings">
     >;
     updateModel: FunctionReference<
       "mutation",
@@ -254,6 +833,18 @@ export declare const api: {
           scope: "global" | "user";
           shards?: number;
         };
+        sortOrder?: number;
+      },
+      any
+    >;
+    updateModelCollection: FunctionReference<
+      "mutation",
+      "public",
+      {
+        description?: string;
+        id: Id<"modelCollections">;
+        modelIds?: Array<Id<"models">>;
+        name?: string;
         sortOrder?: number;
       },
       any
@@ -316,55 +907,129 @@ export declare const api: {
     createChatThread: FunctionReference<
       "mutation",
       "public",
-      { sectionId?: Id<"sections">; title?: string },
-      any
+      {
+        projectId?: Id<"projects">;
+        sectionId?: Id<"sections">;
+        title?: string;
+      },
+      string
+    >;
+    generateAttachmentUploadUrl: FunctionReference<
+      "mutation",
+      "public",
+      {},
+      string
     >;
     generateMessage: FunctionReference<
       "mutation",
       "public",
       {
+        attachments?: Array<{
+          filename?: string;
+          mediaType?: string;
+          storageId: Id<"_storage">;
+        }>;
         modelId: Id<"models">;
+        projectId?: Id<"projects">;
         prompt: string;
         searchEnabled?: boolean;
         threadId: string;
       },
-      any
+      null
     >;
-    listThreadsWithMetadata: FunctionReference<"query", "public", any, any>;
+    listThreadsWithMetadata: FunctionReference<
+      "query",
+      "public",
+      {},
+      Array<{
+        _creationTime: number;
+        _id: string;
+        metadata: null | {
+          _creationTime: number;
+          _id: Id<"threadMetadata">;
+          emoji: string;
+          icon?: string;
+          lastLabelUpdateAt: number;
+          projectId?: Id<"projects">;
+          sectionId?: Id<"sections">;
+          sortOrder: number;
+          threadId: string;
+          userId: Id<"users">;
+        };
+        project: null | { description?: string; id: string; name: string };
+        title?: string;
+        userId?: string;
+      }>
+    >;
+    regenerateMessage: FunctionReference<
+      "mutation",
+      "public",
+      {
+        modelId: Id<"models">;
+        projectId?: Id<"projects">;
+        promptMessageId: string;
+        searchEnabled?: boolean;
+        threadId: string;
+      },
+      null
+    >;
     setThreadPinned: FunctionReference<
       "mutation",
       "public",
       { pinned: boolean; threadId: string },
-      any
+      number
     >;
     togglePinThread: FunctionReference<
       "mutation",
       "public",
       { threadId: string },
-      any
+      number
     >;
     updateThreadIcon: FunctionReference<
       "mutation",
       "public",
       { icon: string; threadId: string },
-      any
+      string
     >;
     updateThreadSection: FunctionReference<
       "mutation",
       "public",
       { sectionId?: Id<"sections">; threadId: string },
-      any
+      null
     >;
   };
   chat: {
-    createThread: FunctionReference<"mutation", "public", {}, any>;
+    createThread: FunctionReference<"mutation", "public", {}, string>;
     deleteThread: FunctionReference<
       "mutation",
       "public",
       { threadId: string },
-      any
+      null
     >;
-    getThread: FunctionReference<"query", "public", { threadId: string }, any>;
+    getThread: FunctionReference<
+      "query",
+      "public",
+      { threadId: string },
+      null | {
+        _creationTime: number;
+        _id: string;
+        metadata: null | {
+          _creationTime: number;
+          _id: Id<"threadMetadata">;
+          emoji: string;
+          icon?: string;
+          lastLabelUpdateAt: number;
+          projectId?: Id<"projects">;
+          sectionId?: Id<"sections">;
+          sortOrder: number;
+          threadId: string;
+          userId: Id<"users">;
+        };
+        project: null | { description?: string; id: string; name: string };
+        title?: string;
+        userId?: string;
+      }
+    >;
     listMessages: FunctionReference<
       "query",
       "public",
@@ -423,13 +1088,13 @@ export declare const api: {
         "mutation",
         "public",
         { projectId: Id<"projects">; threadId: string },
-        any
+        { success: boolean }
       >;
       createProject: FunctionReference<
         "mutation",
         "public",
         { description?: string; name: string },
-        any
+        { projectId: string }
       >;
       createProjectMemory: FunctionReference<
         "action",
@@ -441,7 +1106,22 @@ export declare const api: {
           tags?: Array<string>;
           title: string;
         },
-        any
+        {
+          category?: string;
+          content: string;
+          createdAt: number;
+          memoryId: string;
+          originMessageIds?: Array<string>;
+          originThreadId?: string;
+          projectId?: string;
+          scope: "user" | "thread" | "project";
+          source: string;
+          tags?: Array<string>;
+          threadId?: string;
+          title: string;
+          updatedAt: number;
+          userId: string;
+        }
       >;
       createThreadMemory: FunctionReference<
         "action",
@@ -453,7 +1133,22 @@ export declare const api: {
           threadId: string;
           title: string;
         },
-        any
+        {
+          category?: string;
+          content: string;
+          createdAt: number;
+          memoryId: string;
+          originMessageIds?: Array<string>;
+          originThreadId?: string;
+          projectId?: string;
+          scope: "user" | "thread" | "project";
+          source: string;
+          tags?: Array<string>;
+          threadId?: string;
+          title: string;
+          updatedAt: number;
+          userId: string;
+        }
       >;
       createUserMemory: FunctionReference<
         "action",
@@ -464,7 +1159,22 @@ export declare const api: {
           tags?: Array<string>;
           title: string;
         },
-        any
+        {
+          category?: string;
+          content: string;
+          createdAt: number;
+          memoryId: string;
+          originMessageIds?: Array<string>;
+          originThreadId?: string;
+          projectId?: string;
+          scope: "user" | "thread" | "project";
+          source: string;
+          tags?: Array<string>;
+          threadId?: string;
+          title: string;
+          updatedAt: number;
+          userId: string;
+        }
       >;
       deleteMemory: FunctionReference<
         "action",
@@ -475,13 +1185,22 @@ export declare const api: {
           threadMemoryId?: Id<"threadMemories">;
           userMemoryId?: Id<"userMemories">;
         },
-        any
+        { success: boolean }
       >;
       getProjectById: FunctionReference<
         "query",
         "public",
         { projectId: Id<"projects"> },
-        any
+        null | {
+          _creationTime: number;
+          _id: Id<"projects">;
+          createdAt: number;
+          description?: string;
+          name: string;
+          threadIds?: Array<string>;
+          updatedAt: number;
+          userId: Id<"users">;
+        }
       >;
       listProjectMemories: FunctionReference<
         "query",
@@ -501,9 +1220,41 @@ export declare const api: {
           source?: "manual" | "extracted";
           tags?: Array<string>;
         },
-        any
+        {
+          continueCursor: null | string;
+          isDone: boolean;
+          page: Array<{
+            category?: string;
+            content: string;
+            createdAt: number;
+            memoryId: string;
+            originMessageIds?: Array<string>;
+            originThreadId?: string;
+            projectId?: string;
+            scope: "user" | "thread" | "project";
+            source: string;
+            tags?: Array<string>;
+            threadId?: string;
+            title: string;
+            updatedAt: number;
+            userId: string;
+          }>;
+          total: number;
+        }
       >;
-      listProjects: FunctionReference<"query", "public", any, any>;
+      listProjects: FunctionReference<
+        "query",
+        "public",
+        {},
+        Array<{
+          createdAt: number;
+          description?: string;
+          id: string;
+          name: string;
+          threadIds: Array<string>;
+          updatedAt: number;
+        }>
+      >;
       listThreadMemories: FunctionReference<
         "query",
         "public",
@@ -522,7 +1273,27 @@ export declare const api: {
           tags?: Array<string>;
           threadId?: string;
         },
-        any
+        {
+          continueCursor: null | string;
+          isDone: boolean;
+          page: Array<{
+            category?: string;
+            content: string;
+            createdAt: number;
+            memoryId: string;
+            originMessageIds?: Array<string>;
+            originThreadId?: string;
+            projectId?: string;
+            scope: "user" | "thread" | "project";
+            source: string;
+            tags?: Array<string>;
+            threadId?: string;
+            title: string;
+            updatedAt: number;
+            userId: string;
+          }>;
+          total: number;
+        }
       >;
       listUserMemories: FunctionReference<
         "query",
@@ -541,7 +1312,27 @@ export declare const api: {
           source?: "manual" | "extracted" | "system";
           tags?: Array<string>;
         },
-        any
+        {
+          continueCursor: null | string;
+          isDone: boolean;
+          page: Array<{
+            category?: string;
+            content: string;
+            createdAt: number;
+            memoryId: string;
+            originMessageIds?: Array<string>;
+            originThreadId?: string;
+            projectId?: string;
+            scope: "user" | "thread" | "project";
+            source: string;
+            tags?: Array<string>;
+            threadId?: string;
+            title: string;
+            updatedAt: number;
+            userId: string;
+          }>;
+          total: number;
+        }
       >;
       searchMemory: FunctionReference<
         "action",
@@ -555,7 +1346,27 @@ export declare const api: {
           scope?: "user" | "thread" | "project" | "all";
           threadId?: string;
         },
-        any
+        {
+          hits: Array<{
+            category?: string;
+            content: string;
+            createdAt: number;
+            memoryId: string;
+            originMessageIds?: Array<string>;
+            originThreadId?: string;
+            projectId?: string;
+            rank: number;
+            scope: "user" | "thread" | "project";
+            score?: number;
+            source: string;
+            tags?: Array<string>;
+            threadId?: string;
+            title: string;
+            updatedAt: number;
+            userId: string;
+          }>;
+          text: string;
+        }
       >;
       updateMemory: FunctionReference<
         "action",
@@ -570,7 +1381,22 @@ export declare const api: {
           title?: string;
           userMemoryId?: Id<"userMemories">;
         },
-        any
+        {
+          category?: string;
+          content: string;
+          createdAt: number;
+          memoryId: string;
+          originMessageIds?: Array<string>;
+          originThreadId?: string;
+          projectId?: string;
+          scope: "user" | "thread" | "project";
+          source: string;
+          tags?: Array<string>;
+          threadId?: string;
+          title: string;
+          updatedAt: number;
+          userId: string;
+        }
       >;
     };
     memoryCache: {
@@ -708,6 +1534,75 @@ export declare const api: {
       any
     >;
   };
+  projects: {
+    assignThreadToProject: FunctionReference<
+      "mutation",
+      "public",
+      { projectId: Id<"projects">; threadId: string },
+      null
+    >;
+    createProject: FunctionReference<
+      "mutation",
+      "public",
+      { description?: string; name: string },
+      { id: string }
+    >;
+    deleteProject: FunctionReference<
+      "mutation",
+      "public",
+      { projectId: Id<"projects"> },
+      null
+    >;
+    getProjectForThread: FunctionReference<
+      "query",
+      "public",
+      { threadId: string },
+      null | {
+        createdAt: number;
+        description?: string;
+        id: string;
+        name: string;
+        updatedAt: number;
+      }
+    >;
+    listProjects: FunctionReference<
+      "query",
+      "public",
+      any,
+      Array<{
+        createdAt: number;
+        description?: string;
+        id: string;
+        name: string;
+        threadCount: number;
+        updatedAt: number;
+      }>
+    >;
+    listThreadsByProject: FunctionReference<
+      "query",
+      "public",
+      { projectId: Id<"projects"> },
+      any
+    >;
+    migrateLegacyThreadProjectAssignments: FunctionReference<
+      "mutation",
+      "public",
+      {},
+      { conflicts: number; migrated: number }
+    >;
+    removeThreadFromProject: FunctionReference<
+      "mutation",
+      "public",
+      { threadId: string },
+      null
+    >;
+    updateProject: FunctionReference<
+      "mutation",
+      "public",
+      { description?: string; name?: string; projectId: Id<"projects"> },
+      null
+    >;
+  };
   sections: {
     createSection: FunctionReference<
       "mutation",
@@ -741,16 +1636,71 @@ export declare const api: {
       any
     >;
   };
+  sidebarSearch: {
+    searchSidebar: FunctionReference<
+      "action",
+      "public",
+      { limit?: number; query: string },
+      Array<{
+        createdAt: number;
+        messageId: string;
+        projectId?: string;
+        projectName?: string;
+        role: "user" | "assistant";
+        snippet: string;
+        threadId: string;
+        threadTitle: string;
+      }>
+    >;
+  };
   users: {
-    ensureCurrentUser: FunctionReference<"mutation", "public", {}, any>;
-    getSettings: FunctionReference<"query", "public", {}, any>;
+    ensureCurrentUser: FunctionReference<"mutation", "public", {}, Id<"users">>;
+    getSettings: FunctionReference<
+      "query",
+      "public",
+      {},
+      null | {
+        _creationTime: number;
+        _id: Id<"userSettings">;
+        bio?: string;
+        displayName?: string;
+        image?: string;
+        updatedAt: number;
+        userId: Id<"users">;
+      }
+    >;
     updateSettings: FunctionReference<
       "mutation",
       "public",
       { bio?: string; displayName?: string; image?: string },
-      any
+      { success: boolean }
     >;
-    viewer: FunctionReference<"query", "public", {}, any>;
+    viewer: FunctionReference<
+      "query",
+      "public",
+      {},
+      null | {
+        _creationTime: number;
+        _id: Id<"users">;
+        email?: string;
+        emailVerificationTime?: number;
+        image?: string;
+        isAnonymous?: boolean;
+        name?: string;
+        phone?: string;
+        phoneVerificationTime?: number;
+        settings: null | {
+          _creationTime: number;
+          _id: Id<"userSettings">;
+          bio?: string;
+          displayName?: string;
+          image?: string;
+          updatedAt: number;
+          userId: Id<"users">;
+        };
+        tokenIdentifier?: string;
+      }
+    >;
   };
 };
 
@@ -796,11 +1746,29 @@ export declare const internal: {
     >;
   };
   agents: {
-    generateThreadTitle: FunctionReference<
-      "action",
+    applyThreadMetadataUpdate: FunctionReference<
+      "mutation",
       "internal",
-      { firstMessage: string; threadId: string },
-      any
+      {
+        emoji?: string;
+        icon?: string;
+        threadId: string;
+        title?: string;
+        userId?: Id<"users">;
+      },
+      { emoji: string; icon?: string; title?: string; updated: boolean }
+    >;
+    getThreadPresentation: FunctionReference<
+      "query",
+      "internal",
+      { threadId: string },
+      null | {
+        emoji: string;
+        icon?: string;
+        lastLabelUpdateAt: number;
+        title?: string;
+        userId?: string;
+      }
     >;
     streamMessage: FunctionReference<
       "action",
@@ -838,7 +1806,9 @@ export declare const internal: {
         modelDocId: Id<"models">;
         modelId: string;
         modelName: string;
-        prompt: string;
+        projectId?: Id<"projects">;
+        prompt?: string;
+        promptMessageId?: string;
         providerDocId: Id<"providers">;
         providerName: string;
         searchEnabled?: boolean;
@@ -849,6 +1819,76 @@ export declare const internal: {
     >;
   };
   functions: {
+    memoryContext: {
+      buildPromptMemoryContext: FunctionReference<
+        "action",
+        "internal",
+        {
+          projectId?: Id<"projects">;
+          prompt: string;
+          threadId: string;
+          userId: Id<"users">;
+        },
+        {
+          project: null | { description?: string; id: string; name: string };
+          projectHits: Array<{
+            category?: string;
+            content: string;
+            createdAt: number;
+            memoryId: string;
+            originMessageIds?: Array<string>;
+            originThreadId?: string;
+            projectId?: string;
+            rank: number;
+            scope: "user" | "thread" | "project";
+            score?: number;
+            source: string;
+            tags?: Array<string>;
+            threadId?: string;
+            title: string;
+            updatedAt: number;
+            userId: string;
+          }>;
+          text: string;
+          threadHits: Array<{
+            category?: string;
+            content: string;
+            createdAt: number;
+            memoryId: string;
+            originMessageIds?: Array<string>;
+            originThreadId?: string;
+            projectId?: string;
+            rank: number;
+            scope: "user" | "thread" | "project";
+            score?: number;
+            source: string;
+            tags?: Array<string>;
+            threadId?: string;
+            title: string;
+            updatedAt: number;
+            userId: string;
+          }>;
+          userHits: Array<{
+            category?: string;
+            content: string;
+            createdAt: number;
+            memoryId: string;
+            originMessageIds?: Array<string>;
+            originThreadId?: string;
+            projectId?: string;
+            rank: number;
+            scope: "user" | "thread" | "project";
+            score?: number;
+            source: string;
+            tags?: Array<string>;
+            threadId?: string;
+            title: string;
+            updatedAt: number;
+            userId: string;
+          }>;
+        }
+      >;
+    };
     memoryExtraction: {
       extractMemoriesFromThread: FunctionReference<
         "action",
@@ -956,6 +1996,12 @@ export declare const internal: {
         { projectId: Id<"projects"> },
         any
       >;
+      getProjectForThread: FunctionReference<
+        "query",
+        "internal",
+        { threadId: string; userId: Id<"users"> },
+        any
+      >;
       getProjectMemoriesByIds: FunctionReference<
         "query",
         "internal",
@@ -1004,7 +2050,7 @@ export declare const internal: {
           originThreadId?: string;
           projectId: Id<"projects">;
           ragKey: string;
-          source: "manual" | "extracted";
+          source: "manual" | "aggregated";
           tags?: Array<string>;
           title: string;
           updatedAt: number;
@@ -1023,7 +2069,7 @@ export declare const internal: {
           originMessageIds?: Array<string>;
           originThreadId?: string;
           ragKey: string;
-          source: "manual" | "extracted";
+          source: "manual" | "session";
           tags?: Array<string>;
           threadId: string;
           title: string;
@@ -1067,7 +2113,7 @@ export declare const internal: {
           memoryId: Id<"projectMemories">;
           originMessageIds?: Array<string>;
           originThreadId?: string;
-          source: "manual" | "extracted";
+          source: "manual" | "aggregated";
           tags?: Array<string>;
           title: string;
           updatedAt: number;
@@ -1090,7 +2136,7 @@ export declare const internal: {
           memoryId: Id<"threadMemories">;
           originMessageIds?: Array<string>;
           originThreadId?: string;
-          source: "manual" | "extracted";
+          source: "manual" | "session";
           tags?: Array<string>;
           title: string;
           updatedAt: number;
@@ -1156,6 +2202,20 @@ export declare const internal: {
         any
       >;
     };
+  };
+  sidebarSearch: {
+    getSearchUserId: FunctionReference<"query", "internal", {}, string | null>;
+    getThreadSearchMetadata: FunctionReference<
+      "query",
+      "internal",
+      { threadIds: Array<string>; userId: string },
+      Array<{
+        projectId?: string;
+        projectName?: string;
+        threadId: string;
+        threadTitle: string;
+      }>
+    >;
   };
 };
 

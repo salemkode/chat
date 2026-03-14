@@ -3,13 +3,16 @@ import { useUIMessages } from '@convex-dev/agent/react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useMutation } from 'convex/react'
 import type { FunctionReturnType } from 'convex/server'
+import type { Id } from '../../convex/_generated/dataModel'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '../../convex/_generated/api'
 import { useQuery } from '@/lib/convex-query-cache'
+import { parseUploadResponse } from '@/lib/parsers'
 import { useOnlineStatus } from '@/hooks/use-online-status'
 import { offlineDb } from '@/offline/db'
 import type {
   OfflineModelRecord,
+  OfflineProjectRecord,
   OfflineThreadRecord,
 } from '@/offline/schema'
 import { storeTrustedSession } from '@/offline/session'
@@ -20,11 +23,33 @@ type ViewerRecord = FunctionReturnType<typeof api.users.viewer>
 type SettingsRecord = FunctionReturnType<typeof api.users.getSettings>
 type ThreadsRecord = FunctionReturnType<typeof api.agents.listThreadsWithMetadata>
 type ThreadRecord = ThreadsRecord[number]
+type ThreadWithProject = ThreadRecord & {
+  project?: {
+    id: string
+    name: string
+    description?: string
+  } | null
+}
 type ModelsWithProvidersRecord = FunctionReturnType<
   typeof api.admin.listModelsWithProviders
 >
 type ModelRecord = ModelsWithProvidersRecord['models'][number]
+type ProjectRecord = {
+  id: string
+  name: string
+  description?: string
+  threadCount: number
+  createdAt: number
+  updatedAt: number
+}
+type ProjectsRecord = ProjectRecord[]
 type ChatMessage = FunctionReturnType<typeof api.chat.listMessages>['page'][number]
+type CachedSettingsView = {
+  displayName?: string
+  image?: string
+  bio?: string
+  updatedAt: number
+}
 
 export interface ThreadSummary {
   id: string
@@ -32,6 +57,8 @@ export interface ThreadSummary {
   title?: string
   emoji: string
   icon?: string
+  projectId?: string
+  projectName?: string
   pinned: boolean
   createdAt: number
   updatedAt: number
@@ -64,11 +91,15 @@ function writeDraft(threadId: string, value: string) {
 }
 
 function normalizeThread(thread: ThreadRecord): OfflineThreadRecord {
+  const project = (thread as ThreadWithProject).project
+
   return {
     id: thread._id,
     title: thread.title,
     emoji: thread.metadata?.emoji || '💬',
     icon: thread.metadata?.icon,
+    projectId: project?.id,
+    projectName: project?.name,
     pinned: thread.metadata?.sortOrder === 1,
     createdAt: thread._creationTime,
     updatedAt: thread._creationTime,
@@ -93,6 +124,21 @@ function normalizeModel(model: ModelRecord): OfflineModelRecord {
   }
 }
 
+function normalizeProject(project: ProjectRecord): OfflineProjectRecord {
+  return {
+    id: project.id,
+    name: project.name,
+    description: project.description,
+    threadCount: project.threadCount,
+    createdAt: project.createdAt,
+    updatedAt: project.updatedAt,
+  }
+}
+
+function toModelDocId(modelId: string): Id<'models'> {
+  return modelId as Id<'models'>
+}
+
 async function cacheThreads(threads: ThreadsRecord) {
   const normalizedThreads = threads.map(normalizeThread)
 
@@ -113,6 +159,19 @@ async function cacheModels(data: ModelsWithProvidersRecord | undefined) {
     await offlineDb.models.clear()
     for (const model of data.models.map(normalizeModel)) {
       await offlineDb.models.put(model)
+    }
+  })
+}
+
+async function cacheProjects(projects: ProjectsRecord | undefined) {
+  if (!projects) {
+    return
+  }
+
+  await offlineDb.transaction('rw', offlineDb.projects, async () => {
+    await offlineDb.projects.clear()
+    for (const project of projects.map(normalizeProject)) {
+      await offlineDb.projects.put(project)
     }
   })
 }
@@ -181,15 +240,18 @@ async function cacheMessages(threadId: string, messages: ChatMessage[]) {
 export function useCachedSessionStatus() {
   const { isLoaded, isSignedIn } = useAuth()
   const isAuthenticated = isSignedIn ?? false
-  const isLoading = !isLoaded
   const { isOnline } = useOnlineStatus()
-  const session = useLiveQuery(() => offlineDb.session.get('current'))
+  const session = useLiveQuery(() => offlineDb.session.get('current'), [], null)
+  const isOfflineSessionLoaded = session !== null
+  const hasTrustedOfflineSession = Boolean(session?.trusted)
+  const isLoading = !isLoaded || (!isOnline && !isOfflineSessionLoaded)
 
   return {
     isOnline,
     isLoading,
-    isOfflineReady: Boolean(session?.trusted),
-    isAuthenticatedOrOffline: isAuthenticated || (!isOnline && Boolean(session?.trusted)),
+    isOfflineReady: hasTrustedOfflineSession,
+    isAuthenticatedOrOffline:
+      isAuthenticated || (!isOnline && hasTrustedOfflineSession),
   }
 }
 
@@ -199,7 +261,11 @@ export function useViewer() {
   const cachedSettings = useLiveQuery(() => offlineDb.settings.get('current'))
 
   useEffect(() => {
-    void cacheViewer(viewer, viewer?.settings)
+    if (!viewer) {
+      return
+    }
+
+    void cacheViewer(viewer, viewer.settings)
   }, [viewer])
 
   return useMemo(() => {
@@ -225,7 +291,6 @@ export function useViewer() {
       image: cachedSettings?.image || cachedSession.image,
       settings: cachedSettings
         ? {
-            userId: cachedSession.userId as never,
             displayName: cachedSettings.displayName,
             image: cachedSettings.image,
             bio: cachedSettings.bio,
@@ -307,11 +372,17 @@ export function useThread(threadId?: string) {
 
   return useMemo(() => {
     if (liveThread) {
+      const project = (liveThread as typeof liveThread & {
+        project?: { id: string; name: string } | null
+      }).project
+
       return {
         id: liveThread._id,
         title: liveThread.title,
         emoji: liveThread.metadata?.emoji || '💬',
         icon: liveThread.metadata?.icon,
+        projectId: project?.id,
+        projectName: project?.name,
         pinned: liveThread.metadata?.sortOrder === 1,
         createdAt: liveThread._creationTime,
       }
@@ -398,12 +469,113 @@ export function useModels() {
       if (!isOnline) {
         return
       }
-      await setFavoriteModel({ modelId: modelId as never, isFavorite })
+      await setFavoriteModel({ modelId: toModelDocId(modelId), isFavorite })
     },
     [isOnline, setFavoriteModel],
   )
 
   return { models, setFavorite }
+}
+
+export function useProjects() {
+  const { isOnline } = useOnlineStatus()
+  const projectsApi = (api as typeof api & {
+    projects: {
+      listProjects: unknown
+      createProject: unknown
+      updateProject: unknown
+      deleteProject: unknown
+      assignThreadToProject: unknown
+      removeThreadFromProject: unknown
+    }
+  }).projects
+  const liveProjects = (useQuery(projectsApi.listProjects as never) ||
+    []) as ProjectsRecord
+  const cachedProjects = useLiveQuery(
+    () => offlineDb.projects.orderBy('updatedAt').reverse().toArray(),
+    [],
+  )
+  const createProjectMutation = useMutation(projectsApi.createProject as never)
+  const updateProjectMutation = useMutation(projectsApi.updateProject as never)
+  const deleteProjectMutation = useMutation(projectsApi.deleteProject as never)
+  const assignThreadToProjectMutation = useMutation(
+    projectsApi.assignThreadToProject as never,
+  )
+  const removeThreadFromProjectMutation = useMutation(
+    projectsApi.removeThreadFromProject as never,
+  )
+
+  useEffect(() => {
+    void cacheProjects(liveProjects)
+  }, [liveProjects])
+
+  const projects = useMemo(
+    () => (liveProjects.length > 0 ? liveProjects : cachedProjects || []),
+    [cachedProjects, liveProjects],
+  )
+
+  const createProject = useCallback(
+    async (values: { name: string; description?: string }) => {
+      if (!isOnline) {
+        return null
+      }
+      return await createProjectMutation(values as never)
+    },
+    [createProjectMutation, isOnline],
+  )
+
+  const updateProject = useCallback(
+    async (values: {
+      projectId: Id<'projects'>
+      name?: string
+      description?: string
+    }) => {
+      if (!isOnline) {
+        return
+      }
+      await updateProjectMutation(values as never)
+    },
+    [isOnline, updateProjectMutation],
+  )
+
+  const deleteProject = useCallback(
+    async (projectId: Id<'projects'>) => {
+      if (!isOnline) {
+        return
+      }
+      await deleteProjectMutation({ projectId } as never)
+    },
+    [deleteProjectMutation, isOnline],
+  )
+
+  const assignThreadToProject = useCallback(
+    async (threadId: string, projectId: Id<'projects'>) => {
+      if (!isOnline) {
+        return
+      }
+      await assignThreadToProjectMutation({ threadId, projectId } as never)
+    },
+    [assignThreadToProjectMutation, isOnline],
+  )
+
+  const removeThreadFromProject = useCallback(
+    async (threadId: string) => {
+      if (!isOnline) {
+        return
+      }
+      await removeThreadFromProjectMutation({ threadId } as never)
+    },
+    [isOnline, removeThreadFromProjectMutation],
+  )
+
+  return {
+    projects,
+    createProject,
+    updateProject,
+    deleteProject,
+    assignThreadToProject,
+    removeThreadFromProject,
+  }
 }
 
 export function useSettings() {
@@ -416,16 +588,16 @@ export function useSettings() {
     void cacheSettings(liveSettings)
   }, [liveSettings])
 
-  const settings = (liveSettings ||
+  const settings: SettingsRecord | CachedSettingsView | null =
+    liveSettings ??
     (cachedSettings
       ? {
-          userId: '' as never,
           displayName: cachedSettings.displayName,
           image: cachedSettings.image,
           bio: cachedSettings.bio,
           updatedAt: cachedSettings.updatedAt,
         }
-      : null)) as SettingsRecord
+      : null)
 
   const updateSettings = useCallback(
     async (values: {
@@ -470,19 +642,57 @@ export function useDraft(threadId: string) {
 export function useSendMessage() {
   const { isOnline } = useOnlineStatus()
   const createThread = useMutation(api.agents.createChatThread)
+  const generateAttachmentUploadUrl = useMutation(
+    api.agents.generateAttachmentUploadUrl,
+  )
   const sendMessage = useMutation(api.agents.generateMessage)
+  const regenerateMessage = useMutation(api.agents.regenerateMessage)
+
+  const uploadAttachments = useCallback(
+    async (files: File[]) => {
+      return await Promise.all(
+        files.map(async (file) => {
+          const uploadUrl = await generateAttachmentUploadUrl({})
+          const response = await fetch(uploadUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': file.type,
+            },
+            body: file,
+          })
+
+          if (!response.ok) {
+            throw new Error(`Failed to upload ${file.name}`)
+          }
+
+          const payload = parseUploadResponse(await response.json())
+
+          return {
+            storageId: payload.storageId as Id<'_storage'>,
+            filename: file.name,
+            mediaType: file.type,
+          }
+        }),
+      )
+    },
+    [generateAttachmentUploadUrl],
+  )
 
   const send = useCallback(
     async ({
       text,
       threadId,
       modelDocId,
+      projectId,
       searchEnabled,
+      attachments,
     }: {
       text: string
       threadId?: string
-      modelDocId?: string
+      modelDocId?: Id<'models'>
+      projectId?: Id<'projects'>
       searchEnabled?: boolean
+      attachments?: File[]
     }) => {
       if (!isOnline) {
         return { threadId, disabledReason: 'offline' as const }
@@ -494,30 +704,74 @@ export function useSendMessage() {
 
       let nextThreadId = threadId
       if (!nextThreadId) {
-        nextThreadId = await createThread({ title: text.substring(0, 30) })
+        nextThreadId = await createThread({
+          title: text.substring(0, 30) || attachments?.[0]?.name || 'New chat',
+          projectId,
+        } as never)
       }
       const resolvedThreadId = nextThreadId
       if (!resolvedThreadId) {
         throw new Error('Failed to create a chat thread')
       }
 
+      const uploadedAttachments =
+        attachments && attachments.length > 0
+          ? await uploadAttachments(attachments)
+          : undefined
+
       await sendMessage({
         threadId: resolvedThreadId,
         prompt: text,
-        modelId: modelDocId as never,
+        modelId: modelDocId,
+        projectId,
         searchEnabled: searchEnabled ?? false,
-      })
+        attachments: uploadedAttachments,
+      } as never)
 
       writeDraft(threadId || 'new', '')
       writeDraft(resolvedThreadId, '')
 
       return { threadId: resolvedThreadId, disabledReason: null }
     },
-    [createThread, isOnline, sendMessage],
+    [createThread, isOnline, sendMessage, uploadAttachments],
   )
 
   return {
     send,
+    regenerate: useCallback(
+      async ({
+        threadId,
+        promptMessageId,
+        modelDocId,
+        projectId,
+        searchEnabled,
+      }: {
+        threadId: string
+        promptMessageId: string
+        modelDocId?: Id<'models'>
+        projectId?: Id<'projects'>
+        searchEnabled?: boolean
+      }) => {
+        if (!isOnline) {
+          return { disabledReason: 'offline' as const }
+        }
+
+        if (!modelDocId) {
+          throw new Error('No model selected')
+        }
+
+        await regenerateMessage({
+          threadId,
+          promptMessageId,
+          modelId: modelDocId,
+          projectId,
+          searchEnabled: searchEnabled ?? false,
+        } as never)
+
+        return { disabledReason: null }
+      },
+      [isOnline, regenerateMessage],
+    ),
     disabledReason: isOnline ? null : 'offline',
   }
 }

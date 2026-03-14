@@ -1,4 +1,3 @@
-// @ts-nocheck
 import {
   internalAction,
   internalMutation,
@@ -25,6 +24,31 @@ import {
 type UserMemoryDoc = Doc<'userMemories'>
 type ThreadMemoryDoc = Doc<'threadMemories'>
 type ProjectMemoryDoc = Doc<'projectMemories'>
+type UserMemorySource = UserMemoryDoc['source']
+type ThreadMemorySource = ThreadMemoryDoc['source']
+type ProjectMemorySource = ProjectMemoryDoc['source']
+
+function toThreadMemorySource(source: UserMemorySource): ThreadMemorySource {
+  switch (source) {
+    case 'manual':
+      return 'manual'
+    case 'system':
+      return 'manual'
+    case 'extracted':
+      return 'session'
+  }
+}
+
+function toProjectMemorySource(source: UserMemorySource): ProjectMemorySource {
+  switch (source) {
+    case 'manual':
+      return 'manual'
+    case 'system':
+      return 'manual'
+    case 'extracted':
+      return 'aggregated'
+  }
+}
 
 function assertScopeTarget(args: {
   scope: 'user' | 'thread' | 'project'
@@ -137,7 +161,7 @@ export const insertThreadMemory = internalMutation({
     contentHash: v.string(),
     originThreadId: v.optional(v.string()),
     originMessageIds: v.optional(v.array(v.string())),
-    source: v.union(v.literal('manual'), v.literal('extracted')),
+    source: v.union(v.literal('manual'), v.literal('session')),
     createdAt: v.number(),
     updatedAt: v.number(),
   },
@@ -158,7 +182,7 @@ export const insertProjectMemory = internalMutation({
     contentHash: v.string(),
     originThreadId: v.optional(v.string()),
     originMessageIds: v.optional(v.array(v.string())),
-    source: v.union(v.literal('manual'), v.literal('extracted')),
+    source: v.union(v.literal('manual'), v.literal('aggregated')),
     createdAt: v.number(),
     updatedAt: v.number(),
   },
@@ -205,7 +229,7 @@ export const patchThreadMemory = internalMutation({
     contentHash: v.string(),
     originThreadId: v.optional(v.string()),
     originMessageIds: v.optional(v.array(v.string())),
-    source: v.union(v.literal('manual'), v.literal('extracted')),
+    source: v.union(v.literal('manual'), v.literal('session')),
     updatedAt: v.number(),
   },
   handler: async (ctx, args) => {
@@ -233,7 +257,7 @@ export const patchProjectMemory = internalMutation({
     contentHash: v.string(),
     originThreadId: v.optional(v.string()),
     originMessageIds: v.optional(v.array(v.string())),
-    source: v.union(v.literal('manual'), v.literal('extracted')),
+    source: v.union(v.literal('manual'), v.literal('aggregated')),
     updatedAt: v.number(),
   },
   handler: async (ctx, args) => {
@@ -392,14 +416,45 @@ export const listProjectsForThread = internalQuery({
     threadId: v.string(),
   },
   handler: async (ctx, args) => {
-    const projects = await ctx.db
-      .query('projects')
-      .withIndex('by_user', (q) => q.eq('userId', args.userId))
-      .collect()
+    const metadata = await ctx.db
+      .query('threadMetadata')
+      .withIndex('by_threadId', (q) => q.eq('threadId', args.threadId))
+      .first()
 
-    return projects.filter((project) =>
-      project.threadIds?.includes(args.threadId),
-    )
+    if (!metadata || metadata.userId !== args.userId || !metadata.projectId) {
+      return []
+    }
+
+    const project = await ctx.db.get(metadata.projectId)
+    if (!project || project.userId !== args.userId) {
+      return []
+    }
+
+    return [project]
+  },
+})
+
+export const getProjectForThread = internalQuery({
+  args: {
+    userId: v.id('users'),
+    threadId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const metadata = await ctx.db
+      .query('threadMetadata')
+      .withIndex('by_threadId', (q) => q.eq('threadId', args.threadId))
+      .first()
+
+    if (!metadata || metadata.userId !== args.userId || !metadata.projectId) {
+      return null
+    }
+
+    const project = await ctx.db.get(metadata.projectId)
+    if (!project || project.userId !== args.userId) {
+      return null
+    }
+
+    return project
   },
 })
 
@@ -577,7 +632,7 @@ export const createMemoryInScope = internalAction({
             contentHash,
             originThreadId,
             originMessageIds,
-            source: args.source === 'system' ? 'manual' : args.source,
+            source: toThreadMemorySource(args.source),
             createdAt: now,
             updatedAt: now,
           },
@@ -613,9 +668,7 @@ export const createMemoryInScope = internalAction({
           source:
             existing?.source === 'manual' && args.source === 'extracted'
               ? existing.source
-              : args.source === 'system'
-                ? 'manual'
-                : args.source,
+              : toThreadMemorySource(args.source),
           updatedAt: now,
         },
       )
@@ -637,9 +690,7 @@ export const createMemoryInScope = internalAction({
           source:
             existing?.source === 'manual' && args.source === 'extracted'
               ? existing.source
-              : args.source === 'system'
-                ? 'manual'
-                : args.source,
+              : toThreadMemorySource(args.source),
         }),
         contentHash,
       })
@@ -683,7 +734,7 @@ export const createMemoryInScope = internalAction({
           contentHash,
           originThreadId,
           originMessageIds,
-          source: args.source === 'system' ? 'manual' : args.source,
+          source: toProjectMemorySource(args.source),
           createdAt: now,
           updatedAt: now,
         },
@@ -719,9 +770,7 @@ export const createMemoryInScope = internalAction({
         source:
           existing?.source === 'manual' && args.source === 'extracted'
             ? existing.source
-            : args.source === 'system'
-              ? 'manual'
-              : args.source,
+            : toProjectMemorySource(args.source),
         updatedAt: now,
       },
     )
@@ -743,9 +792,7 @@ export const createMemoryInScope = internalAction({
         source:
           existing?.source === 'manual' && args.source === 'extracted'
             ? existing.source
-            : args.source === 'system'
-              ? 'manual'
-              : args.source,
+            : toProjectMemorySource(args.source),
       }),
       contentHash,
     })

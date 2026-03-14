@@ -2,8 +2,19 @@ import { query, mutation } from './_generated/server'
 import { getAuthUserId } from './lib/auth'
 import { v } from 'convex/values'
 
+const userSettingsValidator = v.object({
+  _id: v.id('userSettings'),
+  _creationTime: v.number(),
+  userId: v.id('users'),
+  displayName: v.optional(v.string()),
+  image: v.optional(v.string()),
+  bio: v.optional(v.string()),
+  updatedAt: v.number(),
+})
+
 export const ensureCurrentUser = mutation({
   args: {},
+  returns: v.id('users'),
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx)
     if (userId === null) {
@@ -15,6 +26,22 @@ export const ensureCurrentUser = mutation({
 
 export const viewer = query({
   args: {},
+  returns: v.union(
+    v.null(),
+    v.object({
+      _id: v.id('users'),
+      _creationTime: v.number(),
+      tokenIdentifier: v.optional(v.string()),
+      name: v.optional(v.string()),
+      image: v.optional(v.string()),
+      email: v.optional(v.string()),
+      emailVerificationTime: v.optional(v.number()),
+      phone: v.optional(v.string()),
+      phoneVerificationTime: v.optional(v.number()),
+      isAnonymous: v.optional(v.boolean()),
+      settings: v.union(v.null(), userSettingsValidator),
+    }),
+  ),
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx)
     if (userId === null) {
@@ -38,6 +65,7 @@ export const viewer = query({
 
 export const getSettings = query({
   args: {},
+  returns: v.union(v.null(), userSettingsValidator),
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx)
     if (userId === null) {
@@ -59,6 +87,7 @@ export const updateSettings = mutation({
     image: v.optional(v.string()),
     bio: v.optional(v.string()),
   },
+  returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (userId === null) {

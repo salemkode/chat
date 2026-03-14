@@ -28,12 +28,10 @@ export function ChatHeader({
   model,
   onModelChange,
 }: ChatHeaderProps) {
-  const { theme, setTheme } = useTheme()
+  const { resolvedTheme, setTheme } = useTheme()
 
   const handleThemeToggle = () => {
-    if (theme === 'light') setTheme('dark')
-    else if (theme === 'dark') setTheme('light')
-    else setTheme('light')
+    setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')
   }
 
   return (
@@ -64,13 +62,17 @@ export function ChatHeader({
           <Sun
             className={cn(
               'h-5 w-5 transition-all',
-              theme === 'dark' ? 'scale-0 opacity-0' : 'scale-100 opacity-100',
+              resolvedTheme === 'dark'
+                ? 'scale-0 opacity-0'
+                : 'scale-100 opacity-100',
             )}
           />
           <Moon
             className={cn(
               'h-5 w-5 absolute transition-all',
-              theme === 'dark' ? 'scale-100 opacity-100' : 'scale-0 opacity-0',
+              resolvedTheme === 'dark'
+                ? 'scale-100 opacity-100'
+                : 'scale-0 opacity-0',
             )}
           />
           <span className="sr-only">Toggle theme</span>
