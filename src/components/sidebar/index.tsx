@@ -38,15 +38,11 @@ import {
 } from '@/components/ui/tooltip'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { SettingsDialog } from '@/components/settings-dialog'
+import type { ThreadSummary } from '@/hooks/use-chat-data'
 import { useThreads, useViewer } from '@/hooks/use-chat-data'
 import { useOnlineStatus } from '@/hooks/use-online-status'
 
-interface Thread {
-  id: string
-  title?: string
-  createdAt: number
-  lastMessageAt: number
-  pinned: boolean
+interface Thread extends ThreadSummary {
   metadata?: {
     emoji: string
     sortOrder: number
@@ -62,6 +58,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
   const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = React.useState('')
   const [settingsOpen, setSettingsOpen] = React.useState(false)
+  const deferredSearchQuery = React.useDeferredValue(searchQuery)
 
   const { threads, setPinned, deleteThread } = useThreads()
   const viewer = useViewer()
@@ -71,10 +68,14 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
 
   const typedThreads = React.useMemo<Thread[]>(
     () =>
-      threads.map((thread: Thread) => ({
+      threads.map((thread) => ({
         id: thread.id,
+        serverId: thread.serverId,
         title: thread.title,
+        emoji: thread.emoji,
+        icon: thread.icon,
         createdAt: thread.createdAt,
+        updatedAt: thread.updatedAt,
         lastMessageAt: thread.lastMessageAt,
         pinned: thread.pinned,
         metadata: {
@@ -86,12 +87,21 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
   )
 
   const filteredThreads = React.useMemo(() => {
-    if (!searchQuery.trim()) return typedThreads
+    if (!deferredSearchQuery.trim()) {
+      return typedThreads
+    }
+
+    const normalizedQuery = deferredSearchQuery.toLowerCase()
 
     return typedThreads.filter((thread) =>
-      thread.title?.toLowerCase().includes(searchQuery.toLowerCase()),
+      thread.title?.toLowerCase().includes(normalizedQuery),
     )
-  }, [searchQuery, typedThreads])
+  }, [deferredSearchQuery, typedThreads])
+
+  const threadsById = React.useMemo(
+    () => new Map(typedThreads.map((thread) => [thread.id, thread])),
+    [typedThreads],
+  )
 
   const groupedThreads = React.useMemo(() => {
     const now = Date.now()
@@ -127,33 +137,46 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
     return { pinned, today, yesterday, last7Days, last30Days, older }
   }, [filteredThreads])
 
-  const handleNewChat = () => {
+  const handleNewChat = React.useCallback(() => {
     navigate({ to: '/' })
-  }
+  }, [navigate])
 
-  const handlePinThread = async (threadId: string, e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    try {
-      const current = typedThreads.find((thread) => thread.id === threadId)
-      await setPinned(threadId, !(current?.pinned ?? false))
-    } catch (error) {
-      console.error('Failed to pin thread:', error)
-    }
-  }
-
-  const handleDeleteThread = async (threadId: string, e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    try {
-      await deleteThread(threadId)
-      if (selectedThreadId === threadId) {
-        navigate({ to: '/' })
+  const handlePinThread = React.useCallback(
+    async (threadId: string, e: React.MouseEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      try {
+        const current = threadsById.get(threadId)
+        if (!current?.serverId) {
+          return
+        }
+        await setPinned(current.serverId, !current.pinned)
+      } catch (error) {
+        console.error('Failed to pin thread:', error)
       }
-    } catch (error) {
-      console.error('Failed to delete thread:', error)
-    }
-  }
+    },
+    [setPinned, threadsById],
+  )
+
+  const handleDeleteThread = React.useCallback(
+    async (threadId: string, e: React.MouseEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      try {
+        const current = threadsById.get(threadId)
+        if (!current?.serverId) {
+          return
+        }
+        await deleteThread(current.serverId)
+        if (selectedThreadId === threadId) {
+          navigate({ to: '/' })
+        }
+      } catch (error) {
+        console.error('Failed to delete thread:', error)
+      }
+    },
+    [deleteThread, navigate, selectedThreadId, threadsById],
+  )
 
   const renderThreadGroup = (
     group: Thread[],
@@ -307,7 +330,9 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
           <Button
             variant="ghost"
             className="w-full justify-start gap-3"
-            onClick={() => navigate({ to: '/login', search: {} })}
+            onClick={() =>
+              navigate({ to: '/login', search: { redirect: undefined } })
+            }
           >
             <LogIn className="h-4 w-4" />
             Login
@@ -337,17 +362,14 @@ function ThreadItem({
   showPinButton = true,
   isPinned = false,
 }: ThreadItemProps) {
-  const [isHovered, setIsHovered] = React.useState(false)
   const navigate = useNavigate()
+  const actionsEnabled = Boolean(thread.serverId)
 
   return (
     <TooltipProvider delayDuration={300}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <SidebarMenuItem
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-          >
+          <SidebarMenuItem className="group/thread">
             <SidebarMenuButton
               asChild
               isActive={isActive}
@@ -372,8 +394,10 @@ function ThreadItem({
 
             <div
               className={cn(
-                'absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1 transition-opacity duration-200 z-10 bg-sidebar rounded-md p-0.5',
-                isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none',
+                'absolute right-1 top-1/2 z-10 flex -translate-y-1/2 items-center gap-1 rounded-md bg-sidebar p-0.5 transition-opacity duration-200',
+                'pointer-events-none opacity-0',
+                'group-hover/thread:pointer-events-auto group-hover/thread:opacity-100',
+                'group-focus-within/thread:pointer-events-auto group-focus-within/thread:opacity-100',
               )}
             >
               {showPinButton && (
@@ -386,6 +410,7 @@ function ThreadItem({
                       ? 'text-primary'
                       : 'text-muted-foreground hover:text-foreground',
                   )}
+                  disabled={!actionsEnabled}
                   onClick={(e) => {
                     e.stopPropagation()
                     onPin(thread.id, e)
@@ -398,6 +423,7 @@ function ThreadItem({
                 variant="ghost"
                 size="icon"
                 className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10"
+                disabled={!actionsEnabled}
                 onClick={(e) => {
                   e.stopPropagation()
                   onDelete(thread.id, e)

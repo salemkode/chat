@@ -59,13 +59,13 @@ const LayoutChatIdRoute = LayoutChatIdRouteImport.update({
 } as any)
 
 export interface FileRoutesByFullPath {
+  '/': typeof LayoutIndexRoute
   '/admin': typeof AdminRoute
   '/login': typeof LoginRoute
   '/memory': typeof MemoryRoute
   '/memory-demo': typeof MemoryDemoRoute
   '/signup': typeof SignupRoute
   '/$chatId': typeof LayoutChatIdRoute
-  '/': typeof LayoutIndexRoute
 }
 export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
@@ -90,13 +90,13 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
+    | '/'
     | '/admin'
     | '/login'
     | '/memory'
     | '/memory-demo'
     | '/signup'
     | '/$chatId'
-    | '/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/admin'
@@ -167,7 +167,7 @@ declare module '@tanstack/react-router' {
     '/_layout': {
       id: '/_layout'
       path: ''
-      fullPath: ''
+      fullPath: '/'
       preLoaderRoute: typeof LayoutRouteImport
       parentRoute: typeof rootRouteImport
     }
@@ -212,12 +212,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}

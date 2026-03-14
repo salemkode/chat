@@ -43,7 +43,6 @@ function ChatLayout() {
 }
 
 function AuthenticatedChatLayout() {
-  const navigate = useNavigate()
   const params = useParams({
     from: '/_layout/$chatId',
     shouldThrow: false,
@@ -59,9 +58,30 @@ function AuthenticatedChatLayout() {
       return { chatId: undefined }
     },
   })
+  const threadId = params?.chatId
+
+  return (
+    <SidebarProvider className="h-screen">
+      <AppSidebar selectedThreadId={threadId ?? null} />
+
+      <SidebarInset className="relative">
+        <Outlet />
+
+        <div className="absolute bottom-0 left-0 right-0 z-20">
+          <div className="w-full max-w-3xl mx-auto px-2 sm:px-4">
+            <ChatComposer threadId={threadId} />
+          </div>
+        </div>
+      </SidebarInset>
+    </SidebarProvider>
+  )
+}
+
+function ChatComposer({ threadId }: { threadId?: string }) {
+  const navigate = useNavigate()
   const { models } = useModels()
   const { send, disabledReason } = useSendMessage()
-  const draftKey = params?.chatId || 'new'
+  const draftKey = threadId || 'new'
   const { draft, setDraft } = useDraft(draftKey)
   const [selectedModelId, setSelectedModelId] = useState<string | undefined>(
     undefined,
@@ -78,7 +98,10 @@ function AuthenticatedChatLayout() {
   }, [])
 
   useEffect(() => {
-    if (selectedModelId || models.length === 0) return
+    if (selectedModelId || models.length === 0) {
+      return
+    }
+
     setSelectedModelId(models[0]?.modelId)
   }, [models, selectedModelId])
 
@@ -97,46 +120,34 @@ function AuthenticatedChatLayout() {
   ) {
     const result = await send({
       text,
-      threadId: params?.chatId,
+      threadId,
       modelDocId: selectedModelDocId,
       searchEnabled: opts.searchEnabled,
     })
 
-    if (result.threadId && result.threadId !== params?.chatId) {
+    if (result.threadId && result.threadId !== threadId) {
       await navigate({ to: '/$chatId', params: { chatId: result.threadId } })
     }
   }
 
   return (
-    <SidebarProvider className="h-screen">
-      <AppSidebar selectedThreadId={params?.chatId ?? null} />
-
-      <SidebarInset className="relative">
-        <Outlet />
-
-        <div className="absolute bottom-0 left-0 right-0 z-20">
-          <div className="w-full max-w-3xl mx-auto px-2 sm:px-4">
-            <AIPromptInput
-              value={draft}
-              onValueChange={(value) => void setDraft(value)}
-              onSubmit={handleSendMessage}
-              disabled={disabledReason !== null}
-              footerText={
-                disabledReason === 'offline'
-                  ? 'Offline mode is read-only. Cached chats stay available until you reconnect.'
-                  : undefined
-              }
-              selectedModel={selectedModelId}
-              onModelChange={(modelId) => {
-                setSelectedModelId(modelId)
-                if (typeof window !== 'undefined') {
-                  localStorage.setItem(STORAGE_KEY, modelId)
-                }
-              }}
-            />
-          </div>
-        </div>
-      </SidebarInset>
-    </SidebarProvider>
+    <AIPromptInput
+      value={draft}
+      onValueChange={(value) => void setDraft(value)}
+      onSubmit={handleSendMessage}
+      disabled={disabledReason !== null}
+      footerText={
+        disabledReason === 'offline'
+          ? 'Offline mode is read-only. Cached chats stay available until you reconnect.'
+          : undefined
+      }
+      selectedModel={selectedModelId}
+      onModelChange={(modelId) => {
+        setSelectedModelId(modelId)
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(STORAGE_KEY, modelId)
+        }
+      }}
+    />
   )
 }

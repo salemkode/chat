@@ -23,7 +23,7 @@ function errorToMessage(error: unknown): string {
 export const exaWebSearchTool = createTool({
   description:
     'Search the public web for up-to-date information and sources. Returns top results with URLs and short snippets.',
-  args: z.object({
+  inputSchema: z.object({
     query: z
       .string()
       .min(1)
@@ -37,7 +37,7 @@ export const exaWebSearchTool = createTool({
       .optional()
       .describe('Number of results to return (1-10). Defaults to 5.'),
   }),
-  handler: async (_ctx, args, options) => {
+  execute: async (_ctx, args, options) => {
     const apiKey = process.env.EXA_API_KEY
     const query = args.query.trim()
 
@@ -142,4 +142,3 @@ export const exaWebSearchTool = createTool({
     }
   },
 })
-

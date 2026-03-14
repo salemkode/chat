@@ -15,7 +15,7 @@ Salemkode Chat is a Convex-powered AI chat application with:
 ## Tech Stack
 
 - React 19
-- TanStack Start and TanStack Router
+- TanStack Router
 - Convex
 - `@convex-dev/agent`
 - Clerk
@@ -45,7 +45,10 @@ Useful commands:
 bun run build
 bun run test
 bun run lint
+bun run dev:scan
 ```
+
+`bun run dev:scan` enables `react-scan` locally so you can inspect unnecessary renders and hot paths without changing app code.
 
 ## Environment Notes
 

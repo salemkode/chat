@@ -1,17 +1,15 @@
 import { createRouter } from '@tanstack/react-router'
 
-// Import the generated route tree
 import { routeTree } from './routeTree.gen'
 
-// Create a new router instance
-export const getRouter = () => {
-  return createRouter({
-    routeTree,
-    context: {
-      auth: undefined,
-    },
+export const router = createRouter({
+  routeTree,
+  scrollRestoration: true,
+  defaultPreloadStaleTime: 0,
+})
 
-    scrollRestoration: true,
-    defaultPreloadStaleTime: 0,
-  })
+declare module '@tanstack/react-router' {
+  interface Register {
+    router: typeof router
+  }
 }

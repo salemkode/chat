@@ -168,8 +168,29 @@ function sanitizeFailedMessage(error: string | undefined): string {
     return ''
   }
 
-  return error
+  const normalized = error
     .replace(/\s*\[Request ID:[^\]]+\]\s*/g, ' ')
     .replace(/^Error:\s*/i, '')
     .trim()
+
+  if (isRetryableProviderRateLimit(normalized)) {
+    return 'The selected model is temporarily rate-limited upstream. Please try again shortly.'
+  }
+
+  return normalized
+    .replace(/Last error:\s*/gi, '')
+    .replace(/Provider returned error/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function isRetryableProviderRateLimit(error: string) {
+  const normalized = error.toLowerCase()
+  return (
+    normalized.includes('429') ||
+    normalized.includes('rate-limited upstream') ||
+    normalized.includes('maxretriesexceeded') ||
+    normalized.includes('failed after 3 attempts') ||
+    normalized.includes('retry shortly')
+  )
 }

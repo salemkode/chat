@@ -1,7 +1,13 @@
-import { SignIn } from '@clerk/clerk-react'
-import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
-import { useConvexAuth } from 'convex/react'
-import { useEffect } from 'react'
+import {
+  ClerkLoaded,
+  ClerkLoading,
+  SignIn,
+  SignedIn,
+  SignedOut,
+} from '@clerk/clerk-react'
+import { createFileRoute, Navigate, useSearch } from '@tanstack/react-router'
+import { Loader2 } from 'lucide-react'
+import { getPostLoginRedirectTarget } from '@/lib/auth-redirect'
 
 export const Route = createFileRoute('/login')({
   component: LoginPage,
@@ -11,22 +17,30 @@ export const Route = createFileRoute('/login')({
 })
 
 function LoginPage() {
-  const navigate = useNavigate()
   const { redirect: redirectUrl } = useSearch({ from: '/login' })
-  const { isAuthenticated, isLoading } = useConvexAuth()
-
-  const targetAfterLogin =
-    redirectUrl && redirectUrl !== '/' ? redirectUrl : '/'
-
-  useEffect(() => {
-    if (!isLoading && isAuthenticated) {
-      void navigate({ to: targetAfterLogin, replace: true })
-    }
-  }, [isAuthenticated, isLoading, navigate, targetAfterLogin])
+  const targetAfterLogin = getPostLoginRedirectTarget(redirectUrl)
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-      <SignIn />
+      <ClerkLoading>
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </ClerkLoading>
+
+      <ClerkLoaded>
+        <SignedIn>
+          <Navigate to={targetAfterLogin} replace />
+        </SignedIn>
+
+        <SignedOut>
+          <SignIn
+            path="/login"
+            routing="path"
+            signUpUrl="/signup"
+            fallbackRedirectUrl="/"
+            forceRedirectUrl={redirectUrl ? targetAfterLogin : undefined}
+          />
+        </SignedOut>
+      </ClerkLoaded>
     </div>
   )
 }

@@ -3,14 +3,12 @@ import { Agent } from '@convex-dev/agent'
 import { createOpenRouter } from '@openrouter/ai-sdk-provider'
 import {
   internalAction,
-  internalMutation,
   mutation,
   query,
 } from './_generated/server'
 import { v } from 'convex/values'
 import { getAuthUserId } from './lib/auth'
 import { createThread } from '@convex-dev/agent'
-import type { LanguageModel } from 'ai'
 import { match } from 'ts-pattern'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { openai } from '@ai-sdk/openai'
@@ -68,12 +66,34 @@ const openrouter = createOpenRouter({
   apiKey: process.env.OPENROUTER_API_KEY!,
 })
 
-function createAuthorAgent(model: LanguageModel) {
+function createAuthorAgent(
+  model: NonNullable<ConstructorParameters<typeof Agent>[1]['languageModel']>,
+) {
   return new Agent(components.agent, {
     name: 'Author',
     languageModel: model,
     maxSteps: 10, // Alternative to stopWhen: stepCountIs(10)
   })
+}
+
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message
+  }
+
+  if (typeof error === 'string') {
+    return error
+  }
+
+  if (error && typeof error === 'object') {
+    const errorObj = error as {
+      message?: string
+      error?: string
+    }
+    return errorObj.message || errorObj.error || JSON.stringify(errorObj)
+  }
+
+  return 'Unknown error occurred'
 }
 
 type RateLimitPolicy = {
@@ -403,64 +423,9 @@ export const streamMessage = internalAction({
         },
       )
     } catch (error) {
-      // Log the error for debugging
       console.error('Error in streamMessage:', error)
-
-      // Get detailed error information
-      let errorMessage = 'Unknown error occurred'
-      let errorDetails = ''
-
-      if (error instanceof Error) {
-        errorMessage = error.message
-        errorDetails = error.stack || ''
-      } else if (typeof error === 'string') {
-        errorMessage = error
-      } else if (error && typeof error === 'object') {
-        // Handle ConvexError or other error objects
-        const errorObj = error as any
-        errorMessage =
-          errorObj.message || errorObj.error || JSON.stringify(error)
-        errorDetails = errorObj.stack || errorObj.details || ''
-      }
-
-      // Create a user-friendly error message
-      const userMessage = `🚨 **Error**: I encountered an issue while processing your request.\n\n**Details:** ${errorMessage}\n\nPlease try again or contact support if this persists.`
-
-      // Store the error message in the thread
-      try {
-        await ctx.runMutation(internal.agents.storeErrorMessage, {
-          threadId: args.threadId,
-          errorMessage: userMessage,
-          errorDetails: errorDetails || errorMessage,
-        })
-      } catch (storeError) {
-        console.error('Failed to store error message:', storeError)
-      }
-
-      // Return the error instead of throwing to prevent Convex from crashing
-      // The error has already been stored and will be shown to the user
-      return { success: false, error: errorMessage }
+      return { success: false, error: getErrorMessage(error) }
     }
-  },
-})
-
-// Internal mutation to store error messages
-export const storeErrorMessage = internalMutation({
-  args: {
-    threadId: v.string(),
-    errorMessage: v.string(),
-    errorDetails: v.string(),
-  },
-  handler: async (ctx: any, args: any) => {
-    // Store error in thread metadata for UI display
-    const userId = await getAuthUserId(ctx)
-    if (!userId) return
-
-    await ctx.db.insert('messages', {
-      body: args.errorMessage,
-      userId: userId as Id<'users'>,
-      role: 'assistant',
-    })
   },
 })
 

@@ -1,5 +1,6 @@
 'use client'
 
+import { memo } from 'react'
 import { AppSidebar as NewAppSidebar } from './sidebar'
 
 interface AppSidebarProps {
@@ -7,8 +8,11 @@ interface AppSidebarProps {
   className?: string
 }
 
-export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
+export const AppSidebar = memo(function AppSidebar({
+  selectedThreadId,
+  className,
+}: AppSidebarProps) {
   return (
     <NewAppSidebar selectedThreadId={selectedThreadId} className={className} />
   )
-}
+})

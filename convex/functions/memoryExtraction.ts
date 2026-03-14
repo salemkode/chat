@@ -23,6 +23,38 @@ const extractionSchema = z.object({
   ),
 })
 
+function getExtractionErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message
+  }
+
+  if (typeof error === 'string') {
+    return error
+  }
+
+  if (error && typeof error === 'object') {
+    const errorObj = error as {
+      message?: string
+      cause?: unknown
+    }
+    return errorObj.message || JSON.stringify(errorObj)
+  }
+
+  return 'Failed to extract memories'
+}
+
+function isRetryableUpstreamRateLimit(error: unknown) {
+  const message = getExtractionErrorMessage(error).toLowerCase()
+  const hasRateLimitHint =
+    message.includes('429') ||
+    message.includes('rate-limited upstream') ||
+    message.includes('retry shortly') ||
+    message.includes('maxretriesexceeded') ||
+    message.includes('too many requests')
+
+  return hasRateLimitHint
+}
+
 export const extractMemoriesFromThread = internalAction({
   args: {
     threadId: v.string(),
@@ -241,8 +273,9 @@ export const extractMemoriesFromThread = internalAction({
 
       return { created, skipped, processedMessages: messages.length }
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Failed to extract memories'
+      const message = isRetryableUpstreamRateLimit(error)
+        ? 'Memory extraction is temporarily rate-limited upstream. It will succeed on a later retry.'
+        : getExtractionErrorMessage(error)
 
       await ctx.runMutation(
         internal.functions.memoryInternal.upsertExtractionState,
@@ -255,6 +288,10 @@ export const extractMemoriesFromThread = internalAction({
           error: message,
         },
       )
+
+      if (isRetryableUpstreamRateLimit(error)) {
+        return { created: 0, skipped: 0, processedMessages: 0 }
+      }
 
       throw error
     }

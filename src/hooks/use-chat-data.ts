@@ -1,4 +1,5 @@
 import { useUIMessages } from '@convex-dev/agent/react'
+import type { GenericId as Id } from 'convex/values'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useConvexAuth, useMutation } from 'convex/react'
 import type { FunctionReturnType } from 'convex/server'
@@ -24,6 +25,18 @@ type ModelsWithProvidersRecord = FunctionReturnType<
 >
 type ModelRecord = ModelsWithProvidersRecord['models'][number]
 type ChatMessage = FunctionReturnType<typeof api.chat.listMessages>['page'][number]
+
+export interface ThreadSummary {
+  id: string
+  serverId?: Id<'threads'>
+  title?: string
+  emoji: string
+  icon?: string
+  pinned: boolean
+  createdAt: number
+  updatedAt: number
+  lastMessageAt: number
+}
 
 function getDraftStorageKey(threadId: string) {
   return `${DRAFT_PREFIX}${threadId}`
@@ -243,13 +256,25 @@ export function useThreads() {
     }
   }, [liveThreads])
 
-  const threads = useMemo(
-    () => (liveThreads.length > 0 ? liveThreads.map(normalizeThread) : cachedThreads || []),
-    [cachedThreads, liveThreads],
-  )
+  const threads = useMemo<ThreadSummary[]>(() => {
+    if (liveThreads.length > 0) {
+      return liveThreads.map((thread: ThreadRecord) => {
+        const normalized = normalizeThread(thread)
+        return {
+          ...normalized,
+          serverId: thread._id,
+        }
+      })
+    }
+
+    return (cachedThreads || []).map((thread) => ({
+      ...thread,
+      serverId: undefined,
+    }))
+  }, [cachedThreads, liveThreads])
 
   const setPinned = useCallback(
-    async (threadId: string, pinned: boolean) => {
+    async (threadId: Id<'threads'>, pinned: boolean) => {
       if (!isOnline) {
         return
       }
@@ -259,11 +284,11 @@ export function useThreads() {
   )
 
   const deleteThread = useCallback(
-    async (threadId: string) => {
+    async (threadId: Id<'threads'>) => {
       if (!isOnline) {
         return
       }
-      await deleteThreadMutation({ threadId: threadId as never })
+      await deleteThreadMutation({ threadId })
     },
     [deleteThreadMutation, isOnline],
   )

@@ -8,7 +8,7 @@ This document describes the current implementation of the project as it exists i
 
 Salemkode Chat is a web chat application built around:
 
-- A React client rendered with TanStack Start and TanStack Router
+- A React client rendered with TanStack Router
 - Clerk authentication in the browser
 - Convex as the backend, database, mutations/actions layer, and AI orchestration layer
 - `@convex-dev/agent` for threaded AI conversations
@@ -30,7 +30,9 @@ The frontend lives under `src/` and is responsible for:
 
 Main frontend entrypoints:
 
-- `src/routes/__root.tsx`: HTML shell and top-level providers
+- `index.html`: browser document shell and app mount point
+- `src/main.tsx`: client bootstrap
+- `src/routes/__root.tsx`: top-level providers
 - `src/router.tsx`: TanStack Router setup
 - `src/routes/_layout.tsx`: authenticated/offline-aware app shell
 - `src/routes/_layout.index.tsx`: empty/new chat view
@@ -86,8 +88,8 @@ The public API is in `convex/functions/memory.ts`, with internal helpers in `con
 
 ### App boot
 
-1. `src/routes/__root.tsx` renders the document shell.
-2. The app is wrapped in:
+1. `index.html` loads the app document shell and mounts `src/main.tsx`.
+2. `src/routes/__root.tsx` wraps the routed app in:
    - `ThemeProvider`
    - `ConvexClientProvider`
    - `OfflineProvider`

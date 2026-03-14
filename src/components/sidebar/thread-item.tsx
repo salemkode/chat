@@ -1,6 +1,5 @@
 'use client'
 
-import * as React from 'react'
 import { Link } from '@tanstack/react-router'
 import { Pin, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -34,8 +33,6 @@ export function ThreadItem({
   onPin,
   onDelete,
 }: ThreadItemProps) {
-  const [isHovered, setIsHovered] = React.useState(false)
-
   return (
     <TooltipProvider delayDuration={300}>
       <Tooltip>
@@ -43,8 +40,6 @@ export function ThreadItem({
           <div
             data-sidebar="menu-item"
             className="group/menu-item relative px-2 mb-0.5"
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
           >
             <Link
               to="/$chatId"
@@ -92,9 +87,8 @@ export function ThreadItem({
                   className={cn(
                     'mobile:hidden pointer-events-auto absolute top-0 -right-1 bottom-0 z-50 flex items-center justify-end text-muted-foreground',
                     'transition-transform duration-200 ease-snappy',
-                    isHovered
-                      ? 'translate-x-0 bg-sidebar-accent'
-                      : 'translate-x-full',
+                    'translate-x-full bg-sidebar-accent',
+                    'group-hover/menu-item:translate-x-0 group-focus-within/menu-item:translate-x-0',
                   )}
                 >
                   {/* Gradient fade effect */}
@@ -102,7 +96,7 @@ export function ThreadItem({
                     className={cn(
                       'pointer-events-none absolute top-0 right-full bottom-0 h-12 w-8 bg-linear-to-l from-sidebar-accent to-transparent',
                       'transition-opacity duration-200',
-                      isHovered ? 'opacity-100' : 'opacity-0',
+                      'opacity-0 group-hover/menu-item:opacity-100 group-focus-within/menu-item:opacity-100',
                     )}
                   />
 

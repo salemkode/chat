@@ -124,3 +124,37 @@ Example:
 ```bash
 bunx convex env set EXA_API_KEY <your_exa_api_key>
 ```
+
+## TanStack Devtools Event Bus
+
+The TanStack devtools event bus is disabled by default so local development does not fail when port `42069` is already in use.
+
+Opt in only when you need it:
+
+```bash
+TANSTACK_DEVTOOLS_EVENT_BUS=1 bun run dev
+```
+
+To use a custom port:
+
+```bash
+TANSTACK_DEVTOOLS_EVENT_BUS=1 TANSTACK_DEVTOOLS_EVENT_BUS_PORT=42123 bun run dev
+```
+
+## React Scan
+
+`react-scan` is wired into the app entrypoint but stays off unless you opt in during local development.
+
+Use the dedicated script:
+
+```bash
+bun run dev:scan
+```
+
+Or set the flag manually:
+
+```bash
+VITE_ENABLE_REACT_SCAN=1 bun run dev
+```
+
+The scan toolbar will appear in development and can be used to spot expensive or unnecessary re-renders while you interact with the app.
