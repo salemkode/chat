@@ -92,6 +92,7 @@
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^4.1.18",
     "ts-pattern": "^5.9.0",
+    "tw-shimmer": "^0.4.8",
     "vaul": "^1.1.2",
     "vite-tsconfig-paths": "^6.0.2",
     "zod": "^4.3.5"
