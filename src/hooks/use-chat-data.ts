@@ -1,7 +1,7 @@
+import { useAuth } from '@clerk/clerk-react'
 import { useUIMessages } from '@convex-dev/agent/react'
-import type { GenericId as Id } from 'convex/values'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { useConvexAuth, useMutation } from 'convex/react'
+import { useMutation } from 'convex/react'
 import type { FunctionReturnType } from 'convex/server'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '../../convex/_generated/api'
@@ -28,7 +28,7 @@ type ChatMessage = FunctionReturnType<typeof api.chat.listMessages>['page'][numb
 
 export interface ThreadSummary {
   id: string
-  serverId?: Id<'threads'>
+  serverId?: string
   title?: string
   emoji: string
   icon?: string
@@ -179,7 +179,9 @@ async function cacheMessages(threadId: string, messages: ChatMessage[]) {
 }
 
 export function useCachedSessionStatus() {
-  const { isAuthenticated, isLoading } = useConvexAuth()
+  const { isLoaded, isSignedIn } = useAuth()
+  const isAuthenticated = isSignedIn ?? false
+  const isLoading = !isLoaded
   const { isOnline } = useOnlineStatus()
   const session = useLiveQuery(() => offlineDb.session.get('current'))
 
@@ -274,7 +276,7 @@ export function useThreads() {
   }, [cachedThreads, liveThreads])
 
   const setPinned = useCallback(
-    async (threadId: Id<'threads'>, pinned: boolean) => {
+    async (threadId: string, pinned: boolean) => {
       if (!isOnline) {
         return
       }
@@ -284,7 +286,7 @@ export function useThreads() {
   )
 
   const deleteThread = useCallback(
-    async (threadId: Id<'threads'>) => {
+    async (threadId: string) => {
       if (!isOnline) {
         return
       }

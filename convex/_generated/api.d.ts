@@ -361,7 +361,7 @@ export declare const api: {
     deleteThread: FunctionReference<
       "mutation",
       "public",
-      { threadId: Id<"threads"> },
+      { threadId: string },
       any
     >;
     getThread: FunctionReference<"query", "public", { threadId: string }, any>;

@@ -27,9 +27,9 @@ export function ThreadIcon({
       .replace(/^(.)/, (_, char) => char.toUpperCase())
 
     // Get the icon from Lucide
-    const IconComponent = (LucideIcons as Record<string, LucideIcon>)[
-      normalizedName
-    ]
+    const IconComponent = (
+      LucideIcons as unknown as Record<string, LucideIcon>
+    )[normalizedName]
 
     if (IconComponent) {
       return <IconComponent className={className} size={size} />

@@ -9,6 +9,7 @@ import { memoryRag, ensureOpenRouterConfigured } from './memoryRag'
 import {
   buildRagFilterValues,
   formatMemory,
+  type MemoryListItem,
   matchesMemoryFilters,
   memoryScopeValidator,
   paginateMemories,
@@ -63,7 +64,10 @@ async function assertProjectOwnership(
   }
 }
 
-async function listUserMemoryDocs(ctx: any, userId: Id<'users'>) {
+async function listUserMemoryDocs(
+  ctx: any,
+  userId: Id<'users'>,
+): Promise<MemoryListItem[]> {
   const memories = await ctx.db
     .query('userMemories')
     .withIndex('by_user_updated', (q: any) => q.eq('userId', userId))
@@ -81,7 +85,7 @@ async function listThreadMemoryDocs(
   ctx: any,
   userId: Id<'users'>,
   threadId?: string,
-) {
+): Promise<MemoryListItem[]> {
   const memories = threadId
     ? await ctx.db
         .query('threadMemories')
@@ -105,7 +109,7 @@ async function listProjectMemoryDocs(
   ctx: any,
   userId: Id<'users'>,
   projectId?: Id<'projects'>,
-) {
+): Promise<MemoryListItem[]> {
   const memories = projectId
     ? await ctx.db
         .query('projectMemories')
@@ -223,7 +227,7 @@ export const listUserMemories = query({
     const userId = await requireUserId(ctx)
     const memories = await listUserMemoryDocs(ctx, userId)
     const filtered = memories.filter((memory) =>
-      matchesMemoryFilters(memory as any, {
+      matchesMemoryFilters(memory, {
         category: args.category,
         source: args.source,
         tags: args.tags,
@@ -264,7 +268,7 @@ export const listThreadMemories = query({
 
     const memories = await listThreadMemoryDocs(ctx, userId, args.threadId)
     const filtered = memories.filter((memory) =>
-      matchesMemoryFilters(memory as any, {
+      matchesMemoryFilters(memory, {
         category: args.category,
         source: args.source,
         tags: args.tags,
@@ -303,7 +307,7 @@ export const listProjectMemories = query({
 
     const memories = await listProjectMemoryDocs(ctx, userId, args.projectId)
     const filtered = memories.filter((memory) =>
-      matchesMemoryFilters(memory as any, {
+      matchesMemoryFilters(memory, {
         category: args.category,
         source: args.source,
         tags: args.tags,

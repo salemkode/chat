@@ -27,11 +27,16 @@ export const Message = memo(function Message({
     message.role === 'assistant' && message.status === 'failed'
   const hasActivity = useMemo(
     () =>
-      message.parts.some((part: Record<string, unknown>) =>
-        ['reasoning', 'redacted-reasoning', 'tool-call', 'tool-result'].includes(
-          String(part.type),
-        ),
-      ),
+      message.parts.some((part: Record<string, unknown>) => {
+        const type = String(part.type)
+        return (
+          type === 'reasoning' ||
+          type === 'redacted-reasoning' ||
+          type === 'tool-call' ||
+          type === 'tool-result' ||
+          (type.startsWith('tool-') && type !== 'tool-calls')
+        )
+      }),
     [message.parts],
   )
   const shouldShowResponsePlaceholder =

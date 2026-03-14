@@ -39,12 +39,12 @@ export const vectorSearchChunks = action({
     //   .slice(0, maxResults)
     //   .map((r) => ({
     //     id: r._id.toString(),
-    //     path: (r as any).path,
-    //     startLine: (r as any).start_line,
-    //     endLine: (r as any).end_line,
-    //     score:1 - r._score,
-    //     snippet: (r as any).text.slice(0, 700),
-    //     source: (r as any).source,
+    //     path: r.path,
+    //     startLine: r.start_line,
+    //     endLine: r.end_line,
+    //     score: 1 - r._score,
+    //     snippet: r.text.slice(0, 700),
+    //     source: r.source,
     //   }))
   },
 })

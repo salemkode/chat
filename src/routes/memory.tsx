@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useAction, useConvexAuth } from 'convex/react'
-import { useEffect, useState } from 'react'
+import { useAuth } from '@clerk/clerk-react'
+import { useAction } from 'convex/react'
+import { useReducer } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import type { Id } from '../../convex/_generated/dataModel'
 import { api } from '../../convex/_generated/api'
@@ -57,51 +58,131 @@ type MemoryItem = {
   updatedAt: number
 }
 
+type StateUpdate<T> = Partial<T> | ((state: T) => T)
+
+type MemoryFilterState = {
+  scope: MemoryScope
+  category: string
+  threadId: string
+  projectId: string
+}
+
+type MemorySearchState = {
+  input: string
+  searching: boolean
+  results: MemoryItem[] | null
+}
+
+type MemoryRequestState = {
+  pageError: string | null
+  submitting: boolean
+}
+
+type MemoryCreateFormState = {
+  scope: EditableScope
+  threadId: string
+  projectId: string
+  title: string
+  content: string
+  category: string
+  tags: string
+}
+
+type MemoryEditState = {
+  id: string | null
+  scope: EditableScope | null
+  title: string
+  content: string
+  category: string
+  tags: string
+}
+
+const initialFilterState: MemoryFilterState = {
+  scope: 'all',
+  category: 'all',
+  threadId: 'all',
+  projectId: 'all',
+}
+
+const initialSearchState: MemorySearchState = {
+  input: '',
+  searching: false,
+  results: null,
+}
+
+const initialRequestState: MemoryRequestState = {
+  pageError: null,
+  submitting: false,
+}
+
+const initialCreateFormState: MemoryCreateFormState = {
+  scope: 'user',
+  threadId: 'all',
+  projectId: 'all',
+  title: '',
+  content: '',
+  category: '',
+  tags: '',
+}
+
+const initialEditState: MemoryEditState = {
+  id: null,
+  scope: null,
+  title: '',
+  content: '',
+  category: '',
+  tags: '',
+}
+
+function mergeReducer<T extends object>(state: T, action: StateUpdate<T>) {
+  return typeof action === 'function' ? action(state) : { ...state, ...action }
+}
+
 function MemoryPage() {
-  const { isAuthenticated, isLoading } = useConvexAuth()
-  const [filterScope, setFilterScope] = useState<MemoryScope>('all')
-  const [filterCategory, setFilterCategory] = useState('all')
-  const [filterThreadId, setFilterThreadId] = useState('all')
-  const [filterProjectId, setFilterProjectId] = useState('all')
-  const [searchInput, setSearchInput] = useState('')
-  const [searching, setSearching] = useState(false)
-  const [searchResults, setSearchResults] = useState<MemoryItem[] | null>(null)
-  const [pageError, setPageError] = useState<string | null>(null)
+  "use no memo"
 
-  const [formScope, setFormScope] = useState<EditableScope>('user')
-  const [formThreadId, setFormThreadId] = useState('all')
-  const [formProjectId, setFormProjectId] = useState('all')
-  const [formTitle, setFormTitle] = useState('')
-  const [formContent, setFormContent] = useState('')
-  const [formCategory, setFormCategory] = useState('')
-  const [formTags, setFormTags] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editingScope, setEditingScope] = useState<EditableScope | null>(null)
-  const [editingTitle, setEditingTitle] = useState('')
-  const [editingContent, setEditingContent] = useState('')
-  const [editingCategory, setEditingCategory] = useState('')
-  const [editingTags, setEditingTags] = useState('')
+  const { isLoaded, isSignedIn } = useAuth()
+  const isAuthenticated = isSignedIn ?? false
+  const isLoading = !isLoaded
+  const [filters, updateFilters] = useReducer(
+    mergeReducer<MemoryFilterState>,
+    initialFilterState,
+  )
+  const [searchState, updateSearchState] = useReducer(
+    mergeReducer<MemorySearchState>,
+    initialSearchState,
+  )
+  const [requestState, updateRequestState] = useReducer(
+    mergeReducer<MemoryRequestState>,
+    initialRequestState,
+  )
+  const [createForm, updateCreateForm] = useReducer(
+    mergeReducer<MemoryCreateFormState>,
+    initialCreateFormState,
+  )
+  const [editState, updateEditState] = useReducer(
+    mergeReducer<MemoryEditState>,
+    initialEditState,
+  )
 
   const threads = useQuery(api.agents.listThreadsWithMetadata) || []
   const projects = useQuery(api.functions.memory.listProjects) || []
   const userMemories = useQuery(api.functions.memory.listUserMemories, {
     paginationOpts: { cursor: null, numItems: 200 },
-    category: filterCategory === 'all' ? undefined : filterCategory,
+    category: filters.category === 'all' ? undefined : filters.category,
   })
   const threadMemories = useQuery(api.functions.memory.listThreadMemories, {
     paginationOpts: { cursor: null, numItems: 200 },
-    threadId: filterThreadId === 'all' ? undefined : filterThreadId,
-    category: filterCategory === 'all' ? undefined : filterCategory,
+    threadId: filters.threadId === 'all' ? undefined : filters.threadId,
+    category: filters.category === 'all' ? undefined : filters.category,
   })
   const projectMemories = useQuery(api.functions.memory.listProjectMemories, {
     paginationOpts: { cursor: null, numItems: 200 },
     projectId:
-      filterProjectId === 'all'
+      filters.projectId === 'all'
         ? undefined
-        : (filterProjectId as Id<'projects'>),
-    category: filterCategory === 'all' ? undefined : filterCategory,
+        : (filters.projectId as Id<'projects'>),
+    category: filters.category === 'all' ? undefined : filters.category,
   })
 
   const createUserMemory = useAction(api.functions.memory.createUserMemory)
@@ -122,12 +203,12 @@ function MemoryPage() {
     .sort((a, b) => b.updatedAt - a.updatedAt)
 
   const visibleMemories =
-    searchResults ??
-    (filterScope === 'user'
+    searchState.results ??
+    (filters.scope === 'user'
       ? (userMemories?.page ?? [])
-      : filterScope === 'thread'
+      : filters.scope === 'thread'
         ? (threadMemories?.page ?? [])
-        : filterScope === 'project'
+        : filters.scope === 'project'
           ? (projectMemories?.page ?? [])
           : allListedMemories)
 
@@ -138,13 +219,6 @@ function MemoryPage() {
         .filter((category): category is string => Boolean(category)),
     ),
   ).sort()
-
-  useEffect(() => {
-    if (!searchInput.trim()) {
-      setSearchResults(null)
-      setSearching(false)
-    }
-  }, [searchInput])
 
   if (isLoading) {
     return (
@@ -158,169 +232,181 @@ function MemoryPage() {
     return <AuthRedirect />
   }
 
-  async function runSearch() {
-    const query = searchInput.trim()
+  function runSearch() {
+    const query = searchState.input.trim()
     if (!query) {
-      setSearchResults(null)
+      updateSearchState({ results: null })
       return
     }
 
-    setSearching(true)
-    setPageError(null)
+    updateSearchState({ searching: true })
+    updateRequestState({ pageError: null })
 
-    try {
-      const result = await searchMemory({
+    return searchMemory({
         query,
-        scope: filterScope,
+        scope: filters.scope,
         threadId:
-          filterScope === 'thread' && filterThreadId !== 'all'
-            ? filterThreadId
+          filters.scope === 'thread' && filters.threadId !== 'all'
+            ? filters.threadId
             : undefined,
         projectId:
-          filterScope === 'project' && filterProjectId !== 'all'
-            ? (filterProjectId as Id<'projects'>)
+          filters.scope === 'project' && filters.projectId !== 'all'
+            ? (filters.projectId as Id<'projects'>)
             : undefined,
-        categories: filterCategory === 'all' ? undefined : [filterCategory],
+        categories:
+          filters.category === 'all' ? undefined : [filters.category],
         maxResults: 20,
       })
-
-      setSearchResults(result.hits as MemoryItem[])
-    } catch (error) {
-      setPageError(error instanceof Error ? error.message : 'Search failed')
-    } finally {
-      setSearching(false)
-    }
+      .then((result) => {
+        updateSearchState({ results: result.hits as MemoryItem[] })
+      })
+      .catch((error) => {
+        updateRequestState({
+          pageError: error instanceof Error ? error.message : 'Search failed',
+        })
+      })
+      .finally(() => {
+        updateSearchState({ searching: false })
+      })
   }
 
   async function refreshSearchIfNeeded() {
-    if (searchInput.trim()) {
+    if (searchState.input.trim()) {
       await runSearch()
     }
   }
 
   function resetCreateForm() {
-    setFormTitle('')
-    setFormContent('')
-    setFormCategory('')
-    setFormTags('')
+    updateCreateForm((current) => ({
+      ...current,
+      title: '',
+      content: '',
+      category: '',
+      tags: '',
+    }))
   }
 
-  async function handleCreateMemory() {
-    if (!formTitle.trim() || !formContent.trim()) return
+  function handleCreateMemory() {
+    if (!createForm.title.trim() || !createForm.content.trim()) return
 
-    setSubmitting(true)
-    setPageError(null)
+    updateRequestState({ submitting: true, pageError: null })
 
-    try {
-      const tags = parseTags(formTags)
+    const tags = parseTags(createForm.tags)
 
-      if (formScope === 'user') {
-        await createUserMemory({
-          title: formTitle,
-          content: formContent,
-          category: formCategory || undefined,
-          tags,
-        })
-      }
-
-      if (formScope === 'thread') {
-        if (formThreadId === 'all') {
-          throw new Error('Select a thread for thread-scoped memory')
-        }
-
-        await createThreadMemory({
-          threadId: formThreadId,
-          title: formTitle,
-          content: formContent,
-          category: formCategory || undefined,
-          tags,
-        })
-      }
-
-      if (formScope === 'project') {
-        if (formProjectId === 'all') {
-          throw new Error('Select a project for project-scoped memory')
-        }
-
-        await createProjectMemory({
-          projectId: formProjectId as Id<'projects'>,
-          title: formTitle,
-          content: formContent,
-          category: formCategory || undefined,
-          tags,
-        })
-      }
-
-      resetCreateForm()
-      await refreshSearchIfNeeded()
-    } catch (error) {
-      setPageError(error instanceof Error ? error.message : 'Create failed')
-    } finally {
-      setSubmitting(false)
+    if (createForm.scope === 'thread' && createForm.threadId === 'all') {
+      updateRequestState({
+        pageError: 'Select a thread for thread-scoped memory',
+        submitting: false,
+      })
+      return
     }
+
+    if (createForm.scope === 'project' && createForm.projectId === 'all') {
+      updateRequestState({
+        pageError: 'Select a project for project-scoped memory',
+        submitting: false,
+      })
+      return
+    }
+
+    const request =
+      createForm.scope === 'user'
+        ? createUserMemory({
+            title: createForm.title,
+            content: createForm.content,
+            category: createForm.category || undefined,
+            tags,
+          })
+        : createForm.scope === 'thread'
+          ? createThreadMemory({
+              threadId: createForm.threadId,
+              title: createForm.title,
+              content: createForm.content,
+              category: createForm.category || undefined,
+              tags,
+            })
+          : createProjectMemory({
+              projectId: createForm.projectId as Id<'projects'>,
+              title: createForm.title,
+              content: createForm.content,
+              category: createForm.category || undefined,
+              tags,
+            })
+
+    return request
+      .then(() => {
+        resetCreateForm()
+        return refreshSearchIfNeeded()
+      })
+      .catch((error) => {
+        updateRequestState({
+          pageError: error instanceof Error ? error.message : 'Create failed',
+        })
+      })
+      .finally(() => {
+        updateRequestState({ submitting: false })
+      })
   }
 
   function startEditing(memory: MemoryItem) {
-    setEditingId(memory.memoryId)
-    setEditingScope(memory.scope)
-    setEditingTitle(memory.title)
-    setEditingContent(memory.content)
-    setEditingCategory(memory.category ?? '')
-    setEditingTags((memory.tags ?? []).join(', '))
+    updateEditState({
+      id: memory.memoryId,
+      scope: memory.scope,
+      title: memory.title,
+      content: memory.content,
+      category: memory.category ?? '',
+      tags: (memory.tags ?? []).join(', '),
+    })
   }
 
   function stopEditing() {
-    setEditingId(null)
-    setEditingScope(null)
-    setEditingTitle('')
-    setEditingContent('')
-    setEditingCategory('')
-    setEditingTags('')
+    updateEditState(initialEditState)
   }
 
-  async function handleSaveEdit() {
-    if (!editingId || !editingScope) return
+  function handleSaveEdit() {
+    if (!editState.id || !editState.scope) return
 
-    setSubmitting(true)
-    setPageError(null)
+    updateRequestState({ submitting: true, pageError: null })
 
-    try {
-      await updateMemory({
-        scope: editingScope,
+    return updateMemory({
+        scope: editState.scope,
         userMemoryId:
-          editingScope === 'user'
-            ? (editingId as Id<'userMemories'>)
+          editState.scope === 'user'
+            ? (editState.id as Id<'userMemories'>)
             : undefined,
         threadMemoryId:
-          editingScope === 'thread'
-            ? (editingId as Id<'threadMemories'>)
+          editState.scope === 'thread'
+            ? (editState.id as Id<'threadMemories'>)
             : undefined,
         projectMemoryId:
-          editingScope === 'project'
-            ? (editingId as Id<'projectMemories'>)
+          editState.scope === 'project'
+            ? (editState.id as Id<'projectMemories'>)
             : undefined,
-        title: editingTitle,
-        content: editingContent,
-        category: editingCategory || undefined,
-        tags: parseTags(editingTags),
+        title: editState.title,
+        content: editState.content,
+        category: editState.category || undefined,
+        tags: parseTags(editState.tags),
       })
-      stopEditing()
-      await refreshSearchIfNeeded()
-    } catch (error) {
-      setPageError(error instanceof Error ? error.message : 'Update failed')
-    } finally {
-      setSubmitting(false)
-    }
+      .then(() => {
+        stopEditing()
+        return refreshSearchIfNeeded()
+      })
+      .catch((error) => {
+        updateRequestState({
+          pageError: error instanceof Error ? error.message : 'Update failed',
+        })
+      })
+      .finally(() => {
+        updateRequestState({ submitting: false })
+      })
   }
 
-  async function handleDelete(memory: MemoryItem) {
+  function handleDelete(memory: MemoryItem) {
     if (!confirm(`Delete "${memory.title}"?`)) return
 
-    setSubmitting(true)
-    setPageError(null)
+    updateRequestState({ submitting: true, pageError: null })
 
-    try {
-      await deleteMemory({
+    return deleteMemory({
         scope: memory.scope,
         userMemoryId:
           memory.scope === 'user'
@@ -335,12 +421,15 @@ function MemoryPage() {
             ? (memory.memoryId as Id<'projectMemories'>)
             : undefined,
       })
-      await refreshSearchIfNeeded()
-    } catch (error) {
-      setPageError(error instanceof Error ? error.message : 'Delete failed')
-    } finally {
-      setSubmitting(false)
-    }
+      .then(() => refreshSearchIfNeeded())
+      .catch((error) => {
+        updateRequestState({
+          pageError: error instanceof Error ? error.message : 'Delete failed',
+        })
+      })
+      .finally(() => {
+        updateRequestState({ submitting: false })
+      })
   }
 
   return (
@@ -377,9 +466,9 @@ function MemoryPage() {
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Scope</label>
                     <Select
-                      value={formScope}
+                      value={createForm.scope}
                       onValueChange={(value) =>
-                        setFormScope(value as EditableScope)
+                        updateCreateForm({ scope: value as EditableScope })
                       }
                     >
                       <SelectTrigger className="w-full">
@@ -393,12 +482,14 @@ function MemoryPage() {
                     </Select>
                   </div>
 
-                  {formScope === 'thread' ? (
+                  {createForm.scope === 'thread' ? (
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Thread</label>
                       <Select
-                        value={formThreadId}
-                        onValueChange={setFormThreadId}
+                        value={createForm.threadId}
+                        onValueChange={(threadId) =>
+                          updateCreateForm({ threadId })
+                        }
                       >
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="Select thread" />
@@ -415,12 +506,14 @@ function MemoryPage() {
                     </div>
                   ) : null}
 
-                  {formScope === 'project' ? (
+                  {createForm.scope === 'project' ? (
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Project</label>
                       <Select
-                        value={formProjectId}
-                        onValueChange={setFormProjectId}
+                        value={createForm.projectId}
+                        onValueChange={(projectId) =>
+                          updateCreateForm({ projectId })
+                        }
                       >
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="Select project" />
@@ -440,8 +533,10 @@ function MemoryPage() {
                   <div className="space-y-2 md:col-span-2">
                     <label className="text-sm font-medium">Title</label>
                     <Input
-                      value={formTitle}
-                      onChange={(event) => setFormTitle(event.target.value)}
+                      value={createForm.title}
+                      onChange={(event) =>
+                        updateCreateForm({ title: event.target.value })
+                      }
                       placeholder="Short title"
                     />
                   </div>
@@ -449,8 +544,10 @@ function MemoryPage() {
                   <div className="space-y-2 md:col-span-2">
                     <label className="text-sm font-medium">Content</label>
                     <Textarea
-                      value={formContent}
-                      onChange={(event) => setFormContent(event.target.value)}
+                      value={createForm.content}
+                      onChange={(event) =>
+                        updateCreateForm({ content: event.target.value })
+                      }
                       placeholder="What should the system remember?"
                       rows={4}
                     />
@@ -459,8 +556,10 @@ function MemoryPage() {
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Category</label>
                     <Input
-                      value={formCategory}
-                      onChange={(event) => setFormCategory(event.target.value)}
+                      value={createForm.category}
+                      onChange={(event) =>
+                        updateCreateForm({ category: event.target.value })
+                      }
                       placeholder="preference, profile, project..."
                     />
                   </div>
@@ -468,25 +567,27 @@ function MemoryPage() {
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Tags</label>
                     <Input
-                      value={formTags}
-                      onChange={(event) => setFormTags(event.target.value)}
+                      value={createForm.tags}
+                      onChange={(event) =>
+                        updateCreateForm({ tags: event.target.value })
+                      }
                       placeholder="comma, separated, tags"
                     />
                   </div>
                 </CardContent>
                 <CardFooter className="justify-between border-t">
                   <p className="text-sm text-muted-foreground">
-                    {formScope === 'user'
+                    {createForm.scope === 'user'
                       ? 'Stored for the current user.'
-                      : formScope === 'thread'
+                      : createForm.scope === 'thread'
                         ? 'Stored only for the selected thread.'
                         : 'Stored for the selected project.'}
                   </p>
                   <Button
                     onClick={() => void handleCreateMemory()}
-                    disabled={submitting}
+                    disabled={requestState.submitting}
                   >
-                    {submitting ? (
+                    {requestState.submitting ? (
                       <Loader2 className="mr-2 size-4 animate-spin" />
                     ) : null}
                     Create
@@ -506,9 +607,9 @@ function MemoryPage() {
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Scope</label>
                     <Select
-                      value={filterScope}
+                      value={filters.scope}
                       onValueChange={(value) =>
-                        setFilterScope(value as MemoryScope)
+                        updateFilters({ scope: value as MemoryScope })
                       }
                     >
                       <SelectTrigger className="w-full">
@@ -523,12 +624,14 @@ function MemoryPage() {
                     </Select>
                   </div>
 
-                  {filterScope === 'thread' ? (
+                  {filters.scope === 'thread' ? (
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Thread</label>
                       <Select
-                        value={filterThreadId}
-                        onValueChange={setFilterThreadId}
+                        value={filters.threadId}
+                        onValueChange={(threadId) =>
+                          updateFilters({ threadId })
+                        }
                       >
                         <SelectTrigger className="w-full">
                           <SelectValue />
@@ -545,12 +648,14 @@ function MemoryPage() {
                     </div>
                   ) : null}
 
-                  {filterScope === 'project' ? (
+                  {filters.scope === 'project' ? (
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Project</label>
                       <Select
-                        value={filterProjectId}
-                        onValueChange={setFilterProjectId}
+                        value={filters.projectId}
+                        onValueChange={(projectId) =>
+                          updateFilters({ projectId })
+                        }
                       >
                         <SelectTrigger className="w-full">
                           <SelectValue />
@@ -570,8 +675,10 @@ function MemoryPage() {
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Category</label>
                     <Select
-                      value={filterCategory}
-                      onValueChange={setFilterCategory}
+                      value={filters.category}
+                      onValueChange={(category) =>
+                        updateFilters({ category })
+                      }
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue />
@@ -591,8 +698,17 @@ function MemoryPage() {
                     <label className="text-sm font-medium">Search</label>
                     <div className="flex gap-2">
                       <Input
-                        value={searchInput}
-                        onChange={(event) => setSearchInput(event.target.value)}
+                        value={searchState.input}
+                        onChange={(event) => {
+                          const nextValue = event.target.value
+                          updateSearchState({ input: nextValue })
+                          if (!nextValue.trim()) {
+                            updateSearchState({
+                              searching: false,
+                              results: null,
+                            })
+                          }
+                        }}
                         onKeyDown={(event) => {
                           if (event.key === 'Enter') {
                             void runSearch()
@@ -602,20 +718,23 @@ function MemoryPage() {
                       />
                       <Button
                         onClick={() => void runSearch()}
-                        disabled={searching}
+                        disabled={searchState.searching}
                       >
-                        {searching ? (
+                        {searchState.searching ? (
                           <Loader2 className="size-4 animate-spin" />
                         ) : (
                           <Search className="size-4" />
                         )}
                       </Button>
-                      {searchResults ? (
+                      {searchState.results ? (
                         <Button
                           variant="outline"
                           onClick={() => {
-                            setSearchInput('')
-                            setSearchResults(null)
+                            updateSearchState({
+                              input: '',
+                              results: null,
+                              searching: false,
+                            })
                           }}
                         >
                           Clear
@@ -626,9 +745,9 @@ function MemoryPage() {
                 </CardContent>
               </Card>
 
-              {pageError ? (
+              {requestState.pageError ? (
                 <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                  {pageError}
+                  {requestState.pageError}
                 </div>
               ) : null}
 
@@ -643,8 +762,8 @@ function MemoryPage() {
 
                 {visibleMemories.map((memory: MemoryItem) => {
                   const isEditing =
-                    editingId === memory.memoryId &&
-                    editingScope === memory.scope
+                    editState.id === memory.memoryId &&
+                    editState.scope === memory.scope
 
                   return (
                     <Card
@@ -656,9 +775,11 @@ function MemoryPage() {
                           <div className="space-y-2">
                             {isEditing ? (
                               <Input
-                                value={editingTitle}
+                                value={editState.title}
                                 onChange={(event) =>
-                                  setEditingTitle(event.target.value)
+                                  updateEditState({
+                                    title: event.target.value,
+                                  })
                                 }
                               />
                             ) : (
@@ -686,7 +807,7 @@ function MemoryPage() {
                                 <Button
                                   size="sm"
                                   onClick={() => void handleSaveEdit()}
-                                  disabled={submitting}
+                                  disabled={requestState.submitting}
                                 >
                                   <Save className="mr-2 size-4" />
                                   Save
@@ -728,24 +849,28 @@ function MemoryPage() {
                         {isEditing ? (
                           <>
                             <Textarea
-                              value={editingContent}
+                              value={editState.content}
                               onChange={(event) =>
-                                setEditingContent(event.target.value)
+                                updateEditState({
+                                  content: event.target.value,
+                                })
                               }
                               rows={4}
                             />
                             <div className="grid gap-4 md:grid-cols-2">
                               <Input
-                                value={editingCategory}
+                                value={editState.category}
                                 onChange={(event) =>
-                                  setEditingCategory(event.target.value)
+                                  updateEditState({
+                                    category: event.target.value,
+                                  })
                                 }
                                 placeholder="Category"
                               />
                               <Input
-                                value={editingTags}
+                                value={editState.tags}
                                 onChange={(event) =>
-                                  setEditingTags(event.target.value)
+                                  updateEditState({ tags: event.target.value })
                                 }
                                 placeholder="tag1, tag2"
                               />

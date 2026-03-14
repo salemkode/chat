@@ -1,7 +1,8 @@
+import { useAuth } from '@clerk/clerk-react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import type { FunctionReturnType } from 'convex/server'
-import { useAction, useConvexAuth, useMutation } from 'convex/react'
-import { Doc } from 'convex/_generated/dataModel'
+import { useAction, useMutation } from 'convex/react'
+import type { Doc, Id } from 'convex/_generated/dataModel'
 import {
   ArrowLeft,
   Bot,
@@ -17,7 +18,7 @@ import {
   Users,
   WandSparkles,
 } from 'lucide-react'
-import { useEffect, useId, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useReducer } from 'react'
 import { Area, AreaChart, CartesianGrid, XAxis } from 'recharts'
 import { toast } from 'sonner'
 import { api } from '../../convex/_generated/api'
@@ -179,6 +180,38 @@ interface ModelFormData {
   rateLimit?: RateLimitPolicy
 }
 
+type StateUpdate<T> = Partial<T> | ((state: T) => T)
+
+type AdminSessionState = {
+  initializedUserId: string | null
+}
+
+type ProviderDialogState = {
+  open: boolean
+  editingProvider: Doc<'providers'> | null
+  iconPreviewUrl?: string
+  form: ProviderFormData
+}
+
+type ModelDialogState = {
+  open: boolean
+  editingModel: Doc<'models'> | null
+  iconPreviewUrl?: string
+  form: ModelFormData
+}
+
+type DiscoveryState = {
+  activeProviderId?: string
+  result: ProviderCatalogResult | null
+  discoveringProviderId?: string
+  isImporting: boolean
+}
+
+type SettingsState = {
+  isSavingSettings: boolean
+  globalRateLimitDraft?: RateLimitPolicy
+}
+
 function defaultBaseURL(providerType: ProviderType) {
   return PROVIDER_TYPES.find((provider) => provider.value === providerType)?.defaultBaseURL ?? ''
 }
@@ -223,6 +256,40 @@ function createModelForm(providerId = '', sortOrder = 0): ModelFormData {
   }
 }
 
+const initialAdminSessionState: AdminSessionState = {
+  initializedUserId: null,
+}
+
+const initialProviderDialogState: ProviderDialogState = {
+  open: false,
+  editingProvider: null,
+  iconPreviewUrl: undefined,
+  form: createProviderForm(),
+}
+
+const initialModelDialogState: ModelDialogState = {
+  open: false,
+  editingModel: null,
+  iconPreviewUrl: undefined,
+  form: createModelForm(),
+}
+
+const initialDiscoveryState: DiscoveryState = {
+  activeProviderId: undefined,
+  result: null,
+  discoveringProviderId: undefined,
+  isImporting: false,
+}
+
+const initialSettingsState: SettingsState = {
+  isSavingSettings: false,
+  globalRateLimitDraft: undefined,
+}
+
+function mergeReducer<T extends object>(state: T, action: StateUpdate<T>) {
+  return typeof action === 'function' ? action(state) : { ...state, ...action }
+}
+
 function parseJsonRecord(text: string, label: string) {
   if (!text.trim()) {
     return undefined
@@ -239,8 +306,22 @@ function parseJsonRecord(text: string, label: string) {
         .filter(([, value]) => typeof value === 'string' && value.length > 0)
         .map(([key, value]) => [key, value as string]),
     )
-  } catch (error) {
+  } catch {
     throw new Error(`${label} must be valid JSON object text.`)
+  }
+}
+
+function getParsedJsonRecord(text: string, label: string) {
+  try {
+    return {
+      value: parseJsonRecord(text, label),
+      error: null,
+    }
+  } catch (error) {
+    return {
+      value: undefined,
+      error: error instanceof Error ? error.message : `${label} must be valid JSON object text.`,
+    }
   }
 }
 
@@ -273,6 +354,16 @@ function formatTokenCount(value: number) {
   return new Intl.NumberFormat('en-US').format(value)
 }
 
+function formatModelModalities(modalities?: {
+  input?: string[]
+  output?: string[]
+}) {
+  const values = [...(modalities?.input ?? []), ...(modalities?.output ?? [])]
+    .filter(Boolean)
+
+  return values.length > 0 ? values.join(', ') : 'n/a'
+}
+
 function getProviderName(
   providers: DashboardData['providers'] | undefined,
   providerId: string,
@@ -295,7 +386,7 @@ function StatCard({
   icon: typeof Sparkles
 }) {
   return (
-    <Card className="border-border/60 bg-card/80">
+    <Card className="border-border bg-card shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardDescription>{title}</CardDescription>
@@ -310,25 +401,106 @@ function StatCard({
   )
 }
 
+function AdminBackdrop() {
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      <div className="absolute inset-0 bg-white dark:bg-[#09090b]" />
+      <div className="absolute -left-20 top-16 h-72 w-72 rounded-full bg-[#efe3ff] dark:bg-[#21162d]" />
+      <div className="absolute right-[-5rem] top-[-2rem] h-96 w-96 rounded-[4rem] bg-[#dff1ff] dark:bg-[#102232]" />
+      <div className="absolute bottom-10 left-1/3 h-72 w-72 rounded-full bg-[#ffedcf] dark:bg-[#302311]" />
+      <div className="absolute left-[9%] top-[16%] hidden h-44 w-44 rotate-12 rounded-[2rem] border border-zinc-200 bg-[#f7f4ee] shadow-[0_24px_80px_rgba(15,23,42,0.08)] lg:block dark:border-zinc-800 dark:bg-[#141417] dark:shadow-[0_24px_80px_rgba(0,0,0,0.45)]" />
+      <div className="absolute right-[11%] top-[30%] hidden h-56 w-56 rounded-full border border-zinc-200 bg-[#faf7f2] xl:block dark:border-zinc-800 dark:bg-[#111216]" />
+      <div className="absolute inset-0 [background-image:linear-gradient(to_right,rgba(0,0,0,0.14)_1px,transparent_1px),linear-gradient(to_bottom,rgba(0,0,0,0.14)_1px,transparent_1px)] [background-size:72px_72px] dark:[background-image:linear-gradient(to_right,rgba(255,255,255,0.12)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.12)_1px,transparent_1px)]" />
+    </div>
+  )
+}
+
 function AdminPage() {
+  "use no memo"
+
   const navigate = useNavigate()
-  const { isAuthenticated, isLoading } = useConvexAuth()
+  const { isLoaded, isSignedIn, userId } = useAuth()
+  const isAuthenticated = isSignedIn ?? false
+  const isLoading = !isLoaded
   const ensureCurrentUser = useMutation(api.users.ensureCurrentUser)
-  const [isUserReady, setIsUserReady] = useState(false)
-  const [providerDialogOpen, setProviderDialogOpen] = useState(false)
-  const [modelDialogOpen, setModelDialogOpen] = useState(false)
-  const [editingProvider, setEditingProvider] = useState<Doc<'providers'> | null>(null)
-  const [editingModel, setEditingModel] = useState<Doc<'models'> | null>(null)
-  const [providerIconPreviewUrl, setProviderIconPreviewUrl] = useState<string | undefined>()
-  const [modelIconPreviewUrl, setModelIconPreviewUrl] = useState<string | undefined>()
-  const [activeDiscoveryProviderId, setActiveDiscoveryProviderId] = useState<string | undefined>()
-  const [discoveryResult, setDiscoveryResult] = useState<ProviderCatalogResult | null>(null)
-  const [discoveringProviderId, setDiscoveringProviderId] = useState<string | undefined>()
-  const [isImportingDiscovery, setIsImportingDiscovery] = useState(false)
-  const [isSavingSettings, setIsSavingSettings] = useState(false)
-  const [providerForm, setProviderForm] = useState<ProviderFormData>(createProviderForm())
-  const [modelForm, setModelForm] = useState<ModelFormData>(createModelForm())
-  const [globalRateLimit, setGlobalRateLimit] = useState<RateLimitPolicy | undefined>()
+  const [sessionState, updateSessionState] = useReducer(
+    mergeReducer<AdminSessionState>,
+    initialAdminSessionState,
+  )
+  const [providerDialogState, updateProviderDialogState] = useReducer(
+    mergeReducer<ProviderDialogState>,
+    initialProviderDialogState,
+  )
+  const [modelDialogState, updateModelDialogState] = useReducer(
+    mergeReducer<ModelDialogState>,
+    initialModelDialogState,
+  )
+  const [discoveryState, updateDiscoveryState] = useReducer(
+    mergeReducer<DiscoveryState>,
+    initialDiscoveryState,
+  )
+  const [settingsState, updateSettingsState] = useReducer(
+    mergeReducer<SettingsState>,
+    initialSettingsState,
+  )
+  const initializedUserId = sessionState.initializedUserId
+  const providerDialogOpen = providerDialogState.open
+  const modelDialogOpen = modelDialogState.open
+  const editingProvider = providerDialogState.editingProvider
+  const editingModel = modelDialogState.editingModel
+  const providerIconPreviewUrl = providerDialogState.iconPreviewUrl
+  const modelIconPreviewUrl = modelDialogState.iconPreviewUrl
+  const activeDiscoveryProviderId = discoveryState.activeProviderId
+  const discoveryResult = discoveryState.result
+  const discoveringProviderId = discoveryState.discoveringProviderId
+  const isImportingDiscovery = discoveryState.isImporting
+  const isSavingSettings = settingsState.isSavingSettings
+  const providerForm = providerDialogState.form
+  const modelForm = modelDialogState.form
+  const globalRateLimitDraft = settingsState.globalRateLimitDraft
+  const setInitializedUserId = (value: string | null) =>
+    updateSessionState({ initializedUserId: value })
+  const setProviderDialogOpen = (open: boolean) =>
+    updateProviderDialogState({ open })
+  const setModelDialogOpen = (open: boolean) =>
+    updateModelDialogState({ open })
+  const setEditingProvider = (provider: Doc<'providers'> | null) =>
+    updateProviderDialogState({ editingProvider: provider })
+  const setEditingModel = (model: Doc<'models'> | null) =>
+    updateModelDialogState({ editingModel: model })
+  const setProviderIconPreviewUrl = (iconPreviewUrl: string | undefined) =>
+    updateProviderDialogState({ iconPreviewUrl })
+  const setModelIconPreviewUrl = (iconPreviewUrl: string | undefined) =>
+    updateModelDialogState({ iconPreviewUrl })
+  const setActiveDiscoveryProviderId = (activeProviderId: string | undefined) =>
+    updateDiscoveryState({ activeProviderId })
+  const setDiscoveryResult = (result: ProviderCatalogResult | null) =>
+    updateDiscoveryState({ result })
+  const setDiscoveringProviderId = (discoveringProviderId: string | undefined) =>
+    updateDiscoveryState({ discoveringProviderId })
+  const setIsImportingDiscovery = (isImporting: boolean) =>
+    updateDiscoveryState({ isImporting })
+  const setIsSavingSettings = (value: boolean) =>
+    updateSettingsState({ isSavingSettings: value })
+  const setProviderForm = (update: StateUpdate<ProviderFormData>) =>
+    updateProviderDialogState((current) => ({
+      ...current,
+      form:
+        typeof update === 'function'
+          ? update(current.form)
+          : { ...current.form, ...update },
+    }))
+  const setModelForm = (update: StateUpdate<ModelFormData>) =>
+    updateModelDialogState((current) => ({
+      ...current,
+      form:
+        typeof update === 'function'
+          ? update(current.form)
+          : { ...current.form, ...update },
+    }))
+  const setGlobalRateLimit = (globalRateLimitDraft: RateLimitPolicy | undefined) =>
+    updateSettingsState({ globalRateLimitDraft })
+  const isUserReady = isAuthenticated ? initializedUserId === userId : false
 
   const ids = {
     providerName: useId(),
@@ -364,8 +536,7 @@ function AdminPage() {
   const generateUploadUrl = useMutation(api.admin.generateUploadUrl)
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      setIsUserReady(false)
+    if (!isAuthenticated || !userId) {
       return
     }
 
@@ -373,7 +544,7 @@ function AdminPage() {
     void ensureCurrentUser({})
       .then(() => {
         if (!isCancelled) {
-          setIsUserReady(true)
+          setInitializedUserId(userId)
         }
       })
       .catch((error) => {
@@ -383,20 +554,14 @@ function AdminPage() {
     return () => {
       isCancelled = true
     }
-  }, [ensureCurrentUser, isAuthenticated])
-
-  useEffect(() => {
-    if (!dashboard?.settings) {
-      return
-    }
-
-    setGlobalRateLimit(dashboard.settings.defaultRateLimit ?? undefined)
-  }, [dashboard?.settings])
+  }, [ensureCurrentUser, isAuthenticated, userId])
 
   const providers: DashboardData['providers'] = dashboard?.providers ?? []
   const models: DashboardData['models'] = dashboard?.models ?? []
   const users: DashboardData['users'] = dashboard?.users ?? []
   const summary = dashboard?.summary
+  const globalRateLimit =
+    globalRateLimitDraft ?? dashboard?.settings.defaultRateLimit ?? undefined
 
   const defaultProviderId = providers[0]?._id ?? ''
   const nextProviderSortOrder = providers.length
@@ -495,100 +660,119 @@ function AdminPage() {
     }))
   }
 
-  const handleSaveProvider = async () => {
-    try {
-      const headers = parseJsonRecord(providerForm.headersJson, 'Headers')
-      const queryParams = parseJsonRecord(providerForm.queryParamsJson, 'Query params')
-      const payload = {
-        name: providerForm.name.trim(),
-        providerType: providerForm.providerType,
-        apiKey: providerForm.apiKey.trim(),
-        baseURL: providerForm.baseURL.trim() || undefined,
-        description: providerForm.description.trim() || undefined,
-        isEnabled: providerForm.isEnabled,
-        sortOrder: providerForm.sortOrder,
-        icon:
-          providerForm.iconType === 'upload'
-            ? undefined
-            : providerForm.icon?.trim() || undefined,
-        iconType: providerForm.iconType,
-        iconId: providerForm.iconType === 'upload' ? providerForm.iconId : undefined,
-        rateLimit: providerForm.rateLimit?.enabled ? providerForm.rateLimit : undefined,
-        config:
-          providerForm.organization ||
-          providerForm.project ||
-          headers ||
-          queryParams
-            ? {
-                organization: providerForm.organization.trim() || undefined,
-                project: providerForm.project.trim() || undefined,
-                headers,
-                queryParams,
-              }
-            : undefined,
-      }
-
-      if (editingProvider) {
-        await updateProvider({ id: editingProvider._id, ...payload })
-        toast.success('Provider updated')
-      } else {
-        await addProvider(payload)
-        toast.success('Provider created')
-      }
-
-      setProviderDialogOpen(false)
-      setEditingProvider(null)
-      setProviderForm(createProviderForm(nextProviderSortOrder))
-      setProviderIconPreviewUrl(undefined)
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to save provider')
+  const handleSaveProvider = () => {
+    const headersResult = getParsedJsonRecord(providerForm.headersJson, 'Headers')
+    if (headersResult.error) {
+      toast.error(headersResult.error)
+      return
     }
+
+    const queryParamsResult = getParsedJsonRecord(
+      providerForm.queryParamsJson,
+      'Query params',
+    )
+    if (queryParamsResult.error) {
+      toast.error(queryParamsResult.error)
+      return
+    }
+
+    const headers = headersResult.value
+    const queryParams = queryParamsResult.value
+    const payload = {
+      name: providerForm.name.trim(),
+      providerType: providerForm.providerType,
+      apiKey: providerForm.apiKey.trim(),
+      baseURL: providerForm.baseURL.trim() || undefined,
+      description: providerForm.description.trim() || undefined,
+      isEnabled: providerForm.isEnabled,
+      sortOrder: providerForm.sortOrder,
+      icon:
+        providerForm.iconType === 'upload'
+          ? undefined
+          : providerForm.icon?.trim() || undefined,
+      iconType: providerForm.iconType,
+      iconId:
+        providerForm.iconType === 'upload'
+          ? (providerForm.iconId as Id<'_storage'> | undefined)
+          : undefined,
+      rateLimit: providerForm.rateLimit?.enabled ? providerForm.rateLimit : undefined,
+      config:
+        providerForm.organization ||
+        providerForm.project ||
+        headers ||
+        queryParams
+          ? {
+              organization: providerForm.organization.trim() || undefined,
+              project: providerForm.project.trim() || undefined,
+              headers,
+              queryParams,
+            }
+          : undefined,
+    }
+
+    const request = editingProvider
+      ? updateProvider({ id: editingProvider._id, ...payload })
+      : addProvider(payload)
+
+    return request
+      .then(() => {
+        toast.success(editingProvider ? 'Provider updated' : 'Provider created')
+        setProviderDialogOpen(false)
+        setEditingProvider(null)
+        setProviderForm(createProviderForm(nextProviderSortOrder))
+        setProviderIconPreviewUrl(undefined)
+      })
+      .catch((error) => {
+        toast.error(error instanceof Error ? error.message : 'Failed to save provider')
+      })
   }
 
-  const handleSaveModel = async () => {
-    try {
-      const capabilities = modelForm.capabilitiesText
-        .split(',')
-        .map((value) => value.trim())
-        .filter(Boolean)
-      const payload = {
-        modelId: modelForm.modelId.trim(),
-        displayName: modelForm.displayName.trim(),
-        description: modelForm.description.trim() || undefined,
-        isEnabled: modelForm.isEnabled,
-        isFree: modelForm.isFree,
-        sortOrder: modelForm.sortOrder,
-        providerId: modelForm.providerId as Doc<'providers'>['_id'],
-        icon:
-          modelForm.iconType === 'upload'
-            ? undefined
-            : modelForm.icon?.trim() || undefined,
-        iconType: modelForm.iconType,
-        iconId: modelForm.iconType === 'upload' ? modelForm.iconId : undefined,
-        capabilities: capabilities.length > 0 ? capabilities : undefined,
-        ownedBy: modelForm.ownedBy.trim() || undefined,
-        contextWindow: modelForm.contextWindow ? Number(modelForm.contextWindow) : undefined,
-        maxOutputTokens: modelForm.maxOutputTokens
-          ? Number(modelForm.maxOutputTokens)
+  const handleSaveModel = () => {
+    const capabilities = modelForm.capabilitiesText
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean)
+    const payload = {
+      modelId: modelForm.modelId.trim(),
+      displayName: modelForm.displayName.trim(),
+      description: modelForm.description.trim() || undefined,
+      isEnabled: modelForm.isEnabled,
+      isFree: modelForm.isFree,
+      sortOrder: modelForm.sortOrder,
+      providerId: modelForm.providerId as Doc<'providers'>['_id'],
+      icon:
+        modelForm.iconType === 'upload'
+          ? undefined
+          : modelForm.icon?.trim() || undefined,
+      iconType: modelForm.iconType,
+      iconId:
+        modelForm.iconType === 'upload'
+          ? (modelForm.iconId as Id<'_storage'> | undefined)
           : undefined,
-        rateLimit: modelForm.rateLimit?.enabled ? modelForm.rateLimit : undefined,
-      }
-
-      if (editingModel) {
-        await updateModel({ id: editingModel._id, ...payload })
-        toast.success('Model updated')
-      } else {
-        await addModel(payload)
-        toast.success('Model created')
-      }
-
-      setModelDialogOpen(false)
-      setEditingModel(null)
-      setModelForm(createModelForm(defaultProviderId, nextModelSortOrder))
-      setModelIconPreviewUrl(undefined)
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to save model')
+      capabilities: capabilities.length > 0 ? capabilities : undefined,
+      ownedBy: modelForm.ownedBy.trim() || undefined,
+      contextWindow: modelForm.contextWindow ? Number(modelForm.contextWindow) : undefined,
+      maxOutputTokens: modelForm.maxOutputTokens
+        ? Number(modelForm.maxOutputTokens)
+        : undefined,
+      rateLimit: modelForm.rateLimit?.enabled ? modelForm.rateLimit : undefined,
     }
+
+    const request = editingModel
+      ? updateModel({ id: editingModel._id, ...payload })
+      : addModel(payload)
+
+    return request
+      .then(() => {
+        toast.success(editingModel ? 'Model updated' : 'Model created')
+        setModelDialogOpen(false)
+        setEditingModel(null)
+        setModelForm(createModelForm(defaultProviderId, nextModelSortOrder))
+        setModelIconPreviewUrl(undefined)
+      })
+      .catch((error) => {
+        toast.error(error instanceof Error ? error.message : 'Failed to save model')
+      })
   }
 
   const handleInspectProvider = async (provider?: AdminProvider) => {
@@ -619,20 +803,23 @@ function AdminPage() {
     }
 
     setDiscoveringProviderId(source.providerId ?? 'draft')
-    try {
-      const result = await inspectProviderCatalog(source)
-      setDiscoveryResult(result)
-      setActiveDiscoveryProviderId(source.providerId)
-      if (result.ok) {
-        toast.success(`Fetched ${result.modelCount} models`)
-      } else {
-        toast.error(result.error ?? 'Failed to inspect provider')
-      }
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to inspect provider')
-    } finally {
-      setDiscoveringProviderId(undefined)
-    }
+
+    return inspectProviderCatalog(source)
+      .then((result) => {
+        setDiscoveryResult(result)
+        setActiveDiscoveryProviderId(source.providerId)
+        if (result.ok) {
+          toast.success(`Fetched ${result.modelCount} models`)
+        } else {
+          toast.error(result.error ?? 'Failed to inspect provider')
+        }
+      })
+      .catch((error) => {
+        toast.error(error instanceof Error ? error.message : 'Failed to inspect provider')
+      })
+      .finally(() => {
+        setDiscoveringProviderId(undefined)
+      })
   }
 
   const handleImportDiscovery = async () => {
@@ -642,32 +829,38 @@ function AdminPage() {
     }
 
     setIsImportingDiscovery(true)
-    try {
-      const result = await importDiscoveredModels({
-        providerId: activeDiscoveryProviderId as Doc<'providers'>['_id'],
-        models: discoveryResult.models,
-        enableImportedModels: true,
+
+    return importDiscoveredModels({
+      providerId: activeDiscoveryProviderId as Doc<'providers'>['_id'],
+      models: discoveryResult.models,
+      enableImportedModels: true,
+    })
+      .then((result) => {
+        toast.success(`Imported ${result.inserted} new models, updated ${result.updated}.`)
       })
-      toast.success(`Imported ${result.inserted} new models, updated ${result.updated}.`)
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to import models')
-    } finally {
-      setIsImportingDiscovery(false)
-    }
+      .catch((error) => {
+        toast.error(error instanceof Error ? error.message : 'Failed to import models')
+      })
+      .finally(() => {
+        setIsImportingDiscovery(false)
+      })
   }
 
-  const handleSaveGlobalRateLimit = async () => {
+  const handleSaveGlobalRateLimit = () => {
     setIsSavingSettings(true)
-    try {
-      await updateAdminSettings({
+
+    return updateAdminSettings({
         defaultRateLimit: globalRateLimit?.enabled ? globalRateLimit : undefined,
       })
-      toast.success('Admin settings updated')
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to save settings')
-    } finally {
-      setIsSavingSettings(false)
-    }
+      .then(() => {
+        toast.success('Admin settings updated')
+      })
+      .catch((error) => {
+        toast.error(error instanceof Error ? error.message : 'Failed to save settings')
+      })
+      .finally(() => {
+        setIsSavingSettings(false)
+      })
   }
 
   const discoveryPreview = useMemo(() => discoveryResult?.models.slice(0, 25) ?? [], [discoveryResult])
@@ -685,17 +878,22 @@ function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.1),_transparent_35%),linear-gradient(180deg,_hsl(var(--background)),_hsl(var(--muted))/0.35)] text-foreground">
-      <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 md:px-8">
-        <header className="rounded-3xl border border-border/60 bg-card/80 p-6 shadow-sm backdrop-blur">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+    <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
+      <AdminBackdrop />
+
+      <div className="relative mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 md:px-8">
+        <header className="relative overflow-hidden rounded-3xl border border-border bg-card p-6 shadow-[0_24px_80px_rgba(15,23,42,0.08)] dark:shadow-[0_24px_80px_rgba(0,0,0,0.4)]">
+          <div className="pointer-events-none absolute right-8 top-8 hidden h-28 w-28 rounded-full border border-zinc-200 bg-[#f5f5f4] lg:block dark:border-zinc-800 dark:bg-[#151518]" />
+          <div className="pointer-events-none absolute bottom-[-3rem] right-20 hidden h-28 w-28 rotate-12 rounded-[2rem] border border-violet-200 bg-[#efe3ff] lg:block dark:border-violet-900 dark:bg-[#231730]" />
+
+          <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="space-y-3">
               <Button variant="ghost" size="sm" onClick={() => void navigate({ to: '/' })}>
                 <ArrowLeft className="mr-2 size-4" />
                 Back to chat
               </Button>
               <div className="space-y-2">
-                <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/70 px-3 py-1 text-xs text-muted-foreground">
+                <div className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground">
                   <Shield className="size-3.5" />
                   Admin control plane
                 </div>
@@ -1203,7 +1401,7 @@ function AdminPage() {
         </header>
 
         {!isAdmin ? (
-          <Card>
+          <Card className="border-border bg-card shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
             <CardHeader>
               <CardTitle>Admin access required</CardTitle>
               <CardDescription>
@@ -1245,7 +1443,7 @@ function AdminPage() {
             </section>
 
             <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
-              <Card className="border-border/60">
+              <Card className="border-border bg-card shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
                 <CardHeader>
                   <CardTitle>Usage trend</CardTitle>
                   <CardDescription>Requests and tokens over the last 7 days.</CardDescription>
@@ -1277,7 +1475,7 @@ function AdminPage() {
                 </CardContent>
               </Card>
 
-              <Card className="border-border/60">
+              <Card className="border-border bg-card shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
                 <CardHeader>
                   <CardTitle>Top accounts</CardTitle>
                   <CardDescription>Who is using the catalog the most.</CardDescription>
@@ -1286,7 +1484,7 @@ function AdminPage() {
                   {users.slice(0, 5).map((user: DashboardData['users'][number]) => (
                     <div
                       key={user.userId}
-                      className="flex items-center justify-between rounded-xl border border-border/50 bg-muted/20 px-4 py-3"
+                      className="flex items-center justify-between rounded-xl border border-border bg-muted px-4 py-3"
                     >
                       <div className="min-w-0">
                         <p className="truncate font-medium">{user.name}</p>
@@ -1313,7 +1511,7 @@ function AdminPage() {
               </TabsList>
 
               <TabsContent value="providers" className="grid gap-4">
-                <Card className="border-border/60">
+                <Card className="border-border bg-card shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
                   <CardHeader>
                     <CardTitle>Providers</CardTitle>
                     <CardDescription>
@@ -1337,7 +1535,7 @@ function AdminPage() {
                           <TableRow key={provider._id}>
                             <TableCell>
                               <div className="flex items-center gap-3">
-                                <div className="flex size-10 items-center justify-center rounded-xl border border-border/60 bg-muted/20">
+                                <div className="flex size-10 items-center justify-center rounded-xl border border-border bg-background">
                                   <EntityIcon
                                     icon={provider.icon}
                                     iconType={provider.iconType as IconType}
@@ -1428,7 +1626,7 @@ function AdminPage() {
                 </Card>
 
                 {discoveryResult ? (
-                  <Card className="border-border/60">
+                  <Card className="border-border bg-card shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
                     <CardHeader>
                       <CardTitle>Provider inspection result</CardTitle>
                       <CardDescription>
@@ -1463,7 +1661,7 @@ function AdminPage() {
                         </Badge>
                       </div>
                       {discoveryResult.error ? (
-                        <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+                        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-destructive dark:border-red-950 dark:bg-red-950">
                           {discoveryResult.error}
                         </div>
                       ) : null}
@@ -1492,9 +1690,7 @@ function AdminPage() {
                               <TableCell>{model.contextWindow ?? 'n/a'}</TableCell>
                               <TableCell>{model.maxOutputTokens ?? 'n/a'}</TableCell>
                               <TableCell className="text-xs text-muted-foreground">
-                                {[...(model.modalities?.input ?? []), ...(model.modalities?.output ?? [])]
-                                  .filter(Boolean)
-                                  .join(', ') || 'n/a'}
+                                {formatModelModalities(model.modalities)}
                               </TableCell>
                             </TableRow>
                           ))}
@@ -1506,7 +1702,7 @@ function AdminPage() {
               </TabsContent>
 
               <TabsContent value="models" className="grid gap-4">
-                <Card className="border-border/60">
+                <Card className="border-border bg-card shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
                   <CardHeader>
                     <CardTitle>Models</CardTitle>
                     <CardDescription>
@@ -1531,7 +1727,7 @@ function AdminPage() {
                           <TableRow key={model._id}>
                             <TableCell>
                               <div className="flex items-center gap-3">
-                                <div className="flex size-10 items-center justify-center rounded-xl border border-border/60 bg-muted/20">
+                                <div className="flex size-10 items-center justify-center rounded-xl border border-border bg-background">
                                   <EntityIcon
                                     icon={model.icon}
                                     iconType={model.iconType as IconType}
@@ -1603,7 +1799,7 @@ function AdminPage() {
               </TabsContent>
 
               <TabsContent value="usage" className="grid gap-4 xl:grid-cols-[1.2fr_1fr]">
-                <Card className="border-border/60">
+                <Card className="border-border bg-card shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
                   <CardHeader>
                     <CardTitle>Model usage</CardTitle>
                     <CardDescription>
@@ -1650,7 +1846,7 @@ function AdminPage() {
                   </CardContent>
                 </Card>
 
-                <Card className="border-border/60">
+                <Card className="border-border bg-card shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
                   <CardHeader>
                     <CardTitle>Account activity</CardTitle>
                     <CardDescription>
@@ -1688,7 +1884,7 @@ function AdminPage() {
               </TabsContent>
 
               <TabsContent value="settings" className="grid gap-4 xl:grid-cols-[1fr_0.8fr]">
-                <Card className="border-border/60">
+                <Card className="border-border bg-card shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
                   <CardHeader>
                     <CardTitle>Global message policy</CardTitle>
                     <CardDescription>
@@ -1715,7 +1911,7 @@ function AdminPage() {
                   </CardContent>
                 </Card>
 
-                <Card className="border-border/60">
+                <Card className="border-border bg-card shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
                   <CardHeader>
                     <CardTitle>Current limit order</CardTitle>
                     <CardDescription>
@@ -1723,19 +1919,19 @@ function AdminPage() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="grid gap-4 text-sm text-muted-foreground">
-                    <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
+                    <div className="rounded-xl border border-border bg-muted p-4">
                       <p className="font-medium text-foreground">1. Global default</p>
                       <p>
                         Applies to all models when enabled. Useful for app-wide per-user or global caps.
                       </p>
                     </div>
-                    <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
+                    <div className="rounded-xl border border-border bg-muted p-4">
                       <p className="font-medium text-foreground">2. Provider policy</p>
                       <p>
                         Applies to every model inside a provider, including custom OpenAI-compatible endpoints.
                       </p>
                     </div>
-                    <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
+                    <div className="rounded-xl border border-border bg-muted p-4">
                       <p className="font-medium text-foreground">3. Model policy</p>
                       <p>
                         Applies only to the selected model and is the final gate before the generation starts.

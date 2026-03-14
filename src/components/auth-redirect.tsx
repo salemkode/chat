@@ -1,5 +1,4 @@
-import { RedirectToSignIn } from '@clerk/clerk-react'
-import { useRouterState } from '@tanstack/react-router'
+import { Navigate, useRouterState } from '@tanstack/react-router'
 import { getPostLoginRedirectTarget } from '@/lib/auth-redirect'
 
 export function AuthRedirect() {
@@ -10,5 +9,11 @@ export function AuthRedirect() {
       ),
   })
 
-  return <RedirectToSignIn redirectUrl={redirect} />
+  return (
+    <Navigate
+      to="/login"
+      search={{ redirect, redirect_url: undefined }}
+      replace
+    />
+  )
 }

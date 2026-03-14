@@ -13,12 +13,23 @@ export const Route = createFileRoute('/login')({
   component: LoginPage,
   validateSearch: (search: Record<string, unknown>) => ({
     redirect: search.redirect as string | undefined,
+    redirect_url: search.redirect_url as string | undefined,
   }),
 })
 
 function LoginPage() {
-  const { redirect: redirectUrl } = useSearch({ from: '/login' })
-  const targetAfterLogin = getPostLoginRedirectTarget(redirectUrl)
+  const search = useSearch({ from: '/login' })
+  const redirect = search.redirect ?? search.redirect_url
+  const targetAfterLogin = getPostLoginRedirectTarget(redirect)
+  const redirectProps = redirect
+    ? {
+        forceRedirectUrl: targetAfterLogin,
+        signUpForceRedirectUrl: targetAfterLogin,
+      }
+    : {
+        fallbackRedirectUrl: '/',
+        signUpFallbackRedirectUrl: '/',
+      }
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-background">
@@ -36,8 +47,7 @@ function LoginPage() {
             path="/login"
             routing="path"
             signUpUrl="/signup"
-            fallbackRedirectUrl="/"
-            forceRedirectUrl={redirectUrl ? targetAfterLogin : undefined}
+            {...redirectProps}
           />
         </SignedOut>
       </ClerkLoaded>

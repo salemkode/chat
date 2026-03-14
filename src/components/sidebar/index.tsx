@@ -331,7 +331,10 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
             variant="ghost"
             className="w-full justify-start gap-3"
             onClick={() =>
-              navigate({ to: '/login', search: { redirect: undefined } })
+              navigate({
+                to: '/login',
+                search: { redirect: undefined, redirect_url: undefined },
+              })
             }
           >
             <LogIn className="h-4 w-4" />

@@ -2,7 +2,7 @@ import { query, mutation } from './_generated/server'
 import { v } from 'convex/values'
 import { getAuthUserId } from './lib/auth'
 import { components } from './_generated/api'
-import { paginationOptsValidator } from 'convex/server'
+import { paginationOptsValidator, type FunctionArgs } from 'convex/server'
 import {
   listMessages as listAgentMessages,
   syncStreams,
@@ -10,6 +10,15 @@ import {
   vStreamArgs,
 } from '@convex-dev/agent'
 import { ConvexError } from 'convex/values'
+
+type AgentThreadId = FunctionArgs<typeof components.agent.threads.getThread>['threadId']
+
+function isInvalidThreadIdError(error: unknown) {
+  return (
+    error instanceof Error &&
+    error.message.includes('does not match the table name in validator')
+  )
+}
 
 export const listThreads = query({
   args: { paginationOpts: paginationOptsValidator },
@@ -26,7 +35,7 @@ export const listThreads = query({
 })
 
 export const deleteThread = mutation({
-  args: { threadId: v.id('threads') },
+  args: { threadId: v.string() },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) {
@@ -36,8 +45,30 @@ export const deleteThread = mutation({
       })
     }
 
+    let thread
+    try {
+      thread = await ctx.runQuery(components.agent.threads.getThread, {
+        threadId: args.threadId as AgentThreadId,
+      })
+    } catch (error) {
+      if (isInvalidThreadIdError(error)) {
+        throw new ConvexError({
+          code: 'NOT_FOUND',
+          message: 'Thread not found',
+        })
+      }
+      throw error
+    }
+
+    if (!thread || thread.userId !== userId) {
+      throw new ConvexError({
+        code: 'NOT_FOUND',
+        message: 'Thread not found or you do not have access to it',
+      })
+    }
+
     await ctx.runMutation(components.agent.threads.deleteAllForThreadIdAsync, {
-      threadId: args.threadId,
+      threadId: thread._id,
     })
   },
 })
@@ -134,8 +165,18 @@ export const getThread = query({
       return null
     }
 
-    // Get thread from agent component
-    const thread = await ctx.db.get(args.threadId as any)
+    let thread
+    try {
+      thread = await ctx.runQuery(components.agent.threads.getThread, {
+        threadId: args.threadId as AgentThreadId,
+      })
+    } catch (error) {
+      if (isInvalidThreadIdError(error)) {
+        return null
+      }
+      throw error
+    }
+
     if (!thread) {
       return null
     }
@@ -143,7 +184,7 @@ export const getThread = query({
     // Get thread metadata
     const metadata = await ctx.db
       .query('threadMetadata')
-      .withIndex('by_threadId', (q) => q.eq('threadId', args.threadId))
+      .withIndex('by_threadId', (q) => q.eq('threadId', thread._id))
       .first()
 
     return {

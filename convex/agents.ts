@@ -1,11 +1,7 @@
 import { components, internal } from './_generated/api'
 import { Agent } from '@convex-dev/agent'
 import { createOpenRouter } from '@openrouter/ai-sdk-provider'
-import {
-  internalAction,
-  mutation,
-  query,
-} from './_generated/server'
+import { internalAction, mutation, query } from './_generated/server'
 import { v } from 'convex/values'
 import { getAuthUserId } from './lib/auth'
 import { createThread } from '@convex-dev/agent'
@@ -21,6 +17,7 @@ import { xai } from '@ai-sdk/xai'
 import { ConvexError } from 'convex/values'
 import type { Id } from './_generated/dataModel'
 import { exaWebSearchTool } from './lib/exaWebSearch'
+import { memoryTools } from './lib/memoryTools'
 import { rateLimiter } from './lib/rateLimiter'
 
 // Random emoji picker for new chats
@@ -104,6 +101,11 @@ type RateLimitPolicy = {
   period: number
   capacity?: number
   shards?: number
+}
+
+type LinkedProject = {
+  _id: Id<'projects'>
+  name: string
 }
 
 async function enforceRateLimit(
@@ -376,6 +378,14 @@ export const streamMessage = internalAction({
       // Create the agent
       const agent = createAuthorAgent(provider)
 
+      const linkedProjects = (await ctx.runQuery(
+        internal.functions.memoryInternal.listProjectsForThread,
+        {
+          userId: args.userId,
+          threadId: args.threadId,
+        },
+      )) as LinkedProject[]
+
       const searchSystem = searchEnabled
         ? [
             'Web search is enabled for this message.',
@@ -385,15 +395,38 @@ export const streamMessage = internalAction({
           ].join('\n')
         : undefined
 
+      const memorySystem = [
+        'Memory tools are enabled for this message.',
+        'Use `memory_search` before claiming you remember something, and before updating or deleting memory.',
+        'Use `memory_add` only for durable facts, preferences, instructions, or project knowledge that should persist beyond this message.',
+        'Do not save transient status, temporary plans, or one-off facts.',
+        'Use `memory_update` and `memory_delete` only after you have the correct `memoryId`, usually from `memory_search`.',
+        'Thread scope means the current conversation only.',
+        linkedProjects.length > 0
+          ? `Project scope is limited to projects linked to this thread: ${linkedProjects
+              .map(
+                (project: LinkedProject) => `${project.name} (${project._id})`,
+              )
+              .join(', ')}.`
+          : 'No projects are linked to this thread, so do not use project-scoped memory.',
+        'After a memory change, briefly tell the user what was saved, updated, or deleted.',
+      ].join('\n')
+
+      const system = [searchSystem, memorySystem].filter(Boolean).join('\n\n')
+      const tools = {
+        ...memoryTools,
+        ...(searchEnabled ? { exa_web_search: exaWebSearchTool } : {}),
+      }
+
       // Stream the response
       await agent.streamText(
         ctx,
-        { threadId: args.threadId },
+        { threadId: args.threadId, userId: args.userId },
         // @ts-ignore types are strict
         {
           prompt: args.prompt,
-          tools: searchEnabled ? { exa_web_search: exaWebSearchTool } : undefined,
-          system: searchSystem,
+          tools,
+          system,
         },
         {
           saveStreamDeltas: true,
@@ -412,14 +445,6 @@ export const streamMessage = internalAction({
               createdAt: Date.now(),
             })
           },
-        },
-      )
-
-      await ctx.scheduler.runAfter(
-        0,
-        internal.functions.memoryExtraction.extractMemoriesFromThread,
-        {
-          threadId: args.threadId,
         },
       )
     } catch (error) {

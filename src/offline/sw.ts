@@ -1,6 +1,8 @@
 /// <reference lib="webworker" />
 
-declare let self: ServiceWorkerGlobalScope
+export {}
+
+const sw = globalThis as unknown as ServiceWorkerGlobalScope
 
 const CACHE_PREFIXES = ['salemkode-chat-', 'workbox-']
 
@@ -15,22 +17,24 @@ async function clearLegacyCaches() {
   )
 }
 
-self.addEventListener('install', () => {
-  self.skipWaiting()
+sw.addEventListener('install', () => {
+  void sw.skipWaiting()
 })
 
-self.addEventListener('activate', (event) => {
+sw.addEventListener('activate', (event: ExtendableEvent) => {
   event.waitUntil(
     (async () => {
       await clearLegacyCaches()
-      await self.registration.unregister()
+      await sw.registration.unregister()
 
-      const clients = await self.clients.matchAll({
+      const clients = await sw.clients.matchAll({
         includeUncontrolled: true,
         type: 'window',
       })
 
-      await Promise.all(clients.map((client) => client.navigate(client.url)))
+      await Promise.all(
+        clients.map((client: WindowClient) => client.navigate(client.url)),
+      )
     })(),
   )
 })
