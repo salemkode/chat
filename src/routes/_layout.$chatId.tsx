@@ -35,7 +35,7 @@ function ChatPage() {
 function AuthenticatedChatPage() {
   const { chatId } = Route.useParams()
   const thread = useThread(chatId)
-  const { messages } = useMessages(chatId)
+  const { messages, status } = useMessages(chatId)
   const threadTitle = thread?.title || 'New Chat'
 
   return (
@@ -54,7 +54,10 @@ function AuthenticatedChatPage() {
 
       <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--border)_1px,transparent_1px),linear-gradient(to_bottom,var(--border)_1px,transparent_1px)] bg-size-[4rem_4rem] mask-[radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-[0.05] pointer-events-none" />
 
-      <ChatMessageList messages={messages || []} />
+      <ChatMessageList
+        messages={messages || []}
+        isLoading={status === 'LoadingFirstPage'}
+      />
     </div>
   )
 }

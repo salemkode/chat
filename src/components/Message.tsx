@@ -3,9 +3,9 @@ import type { FunctionReturnType } from 'convex/server'
 import { api } from 'convex/_generated/api'
 import { AlertCircle, RefreshCw } from 'lucide-react'
 import { memo, useMemo } from 'react'
+import { MessageActivityTimeline } from './chat/MessageActivityTimeline'
 import { CopyButton } from './CopyButton'
 import { MarkdownContent } from './MarkdownContent'
-import { ThinkingProcess } from './ThinkingProcess'
 import { Alert, AlertDescription, AlertTitle } from './ui/alert'
 
 interface MessageProps {
@@ -25,24 +25,29 @@ export const Message = memo(function Message({
   const visibleText = shouldSmoothText ? smoothedText : message.text
   const isFailedAssistant =
     message.role === 'assistant' && message.status === 'failed'
-
-  const thinking = useMemo(
+  const hasActivity = useMemo(
     () =>
-      message.parts.find(
-        (part: Record<string, unknown>) => part.type === 'reasoning',
+      message.parts.some((part: Record<string, unknown>) =>
+        ['reasoning', 'redacted-reasoning', 'tool-call', 'tool-result'].includes(
+          String(part.type),
+        ),
       ),
     [message.parts],
   )
+  const shouldShowResponsePlaceholder =
+    !isFailedAssistant &&
+    (message.status === 'streaming' || message.status === 'pending') &&
+    !visibleText.trim()
 
   if (message.role === 'assistant') {
     return (
       <div className="w-full max-w-3xl mx-auto">
-        {thinking && (
-          <ThinkingProcess
-            text={thinking.text}
-            isStreaming={message.status === 'streaming'}
+        {hasActivity ? (
+          <MessageActivityTimeline
+            parts={message.parts}
+            messageStatus={message.status}
           />
-        )}
+        ) : null}
 
         {isFailedAssistant ? (
           <Alert variant="destructive" className="border-destructive/40">
@@ -54,8 +59,19 @@ export const Message = memo(function Message({
               </p>
             </AlertDescription>
           </Alert>
+        ) : shouldShowResponsePlaceholder ? (
+          <div className="rounded-[1.75rem] border border-border/70 bg-card/85 p-5 shadow-sm shimmer-container">
+            <div className="space-y-3">
+              <div className="shimmer-bg bg-muted h-3.5 w-full rounded-full" />
+              <div className="shimmer-bg bg-muted h-3.5 w-[90%] rounded-full" />
+              <div className="shimmer-bg bg-muted h-3.5 w-[72%] rounded-full" />
+            </div>
+          </div>
         ) : (
-          <div dir="auto">
+          <div
+            dir="auto"
+            className="rounded-[1.75rem] border border-border/70 bg-card/85 px-5 py-4 shadow-sm"
+          >
             <MarkdownContent content={visibleText} />
           </div>
         )}
@@ -113,18 +129,11 @@ function areMessagePropsEqual(prev: MessageProps, next: MessageProps): boolean {
   for (let index = 0; index < previousMessage.parts.length; index += 1) {
     const prevPart = previousMessage.parts[index]
     const nextPart = nextMessage.parts[index]
-    if (!prevPart || !nextPart || prevPart.type !== nextPart.type) {
-      return false
-    }
-    const prevText =
-      typeof prevPart === 'object' && 'text' in prevPart
-        ? prevPart.text
-        : undefined
-    const nextText =
-      typeof nextPart === 'object' && 'text' in nextPart
-        ? nextPart.text
-        : undefined
-    if (prevText !== nextText) {
+    if (
+      !prevPart ||
+      !nextPart ||
+      JSON.stringify(prevPart) !== JSON.stringify(nextPart)
+    ) {
       return false
     }
   }

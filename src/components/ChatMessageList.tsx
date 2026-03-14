@@ -7,6 +7,7 @@ import {
 import type { FunctionReturnType } from 'convex/server'
 import { api } from 'convex/_generated/api'
 import { cn } from '@/lib/utils'
+import { MessageLoadingSkeleton } from './chat/MessageLoadingSkeleton'
 import { Message } from './Message'
 import { EmptyChatState } from './EmptyChatState'
 
@@ -19,6 +20,7 @@ interface ChatMessageListProps {
 
 export function ChatMessageList({
   messages,
+  isLoading = false,
   className,
   modelName,
 }: ChatMessageListProps) {
@@ -72,6 +74,22 @@ export function ChatMessageList({
     lastMessage?.text,
     scrollToLatestMessage,
   ])
+
+  if (isLoading && messages.length === 0) {
+    return (
+      <div
+        className={cn(
+          'flex-1 overflow-y-auto pt-4 sm:pt-6 pb-28 sm:pb-32',
+          className,
+        )}
+      >
+        <div className="container">
+          <MessageLoadingSkeleton />
+          <MessageLoadingSkeleton />
+        </div>
+      </div>
+    )
+  }
 
   if (messages.length === 0) {
     return <EmptyChatState />
