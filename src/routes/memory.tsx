@@ -1,11 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useAction, useConvexAuth, useQuery } from 'convex/react'
+import { useAction, useConvexAuth } from 'convex/react'
 import { useEffect, useState } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import type { Id } from '../../convex/_generated/dataModel'
 import { api } from '../../convex/_generated/api'
 import { AppSidebar } from '@/components/app-sidebar'
 import { AuthRedirect } from '@/components/auth-redirect'
+import { useQuery } from '@/lib/convex-query-cache'
 import {
   SidebarInset,
   SidebarProvider,

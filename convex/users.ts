@@ -58,7 +58,6 @@ export const updateSettings = mutation({
     displayName: v.optional(v.string()),
     image: v.optional(v.string()),
     bio: v.optional(v.string()),
-    clientUpdatedAt: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
@@ -71,13 +70,9 @@ export const updateSettings = mutation({
       .withIndex('by_user', (q) => q.eq('userId', userId))
       .unique()
 
-    const now = args.clientUpdatedAt ?? Date.now()
+    const now = Date.now()
 
     if (existing) {
-      if (existing.updatedAt > now) {
-        return { success: true, ignored: true }
-      }
-
       await ctx.db.patch(existing._id, {
         ...(args.displayName !== undefined && {
           displayName: args.displayName,

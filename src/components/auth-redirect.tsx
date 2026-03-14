@@ -10,11 +10,11 @@ export function AuthRedirect() {
   })
 
   useEffect(() => {
-    // void navigate({
-    //   sto: '/login',
-    //   search: { redirect },
-    //   replace: true,
-    // })
+    void navigate({
+      to: '/login',
+      search: { redirect },
+      replace: true,
+    })
   }, [navigate, redirect])
 
   return (

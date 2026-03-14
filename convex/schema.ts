@@ -1,6 +1,27 @@
 import { defineSchema, defineTable } from 'convex/server'
 import { v } from 'convex/values'
 
+const iconTypeValidator = v.union(
+  v.literal('emoji'),
+  v.literal('lucide'),
+  v.literal('upload'),
+)
+
+const rateLimitPolicyValidator = v.object({
+  enabled: v.boolean(),
+  scope: v.union(v.literal('global'), v.literal('user')),
+  kind: v.union(v.literal('fixed window'), v.literal('token bucket')),
+  rate: v.number(),
+  period: v.number(),
+  capacity: v.optional(v.number()),
+  shards: v.optional(v.number()),
+})
+
+const modalitiesValidator = v.object({
+  input: v.array(v.string()),
+  output: v.array(v.string()),
+})
+
 export default defineSchema({
   users: defineTable({
     tokenIdentifier: v.optional(v.string()),
@@ -25,6 +46,7 @@ export default defineSchema({
   providers: defineTable({
     apiKey: v.string(),
     baseURL: v.optional(v.string()),
+    description: v.optional(v.string()),
     isEnabled: v.boolean(),
     name: v.string(),
     providerType: v.union(
@@ -36,6 +58,7 @@ export default defineSchema({
       v.literal('groq'),
       v.literal('deepseek'),
       v.literal('xai'),
+      v.literal('cerebras'),
       v.literal('openai-compatible'), // Generic OpenAI-compatible provider (OpenCode, etc.)
       v.literal('opencode'), // OpenCode.ai provider
       v.literal('mistral'),
@@ -51,7 +74,12 @@ export default defineSchema({
     sortOrder: v.float64(),
     // Icon for the provider (used in model selector sidebar)
     icon: v.optional(v.string()), // e.g., "openai", "anthropic", "google", "meta"
+    iconType: v.optional(iconTypeValidator),
     iconId: v.optional(v.id('_storage')), // Uploaded image ID
+    rateLimit: v.optional(rateLimitPolicyValidator),
+    lastDiscoveredAt: v.optional(v.number()),
+    lastDiscoveryError: v.optional(v.string()),
+    lastDiscoveredModelCount: v.optional(v.number()),
     // Provider-specific configuration
     config: v.optional(
       v.object({
@@ -79,9 +107,17 @@ export default defineSchema({
     sortOrder: v.number(),
     providerId: v.id('providers'),
     icon: v.optional(v.string()), // Fallback string icon
+    iconType: v.optional(iconTypeValidator),
     iconId: v.optional(v.id('_storage')), // Uploaded image ID
     // Model capabilities/tags
     capabilities: v.optional(v.array(v.string())), // e.g., ["reasoning", "vision", "code"]
+    ownedBy: v.optional(v.string()),
+    contextWindow: v.optional(v.number()),
+    maxOutputTokens: v.optional(v.number()),
+    modalities: v.optional(modalitiesValidator),
+    rateLimit: v.optional(rateLimitPolicyValidator),
+    discoveredAt: v.optional(v.number()),
+    lastSyncedAt: v.optional(v.number()),
   })
     .index('by_enabled', ['isEnabled'])
     .index('by_providerId', ['providerId']),
@@ -99,6 +135,30 @@ export default defineSchema({
   admins: defineTable({
     userId: v.id('users'),
   }).index('by_userId', ['userId']),
+
+  adminSettings: defineTable({
+    key: v.string(),
+    defaultRateLimit: v.optional(rateLimitPolicyValidator),
+    updatedAt: v.number(),
+  }).index('by_key', ['key']),
+
+  modelUsageEvents: defineTable({
+    userId: v.id('users'),
+    threadId: v.string(),
+    providerId: v.id('providers'),
+    modelId: v.id('models'),
+    providerType: v.string(),
+    providerName: v.string(),
+    modelName: v.string(),
+    promptTokens: v.number(),
+    completionTokens: v.number(),
+    totalTokens: v.number(),
+    createdAt: v.number(),
+  })
+    .index('by_createdAt', ['createdAt'])
+    .index('by_model_createdAt', ['modelId', 'createdAt'])
+    .index('by_provider_createdAt', ['providerId', 'createdAt'])
+    .index('by_user_createdAt', ['userId', 'createdAt']),
 
   // Chat sections (folders) for organizing threads
   sections: defineTable({
@@ -122,49 +182,6 @@ export default defineSchema({
     .index('by_sectionId', ['sectionId'])
     .index('by_threadId', ['threadId'])
     .index('by_userId_sortOrder', ['userId', 'sortOrder']),
-
-  // Offline mirror for thread metadata and index sync.
-  chatThreads: defineTable({
-    userId: v.id('users'),
-    remoteThreadId: v.string(),
-    title: v.string(),
-    emoji: v.string(),
-    icon: v.optional(v.string()),
-    pinned: v.boolean(),
-    createdAt: v.number(),
-    updatedAt: v.number(),
-    lastMessageAt: v.number(),
-    deletedAt: v.optional(v.number()),
-    version: v.number(),
-  })
-    .index('by_user', ['userId'])
-    .index('by_user_remoteThreadId', ['userId', 'remoteThreadId'])
-    .index('by_user_version', ['userId', 'version']),
-
-  // Offline mirror for message history sync.
-  chatMessages: defineTable({
-    userId: v.id('users'),
-    threadId: v.string(),
-    remoteMessageId: v.string(),
-    role: v.union(v.literal('user'), v.literal('assistant')),
-    text: v.string(),
-    partsJson: v.string(),
-    createdAt: v.number(),
-    updatedAt: v.number(),
-    deletedAt: v.optional(v.number()),
-    version: v.number(),
-  })
-    .index('by_user', ['userId'])
-    .index('by_thread', ['threadId'])
-    .index('by_thread_version', ['threadId', 'version'])
-    .index('by_user_remoteMessageId', ['userId', 'remoteMessageId']),
-
-  offlineSyncState: defineTable({
-    userId: v.id('users'),
-    lastFullSyncAt: v.optional(v.number()),
-    lastDeltaSyncAt: v.optional(v.number()),
-    schemaVersion: v.number(),
-  }).index('by_user', ['userId']),
 
   // Memory system: Files metadata
   memoryFiles: defineTable({

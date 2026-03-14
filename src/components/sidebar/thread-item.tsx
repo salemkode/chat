@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { Link } from '@tanstack/react-router'
-import { Pin, X, Image } from 'lucide-react'
+import { Pin, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   Tooltip,
@@ -10,7 +10,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { ThreadIcon } from '@/components/ThreadIcon'
 
 interface Thread {
   _id: string

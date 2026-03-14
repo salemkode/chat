@@ -1,63 +1,36 @@
 /// <reference lib="webworker" />
 
-import { clientsClaim } from 'workbox-core'
-import { precacheAndRoute, createHandlerBoundToURL } from 'workbox-precaching'
-import { registerRoute, NavigationRoute } from 'workbox-routing'
-import { CacheFirst, NetworkFirst, StaleWhileRevalidate } from 'workbox-strategies'
-import { ExpirationPlugin } from 'workbox-expiration'
+declare let self: ServiceWorkerGlobalScope
 
-declare let self: ServiceWorkerGlobalScope & {
-  __WB_MANIFEST: Array<{
-    url: string
-    revision: string | null
-  }>
+const CACHE_PREFIXES = ['salemkode-chat-', 'workbox-']
+
+async function clearLegacyCaches() {
+  const cacheKeys = await caches.keys()
+  await Promise.all(
+    cacheKeys
+      .filter((cacheKey) =>
+        CACHE_PREFIXES.some((prefix) => cacheKey.startsWith(prefix)),
+      )
+      .map((cacheKey) => caches.delete(cacheKey)),
+  )
 }
 
-clientsClaim()
-self.skipWaiting()
+self.addEventListener('install', () => {
+  self.skipWaiting()
+})
 
-precacheAndRoute(self.__WB_MANIFEST)
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    (async () => {
+      await clearLegacyCaches()
+      await self.registration.unregister()
 
-registerRoute(
-  ({ request }) =>
-    request.destination === 'image' ||
-    request.url.includes('/api/storage/') ||
-    request.url.includes('clerk.dev'),
-  new StaleWhileRevalidate({
-    cacheName: 'salemkode-chat-assets',
-    plugins: [
-      new ExpirationPlugin({
-        maxEntries: 200,
-        maxAgeSeconds: 60 * 60 * 24 * 30,
-      }),
-    ],
-  }),
-)
+      const clients = await self.clients.matchAll({
+        includeUncontrolled: true,
+        type: 'window',
+      })
 
-registerRoute(
-  ({ request, url }) =>
-    request.destination === 'style' ||
-    request.destination === 'script' ||
-    url.pathname.endsWith('.woff2') ||
-    url.pathname.endsWith('.ttf'),
-  new CacheFirst({
-    cacheName: 'salemkode-chat-static',
-    plugins: [
-      new ExpirationPlugin({
-        maxEntries: 100,
-        maxAgeSeconds: 60 * 60 * 24 * 30,
-      }),
-    ],
-  }),
-)
-
-registerRoute(
-  ({ request, url }) =>
-    request.mode === 'navigate' && !url.pathname.startsWith('/api'),
-  new NetworkFirst({
-    cacheName: 'salemkode-chat-pages',
-  }),
-)
-
-const navigationHandler = createHandlerBoundToURL('/index.html')
-registerRoute(new NavigationRoute(navigationHandler))
+      await Promise.all(clients.map((client) => client.navigate(client.url)))
+    })(),
+  )
+})

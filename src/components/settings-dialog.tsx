@@ -29,14 +29,9 @@ import {
   UserCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useOnlineStatus } from '@/hooks/use-online-status'
 import { useTheme } from '@/components/theme-provider'
-import { estimateOfflineStorageUsage } from '@/offline/session'
-import {
-  useOfflineStatus,
-  useSettings,
-  useSyncController,
-  useViewer,
-} from '@/offline/repositories'
+import { useSettings, useViewer } from '@/hooks/use-chat-data'
 
 interface SettingsDialogProps {
   open: boolean
@@ -76,8 +71,7 @@ function SettingsItem({ label, description, children }: SettingsItemProps) {
 export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const user = useViewer()
   const { settings, updateSettings } = useSettings()
-  const { isOnline, lastSyncAt, isSyncing } = useOfflineStatus()
-  const { syncNow, clearOfflineData } = useSyncController()
+  const { isOnline } = useOnlineStatus()
   const { theme, setTheme } = useTheme()
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
@@ -85,7 +79,6 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const [bio, setBio] = useState('')
   const [image, setImage] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [storageSummary, setStorageSummary] = useState<string>('Checking...')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Initialize form values when settings load
@@ -96,20 +89,6 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       setImage(settings?.image || user?.image || null)
     }
   }, [settings, user])
-
-  useEffect(() => {
-    void (async () => {
-      const estimate = await estimateOfflineStorageUsage()
-      if (!estimate?.usage || !estimate?.quota) {
-        setStorageSummary('Unavailable in this browser')
-        return
-      }
-
-      const usageMb = (estimate.usage / 1024 / 1024).toFixed(1)
-      const quotaMb = (estimate.quota / 1024 / 1024).toFixed(1)
-      setStorageSummary(`${usageMb} MB of ${quotaMb} MB`)
-    })()
-  }, [open])
 
   const handleImageClick = () => {
     fileInputRef.current?.click()
@@ -409,8 +388,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                           Member since
                         </span>
                         <span>
-                          {lastSyncAt
-                            ? new Date(lastSyncAt).toLocaleDateString()
+                          {user?.createdAt
+                            ? new Date(user.createdAt).toLocaleDateString()
                             : 'N/A'}
                         </span>
                       </div>
@@ -424,51 +403,20 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                   <h2 className="text-lg font-semibold">Data controls</h2>
 
                   <SettingsItem
-                    label="Offline availability"
+                    label="Live query cache"
                     description={
-                      isOnline
-                        ? 'Your cached conversations are ready for offline reading on this device.'
-                        : 'Offline mode is active. Cached conversations stay available until you sign out or clear data.'
+                      'Convex query subscriptions stay warm during navigation so recent data reloads faster without a local sync database.'
                     }
                   >
-                    <span className="text-sm font-medium">
-                      {isOnline ? 'Online' : 'Offline'}
-                    </span>
+                    <span className="text-sm font-medium">Enabled</span>
                   </SettingsItem>
 
                   <SettingsItem
-                    label="Last sync"
-                    description="Latest successful sync time for local cached chats and settings."
+                    label="Connection"
+                    description="Live chat updates still require an active network connection."
                   >
-                    <span className="text-sm">
-                      {lastSyncAt
-                        ? new Date(lastSyncAt).toLocaleString()
-                        : 'Not synced yet'}
-                    </span>
+                    <span className="text-sm">{isOnline ? 'Online' : 'Offline'}</span>
                   </SettingsItem>
-
-                  <SettingsItem
-                    label="Offline storage"
-                    description="Approximate browser storage used by cached conversations and assets."
-                  >
-                    <span className="text-sm">{storageSummary}</span>
-                  </SettingsItem>
-
-                  <div className="flex gap-3 pt-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => void syncNow()}
-                      disabled={!isOnline || isSyncing}
-                    >
-                      {isSyncing ? 'Syncing...' : 'Sync now'}
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      onClick={() => void clearOfflineData()}
-                    >
-                      Clear offline data
-                    </Button>
-                  </div>
                 </div>
               )}
 
@@ -497,7 +445,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                 <Button variant="outline" onClick={() => onOpenChange(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleSave} disabled={isLoading}>
+                <Button onClick={handleSave} disabled={isLoading || !isOnline}>
                   {isLoading && (
                     <Loader2 className="mr-2 size-4 animate-spin" />
                   )}

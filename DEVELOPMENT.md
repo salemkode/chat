@@ -114,3 +114,13 @@ If you see compiler warnings:
 - [React Compiler Documentation](https://react.dev/learn/react-compiler)
 - [React Compiler GitHub](https://github.com/facebook/react/tree/main/compiler)
 - [Bun Documentation](https://bun.sh/docs)
+
+## Exa Web Search
+
+To enable the in-chat web search tool, set the `EXA_API_KEY` environment variable for your Convex deployment.
+
+Example:
+
+```bash
+bunx convex env set EXA_API_KEY <your_exa_api_key>
+```

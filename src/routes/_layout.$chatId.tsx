@@ -1,21 +1,21 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useConvexAuth } from 'convex/react'
-import { Loader2, MessageSquare, WifiOff } from 'lucide-react'
+import { Loader2, MessageSquare } from 'lucide-react'
+import { AuthRedirect } from '@/components/auth-redirect'
 import { ChatMessageList } from '@/components/ChatMessageList'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import {
+  useCachedSessionStatus,
   useMessages,
-  useOfflineStatus,
   useThread,
-} from '@/offline/repositories'
+} from '@/hooks/use-chat-data'
 
 export const Route = createFileRoute('/_layout/$chatId')({
   component: ChatPage,
 })
 
 function ChatPage() {
-  const { isLoading } = useConvexAuth()
-  const { isAuthenticatedOrOffline, isOfflineReady } = useOfflineStatus()
+  const { isAuthenticatedOrOffline, isLoading, isOfflineReady } =
+    useCachedSessionStatus()
 
   if (isLoading && !isOfflineReady) {
     return (
@@ -26,17 +26,7 @@ function ChatPage() {
   }
 
   if (!isAuthenticatedOrOffline) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-background px-6 text-center">
-        <div className="max-w-md space-y-3">
-          <WifiOff className="mx-auto size-8 text-muted-foreground" />
-          <h1 className="text-xl font-semibold">Offline access unavailable</h1>
-          <p className="text-sm text-muted-foreground">
-            Sign in online once so this device can cache your chat history.
-          </p>
-        </div>
-      </div>
-    )
+    return <AuthRedirect />
   }
 
   return <AuthenticatedChatPage />

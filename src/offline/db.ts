@@ -1,14 +1,11 @@
 import Dexie, { type Table } from 'dexie'
 import type {
-  OfflineAssetRecord,
   OfflineDraftRecord,
   OfflineMessageRecord,
   OfflineModelRecord,
-  OfflineOutboxItem,
   OfflineSessionSnapshot,
   OfflineSettingsRecord,
   OfflineThreadRecord,
-  SyncCheckpoint,
 } from './schema'
 
 class OfflineDatabase extends Dexie {
@@ -18,9 +15,6 @@ class OfflineDatabase extends Dexie {
   models!: Table<OfflineModelRecord, string>
   settings!: Table<OfflineSettingsRecord, string>
   drafts!: Table<OfflineDraftRecord, string>
-  outbox!: Table<OfflineOutboxItem, number>
-  syncMeta!: Table<SyncCheckpoint, string>
-  assets!: Table<OfflineAssetRecord, string>
 
   constructor() {
     super('salemkode-chat-offline')
@@ -31,9 +25,6 @@ class OfflineDatabase extends Dexie {
       models: 'id, modelId, sortOrder, isFavorite',
       settings: 'id, updatedAt',
       drafts: 'threadId, updatedAt',
-      outbox: '++id, dedupeKey, clientUpdatedAt, createdAt, type',
-      syncMeta: 'key, updatedAt, version',
-      assets: 'url, updatedAt',
     })
   }
 }
@@ -43,15 +34,14 @@ export const offlineDb = new OfflineDatabase()
 export async function clearOfflineDatabase() {
   await offlineDb.transaction(
     'rw',
-    offlineDb.session,
-    offlineDb.threads,
-    offlineDb.messages,
-    offlineDb.models,
-    offlineDb.settings,
-    offlineDb.drafts,
-    offlineDb.outbox,
-    offlineDb.syncMeta,
-    offlineDb.assets,
+    [
+      offlineDb.session,
+      offlineDb.threads,
+      offlineDb.messages,
+      offlineDb.models,
+      offlineDb.settings,
+      offlineDb.drafts,
+    ],
     async () => {
       await Promise.all([
         offlineDb.session.clear(),
@@ -60,9 +50,6 @@ export async function clearOfflineDatabase() {
         offlineDb.models.clear(),
         offlineDb.settings.clear(),
         offlineDb.drafts.clear(),
-        offlineDb.outbox.clear(),
-        offlineDb.syncMeta.clear(),
-        offlineDb.assets.clear(),
       ])
     },
   )

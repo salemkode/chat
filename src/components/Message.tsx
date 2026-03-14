@@ -1,13 +1,15 @@
 import { useSmoothText } from '@convex-dev/agent/react'
+import type { FunctionReturnType } from 'convex/server'
+import { api } from 'convex/_generated/api'
+import { AlertCircle, RefreshCw } from 'lucide-react'
+import { memo, useMemo } from 'react'
 import { CopyButton } from './CopyButton'
 import { MarkdownContent } from './MarkdownContent'
 import { ThinkingProcess } from './ThinkingProcess'
-import { RefreshCw } from 'lucide-react'
-import { memo, useMemo } from 'react'
-import type { OfflineMessageRecord } from '@/offline/schema'
+import { Alert, AlertDescription, AlertTitle } from './ui/alert'
 
 interface MessageProps {
-  message: OfflineMessageRecord
+  message: FunctionReturnType<typeof api.chat.listMessages>['page'][number]
   modelName?: string
 }
 
@@ -21,16 +23,20 @@ export const Message = memo(function Message({
     startStreaming: shouldSmoothText,
   })
   const visibleText = shouldSmoothText ? smoothedText : message.text
+  const isFailedAssistant =
+    message.role === 'assistant' && message.status === 'failed'
 
   const thinking = useMemo(
-    () => message.parts.find((part) => part.type === 'reasoning'),
+    () =>
+      message.parts.find(
+        (part: Record<string, unknown>) => part.type === 'reasoning',
+      ),
     [message.parts],
   )
 
   if (message.role === 'assistant') {
     return (
       <div className="w-full max-w-3xl mx-auto">
-        {/* Thinking Section */}
         {thinking && (
           <ThinkingProcess
             text={thinking.text}
@@ -38,11 +44,22 @@ export const Message = memo(function Message({
           />
         )}
 
-        <div dir="auto">
-          <MarkdownContent content={visibleText} />
-        </div>
+        {isFailedAssistant ? (
+          <Alert variant="destructive" className="border-destructive/40">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Message failed</AlertTitle>
+            <AlertDescription>
+              <p className="whitespace-pre-wrap break-words">
+                {visibleText || 'The model could not complete this response.'}
+              </p>
+            </AlertDescription>
+          </Alert>
+        ) : (
+          <div dir="auto">
+            <MarkdownContent content={visibleText} />
+          </div>
+        )}
 
-        {/* Bottom bar with model name and actions */}
         <div className="flex items-center gap-2 sm:gap-3 mt-3 sm:mt-4 pt-2 sm:pt-3 border-t border-border/50">
           <CopyButton text={message.text} />
           <button

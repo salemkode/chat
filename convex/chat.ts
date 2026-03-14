@@ -3,9 +3,13 @@ import { v } from 'convex/values'
 import { getAuthUserId } from './lib/auth'
 import { components } from './_generated/api'
 import { paginationOptsValidator } from 'convex/server'
-import { listUIMessages, vStreamArgs, syncStreams } from '@convex-dev/agent'
+import {
+  listMessages as listAgentMessages,
+  syncStreams,
+  toUIMessages,
+  vStreamArgs,
+} from '@convex-dev/agent'
 import { ConvexError } from 'convex/values'
-import { ensureOfflineSyncState } from './offlineHelpers'
 
 export const listThreads = query({
   args: { paginationOpts: paginationOptsValidator },
@@ -22,7 +26,7 @@ export const listThreads = query({
 })
 
 export const deleteThread = mutation({
-  args: { threadId: v.id('threads'), clientUpdatedAt: v.optional(v.number()) },
+  args: { threadId: v.id('threads') },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) {
@@ -34,27 +38,6 @@ export const deleteThread = mutation({
 
     await ctx.runMutation(components.agent.threads.deleteAllForThreadIdAsync, {
       threadId: args.threadId,
-    })
-
-    const offlineThread = await ctx.db
-      .query('chatThreads')
-      .withIndex('by_user_remoteThreadId', (q) =>
-        q.eq('userId', userId).eq('remoteThreadId', args.threadId),
-      )
-      .unique()
-
-    const now = args.clientUpdatedAt ?? Date.now()
-
-    if (offlineThread) {
-      await ctx.db.patch(offlineThread._id, {
-        deletedAt: now,
-        updatedAt: now,
-        version: now,
-      })
-    }
-
-    await ensureOfflineSyncState(ctx, userId, {
-      lastDeltaSyncAt: now,
     })
   },
 })
@@ -82,12 +65,33 @@ export const listMessages = query({
       })
     }
 
-    // Fetches regular non-streaming messages.
-    const paginated = await listUIMessages(ctx, components.agent, args)
+    const paginated = await listAgentMessages(ctx, components.agent, args)
+    const failedErrorsByOrder = new Map<number, string>()
+
+    for (const message of paginated.page) {
+      if (message.status === 'failed' && message.error) {
+        failedErrorsByOrder.set(message.order, message.error)
+      }
+    }
+
+    const page = toUIMessages(paginated.page).map((message) => {
+      if (message.status !== 'failed') {
+        return message
+      }
+
+      const errorText = formatFailedMessage(
+        failedErrorsByOrder.get(message.order),
+      )
+
+      return {
+        ...message,
+        text: message.text ? `${message.text}\n\n${errorText}` : errorText,
+      }
+    })
 
     const streams = await syncStreams(ctx, components.agent, args)
 
-    return { ...paginated, streams }
+    return { ...paginated, page, streams }
   },
 })
 
@@ -148,3 +152,24 @@ export const getThread = query({
     }
   },
 })
+
+function formatFailedMessage(error: string | undefined): string {
+  const cleaned = sanitizeFailedMessage(error)
+
+  if (!cleaned) {
+    return 'This message failed to generate.'
+  }
+
+  return `Message failed: ${cleaned}`
+}
+
+function sanitizeFailedMessage(error: string | undefined): string {
+  if (!error) {
+    return ''
+  }
+
+  return error
+    .replace(/\s*\[Request ID:[^\]]+\]\s*/g, ' ')
+    .replace(/^Error:\s*/i, '')
+    .trim()
+}

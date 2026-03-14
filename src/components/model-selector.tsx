@@ -3,12 +3,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ChevronDown, Search, Sparkles, Star } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useModels } from '@/offline/repositories'
+import { useModels } from '@/hooks/use-chat-data'
+import { EntityIcon } from '@/components/admin/entity-icon'
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import type { OfflineModelRecord } from '@/offline/schema'
 
 const STORAGE_KEY = 'selected-model-id'
 
@@ -47,15 +49,27 @@ export function ModelSelector({
     if (!searchQuery.trim()) return models
     const query = searchQuery.toLowerCase()
     return models.filter(
-      (model) =>
+      (model: OfflineModelRecord) =>
         model.displayName.toLowerCase().includes(query) ||
         model.modelId.toLowerCase().includes(query) ||
         model.description?.toLowerCase().includes(query),
     )
   }, [models, searchQuery])
 
+  const groupedModels = useMemo(() => {
+    const groups = new Map<string, OfflineModelRecord[]>()
+    for (const model of filteredModels) {
+      const providerName = model.provider?.name || 'Other providers'
+      const group = groups.get(providerName) ?? []
+      group.push(model)
+      groups.set(providerName, group)
+    }
+
+    return [...groups.entries()]
+  }, [filteredModels])
+
   const currentModel = models.find(
-    (model) =>
+    (model: OfflineModelRecord) =>
       model.modelId === (externalSelectedModel ?? internalSelectedModel),
   )
 
@@ -67,15 +81,6 @@ export function ModelSelector({
     onModelChange?.(modelId)
     setOpen(false)
   }
-
-  const handleToggleFavorite = async (modelId: string, e: React.MouseEvent) => {
-    e.stopPropagation()
-    const model = models.find((m) => m.id === modelId)
-    if (model) {
-      await setFavorite(modelId, !model.isFavorite)
-    }
-  }
-
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -88,7 +93,20 @@ export function ModelSelector({
             className,
           )}
         >
-          <Sparkles className="size-4" />
+          {currentModel ? (
+            <EntityIcon
+              icon={currentModel.icon || currentModel.provider?.icon}
+              iconType={(currentModel.iconType || currentModel.provider?.iconType) as
+                | 'emoji'
+                | 'lucide'
+                | 'upload'
+                | undefined}
+              iconUrl={currentModel.iconUrl || currentModel.provider?.iconUrl}
+              className="size-4"
+            />
+          ) : (
+            <Sparkles className="size-4" />
+          )}
           <span className="font-medium">
             {currentModel?.displayName || 'Select model'}
           </span>
@@ -114,63 +132,90 @@ export function ModelSelector({
           </div>
         </div>
 
-        <div className="max-h-[320px] overflow-y-auto p-2">
-          {filteredModels.map((model) => {
-            const isSelected =
-              model.modelId === (externalSelectedModel ?? internalSelectedModel)
-            return (
-              <div
-                key={model.id}
-                className={cn(
-                  'flex items-start gap-3 rounded-lg px-3 py-2.5 transition-colors',
-                  isSelected
-                    ? 'bg-muted text-foreground'
-                    : 'hover:bg-muted/60 text-muted-foreground hover:text-foreground',
-                )}
-              >
-                <button
-                  type="button"
-                  onClick={() => handleSelect(model.modelId)}
-                  className="flex flex-1 items-start text-left"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{model.displayName}</span>
-                      {isSelected && (
-                        <Sparkles className="size-4 text-primary" />
-                      )}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {model.modelId}
-                    </div>
-                    {model.description ? (
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        {model.description}
-                      </div>
-                    ) : null}
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  className={cn(
-                    'rounded-md p-1.5 transition-colors',
-                    model.isFavorite
-                      ? 'text-amber-500'
-                      : 'text-muted-foreground hover:text-foreground',
-                  )}
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    void setFavorite(model.id, !model.isFavorite)
-                  }}
-                >
-                  <Star
-                    className={cn('size-4', model.isFavorite && 'fill-current')}
-                  />
-                </button>
+        <div className="max-h-[360px] overflow-y-auto p-2">
+          {groupedModels.map(([providerName, providerModels]) => (
+            <div key={providerName} className="mb-3 last:mb-0">
+              <div className="px-2 pb-1 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+                {providerName}
               </div>
-            )
-          })}
+              <div className="space-y-1">
+                {providerModels.map((model: OfflineModelRecord) => {
+                  const isSelected =
+                    model.modelId ===
+                    (externalSelectedModel ?? internalSelectedModel)
+                  return (
+                    <div
+                      key={model.id}
+                      className={cn(
+                        'flex items-start gap-3 rounded-lg px-3 py-2.5 transition-colors',
+                        isSelected
+                          ? 'bg-muted text-foreground'
+                          : 'hover:bg-muted/60 text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleSelect(model.modelId)}
+                        className="flex flex-1 items-start gap-3 text-left"
+                      >
+                        <div className="mt-0.5 flex size-8 items-center justify-center rounded-lg border border-border/60 bg-background">
+                          <EntityIcon
+                            icon={model.icon || model.provider?.icon}
+                            iconType={(model.iconType || model.provider?.iconType) as
+                              | 'emoji'
+                              | 'lucide'
+                              | 'upload'
+                              | undefined}
+                            iconUrl={model.iconUrl || model.provider?.iconUrl}
+                            className="size-4"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{model.displayName}</span>
+                            {model.isFree ? (
+                              <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600">
+                                Free
+                              </span>
+                            ) : null}
+                            {isSelected ? (
+                              <Sparkles className="size-4 text-primary" />
+                            ) : null}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {model.modelId}
+                          </div>
+                          {model.description ? (
+                            <div className="mt-1 text-xs text-muted-foreground">
+                              {model.description}
+                            </div>
+                          ) : null}
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        className={cn(
+                          'rounded-md p-1.5 transition-colors',
+                          model.isFavorite
+                            ? 'text-amber-500'
+                            : 'text-muted-foreground hover:text-foreground',
+                        )}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          void setFavorite(model.id, !model.isFavorite)
+                        }}
+                      >
+                        <Star
+                          className={cn('size-4', model.isFavorite && 'fill-current')}
+                        />
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       </PopoverContent>
     </Popover>

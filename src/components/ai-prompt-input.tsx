@@ -1,12 +1,16 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { ArrowUp, Globe, Paperclip } from 'lucide-react'
+import { AlertCircle, ArrowUp, Globe, Paperclip } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ModelSelector } from './model-selector'
+import { Alert, AlertDescription, AlertTitle } from './ui/alert'
 
 interface AIPromptInputProps {
-  onSubmit?: (value: string) => void
+  onSubmit?: (
+    value: string,
+    opts: { searchEnabled: boolean },
+  ) => Promise<void> | void
   disabled?: boolean
   selectedModel?: string
   onModelChange?: (modelId: string) => void
@@ -25,11 +29,15 @@ export function AIPromptInput({
   footerText,
 }: AIPromptInputProps) {
   const [internalValue, setInternalValue] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [searchEnabled, setSearchEnabled] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const value = controlledValue ?? internalValue
 
   const setValue = (nextValue: string) => {
+    setSubmitError(null)
+
     if (controlledValue !== undefined) {
       onValueChange?.(nextValue)
       return
@@ -48,11 +56,22 @@ export function AIPromptInput({
     }
   }, [value])
 
-  const handleSubmit = (e?: React.FormEvent) => {
+  const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault()
-    if (value.trim() && onSubmit && !disabled) {
-      onSubmit(value)
+    if (!value.trim() || !onSubmit || disabled || isSubmitting) {
+      return
+    }
+
+    setIsSubmitting(true)
+    setSubmitError(null)
+
+    try {
+      await onSubmit(value, { searchEnabled })
       setValue('')
+    } catch (error) {
+      setSubmitError(getComposerErrorMessage(error))
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -89,9 +108,13 @@ export function AIPromptInput({
           <div className="flex shrink-0 items-center justify-center">
             <button
               type="submit"
-              disabled={disabled || !value.trim()}
+              disabled={disabled || isSubmitting || !value.trim()}
               aria-label={
-                value.trim() ? 'Send message' : 'Message requires text'
+                isSubmitting
+                  ? 'Sending message'
+                  : value.trim()
+                    ? 'Send message'
+                    : 'Message requires text'
               }
               className="inline-flex items-center justify-center bg-primary font-semibold text-primary-foreground transition-colors hover:bg-primary/90 active:bg-primary disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-primary disabled:active:bg-primary size-9 rounded-lg p-2 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0"
             >
@@ -129,9 +152,71 @@ export function AIPromptInput({
           </div>
         </div>
       </form>
+      {submitError ? (
+        <Alert variant="destructive" className="mt-2 border-destructive/40">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Message failed</AlertTitle>
+          <AlertDescription>{submitError}</AlertDescription>
+        </Alert>
+      ) : null}
       {footerText ? (
         <p className="mt-2 px-1 text-xs text-muted-foreground">{footerText}</p>
       ) : null}
     </div>
   )
+}
+
+function getComposerErrorMessage(error: unknown): string {
+  const fallback = 'Unable to send the message right now.'
+
+  if (typeof error === 'string') {
+    return sanitizeErrorMessage(error) || fallback
+  }
+
+  if (error instanceof Error) {
+    return sanitizeErrorMessage(error.message) || fallback
+  }
+
+  if (error && typeof error === 'object') {
+    const value = error as {
+      message?: unknown
+      data?: unknown
+    }
+
+    if (typeof value.data === 'string') {
+      return sanitizeErrorMessage(value.data) || fallback
+    }
+
+    if (
+      value.data &&
+      typeof value.data === 'object' &&
+      'message' in value.data &&
+      typeof value.data.message === 'string'
+    ) {
+      return sanitizeErrorMessage(value.data.message) || fallback
+    }
+
+    if (typeof value.message === 'string') {
+      return sanitizeErrorMessage(value.message) || fallback
+    }
+  }
+
+  return fallback
+}
+
+function sanitizeErrorMessage(message: string): string {
+  const cleaned = message
+    .replace(/\s*\[Request ID:[^\]]+\]\s*/g, ' ')
+    .replace(/^Error:\s*/i, '')
+    .trim()
+
+  if (!cleaned || cleaned === 'Server Error') {
+    return ''
+  }
+
+  if (cleaned === 'No model selected') {
+    return 'Select a model before sending your message.'
+  }
+
+  return cleaned
 }

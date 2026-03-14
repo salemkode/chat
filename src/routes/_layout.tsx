@@ -4,19 +4,18 @@ import {
   useNavigate,
   useParams,
 } from '@tanstack/react-router'
-import { useConvexAuth } from 'convex/react'
-import { Loader2, WifiOff } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { AIPromptInput } from '@/components/ai-prompt-input'
 import { AppSidebar } from '@/components/app-sidebar'
+import { AuthRedirect } from '@/components/auth-redirect'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import {
+  useCachedSessionStatus,
   useDraft,
   useModels,
-  useOfflineStatus,
   useSendMessage,
-  useSyncController,
-} from '@/offline/repositories'
+} from '@/hooks/use-chat-data'
 
 export const Route = createFileRoute('/_layout')({
   component: ChatLayout,
@@ -25,8 +24,8 @@ export const Route = createFileRoute('/_layout')({
 const STORAGE_KEY = 'selected-model-id'
 
 function ChatLayout() {
-  const { isLoading } = useConvexAuth()
-  const { isAuthenticatedOrOffline, isOfflineReady } = useOfflineStatus()
+  const { isAuthenticatedOrOffline, isLoading, isOfflineReady } =
+    useCachedSessionStatus()
 
   if (isLoading && !isOfflineReady) {
     return (
@@ -37,19 +36,7 @@ function ChatLayout() {
   }
 
   if (!isAuthenticatedOrOffline) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-background px-6 text-center">
-        <div className="max-w-md space-y-3">
-          <WifiOff className="mx-auto size-8 text-muted-foreground" />
-          <h1 className="text-xl font-semibold">
-            Internet connection required
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Sign in once while online to unlock offline access on this device.
-          </p>
-        </div>
-      </div>
-    )
+    return <AuthRedirect />
   }
 
   return <AuthenticatedChatLayout />
@@ -74,16 +61,11 @@ function AuthenticatedChatLayout() {
   })
   const { models } = useModels()
   const { send, disabledReason } = useSendMessage()
-  const { syncNow } = useSyncController()
   const draftKey = params?.chatId || 'new'
   const { draft, setDraft } = useDraft(draftKey)
   const [selectedModelId, setSelectedModelId] = useState<string | undefined>(
     undefined,
   )
-
-  useEffect(() => {
-    void syncNow()
-  }, [syncNow])
 
   useEffect(() => {
     const storedModel =
@@ -101,15 +83,23 @@ function AuthenticatedChatLayout() {
   }, [models, selectedModelId])
 
   const selectedModelDocId = useMemo(
-    () => models.find((model) => model.modelId === selectedModelId)?.id,
+    () =>
+      models.find(
+        (model: { modelId: string; id: string }) =>
+          model.modelId === selectedModelId,
+      )?.id,
     [models, selectedModelId],
   )
 
-  async function handleSendMessage(text: string) {
+  async function handleSendMessage(
+    text: string,
+    opts: { searchEnabled: boolean },
+  ) {
     const result = await send({
       text,
       threadId: params?.chatId,
       modelDocId: selectedModelDocId,
+      searchEnabled: opts.searchEnabled,
     })
 
     if (result.threadId && result.threadId !== params?.chatId) {
@@ -129,11 +119,11 @@ function AuthenticatedChatLayout() {
             <AIPromptInput
               value={draft}
               onValueChange={(value) => void setDraft(value)}
-              onSubmit={(text) => void handleSendMessage(text)}
-              disabled={disabledReason === 'offline'}
+              onSubmit={handleSendMessage}
+              disabled={disabledReason !== null}
               footerText={
                 disabledReason === 'offline'
-                  ? 'Reconnect to send. Your draft stays on this device.'
+                  ? 'Offline mode is read-only. Cached chats stay available until you reconnect.'
                   : undefined
               }
               selectedModel={selectedModelId}

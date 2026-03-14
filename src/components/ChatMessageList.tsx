@@ -4,13 +4,14 @@ import {
   type VirtualItem,
   useVirtualizer,
 } from '@tanstack/react-virtual'
+import type { FunctionReturnType } from 'convex/server'
+import { api } from 'convex/_generated/api'
 import { cn } from '@/lib/utils'
-import type { OfflineMessageRecord } from '@/offline/schema'
 import { Message } from './Message'
 import { EmptyChatState } from './EmptyChatState'
 
 interface ChatMessageListProps {
-  messages: OfflineMessageRecord[]
+  messages: FunctionReturnType<typeof api.chat.listMessages>['page']
   isLoading?: boolean
   className?: string
   modelName?: string
@@ -41,7 +42,7 @@ export function ChatMessageList({
   }, [])
 
   const scrollToLatestMessage = useCallback(
-    (behavior: ScrollBehavior = 'auto') => {
+    (behavior: 'auto' | 'smooth' = 'auto') => {
       if (messages.length === 0) return
       rowVirtualizer.scrollToIndex(messages.length - 1, {
         align: 'end',

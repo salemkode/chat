@@ -38,12 +38,8 @@ import {
 } from '@/components/ui/tooltip'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { SettingsDialog } from '@/components/settings-dialog'
-import {
-  useOfflineStatus,
-  useSyncController,
-  useThreads,
-  useViewer,
-} from '@/offline/repositories'
+import { useThreads, useViewer } from '@/hooks/use-chat-data'
+import { useOnlineStatus } from '@/hooks/use-online-status'
 
 interface Thread {
   id: string
@@ -69,14 +65,13 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
 
   const { threads, setPinned, deleteThread } = useThreads()
   const viewer = useViewer()
-  const { isAuthenticatedOrOffline } = useOfflineStatus()
-  const { clearOfflineData } = useSyncController()
   const { user: clerkUser } = useUser()
   const { signOut } = useClerk()
+  const { isOnline } = useOnlineStatus()
 
   const typedThreads = React.useMemo<Thread[]>(
     () =>
-      threads.map((thread) => ({
+      threads.map((thread: Thread) => ({
         id: thread.id,
         title: thread.title,
         createdAt: thread.createdAt,
@@ -204,6 +199,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
         <Button
           variant="outline"
           className="w-full mt-2 justify-start"
+          disabled={!isOnline}
           onClick={() => navigate({ to: '/memory' })}
         >
           <Database className="h-4 w-4 mr-2" />
@@ -244,7 +240,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
       <SidebarFooter>
         <SidebarSeparator />
 
-        {isAuthenticatedOrOffline ? (
+        {viewer || clerkUser ? (
           <>
             <TooltipProvider delayDuration={300}>
               <Tooltip>
@@ -268,7 +264,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
                         {viewer?.name ? (
                           viewer.name
                             .split(' ')
-                            .map((part) => part[0])
+                            .map((part: string) => part[0])
                             .join('')
                             .toUpperCase()
                             .slice(0, 2)
@@ -300,10 +296,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
               variant="ghost"
               className="w-full justify-start gap-3"
               onClick={() => {
-                void (async () => {
-                  await clearOfflineData()
-                  await signOut()
-                })()
+                void signOut()
               }}
             >
               <LogOut className="h-4 w-4" />
@@ -314,7 +307,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
           <Button
             variant="ghost"
             className="w-full justify-start gap-3"
-            onClick={() => navigate({ to: '/login' })}
+            onClick={() => navigate({ to: '/login', search: {} })}
           >
             <LogIn className="h-4 w-4" />
             Login

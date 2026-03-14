@@ -1,10 +1,3 @@
-export type OfflineMutationType =
-  | 'settings'
-  | 'favorite'
-  | 'pinThread'
-  | 'threadIcon'
-  | 'deleteThread'
-
 export interface OfflineSessionSnapshot {
   id: 'current'
   userId: string
@@ -18,7 +11,7 @@ export interface OfflineSessionSnapshot {
 
 export interface OfflineThreadRecord {
   id: string
-  title: string
+  title?: string
   emoji: string
   icon?: string
   pinned: boolean
@@ -39,7 +32,7 @@ export interface OfflineMessageRecord {
   updatedAt: number
   deletedAt?: number
   version: number
-  status?: 'done' | 'streaming'
+  status?: 'success' | 'streaming' | 'failed'
 }
 
 export interface OfflineModelRecord {
@@ -49,6 +42,19 @@ export interface OfflineModelRecord {
   description?: string
   sortOrder: number
   isFavorite: boolean
+  isFree?: boolean
+  icon?: string
+  iconType?: 'emoji' | 'lucide' | 'upload'
+  iconUrl?: string
+  provider?: {
+    _id: string
+    name: string
+    providerType: string
+    icon?: string
+    iconType?: 'emoji' | 'lucide' | 'upload'
+    iconId?: string
+    iconUrl?: string
+  } | null
 }
 
 export interface OfflineSettingsRecord {
@@ -63,30 +69,4 @@ export interface OfflineDraftRecord {
   threadId: string
   value: string
   updatedAt: number
-}
-
-export interface OfflineOutboxItem {
-  id?: number
-  type: OfflineMutationType
-  payload: Record<string, unknown>
-  dedupeKey: string
-  clientUpdatedAt: number
-  createdAt: number
-}
-
-export interface SyncCheckpoint {
-  key: string
-  version: number
-  updatedAt: number
-}
-
-export interface OfflineAssetRecord {
-  url: string
-  updatedAt: number
-}
-
-export interface OfflineUiState {
-  isSyncing: boolean
-  lastSyncAt?: number
-  syncError?: string
 }

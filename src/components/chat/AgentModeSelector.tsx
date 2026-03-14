@@ -6,8 +6,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import { useQuery } from 'convex/react'
 import { api } from 'convex/_generated/api'
+import { useQuery } from '@/lib/convex-query-cache'
 
 type AgentMode = 'auto' | 'agent' | 'plan'
 
@@ -54,7 +54,7 @@ export function AgentModeSelector({
           {showModelSelector && selectedModel ? (
             <>
               <Zap className="h-3 w-3" />
-              {availableModels?.find((m) => m.modelId === selectedModel)
+              {availableModels?.find((m: Model) => m.modelId === selectedModel)
                 ?.displayName || 'Model'}
             </>
           ) : (
@@ -123,7 +123,7 @@ export function AgentModeSelector({
               <div className="space-y-1 max-h-48 overflow-y-auto">
                 {availableModels
                   .sort((a: Model, b: Model) => a.sortOrder - b.sortOrder)
-                  .map((model) => (
+                  .map((model: Model) => (
                     <button
                       key={model._id}
                       type="button"

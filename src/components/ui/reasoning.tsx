@@ -120,7 +120,7 @@ export type ReasoningContentProps = {
 function ReasoningContent({
   children,
   className,
-  contentClassName,
+  contentClassName: _contentClassName,
   markdown = false,
   ...props
 }: ReasoningContentProps) {
