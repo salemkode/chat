@@ -42,7 +42,7 @@ function LoginPage() {
         </Show>
 
         <Show when="signed-out">
-          {hostname !== "localhost" && (
+          {hostname === "localhost" && (
             <SignIn
               path="/login"
               routing="path"
@@ -50,7 +50,7 @@ function LoginPage() {
               {...redirectProps}
             />
           )}
-          {hostname === "localhost" && (
+          {hostname !== "localhost" && (
             <Navigate to="https://accounts.salemkode.com" replace />
           )}
         </Show>
