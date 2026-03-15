@@ -1,5 +1,4 @@
 const AUTH_ROUTE_PATHS = new Set(['/login', '/signup'])
-
 export function getPostLoginRedirectTarget(redirectUrl?: string) {
   if (!redirectUrl || redirectUrl === '/' || !redirectUrl.startsWith('/')) {
     return '/'

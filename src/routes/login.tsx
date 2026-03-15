@@ -12,10 +12,11 @@ import { parseRouteSearchRedirects } from '@/lib/parsers'
 export const Route = createFileRoute('/login')({
   ssr: false,
   component: LoginPage,
-  //validateSearch: parseRouteSearchRedirects,
+  validateSearch: parseRouteSearchRedirects,
 })
 
 function LoginPage() {
+  const hostname = location.hostname
   const search = useSearch({ from: '/login' })
   const redirect = search.redirect ?? search.redirect_url
   const targetAfterLogin = getPostLoginRedirectTarget(redirect)
@@ -41,12 +42,17 @@ function LoginPage() {
         </Show>
 
         <Show when="signed-out">
-          <SignIn
-            path="/login"
-            routing="path"
-            signUpUrl="/signup"
-            {...redirectProps}
-          />
+          {hostname !== "localhost" && (
+            <SignIn
+              path="/login"
+              routing="path"
+              signUpUrl="/signup"
+              {...redirectProps}
+            />
+          )}
+          {hostname === "localhost" && (
+            <Navigate to="https://accounts.salemkode.com" replace />
+          )}
         </Show>
       </ClerkLoaded>
     </div>
