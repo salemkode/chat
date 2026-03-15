@@ -41,7 +41,9 @@ export const Route = createFileRoute('/memory')({
 
 type MemoryScope = 'all' | 'user' | 'thread' | 'project'
 type EditableScope = Exclude<MemoryScope, 'all'>
-type ThreadSummary = FunctionReturnType<typeof api.agents.listThreadsWithMetadata>[number]
+type ThreadSummary = FunctionReturnType<
+  typeof api.agents.listThreadsWithMetadata
+>[number]
 type ProjectSummary = {
   id: string
   name: string
@@ -149,13 +151,15 @@ function mergeReducer<T extends object>(state: T, action: StateUpdate<T>) {
 }
 
 function MemoryPage() {
-  "use no memo"
+  'use no memo'
 
-  const projectsApi = (api as typeof api & {
-    projects: {
-      listProjects: unknown
+  const projectsApi = (
+    api as typeof api & {
+      projects: {
+        listProjects: unknown
+      }
     }
-  }).projects
+  ).projects
 
   const { isLoaded, isSignedIn } = useAuth()
   const isAuthenticated = isSignedIn ?? false
@@ -182,7 +186,8 @@ function MemoryPage() {
   )
 
   const threads = useQuery(api.agents.listThreadsWithMetadata) || []
-  const projects = (useQuery(projectsApi.listProjects as never) || []) as ProjectSummary[]
+  const projects = (useQuery(projectsApi.listProjects as never) ||
+    []) as ProjectSummary[]
   const userMemories = useQuery(api.functions.memory.listUserMemories, {
     paginationOpts: { cursor: null, numItems: 200 },
     category: filters.category === 'all' ? undefined : filters.category,
@@ -276,20 +281,19 @@ function MemoryPage() {
     updateRequestState({ pageError: null })
 
     return searchMemory({
-        query,
-        scope: filters.scope,
-        threadId:
-          filters.scope === 'thread' && filters.threadId !== 'all'
-            ? filters.threadId
-            : undefined,
-        projectId:
-          filters.scope === 'project' && filters.projectId !== 'all'
-            ? (filters.projectId as Id<'projects'>)
-            : undefined,
-        categories:
-          filters.category === 'all' ? undefined : [filters.category],
-        maxResults: 20,
-      })
+      query,
+      scope: filters.scope,
+      threadId:
+        filters.scope === 'thread' && filters.threadId !== 'all'
+          ? filters.threadId
+          : undefined,
+      projectId:
+        filters.scope === 'project' && filters.projectId !== 'all'
+          ? (filters.projectId as Id<'projects'>)
+          : undefined,
+      categories: filters.category === 'all' ? undefined : [filters.category],
+      maxResults: 20,
+    })
       .then((result) => {
         updateSearchState({ results: result.hits })
       })
@@ -402,24 +406,24 @@ function MemoryPage() {
     updateRequestState({ submitting: true, pageError: null })
 
     return updateMemory({
-        scope: editState.scope,
-        userMemoryId:
-          editState.scope === 'user'
-            ? (editState.id as Id<'userMemories'>)
-            : undefined,
-        threadMemoryId:
-          editState.scope === 'thread'
-            ? (editState.id as Id<'threadMemories'>)
-            : undefined,
-        projectMemoryId:
-          editState.scope === 'project'
-            ? (editState.id as Id<'projectMemories'>)
-            : undefined,
-        title: editState.title,
-        content: editState.content,
-        category: editState.category || undefined,
-        tags: parseTags(editState.tags),
-      })
+      scope: editState.scope,
+      userMemoryId:
+        editState.scope === 'user'
+          ? (editState.id as Id<'userMemories'>)
+          : undefined,
+      threadMemoryId:
+        editState.scope === 'thread'
+          ? (editState.id as Id<'threadMemories'>)
+          : undefined,
+      projectMemoryId:
+        editState.scope === 'project'
+          ? (editState.id as Id<'projectMemories'>)
+          : undefined,
+      title: editState.title,
+      content: editState.content,
+      category: editState.category || undefined,
+      tags: parseTags(editState.tags),
+    })
       .then(() => {
         stopEditing()
         return refreshSearchIfNeeded()
@@ -440,20 +444,20 @@ function MemoryPage() {
     updateRequestState({ submitting: true, pageError: null })
 
     return deleteMemory({
-        scope: memory.scope,
-        userMemoryId:
-          memory.scope === 'user'
-            ? (memory.memoryId as Id<'userMemories'>)
-            : undefined,
-        threadMemoryId:
-          memory.scope === 'thread'
-            ? (memory.memoryId as Id<'threadMemories'>)
-            : undefined,
-        projectMemoryId:
-          memory.scope === 'project'
-            ? (memory.memoryId as Id<'projectMemories'>)
-            : undefined,
-      })
+      scope: memory.scope,
+      userMemoryId:
+        memory.scope === 'user'
+          ? (memory.memoryId as Id<'userMemories'>)
+          : undefined,
+      threadMemoryId:
+        memory.scope === 'thread'
+          ? (memory.memoryId as Id<'threadMemories'>)
+          : undefined,
+      projectMemoryId:
+        memory.scope === 'project'
+          ? (memory.memoryId as Id<'projectMemories'>)
+          : undefined,
+    })
       .then(() => refreshSearchIfNeeded())
       .catch((error) => {
         updateRequestState({
@@ -471,7 +475,7 @@ function MemoryPage() {
 
       <SidebarInset className="overflow-hidden">
         <div className="flex h-full flex-col">
-          <header className="h-14 border-b border-border flex items-center bg-background/85 backdrop-blur-sm px-4">
+          <header className="border-b border-border bg-background/85 backdrop-blur-sm md:h-14 md:px-4 md:flex md:items-center mobile-chat-header flex h-[calc(52px+env(safe-area-inset-top))] shrink-0 items-end px-3 pb-1.5">
             <div className="flex items-center gap-3">
               <SidebarTrigger className="text-foreground hover:bg-muted" />
               <div>
@@ -709,9 +713,7 @@ function MemoryPage() {
                     <label className="text-sm font-medium">Category</label>
                     <Select
                       value={filters.category}
-                      onValueChange={(category) =>
-                        updateFilters({ category })
-                      }
+                      onValueChange={(category) => updateFilters({ category })}
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue />

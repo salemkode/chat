@@ -1,8 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { useState } from 'react'
 import { Sparkles } from 'lucide-react'
 import { EmptyChatState } from '@/components/EmptyChatState'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { useChatModel } from '@/components/chat-model-context'
+import { Sheet, SheetContent } from '@/components/ui/sheet'
+import { ModelSelectorPanel } from '@/components/model-selector'
 
 export const Route = createFileRoute('/_layout/')({
   component: NewChatIndex,
@@ -10,6 +14,8 @@ export const Route = createFileRoute('/_layout/')({
 
 function NewChatIndex() {
   const isMobile = useIsMobile()
+  const { selectedModelId, setSelectedModelId } = useChatModel()
+  const [modelSelectorOpen, setModelSelectorOpen] = useState(false)
 
   if (isMobile) {
     return (
@@ -17,14 +23,30 @@ function NewChatIndex() {
         <header className="mobile-chat-header flex h-[calc(52px+env(safe-area-inset-top))] shrink-0 items-end px-3 pb-1.5">
           <div className="flex min-w-0 flex-1 items-center gap-2.5">
             <SidebarTrigger className="size-9 rounded-full bg-background/55 text-foreground shadow-sm hover:bg-background/70" />
-            <h1 className="truncate text-[15px] font-semibold text-foreground">
-              New chat
-            </h1>
+            <button
+              type="button"
+              onClick={() => setModelSelectorOpen(true)}
+              className="flex items-center gap-2 rounded-full bg-background/55 px-3 py-2 text-foreground shadow-sm hover:bg-background/70 transition-colors"
+            >
+              <span className="text-[15px] font-semibold">New chat</span>
+            </button>
           </div>
         </header>
 
+        <Sheet open={modelSelectorOpen} onOpenChange={setModelSelectorOpen}>
+          <SheetContent side="bottom" className="h-[60vh]">
+            <ModelSelectorPanel
+              selectedModel={selectedModelId}
+              onSelectModel={(modelId) => {
+                setSelectedModelId(modelId)
+                setModelSelectorOpen(false)
+              }}
+            />
+          </SheetContent>
+        </Sheet>
+
         <div className="min-h-0 flex-1">
-          <EmptyChatState mobile />
+          <EmptyChatState />
         </div>
       </div>
     )

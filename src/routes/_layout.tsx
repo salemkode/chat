@@ -114,38 +114,19 @@ function AuthenticatedChatLayout() {
           style={
             isMobile
               ? ({
-                  '--mobile-header-height': '52px',
-                  '--mobile-composer-height': `${mobileComposerHeight}px`,
-                } as CSSProperties)
+                '--mobile-header-height': '52px',
+                '--mobile-composer-height': `${mobileComposerHeight}px`,
+              } as CSSProperties)
               : undefined
           }
         >
-          {isMobile ? (
-            <div className="flex h-full min-h-0 flex-1 flex-col">
-              <div className="min-h-0 flex-1">
-                <Outlet />
-              </div>
+          <Outlet />
 
-              <div
-                ref={composerTrayRef}
-                className="mobile-chat-composer-tray shrink-0 md:hidden"
-              >
-                <div className="px-3 pt-3 pb-[calc(env(safe-area-inset-bottom)+12px)]">
-                  <ChatComposer threadId={threadId} mobile />
-                </div>
-              </div>
+          <div className="absolute bottom-0 left-0 right-0 z-20">
+            <div className="w-full max-w-3xl mx-auto px-2 sm:px-4">
+              <ChatComposer threadId={threadId} />
             </div>
-          ) : (
-            <>
-              <Outlet />
-
-              <div className="absolute bottom-0 left-0 right-0 z-20">
-                <div className="w-full max-w-3xl mx-auto px-2 sm:px-4">
-                  <ChatComposer threadId={threadId} />
-                </div>
-              </div>
-            </>
-          )}
+          </div>
         </SidebarInset>
       </ChatModelProvider>
     </SidebarProvider>
@@ -167,9 +148,9 @@ function ChatComposer({
   const draftKey = threadId || 'new'
   const { draft, setDraft } = useDraft(draftKey)
   const { selectedModelId, setSelectedModelId } = useChatModel()
-  const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>(
-    undefined,
-  )
+  const [selectedProjectId, setSelectedProjectId] = useState<
+    string | undefined
+  >(undefined)
 
   useEffect(() => {
     if (threadId) {
@@ -243,9 +224,9 @@ function ChatComposer({
         ) {
           const nextProjectName =
             projects.find(
-              (project: (typeof projects)[number]) => project.id === nextProjectId,
-            )?.name ||
-            'the selected project'
+              (project: (typeof projects)[number]) =>
+                project.id === nextProjectId,
+            )?.name || 'the selected project'
 
           if (
             !window.confirm(

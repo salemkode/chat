@@ -1,52 +1,22 @@
 import { Sparkles } from 'lucide-react'
-import { useIsMobile } from '@/hooks/use-mobile'
 
-export function EmptyChatState({ mobile = false }: { mobile?: boolean }) {
-  const isMobile = useIsMobile()
-  const useMobileLayout = mobile || isMobile
-
-  if (useMobileLayout) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center px-6 pb-[calc(var(--mobile-composer-height,11rem)*0.3)] text-center">
-        <div className="relative flex flex-col items-center gap-5">
-          <div className="pointer-events-none absolute inset-x-6 top-3 h-20 rounded-full bg-primary/10 blur-3xl" />
-          <div className="mobile-empty-state-orb">
-            <Sparkles className="size-7 text-primary" />
-          </div>
-          <div className="space-y-2">
-            <h2 className="text-[1.75rem] leading-none font-semibold tracking-tight text-foreground">
-              Start something good
-            </h2>
-            <p className="max-w-xs text-sm leading-6 text-muted-foreground">
-              Ask a question, attach a file, or tag a project to keep this chat
-              organized.
-            </p>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
+export function EmptyChatState() {
   return (
-    <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
-      <div className="flex flex-col items-center gap-3">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
-          <svg
-            className="h-7 w-7 text-primary"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={1.5}
-          >
-            <title>Chat Icon</title>
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"
-            />
-          </svg>
+    <div className="flex h-full flex-col items-center justify-center px-6 pb-[calc(var(--mobile-composer-height,11rem)*0.3)] text-center">
+      <div className="relative flex flex-col items-center gap-5">
+        <div className="pointer-events-none absolute inset-x-6 top-3 h-20 rounded-full bg-primary/10 blur-3xl" />
+        <div className="mobile-empty-state-orb">
+          <Sparkles className="size-7 text-primary" />
         </div>
-        <p className="text-sm">Start a new conversation</p>
+        <div className="space-y-2">
+          <h2 className="text-[1.75rem] leading-none font-semibold tracking-tight text-foreground">
+            Start something good
+          </h2>
+          <p className="max-w-xs text-sm leading-6 text-muted-foreground">
+            Ask a question, attach a file, or tag a project to keep this chat
+            organized.
+          </p>
+        </div>
       </div>
     </div>
   )

@@ -143,7 +143,12 @@ export function AIPromptInput({
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault()
-    if ((!value.trim() && attachments.length === 0) || !onSubmit || disabled || isSubmitting) {
+    if (
+      (!value.trim() && attachments.length === 0) ||
+      !onSubmit ||
+      disabled ||
+      isSubmitting
+    ) {
       return
     }
 
@@ -321,7 +326,9 @@ export function AIPromptInput({
         }}
         onDragLeave={(event) => {
           event.preventDefault()
-          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          if (
+            !event.currentTarget.contains(event.relatedTarget as Node | null)
+          ) {
             setIsDragging(false)
           }
         }}
@@ -332,9 +339,7 @@ export function AIPromptInput({
         }}
         className={cn(
           'pointer-events-auto relative flex w-full min-w-0 flex-col items-stretch text-secondary-foreground',
-          mobile
-            ? 'rounded-[1.6rem] border border-border/70 bg-background/88 p-3 shadow-[0_-12px_40px_rgba(15,23,42,0.10)] backdrop-blur-2xl'
-            : 'rounded-t-xl border border-border bg-linear-to-b from-background/95 to-background/90 bg-muted/80 p-3 backdrop-blur-2xl sm:max-w-3xl sm:p-4',
+          'rounded-t-xl border border-border bg-linear-to-b from-background/95 to-background/90 bg-muted/80 p-3 backdrop-blur-2xl sm:max-w-3xl sm:p-4',
           isDragging && 'border-primary/60 bg-primary/5',
         )}
       >
@@ -413,7 +418,7 @@ export function AIPromptInput({
           <textarea
             ref={textareaRef}
             name="input"
-            placeholder="Type your message here... Use @ to tag a project, or drop an image/PDF"
+            placeholder="Type your message here..."
             value={value}
             onChange={(e) => {
               const nextValue = e.target.value
@@ -445,7 +450,7 @@ export function AIPromptInput({
             disabled={disabled}
             className={cn(
               'w-full min-w-0 resize-none bg-transparent text-base leading-6 text-foreground outline-none placeholder:text-muted-foreground/60 disabled:opacity-50',
-              mobile && 'min-h-[52px] text-[15px] leading-6',
+             // mobile && 'min-h-[52px] text-[15px] leading-6',
             )}
             aria-label="Message input"
             autoComplete="off"
@@ -511,35 +516,32 @@ export function AIPromptInput({
         <div
           className={cn(
             'flex w-full min-w-0 items-center justify-between',
-            mobile ? 'mt-1 flex-col-reverse gap-3' : 'flex-row-reverse',
+            mobile ? 'mt-1 flex-row-reverse gap-3' : 'flex-row-reverse',
           )}
         >
-          <div
+          <button
+            type="submit"
+            disabled={
+              disabled ||
+              isSubmitting ||
+              (!value.trim() && attachments.length === 0)
+            }
+            aria-label={
+              isSubmitting
+                ? 'Sending message'
+                : value.trim() || attachments.length > 0
+                  ? 'Send message'
+                  : 'Message requires text or a supported file'
+            }
             className={cn(
-              'flex shrink-0 items-center justify-center',
-              mobile && 'w-full justify-end',
+              'inline-flex items-center justify-center bg-primary font-semibold text-primary-foreground transition-colors hover:bg-primary/90 active:bg-primary disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-primary disabled:active:bg-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
+              mobile
+                ? 'size-11 rounded-full p-0 shadow-sm'
+                : 'size-9 rounded-lg p-2',
             )}
           >
-            <button
-              type="submit"
-              disabled={
-                disabled || isSubmitting || (!value.trim() && attachments.length === 0)
-              }
-              aria-label={
-                isSubmitting
-                  ? 'Sending message'
-                  : value.trim() || attachments.length > 0
-                    ? 'Send message'
-                    : 'Message requires text or a supported file'
-              }
-              className={cn(
-                'inline-flex items-center justify-center bg-primary font-semibold text-primary-foreground transition-colors hover:bg-primary/90 active:bg-primary disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-primary disabled:active:bg-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
-                mobile ? 'size-11 rounded-full p-0 shadow-sm' : 'size-9 rounded-lg p-2',
-              )}
-            >
-              <ArrowUp className="size-5" aria-hidden="true" />
-            </button>
-          </div>
+            <ArrowUp className="size-5" aria-hidden="true" />
+          </button>
 
           <div
             className={cn(
@@ -547,14 +549,16 @@ export function AIPromptInput({
               mobile && 'w-full flex-wrap items-stretch',
             )}
           >
-            <ModelSelector
-              selectedModel={selectedModel}
-              onModelChange={onModelChange}
-              className={cn(
-                mobile &&
-                  'h-11 min-w-0 flex-1 justify-between rounded-full border border-border/70 bg-muted/40 px-3.5 text-sm',
-              )}
-            />
+            {!mobile && (
+              <ModelSelector
+                selectedModel={selectedModel}
+                onModelChange={onModelChange}
+                className={cn(
+                  mobile &&
+                    'h-11 min-w-0 flex-1 justify-between rounded-full border border-border/70 bg-muted/40 px-3.5 text-sm',
+                )}
+              />
+            )}
 
             <button
               type="button"

@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { useState } from 'react'
 import { Loader2, MessageSquare, Folder, X } from 'lucide-react'
 import { AuthRedirect } from '@/components/auth-redirect'
 import { ChatMessageList } from '@/components/ChatMessageList'
@@ -12,6 +13,9 @@ import {
   useProjects,
   useThread,
 } from '@/hooks/use-chat-data'
+import { useChatModel } from '@/components/chat-model-context'
+import { Sheet, SheetContent } from '@/components/ui/sheet'
+import { ModelSelectorPanel } from '@/components/model-selector'
 
 export const Route = createFileRoute('/_layout/$chatId')({
   component: ChatPage,
@@ -37,66 +41,11 @@ function ChatPage() {
 }
 
 function AuthenticatedChatPage() {
-  const isMobile = useIsMobile()
   const { chatId } = Route.useParams()
   const thread = useThread(chatId)
   const { removeThreadFromProject } = useProjects()
   const { messages, status } = useMessages(chatId)
   const threadTitle = thread?.title || 'New Chat'
-
-  if (isMobile) {
-    return (
-      <div className="mobile-chat-page flex h-full min-h-0 flex-col">
-        <header className="mobile-chat-header flex h-[calc(52px+env(safe-area-inset-top))] shrink-0 items-end px-3 pb-1.5">
-          <div className="flex min-w-0 flex-1 items-center gap-2.5">
-            <SidebarTrigger className="size-9 rounded-full bg-background/55 text-foreground shadow-sm hover:bg-background/70" />
-            <div className="min-w-0 flex-1">
-              <h1 className="truncate text-[15px] font-semibold text-foreground">
-                {threadTitle}
-              </h1>
-            </div>
-          </div>
-        </header>
-
-        {thread?.projectId ? (
-          <div className="px-3 pt-2">
-            <div className="mobile-thread-project-chip">
-              <div className="flex min-w-0 items-center gap-2">
-                <Folder className="size-3.5 text-muted-foreground" />
-                <span className="truncate text-sm text-foreground/90">
-                  {thread.projectName || 'Project'}
-                </span>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-8 rounded-full text-muted-foreground"
-                onClick={() => {
-                  if (
-                    window.confirm(
-                      `Remove this chat from ${thread.projectName || 'its project'}?`,
-                    )
-                  ) {
-                    void removeThreadFromProject(chatId)
-                  }
-                }}
-              >
-                <X className="size-3.5" />
-              </Button>
-            </div>
-          </div>
-        ) : null}
-
-        <div className="min-h-0 flex-1">
-          <ChatMessageList
-            threadId={chatId}
-            messages={messages || []}
-            isLoading={status === 'LoadingFirstPage'}
-          />
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div className="flex h-full flex-col">

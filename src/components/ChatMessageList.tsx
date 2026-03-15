@@ -19,20 +19,15 @@ interface ChatMessageListProps {
   className?: string
 }
 
-const CHAT_MESSAGE_LIST_WIDTH_CLASS = 'mx-auto w-full max-w-3xl px-2 sm:px-4'
-
 export function ChatMessageList({
   threadId,
   messages,
   isLoading = false,
   className,
 }: ChatMessageListProps) {
-  const isMobile = useIsMobile()
+  const isMobile = false
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const shouldAutoScrollRef = useRef(true)
-  const widthClass = isMobile
-    ? 'mx-auto w-full max-w-3xl px-3'
-    : CHAT_MESSAGE_LIST_WIDTH_CLASS
 
   const rowVirtualizer = useVirtualizer({
     count: messages.length,
@@ -93,7 +88,7 @@ export function ChatMessageList({
           className,
         )}
       >
-        <div className={widthClass}>
+        <div className="mx-auto w-full max-w-3xl px-3">
           <MessageLoadingSkeleton />
           <MessageLoadingSkeleton />
         </div>
@@ -110,7 +105,7 @@ export function ChatMessageList({
       ref={scrollContainerRef}
       onScroll={onScroll}
       className={cn(
-        'flex-1 overflow-y-auto',
+        'flex-1 overflow-y-auto px-3',
         isMobile
           ? 'pt-3 pb-[calc(var(--mobile-composer-height,11rem)+env(safe-area-inset-bottom)+12px)]'
           : 'pt-4 pb-28 sm:pt-6 sm:pb-32',
@@ -118,7 +113,7 @@ export function ChatMessageList({
       )}
     >
       <div
-        className={cn('relative', widthClass)}
+        className={cn('relative mx-auto w-full max-w-3xl px-3')}
         style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
       >
         {rowVirtualizer.getVirtualItems().map((virtualRow: VirtualItem) => {
