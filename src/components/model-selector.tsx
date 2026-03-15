@@ -67,7 +67,7 @@ export function ModelSelector({
       </PopoverTrigger>
 
       <PopoverContent
-        className="w-[360px] overflow-hidden p-0"
+        className="w-[min(360px,calc(100vw-1.5rem))] overflow-hidden p-0"
         side="top"
         align="start"
       >

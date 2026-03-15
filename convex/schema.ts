@@ -193,6 +193,26 @@ export default defineSchema({
     .index('by_threadId', ['threadId'])
     .index('by_userId_sortOrder', ['userId', 'sortOrder']),
 
+  // Public share snapshots for chat transcripts
+  chatShares: defineTable({
+    threadId: v.string(),
+    ownerUserId: v.id('users'),
+    token: v.string(),
+    title: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    messageCount: v.number(),
+  })
+    .index('by_token', ['token'])
+    .index('by_thread_owner', ['threadId', 'ownerUserId']),
+
+  chatShareMessages: defineTable({
+    shareId: v.id('chatShares'),
+    order: v.number(),
+    role: v.union(v.literal('user'), v.literal('assistant')),
+    text: v.string(),
+  }).index('by_share_order', ['shareId', 'order']),
+
   // Memory system: Files metadata
   memoryFiles: defineTable({
     path: v.string(),

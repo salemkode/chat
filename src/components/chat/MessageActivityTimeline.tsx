@@ -22,13 +22,13 @@ import {
   ChainOfThoughtStep,
   ChainOfThoughtTrigger,
 } from '@/components/ui/chain-of-thought'
+import { Source, SourceContent, SourceTrigger } from '@/components/ui/source'
 import { cn } from '@/lib/utils'
 
 type ChatMessage = FunctionReturnType<
   typeof api.chat.listMessages
 >['page'][number]
-type MessagePart = ChatMessage['parts'][number]
-type PartRecord = MessagePart & Record<string, unknown>
+type PartRecord = Record<string, unknown>
 
 type ActivityStatus = 'complete' | 'running' | 'pending' | 'error'
 
@@ -41,12 +41,20 @@ type ReasoningStep = {
   redacted?: boolean
 }
 
+type SearchSource = {
+  id: string
+  url: string
+  title: string
+  description: string
+}
+
 type ToolStep = {
   id: string
   kind: 'tool'
   title: string
   status: ActivityStatus
   toolName: string
+  sources?: SearchSource[]
 }
 
 type ActivityStep = ReasoningStep | ToolStep
@@ -105,6 +113,16 @@ function ActivityStepRow({
     )
   }
 
+  if (isSearchTool(step.toolName)) {
+    return (
+      <SearchToolRow
+        step={step}
+        isLast={isLast}
+        showActiveLoading={showActiveLoading}
+      />
+    )
+  }
+
   const Icon = getStepIcon(step, showActiveLoading)
 
   return (
@@ -128,6 +146,60 @@ function ActivityStepRow({
   )
 }
 
+function SearchToolRow({
+  step,
+  isLast,
+  showActiveLoading,
+}: {
+  step: ToolStep
+  isLast: boolean
+  showActiveLoading: boolean
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const Icon = getStepIcon(step, showActiveLoading)
+  const sources = step.sources ?? []
+
+  return (
+    <ChainOfThoughtStep
+      open={isOpen}
+      onOpenChange={setIsOpen}
+      className={cn(isLast && 'pb-0')}
+      data-last={isLast}
+    >
+      <ChainOfThoughtTrigger
+        leftIcon={
+          <Icon className={getStepIconClassName(step, showActiveLoading)} />
+        }
+        swapIconOnHover={false}
+        className="py-1 font-medium"
+      >
+        <span className="truncate">{step.title}</span>
+      </ChainOfThoughtTrigger>
+      <ChainOfThoughtContent className="pt-2">
+        <div className="px-0.5 py-1">
+          {sources.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {sources.map((source) => (
+                <Source key={source.id} href={source.url}>
+                  <SourceTrigger showFavicon />
+                  <SourceContent
+                    title={source.title}
+                    description={source.description}
+                  />
+                </Source>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm leading-6 text-muted-foreground">
+              {getSearchEmptyState(step.status)}
+            </p>
+          )}
+        </div>
+      </ChainOfThoughtContent>
+    </ChainOfThoughtStep>
+  )
+}
+
 function ReasoningRow({
   step,
   isLast,
@@ -137,7 +209,7 @@ function ReasoningRow({
   isLast: boolean
   showActiveLoading: boolean
 }) {
-  const [isOpen, setIsOpen] = useState(step.status === 'running')
+  const [isOpen, setIsOpen] = useState(false)
   const Icon = getStepIcon(step, showActiveLoading)
   const [reasoningText] = useSmoothText(step.body, {
     startStreaming: showActiveLoading && step.status === 'running',
@@ -188,8 +260,10 @@ function buildActivitySteps(
   const steps: ActivityStep[] = []
   const toolSteps = new Map<string, ToolStep>()
 
-  for (const [index, rawPart] of parts.entries()) {
-    const part = rawPart as PartRecord
+  const safeParts = Array.isArray(parts) ? parts : []
+
+  for (const [index, rawPart] of safeParts.entries()) {
+    const part = toPartRecord(rawPart)
     const partType = getPartType(part)
 
     if (partType === 'reasoning') {
@@ -198,7 +272,7 @@ function buildActivitySteps(
         kind: 'reasoning',
         title: 'Reasoning',
         status: messageStatus === 'streaming' ? 'running' : 'complete',
-        body: getString(part.text) || '',
+        body: getString(part['text']) || '',
       })
       continue
     }
@@ -216,7 +290,7 @@ function buildActivitySteps(
     }
 
     if (isToolCallLikePart(partType)) {
-      const toolCallId = getString(part.toolCallId) || `tool-${index}`
+      const toolCallId = getString(part['toolCallId']) || `tool-${index}`
       const toolName = getToolName(part, partType)
       const step: ToolStep = {
         id: toolCallId,
@@ -224,6 +298,7 @@ function buildActivitySteps(
         title: getToolDisplayTitle(toolName),
         status: getToolCallStatus(part, messageStatus),
         toolName,
+        sources: isSearchTool(toolName) ? [] : undefined,
       }
 
       toolSteps.set(toolCallId, step)
@@ -232,21 +307,27 @@ function buildActivitySteps(
     }
 
     if (partType === 'tool-result') {
-      const toolCallId = getString(part.toolCallId) || `tool-result-${index}`
+      const toolCallId = getString(part['toolCallId']) || `tool-result-${index}`
       const existing = toolSteps.get(toolCallId)
 
       if (existing) {
-        existing.status = part.isError ? 'error' : 'complete'
+        existing.status = getBoolean(part['isError']) ? 'error' : 'complete'
+        if (isSearchTool(existing.toolName)) {
+          existing.sources = extractSearchSources(part['result'])
+        }
         continue
       }
 
-      const toolName = getString(part.toolName) || 'tool'
+      const toolName = getString(part['toolName']) || 'tool'
       const step: ToolStep = {
         id: toolCallId,
         kind: 'tool',
         title: getToolDisplayTitle(toolName),
-        status: part.isError ? 'error' : 'complete',
+        status: getBoolean(part['isError']) ? 'error' : 'complete',
         toolName,
+        sources: isSearchTool(toolName)
+          ? extractSearchSources(part['result'])
+          : undefined,
       }
 
       toolSteps.set(toolCallId, step)
@@ -287,7 +368,7 @@ function getStepIcon(
     return Sparkles
   }
 
-  if (step.toolName === 'exa_web_search' || step.toolName === 'web_search') {
+  if (isSearchTool(step.toolName)) {
     return Search
   }
 
@@ -312,9 +393,7 @@ function getStepIcon(
 
 function getStepIconClassName(step: ActivityStep, showActiveLoading: boolean) {
   const isTool = step.kind === 'tool'
-  const isSearchTool =
-    isTool &&
-    (step.toolName === 'exa_web_search' || step.toolName === 'web_search')
+  const isSearchToolStep = isTool && isSearchTool(step.toolName)
   const isMemoryTool = isTool && step.toolName.startsWith('memory_')
 
   return cn(
@@ -327,7 +406,7 @@ function getStepIconClassName(step: ActivityStep, showActiveLoading: boolean) {
       step.status !== 'error' &&
       'text-primary',
     !showActiveLoading &&
-      isSearchTool &&
+      isSearchToolStep &&
       step.status !== 'error' &&
       'text-sky-600 dark:text-sky-300',
     !showActiveLoading &&
@@ -338,8 +417,12 @@ function getStepIconClassName(step: ActivityStep, showActiveLoading: boolean) {
   )
 }
 
+function isSearchTool(toolName: string) {
+  return toolName === 'exa_web_search' || toolName === 'web_search'
+}
+
 function getPartType(part: Record<string, unknown>) {
-  return typeof part.type === 'string' ? part.type : ''
+  return typeof part['type'] === 'string' ? part['type'] : ''
 }
 
 function isToolCallLikePart(partType: string) {
@@ -352,7 +435,7 @@ function isToolCallLikePart(partType: string) {
 }
 
 function getToolName(part: PartRecord, partType: string) {
-  const explicitToolName = getString(part.toolName)
+  const explicitToolName = getString(part['toolName'])
 
   if (explicitToolName) {
     return explicitToolName
@@ -369,7 +452,7 @@ function getToolCallStatus(
   part: PartRecord,
   messageStatus: ChatMessage['status'],
 ): ActivityStatus {
-  const state = getString(part.state)?.toLowerCase()
+  const state = getString(part['state'])?.toLowerCase()
 
   if (state) {
     if (
@@ -408,7 +491,7 @@ function getToolCallStatus(
 }
 
 function getToolDisplayTitle(toolName: string) {
-  if (toolName === 'exa_web_search' || toolName === 'web_search') {
+  if (isSearchTool(toolName)) {
     return 'Search'
   }
 
@@ -449,6 +532,74 @@ function formatToolName(toolName: string) {
         : word.charAt(0).toUpperCase() + word.slice(1),
     )
     .join(' ')
+}
+
+function extractSearchSources(result: unknown): SearchSource[] {
+  if (!isRecord(result) || !Array.isArray(result.results)) {
+    return []
+  }
+
+  const seenUrls = new Set<string>()
+
+  return result.results
+    .flatMap((item, index) => {
+      if (!isRecord(item)) {
+        return []
+      }
+
+      const url = getString(item.url)
+      if (!url || seenUrls.has(url)) {
+        return []
+      }
+
+      seenUrls.add(url)
+
+      return [
+        {
+          id: `${url}-${index}`,
+          url,
+          title: getString(item.title) || getDomainLabel(url),
+          description:
+            getString(item.snippet) ||
+            getString(item.description) ||
+            getString(item.text) ||
+            url,
+        },
+      ]
+    })
+    .slice(0, 8)
+}
+
+function getSearchEmptyState(status: ActivityStatus) {
+  if (status === 'running' || status === 'pending') {
+    return 'Searching the web for sources...'
+  }
+
+  if (status === 'error') {
+    return 'Search failed before any sources were returned.'
+  }
+
+  return 'No sources were returned for this search.'
+}
+
+function getDomainLabel(url: string) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return url
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function toPartRecord(value: unknown): PartRecord {
+  return isRecord(value) ? value : {}
+}
+
+function getBoolean(value: unknown) {
+  return typeof value === 'boolean' ? value : false
 }
 
 function getString(value: unknown) {

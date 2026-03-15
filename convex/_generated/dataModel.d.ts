@@ -75,6 +75,55 @@ export type DataModel = {
     searchIndexes: {};
     vectorIndexes: {};
   };
+  chatShareMessages: {
+    document: {
+      order: number;
+      role: "user" | "assistant";
+      shareId: Id<"chatShares">;
+      text: string;
+      _id: Id<"chatShareMessages">;
+      _creationTime: number;
+    };
+    fieldPaths: "_creationTime" | "_id" | "order" | "role" | "shareId" | "text";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_share_order: ["shareId", "order", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
+  chatShares: {
+    document: {
+      createdAt: number;
+      messageCount: number;
+      ownerUserId: Id<"users">;
+      threadId: string;
+      title?: string;
+      token: string;
+      updatedAt: number;
+      _id: Id<"chatShares">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "createdAt"
+      | "messageCount"
+      | "ownerUserId"
+      | "threadId"
+      | "title"
+      | "token"
+      | "updatedAt";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_thread_owner: ["threadId", "ownerUserId", "_creationTime"];
+      by_token: ["token", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
   memoryChunks: {
     document: {
       agentId: string;

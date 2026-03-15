@@ -16,6 +16,7 @@ export interface OfflineThreadRecord {
   icon?: string
   projectId?: string
   projectName?: string
+  sortOrder: number
   pinned: boolean
   createdAt: number
   updatedAt: number

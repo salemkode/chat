@@ -1636,6 +1636,49 @@ export declare const api: {
       any
     >;
   };
+  shares: {
+    createOrUpdateChatShare: FunctionReference<
+      "mutation",
+      "public",
+      { threadId: string },
+      { messageCount: number; title: string; token: string }
+    >;
+    getChatShare: FunctionReference<
+      "query",
+      "public",
+      { token: string },
+      null | {
+        createdAt: number;
+        messageCount: number;
+        title: string;
+        updatedAt: number;
+      }
+    >;
+    listChatShareMessages: FunctionReference<
+      "query",
+      "public",
+      {
+        paginationOpts: {
+          cursor: string | null;
+          endCursor?: string | null;
+          id?: number;
+          maximumBytesRead?: number;
+          maximumRowsRead?: number;
+          numItems: number;
+        };
+        token: string;
+      },
+      {
+        continueCursor: string;
+        isDone: boolean;
+        page: Array<{
+          order: number;
+          role: "user" | "assistant";
+          text: string;
+        }>;
+      }
+    >;
+  };
   sidebarSearch: {
     searchSidebar: FunctionReference<
       "action",

@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import hljs from 'highlight.js'
-import 'highlight.js/styles/tomorrow-night-blue.css'
 import { cn } from '@/lib/utils'
 import { Copy, Check } from 'lucide-react'
 
@@ -31,39 +30,43 @@ export function CodeBlock({ code, language, className }: CodeBlockProps) {
 
   return (
     <div
-      className={cn('relative rounded-lg overflow-hidden hidden', className)}
+      className={cn(
+        'not-prose relative overflow-hidden rounded-[1.25rem] border border-border/60 bg-sidebar/85 shadow-sm backdrop-blur',
+        className,
+      )}
       dir="ltr"
     >
-      {/* Header with language and copy button */}
-      <div className="flex items-center justify-between px-4 py-2 bg-muted/50 border-b border-border">
-        <span className="text-xs text-muted-foreground uppercase">
+      <div className="flex h-10 items-center justify-between border-b border-border/60 bg-sidebar px-4">
+        <span className="text-[11px] font-medium tracking-[0.14em] text-muted-foreground lowercase">
           {detectedLanguage || 'text'}
         </span>
-        <button
-          onClick={handleCopy}
-          className="flex items-center gap-1.5 px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors rounded hover:bg-muted"
-        >
-          {copied ? (
-            <>
-              <Check className="w-3.5 h-3.5" />
-              <span>Copied!</span>
-            </>
-          ) : (
-            <>
-              <Copy className="w-3.5 h-3.5" />
-              <span>Copy</span>
-            </>
-          )}
-        </button>
+        <div className="rounded-md border border-border/60 bg-background/80 px-2 backdrop-blur-sm">
+          <button
+            onClick={handleCopy}
+            className="flex h-7 items-center gap-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+            aria-label={copied ? 'Code copied' : 'Copy code'}
+          >
+            {copied ? (
+              <>
+                <Check className="h-3.5 w-3.5" />
+                <span>Copied</span>
+              </>
+            ) : (
+              <>
+                <Copy className="h-3.5 w-3.5" />
+                <span>Copy code</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
-      {/* Code content */}
-      <div className="m-0">
-        <pre className="my-0! p-0! rounded-t-none!">
+      <div className="overflow-x-auto px-4 py-4">
+        <pre className="my-0! overflow-visible! bg-transparent! p-0!">
           <code
             ref={codeRef}
             className={cn(
-              'hljs text-sm font-mono leading-relaxed',
+              'code-block-syntax hljs! block! min-w-full bg-transparent! p-0! text-[13px] leading-6 font-mono text-foreground not-prose whitespace-pre',
               detectedLanguage && `language-${detectedLanguage}`,
             )}
           >

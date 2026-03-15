@@ -5,7 +5,9 @@ import { api } from 'convex/_generated/api'
 import { AlertCircle, ExternalLink, FileText, RefreshCw } from 'lucide-react'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useChatModel } from '@/components/chat-model-context'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { useModels, useSendMessage } from '@/hooks/use-chat-data'
+import { cn } from '@/lib/utils'
 import { ModelSelectorPanel } from './model-selector'
 import { MessageActivityTimeline } from './chat/MessageActivityTimeline'
 import { CopyButton } from './CopyButton'
@@ -27,6 +29,7 @@ export const Message = memo(function Message({
   message,
   promptMessageId,
 }: MessageProps) {
+  const isMobile = useIsMobile()
   const shouldSmoothText =
     message.role === 'assistant' && message.status === 'streaming'
   const [smoothedText] = useSmoothText(message.text, {
@@ -60,7 +63,7 @@ export const Message = memo(function Message({
       message.status === 'streaming' || message.status === 'pending'
 
     return (
-      <div className="mx-auto w-full max-w-3xl">
+      <div className={cn('mx-auto w-full max-w-3xl', isMobile && 'px-0.5')}>
         {hasActivity ? (
           <MessageActivityTimeline
             parts={message.parts}
@@ -87,7 +90,10 @@ export const Message = memo(function Message({
             </div>
           </div>
         ) : (
-          <div dir="auto" className="px-1 py-1">
+          <div
+            dir="auto"
+            className={cn('px-1 py-1', isMobile && 'px-0.5 py-1.5')}
+          >
             <MarkdownContent content={visibleText} />
           </div>
         )}
@@ -98,7 +104,12 @@ export const Message = memo(function Message({
           </div>
         ) : null}
 
-        <div className="mt-3 flex items-center gap-2 border-t border-border/50 pt-2 sm:mt-4 sm:gap-3 sm:pt-3">
+        <div
+          className={cn(
+            'mt-3 flex items-center gap-2 border-t border-border/50 pt-2 sm:mt-4 sm:gap-3 sm:pt-3',
+            isMobile && 'mt-4 gap-3 border-border/35 pt-3',
+          )}
+        >
           <CopyButton text={message.text} />
           <RepeatButton
             threadId={threadId}
@@ -112,7 +123,13 @@ export const Message = memo(function Message({
 
   return (
     <div className="mx-auto flex w-full max-w-3xl justify-end">
-      <div className="max-w-[85%] space-y-3 rounded-tl-xl rounded-tr-xl rounded-bl-xl bg-secondary px-3 py-2 text-secondary-foreground shadow-sm sm:max-w-[75%] sm:px-4 sm:py-2.5">
+      <div
+        className={cn(
+          'max-w-[85%] space-y-3 rounded-tl-xl rounded-tr-xl rounded-bl-xl bg-secondary px-3 py-2 text-secondary-foreground shadow-sm sm:max-w-[75%] sm:px-4 sm:py-2.5',
+          isMobile &&
+            'max-w-[90%] rounded-[1.35rem] bg-secondary/92 px-3.5 py-3 shadow-[0_10px_24px_rgba(15,23,42,0.08)]',
+        )}
+      >
         {fileParts.length > 0 ? <MessageAttachments files={fileParts} /> : null}
         {visibleText.trim() ? (
           <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">

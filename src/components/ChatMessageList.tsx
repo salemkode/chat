@@ -6,6 +6,7 @@ import {
 } from '@tanstack/react-virtual'
 import type { FunctionReturnType } from 'convex/server'
 import { api } from 'convex/_generated/api'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
 import { MessageLoadingSkeleton } from './chat/MessageLoadingSkeleton'
 import { Message } from './Message'
@@ -26,8 +27,12 @@ export function ChatMessageList({
   isLoading = false,
   className,
 }: ChatMessageListProps) {
+  const isMobile = useIsMobile()
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const shouldAutoScrollRef = useRef(true)
+  const widthClass = isMobile
+    ? 'mx-auto w-full max-w-3xl px-3'
+    : CHAT_MESSAGE_LIST_WIDTH_CLASS
 
   const rowVirtualizer = useVirtualizer({
     count: messages.length,
@@ -81,11 +86,14 @@ export function ChatMessageList({
     return (
       <div
         className={cn(
-          'flex-1 overflow-y-auto pt-4 sm:pt-6 pb-28 sm:pb-32',
+          'flex-1 overflow-y-auto',
+          isMobile
+            ? 'pt-3 pb-[calc(var(--mobile-composer-height,11rem)+env(safe-area-inset-bottom)+12px)]'
+            : 'pt-4 pb-28 sm:pt-6 sm:pb-32',
           className,
         )}
       >
-        <div className={CHAT_MESSAGE_LIST_WIDTH_CLASS}>
+        <div className={widthClass}>
           <MessageLoadingSkeleton />
           <MessageLoadingSkeleton />
         </div>
@@ -102,12 +110,15 @@ export function ChatMessageList({
       ref={scrollContainerRef}
       onScroll={onScroll}
       className={cn(
-        'flex-1 overflow-y-auto pt-4 sm:pt-6 pb-28 sm:pb-32',
+        'flex-1 overflow-y-auto',
+        isMobile
+          ? 'pt-3 pb-[calc(var(--mobile-composer-height,11rem)+env(safe-area-inset-bottom)+12px)]'
+          : 'pt-4 pb-28 sm:pt-6 sm:pb-32',
         className,
       )}
     >
       <div
-        className={cn('relative', CHAT_MESSAGE_LIST_WIDTH_CLASS)}
+        className={cn('relative', widthClass)}
         style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
       >
         {rowVirtualizer.getVirtualItems().map((virtualRow: VirtualItem) => {
@@ -118,7 +129,10 @@ export function ChatMessageList({
               key={msg.id}
               data-index={virtualRow.index}
               ref={rowVirtualizer.measureElement}
-              className="absolute left-0 top-0 w-full pb-4 sm:pb-6"
+              className={cn(
+                'absolute left-0 top-0 w-full',
+                isMobile ? 'pb-5' : 'pb-4 sm:pb-6',
+              )}
               style={{ transform: `translateY(${virtualRow.start}px)` }}
             >
               <Message

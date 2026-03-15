@@ -6,7 +6,7 @@ import {
 } from '@tanstack/react-router'
 import type { Id } from 'convex/_generated/dataModel'
 import { Loader2 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { AIPromptInput } from '@/components/ai-prompt-input'
 import { AppSidebar } from '@/components/app-sidebar'
 import { AuthRedirect } from '@/components/auth-redirect'
@@ -14,6 +14,7 @@ import {
   ChatModelProvider,
   useChatModel,
 } from '@/components/chat-model-context'
+import { useIsMobile } from '@/hooks/use-mobile'
 import {
   readPendingNewChatProjectId,
   writePendingNewChatProjectId,
@@ -56,6 +57,7 @@ function ChatLayout() {
 }
 
 function AuthenticatedChatLayout() {
+  const isMobile = useIsMobile()
   const params = useParams({
     from: '/_layout/$chatId',
     shouldThrow: false,
@@ -72,27 +74,91 @@ function AuthenticatedChatLayout() {
     },
   })
   const threadId = params?.chatId
+  const composerTrayRef = useRef<HTMLDivElement>(null)
+  const [mobileComposerHeight, setMobileComposerHeight] = useState(176)
+
+  useEffect(() => {
+    if (!isMobile) {
+      return
+    }
+
+    const element = composerTrayRef.current
+    if (!element) {
+      return
+    }
+
+    const updateHeight = () => {
+      setMobileComposerHeight(Math.ceil(element.getBoundingClientRect().height))
+    }
+
+    updateHeight()
+
+    const observer = new ResizeObserver(() => {
+      updateHeight()
+    })
+
+    observer.observe(element)
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [isMobile, threadId])
 
   return (
     <SidebarProvider className="h-screen">
       <AppSidebar selectedThreadId={threadId ?? null} />
 
       <ChatModelProvider>
-        <SidebarInset className="relative">
-          <Outlet />
+        <SidebarInset
+          className="relative"
+          style={
+            isMobile
+              ? ({
+                  '--mobile-header-height': '52px',
+                  '--mobile-composer-height': `${mobileComposerHeight}px`,
+                } as CSSProperties)
+              : undefined
+          }
+        >
+          {isMobile ? (
+            <div className="flex h-full min-h-0 flex-1 flex-col">
+              <div className="min-h-0 flex-1">
+                <Outlet />
+              </div>
 
-          <div className="absolute bottom-0 left-0 right-0 z-20">
-            <div className="w-full max-w-3xl mx-auto px-2 sm:px-4">
-              <ChatComposer threadId={threadId} />
+              <div
+                ref={composerTrayRef}
+                className="mobile-chat-composer-tray shrink-0 md:hidden"
+              >
+                <div className="px-3 pt-3 pb-[calc(env(safe-area-inset-bottom)+12px)]">
+                  <ChatComposer threadId={threadId} mobile />
+                </div>
+              </div>
             </div>
-          </div>
+          ) : (
+            <>
+              <Outlet />
+
+              <div className="absolute bottom-0 left-0 right-0 z-20">
+                <div className="w-full max-w-3xl mx-auto px-2 sm:px-4">
+                  <ChatComposer threadId={threadId} />
+                </div>
+              </div>
+            </>
+          )}
         </SidebarInset>
       </ChatModelProvider>
     </SidebarProvider>
   )
 }
 
-function ChatComposer({ threadId }: { threadId?: string }) {
+function ChatComposer({
+  threadId,
+  mobile = false,
+}: {
+  threadId?: string
+  mobile?: boolean
+}) {
   const navigate = useNavigate()
   const { models } = useModels()
   const { projects } = useProjects()
@@ -150,6 +216,7 @@ function ChatComposer({ threadId }: { threadId?: string }) {
       value={draft}
       onValueChange={(value) => void setDraft(value)}
       onSubmit={handleSendMessage}
+      mobile={mobile}
       disabled={disabledReason !== null}
       footerText={
         disabledReason === 'offline'

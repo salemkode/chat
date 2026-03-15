@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '../../convex/_generated/api'
 import { useQuery } from '@/lib/convex-query-cache'
 import { parseUploadResponse } from '@/lib/parsers'
+import { compareThreadsForSidebar } from '@/lib/project-sidebar'
 import { useOnlineStatus } from '@/hooks/use-online-status'
 import { offlineDb } from '@/offline/db'
 import type {
@@ -59,6 +60,7 @@ export interface ThreadSummary {
   icon?: string
   projectId?: string
   projectName?: string
+  sortOrder: number
   pinned: boolean
   createdAt: number
   updatedAt: number
@@ -100,7 +102,8 @@ function normalizeThread(thread: ThreadRecord): OfflineThreadRecord {
     icon: thread.metadata?.icon,
     projectId: project?.id,
     projectName: project?.name,
-    pinned: thread.metadata?.sortOrder === 1,
+    sortOrder: thread.metadata?.sortOrder ?? 0,
+    pinned: (thread.metadata?.sortOrder ?? 0) > 0,
     createdAt: thread._creationTime,
     updatedAt: thread._creationTime,
     lastMessageAt: thread._creationTime,
@@ -307,12 +310,7 @@ export function useThreads() {
   const liveThreads = useQuery(api.agents.listThreadsWithMetadata) || []
   const cachedThreads = useLiveQuery(async () => {
     const threads = await offlineDb.threads.toArray()
-    return threads.sort((left, right) => {
-      if (Number(right.pinned) !== Number(left.pinned)) {
-        return Number(right.pinned) - Number(left.pinned)
-      }
-      return right.lastMessageAt - left.lastMessageAt
-    })
+    return threads.sort(compareThreadsForSidebar)
   }, [])
   const setThreadPinned = useMutation(api.agents.setThreadPinned)
   const deleteThreadMutation = useMutation(api.chat.deleteThread)
@@ -383,7 +381,8 @@ export function useThread(threadId?: string) {
         icon: liveThread.metadata?.icon,
         projectId: project?.id,
         projectName: project?.name,
-        pinned: liveThread.metadata?.sortOrder === 1,
+        sortOrder: liveThread.metadata?.sortOrder ?? 0,
+        pinned: (liveThread.metadata?.sortOrder ?? 0) > 0,
         createdAt: liveThread._creationTime,
       }
     }

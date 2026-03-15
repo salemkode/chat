@@ -3,6 +3,8 @@ type ThreadLike = {
   title?: string
   projectId?: string
   projectName?: string
+  sortOrder?: number
+  pinned?: boolean
   lastMessageAt: number
 }
 
@@ -42,6 +44,25 @@ export function filterThreadsBySearch<T extends ThreadLike>(
   )
 }
 
+function getThreadSortOrder(thread: ThreadLike) {
+  if (thread.sortOrder !== undefined) {
+    return thread.sortOrder
+  }
+
+  return Number(thread.pinned)
+}
+
+export function compareThreadsForSidebar<T extends ThreadLike>(left: T, right: T) {
+  const leftSortOrder = getThreadSortOrder(left)
+  const rightSortOrder = getThreadSortOrder(right)
+
+  if (rightSortOrder !== leftSortOrder) {
+    return rightSortOrder - leftSortOrder
+  }
+
+  return right.lastMessageAt - left.lastMessageAt
+}
+
 export function groupThreadsByProject<T extends ThreadLike>(threads: T[]) {
   const projectThreads = new Map<string, T[]>()
   const unfiledThreads: T[] = []
@@ -58,10 +79,10 @@ export function groupThreadsByProject<T extends ThreadLike>(threads: T[]) {
   }
 
   for (const group of projectThreads.values()) {
-    group.sort((left, right) => right.lastMessageAt - left.lastMessageAt)
+    group.sort(compareThreadsForSidebar)
   }
 
-  unfiledThreads.sort((left, right) => right.lastMessageAt - left.lastMessageAt)
+  unfiledThreads.sort(compareThreadsForSidebar)
 
   return {
     projectThreads,

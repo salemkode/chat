@@ -33,6 +33,7 @@ interface AIPromptInputProps {
   }>
   selectedProjectId?: string
   onProjectChange?: (projectId?: string) => void
+  mobile?: boolean
 }
 
 type ProjectMentionState = {
@@ -60,6 +61,7 @@ export function AIPromptInput({
   projects = [],
   selectedProjectId,
   onProjectChange,
+  mobile = false,
 }: AIPromptInputProps) {
   const [internalValue, setInternalValue] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -105,11 +107,11 @@ export function AIPromptInput({
   useEffect(() => {
     const textarea = textareaRef.current
     if (textarea) {
-      textarea.style.height = '48px'
+      textarea.style.height = mobile ? '52px' : '48px'
       const scrollHeight = textarea.scrollHeight
       textarea.style.height = `${Math.min(scrollHeight, 200)}px`
     }
-  }, [value])
+  }, [mobile, value])
 
   useEffect(() => {
     if (!projectMention) {
@@ -329,15 +331,26 @@ export function AIPromptInput({
           addAttachments(event.dataTransfer.files)
         }}
         className={cn(
-          'pointer-events-auto relative flex w-full min-w-0 flex-col items-stretch rounded-t-xl border border-border bg-linear-to-b from-background/95 to-background/90 p-3 sm:p-4 text-secondary-foreground bg-muted/80 backdrop-blur-2xl sm:max-w-3xl',
+          'pointer-events-auto relative flex w-full min-w-0 flex-col items-stretch text-secondary-foreground',
+          mobile
+            ? 'rounded-[1.6rem] border border-border/70 bg-background/88 p-3 shadow-[0_-12px_40px_rgba(15,23,42,0.10)] backdrop-blur-2xl'
+            : 'rounded-t-xl border border-border bg-linear-to-b from-background/95 to-background/90 bg-muted/80 p-3 backdrop-blur-2xl sm:max-w-3xl sm:p-4',
           isDragging && 'border-primary/60 bg-primary/5',
         )}
       >
-        <div className="flex min-w-0 grow flex-col items-start gap-2">
+        <div
+          className={cn(
+            'flex min-w-0 grow flex-col items-start gap-2',
+            mobile && 'gap-3',
+          )}
+        >
           {selectedProject ? (
             <Badge
               variant="secondary"
-              className="max-w-full gap-1.5 rounded-full border border-border/70 bg-background/70 px-2.5 py-1 text-foreground"
+              className={cn(
+                'max-w-full gap-1.5 rounded-full border border-border/70 bg-background/70 px-2.5 py-1 text-foreground',
+                mobile && 'bg-muted/55 px-3 py-1.5',
+              )}
             >
               <Folder className="size-3" />
               <span className="max-w-52 truncate">{selectedProject.name}</span>
@@ -352,11 +365,19 @@ export function AIPromptInput({
             </Badge>
           ) : null}
           {attachments.length > 0 ? (
-            <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
+            <div
+              className={cn(
+                'grid w-full grid-cols-1 gap-2 sm:grid-cols-2',
+                mobile && 'sm:grid-cols-1',
+              )}
+            >
               {attachments.map((attachment) => (
                 <div
                   key={attachment.id}
-                  className="flex min-w-0 items-center gap-3 rounded-2xl border border-border/70 bg-background/75 p-2.5"
+                  className={cn(
+                    'flex min-w-0 items-center gap-3 rounded-2xl border border-border/70 bg-background/75 p-2.5',
+                    mobile && 'rounded-[1.15rem] bg-muted/30 px-3 py-2.5',
+                  )}
                 >
                   {attachment.previewUrl ? (
                     <img
@@ -422,10 +443,13 @@ export function AIPromptInput({
               )
             }}
             disabled={disabled}
-            className="w-full min-w-0 resize-none bg-transparent text-base leading-6 text-foreground outline-none placeholder:text-muted-foreground/60 disabled:opacity-50"
+            className={cn(
+              'w-full min-w-0 resize-none bg-transparent text-base leading-6 text-foreground outline-none placeholder:text-muted-foreground/60 disabled:opacity-50',
+              mobile && 'min-h-[52px] text-[15px] leading-6',
+            )}
             aria-label="Message input"
             autoComplete="off"
-            style={{ height: '48px' }}
+            style={{ height: mobile ? '52px' : '48px' }}
           />
         </div>
 
@@ -484,8 +508,18 @@ export function AIPromptInput({
           </div>
         ) : null}
 
-        <div className="flex w-full min-w-0 flex-row-reverse justify-between items-center">
-          <div className="flex shrink-0 items-center justify-center">
+        <div
+          className={cn(
+            'flex w-full min-w-0 items-center justify-between',
+            mobile ? 'mt-1 flex-col-reverse gap-3' : 'flex-row-reverse',
+          )}
+        >
+          <div
+            className={cn(
+              'flex shrink-0 items-center justify-center',
+              mobile && 'w-full justify-end',
+            )}
+          >
             <button
               type="submit"
               disabled={
@@ -498,16 +532,28 @@ export function AIPromptInput({
                     ? 'Send message'
                     : 'Message requires text or a supported file'
               }
-              className="inline-flex items-center justify-center bg-primary font-semibold text-primary-foreground transition-colors hover:bg-primary/90 active:bg-primary disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-primary disabled:active:bg-primary size-9 rounded-lg p-2 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0"
+              className={cn(
+                'inline-flex items-center justify-center bg-primary font-semibold text-primary-foreground transition-colors hover:bg-primary/90 active:bg-primary disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-primary disabled:active:bg-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
+                mobile ? 'size-11 rounded-full p-0 shadow-sm' : 'size-9 rounded-lg p-2',
+              )}
             >
               <ArrowUp className="size-5" aria-hidden="true" />
             </button>
           </div>
 
-          <div className="flex min-w-0 items-center gap-2">
+          <div
+            className={cn(
+              'flex min-w-0 items-center gap-2',
+              mobile && 'w-full flex-wrap items-stretch',
+            )}
+          >
             <ModelSelector
               selectedModel={selectedModel}
               onModelChange={onModelChange}
+              className={cn(
+                mobile &&
+                  'h-11 min-w-0 flex-1 justify-between rounded-full border border-border/70 bg-muted/40 px-3.5 text-sm',
+              )}
             />
 
             <button
@@ -515,7 +561,10 @@ export function AIPromptInput({
               onClick={() => setSearchEnabled(!searchEnabled)}
               aria-label={searchEnabled ? 'Disable search' : 'Enable search'}
               className={cn(
-                'inline-flex items-center justify-center h-8 rounded-lg px-2.5 text-xs font-medium transition-colors hover:bg-muted/60 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
+                'inline-flex items-center justify-center text-xs font-medium transition-colors hover:bg-muted/60 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
+                mobile
+                  ? 'h-11 rounded-full border border-border/70 px-3.5'
+                  : 'h-8 rounded-lg px-2.5',
                 searchEnabled
                   ? 'text-foreground bg-muted/60'
                   : 'text-muted-foreground hover:text-foreground',
@@ -525,7 +574,12 @@ export function AIPromptInput({
             </button>
 
             <label
-              className="inline-flex h-8 cursor-pointer items-center rounded-lg px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0"
+              className={cn(
+                'inline-flex cursor-pointer items-center text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
+                mobile
+                  ? 'h-11 rounded-full border border-border/70 px-3.5'
+                  : 'h-8 rounded-lg px-2.5',
+              )}
               aria-label="Attach a file"
             >
               <input

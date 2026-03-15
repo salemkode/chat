@@ -6,13 +6,14 @@ import {
 } from './project-sidebar'
 
 describe('project-sidebar helpers', () => {
-  it('groups project threads separately from unfiled chats and sorts by recency', () => {
+  it('keeps higher sort indexes first when grouping project threads', () => {
     const { projectThreads, unfiledThreads } = groupThreadsByProject([
       {
         id: 't1',
         title: 'Alpha 1',
         projectId: 'p1',
         projectName: 'Alpha',
+        sortOrder: 1,
         lastMessageAt: 10,
       },
       {
@@ -20,20 +21,28 @@ describe('project-sidebar helpers', () => {
         title: 'Alpha 2',
         projectId: 'p1',
         projectName: 'Alpha',
+        sortOrder: 0,
         lastMessageAt: 20,
       },
       {
         id: 't3',
         title: 'Loose chat',
+        sortOrder: 1,
         lastMessageAt: 15,
+      },
+      {
+        id: 't4',
+        title: 'Loose chat newer',
+        sortOrder: 0,
+        lastMessageAt: 25,
       },
     ])
 
     expect(projectThreads.get('p1')?.map((thread) => thread.id)).toEqual([
-      't2',
       't1',
+      't2',
     ])
-    expect(unfiledThreads.map((thread) => thread.id)).toEqual(['t3'])
+    expect(unfiledThreads.map((thread) => thread.id)).toEqual(['t3', 't4'])
   })
 
   it('filters projects and threads by the search query', () => {

@@ -40,10 +40,9 @@ function Reasoning({
   className,
   open,
   onOpenChange,
-  isStreaming,
+  isStreaming: _isStreaming,
 }: ReasoningProps) {
   const [internalOpen, setInternalOpen] = useState(false)
-  const [wasAutoOpened, setWasAutoOpened] = useState(false)
 
   const isControlled = open !== undefined
   const isOpen = isControlled ? open : internalOpen
@@ -54,18 +53,6 @@ function Reasoning({
     }
     onOpenChange?.(newOpen)
   }
-
-  useEffect(() => {
-    if (isStreaming && !wasAutoOpened) {
-      if (!isControlled) setInternalOpen(true)
-      setWasAutoOpened(true)
-    }
-
-    if (!isStreaming && wasAutoOpened) {
-      if (!isControlled) setInternalOpen(false)
-      setWasAutoOpened(false)
-    }
-  }, [isStreaming, wasAutoOpened, isControlled])
 
   return (
     <ReasoningContext.Provider

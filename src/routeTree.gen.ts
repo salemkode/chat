@@ -16,6 +16,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as LayoutRouteImport } from './routes/_layout'
 import { Route as LayoutIndexRouteImport } from './routes/_layout.index'
+import { Route as ShareShareIdRouteImport } from './routes/share.$shareId'
 import { Route as LayoutChatIdRouteImport } from './routes/_layout.$chatId'
 
 const SignupRoute = SignupRouteImport.update({
@@ -52,6 +53,11 @@ const LayoutIndexRoute = LayoutIndexRouteImport.update({
   path: '/',
   getParentRoute: () => LayoutRoute,
 } as any)
+const ShareShareIdRoute = ShareShareIdRouteImport.update({
+  id: '/share/$shareId',
+  path: '/share/$shareId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LayoutChatIdRoute = LayoutChatIdRouteImport.update({
   id: '/$chatId',
   path: '/$chatId',
@@ -66,6 +72,7 @@ export interface FileRoutesByFullPath {
   '/memory-demo': typeof MemoryDemoRoute
   '/signup': typeof SignupRoute
   '/$chatId': typeof LayoutChatIdRoute
+  '/share/$shareId': typeof ShareShareIdRoute
 }
 export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
@@ -74,6 +81,7 @@ export interface FileRoutesByTo {
   '/memory-demo': typeof MemoryDemoRoute
   '/signup': typeof SignupRoute
   '/$chatId': typeof LayoutChatIdRoute
+  '/share/$shareId': typeof ShareShareIdRoute
   '/': typeof LayoutIndexRoute
 }
 export interface FileRoutesById {
@@ -85,6 +93,7 @@ export interface FileRoutesById {
   '/memory-demo': typeof MemoryDemoRoute
   '/signup': typeof SignupRoute
   '/_layout/$chatId': typeof LayoutChatIdRoute
+  '/share/$shareId': typeof ShareShareIdRoute
   '/_layout/': typeof LayoutIndexRoute
 }
 export interface FileRouteTypes {
@@ -97,6 +106,7 @@ export interface FileRouteTypes {
     | '/memory-demo'
     | '/signup'
     | '/$chatId'
+    | '/share/$shareId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/admin'
@@ -105,6 +115,7 @@ export interface FileRouteTypes {
     | '/memory-demo'
     | '/signup'
     | '/$chatId'
+    | '/share/$shareId'
     | '/'
   id:
     | '__root__'
@@ -115,6 +126,7 @@ export interface FileRouteTypes {
     | '/memory-demo'
     | '/signup'
     | '/_layout/$chatId'
+    | '/share/$shareId'
     | '/_layout/'
   fileRoutesById: FileRoutesById
 }
@@ -125,6 +137,7 @@ export interface RootRouteChildren {
   MemoryRoute: typeof MemoryRoute
   MemoryDemoRoute: typeof MemoryDemoRoute
   SignupRoute: typeof SignupRoute
+  ShareShareIdRoute: typeof ShareShareIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -178,6 +191,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutIndexRouteImport
       parentRoute: typeof LayoutRoute
     }
+    '/share/$shareId': {
+      id: '/share/$shareId'
+      path: '/share/$shareId'
+      fullPath: '/share/$shareId'
+      preLoaderRoute: typeof ShareShareIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_layout/$chatId': {
       id: '/_layout/$chatId'
       path: '/$chatId'
@@ -208,6 +228,7 @@ const rootRouteChildren: RootRouteChildren = {
   MemoryRoute: MemoryRoute,
   MemoryDemoRoute: MemoryDemoRoute,
   SignupRoute: SignupRoute,
+  ShareShareIdRoute: ShareShareIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
