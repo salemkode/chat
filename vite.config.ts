@@ -5,7 +5,6 @@ import viteReact from '@vitejs/plugin-react'
 import viteTsConfigPaths from 'vite-tsconfig-paths'
 import { VitePWA } from 'vite-plugin-pwa'
 import { fileURLToPath, URL } from 'node:url'
-import { nitro } from 'nitro/vite';
 
 import tailwindcss from '@tailwindcss/vite'
 
@@ -22,7 +21,6 @@ const config = defineConfig({
     },
   },
   plugins: [
-    nitro(),
     devtools({
       eventBusConfig: {
         enabled: tanstackEventBusEnabled,
