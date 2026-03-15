@@ -48,6 +48,7 @@ function SsoCallbackPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+      welcome
       <ClerkLoaded>
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />

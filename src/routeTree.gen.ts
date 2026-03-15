@@ -18,7 +18,7 @@ import { Route as LayoutRouteImport } from './routes/_layout'
 import { Route as LayoutIndexRouteImport } from './routes/_layout.index'
 import { Route as SignupSsoCallbackRouteImport } from './routes/signup.sso-callback'
 import { Route as ShareShareIdRouteImport } from './routes/share.$shareId'
-import { Route as LoginSsoCallbackRouteImport } from './routes/login.sso-callback'
+import { Route as LoginSsoCallbackRouteImport } from './routes/login/sso-callback'
 import { Route as LayoutChatIdRouteImport } from './routes/_layout.$chatId'
 
 const SignupRoute = SignupRouteImport.update({
