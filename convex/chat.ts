@@ -12,7 +12,9 @@ import {
 import { ConvexError } from 'convex/values'
 import { threadMetadataValidator } from './lib/validators'
 
-type AgentThreadId = FunctionArgs<typeof components.agent.threads.getThread>['threadId']
+type AgentThreadId = FunctionArgs<
+  typeof components.agent.threads.getThread
+>['threadId']
 
 const threadDetailValidator = v.union(
   v.null(),
@@ -56,14 +58,10 @@ export const listThreads = query({
 
 export const deleteThread = mutation({
   args: { threadId: v.string() },
-  returns: v.null(),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) {
-      throw new ConvexError({
-        code: 'UNAUTHORIZED',
-        message: 'You must be logged in to delete a thread',
-      })
+      return null
     }
 
     let thread
@@ -73,19 +71,13 @@ export const deleteThread = mutation({
       })
     } catch (error) {
       if (isInvalidThreadIdError(error)) {
-        throw new ConvexError({
-          code: 'NOT_FOUND',
-          message: 'Thread not found',
-        })
+        return null
       }
-      throw error
+      return null
     }
 
     if (!thread || thread.userId !== userId) {
-      throw new ConvexError({
-        code: 'NOT_FOUND',
-        message: 'Thread not found or you do not have access to it',
-      })
+      return null
     }
 
     await ctx.runMutation(components.agent.threads.deleteAllForThreadIdAsync, {
@@ -104,18 +96,12 @@ export const listMessages = query({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) {
-      throw new ConvexError({
-        code: 'UNAUTHORIZED',
-        message: 'You must be logged in to view messages',
-      })
+      return { page: [], isDone: true, continueCursor: '', streams: [] }
     }
 
     // If no threadId, return empty page structure
     if (!args.threadId) {
-      throw new ConvexError({
-        code: 'VALIDATION_ERROR',
-        message: 'No threadId provided',
-      })
+      return { page: [], isDone: true, continueCursor: '', streams: [] }
     }
 
     const paginated = await listAgentMessages(ctx, components.agent, args)
@@ -150,14 +136,10 @@ export const listMessages = query({
 
 export const createThread = mutation({
   args: {},
-  returns: v.string(),
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) {
-      throw new ConvexError({
-        code: 'UNAUTHORIZED',
-        message: 'You must be logged in to create a thread',
-      })
+      return ''
     }
 
     const thread = await ctx.runMutation(
@@ -175,14 +157,10 @@ export const getThread = query({
   args: {
     threadId: v.string(),
   },
-  returns: threadDetailValidator,
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) {
-      throw new ConvexError({
-        code: 'UNAUTHORIZED',
-        message: 'You must be logged in to view thread',
-      })
+      return null
     }
 
     if (!args.threadId) {
@@ -198,7 +176,7 @@ export const getThread = query({
       if (isInvalidThreadIdError(error)) {
         return null
       }
-      throw error
+      return null
     }
 
     if (!thread) {
@@ -211,8 +189,9 @@ export const getThread = query({
       .withIndex('by_threadId', (q) => q.eq('threadId', thread._id))
       .first()
 
-    const project =
-      metadata?.projectId ? await ctx.db.get(metadata.projectId) : null
+    const project = metadata?.projectId
+      ? await ctx.db.get(metadata.projectId)
+      : null
 
     return {
       _id: thread._id,

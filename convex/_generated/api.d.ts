@@ -50,7 +50,7 @@ export declare const api: {
         };
         sortOrder: number;
       },
-      Id<"models">
+      any
     >;
     addModelCollection: FunctionReference<
       "mutation",
@@ -61,7 +61,7 @@ export declare const api: {
         name: string;
         sortOrder: number;
       },
-      Id<"modelCollections">
+      any
     >;
     addProvider: FunctionReference<
       "mutation",
@@ -113,7 +113,7 @@ export declare const api: {
         };
         sortOrder: number;
       },
-      Id<"providers">
+      any
     >;
     deleteModel: FunctionReference<
       "mutation",
@@ -133,189 +133,9 @@ export declare const api: {
       { id: Id<"providers"> },
       any
     >;
-    generateUploadUrl: FunctionReference<"mutation", "public", {}, string>;
-    getAdminSettings: FunctionReference<
-      "query",
-      "public",
-      {},
-      {
-        _id?: Id<"adminSettings">;
-        defaultRateLimit?: {
-          capacity?: number;
-          enabled: boolean;
-          kind: "fixed window" | "token bucket";
-          period: number;
-          rate: number;
-          scope: "global" | "user";
-          shards?: number;
-        };
-        key: string;
-        updatedAt: number;
-      }
-    >;
-    getDashboardData: FunctionReference<
-      "query",
-      "public",
-      {},
-      {
-        collections: Array<{
-          _creationTime: number;
-          _id: Id<"modelCollections">;
-          description?: string;
-          modelCount: number;
-          modelIds: Array<Id<"models">>;
-          models: Array<{
-            _id: Id<"models">;
-            displayName: string;
-            icon?: string;
-            iconType?: "emoji" | "lucide" | "upload";
-            iconUrl?: string;
-            isEnabled: boolean;
-            modelId: string;
-            providerIconUrl?: string;
-            providerId: Id<"providers">;
-            providerName: string;
-          }>;
-          name: string;
-          sortOrder: number;
-        }>;
-        models: Array<{
-          _creationTime: number;
-          _id: Id<"models">;
-          capabilities?: Array<string>;
-          contextWindow?: number;
-          description?: string;
-          discoveredAt?: number;
-          displayName: string;
-          favorites: number;
-          icon?: string;
-          iconId?: Id<"_storage">;
-          iconType?: "emoji" | "lucide" | "upload";
-          iconUrl?: string;
-          isEnabled: boolean;
-          isFree: boolean;
-          lastSyncedAt?: number;
-          maxOutputTokens?: number;
-          modalities?: { input: Array<string>; output: Array<string> };
-          modelId: string;
-          ownedBy?: string;
-          providerIconUrl?: string;
-          providerId: Id<"providers">;
-          providerName: string;
-          rateLimit?: {
-            capacity?: number;
-            enabled: boolean;
-            kind: "fixed window" | "token bucket";
-            period: number;
-            rate: number;
-            scope: "global" | "user";
-            shards?: number;
-          };
-          sortOrder: number;
-          usage: {
-            lastUsedAt?: number;
-            requests: number;
-            tokens: number;
-            users: number;
-          };
-        }>;
-        providers: Array<{
-          _creationTime: number;
-          _id: Id<"providers">;
-          apiKey: string;
-          baseURL?: string;
-          config?: {
-            headers?: Record<string, string>;
-            organization?: string;
-            project?: string;
-            queryParams?: Record<string, string>;
-          };
-          description?: string;
-          enabledModelCount: number;
-          icon?: string;
-          iconId?: Id<"_storage">;
-          iconType?: "emoji" | "lucide" | "upload";
-          iconUrl?: string;
-          isEnabled: boolean;
-          lastDiscoveredAt?: number;
-          lastDiscoveredModelCount?: number;
-          lastDiscoveryError?: string;
-          modelCount: number;
-          name: string;
-          providerType:
-            | "openrouter"
-            | "openai"
-            | "anthropic"
-            | "google"
-            | "azure"
-            | "groq"
-            | "deepseek"
-            | "xai"
-            | "cerebras"
-            | "openai-compatible"
-            | "opencode"
-            | "mistral"
-            | "cohere"
-            | "perplexity"
-            | "fireworks"
-            | "together"
-            | "replicate"
-            | "moonshot"
-            | "qwen"
-            | "stepfun";
-          rateLimit?: {
-            capacity?: number;
-            enabled: boolean;
-            kind: "fixed window" | "token bucket";
-            period: number;
-            rate: number;
-            scope: "global" | "user";
-            shards?: number;
-          };
-          sortOrder: number;
-          usage: {
-            lastUsedAt?: number;
-            requests: number;
-            tokens: number;
-            users: number;
-          };
-        }>;
-        settings: {
-          _id?: Id<"adminSettings">;
-          defaultRateLimit?: {
-            capacity?: number;
-            enabled: boolean;
-            kind: "fixed window" | "token bucket";
-            period: number;
-            rate: number;
-            scope: "global" | "user";
-            shards?: number;
-          };
-          key: string;
-          updatedAt: number;
-        };
-        summary: {
-          activeUsers30d: number;
-          enabledProviders: number;
-          hiddenModels: number;
-          totalModels: number;
-          totalProviders: number;
-          totalRequests30d: number;
-          totalTokens30d: number;
-          visibleModels: number;
-        };
-        usageSeries: Array<{ date: string; requests: number; tokens: number }>;
-        users: Array<{
-          email?: string;
-          lastUsedAt: number;
-          models: number;
-          name: string;
-          requests: number;
-          tokens: number;
-          userId: string;
-        }>;
-      }
-    >;
+    generateUploadUrl: FunctionReference<"mutation", "public", {}, any>;
+    getAdminSettings: FunctionReference<"query", "public", {}, any>;
+    getDashboardData: FunctionReference<"query", "public", {}, any>;
     importDiscoveredModels: FunctionReference<
       "mutation",
       "public",
@@ -332,7 +152,7 @@ export declare const api: {
         }>;
         providerId: Id<"providers">;
       },
-      { inserted: number; updated: number }
+      any
     >;
     inspectProviderCatalog: FunctionReference<
       "action",
@@ -369,202 +189,11 @@ export declare const api: {
           | "qwen"
           | "stepfun";
       },
-      {
-        error?: string;
-        fetchedAt: number;
-        modelCount: number;
-        models: Array<{
-          contextWindow?: number;
-          description?: string;
-          displayName: string;
-          maxOutputTokens?: number;
-          modalities?: { input: Array<string>; output: Array<string> };
-          modelId: string;
-          ownedBy?: string;
-        }>;
-        ok: boolean;
-        providerType:
-          | "openrouter"
-          | "openai"
-          | "anthropic"
-          | "google"
-          | "azure"
-          | "groq"
-          | "deepseek"
-          | "xai"
-          | "cerebras"
-          | "openai-compatible"
-          | "opencode"
-          | "mistral"
-          | "cohere"
-          | "perplexity"
-          | "fireworks"
-          | "together"
-          | "replicate"
-          | "moonshot"
-          | "qwen"
-          | "stepfun";
-        source: {
-          baseURL?: string;
-          discoveryMode:
-            | "openai-compatible"
-            | "openrouter"
-            | "anthropic"
-            | "google"
-            | "unsupported";
-          endpoint?: string;
-          note?: string;
-        };
-      }
+      any
     >;
     isAdmin: FunctionReference<"query", "public", {}, boolean>;
-    listAllModels: FunctionReference<
-      "query",
-      "public",
-      {},
-      Array<{
-        _creationTime: number;
-        _id: Id<"models">;
-        capabilities?: Array<string>;
-        contextWindow?: number;
-        description?: string;
-        discoveredAt?: number;
-        displayName: string;
-        icon?: string;
-        iconId?: Id<"_storage">;
-        iconType?: "emoji" | "lucide" | "upload";
-        iconUrl?: string;
-        isEnabled: boolean;
-        isFree: boolean;
-        lastSyncedAt?: number;
-        maxOutputTokens?: number;
-        modalities?: { input: Array<string>; output: Array<string> };
-        modelId: string;
-        ownedBy?: string;
-        provider?: {
-          _creationTime: number;
-          _id: Id<"providers">;
-          apiKey: string;
-          baseURL?: string;
-          config?: {
-            headers?: Record<string, string>;
-            organization?: string;
-            project?: string;
-            queryParams?: Record<string, string>;
-          };
-          description?: string;
-          icon?: string;
-          iconId?: Id<"_storage">;
-          iconType?: "emoji" | "lucide" | "upload";
-          isEnabled: boolean;
-          lastDiscoveredAt?: number;
-          lastDiscoveredModelCount?: number;
-          lastDiscoveryError?: string;
-          name: string;
-          providerType:
-            | "openrouter"
-            | "openai"
-            | "anthropic"
-            | "google"
-            | "azure"
-            | "groq"
-            | "deepseek"
-            | "xai"
-            | "cerebras"
-            | "openai-compatible"
-            | "opencode"
-            | "mistral"
-            | "cohere"
-            | "perplexity"
-            | "fireworks"
-            | "together"
-            | "replicate"
-            | "moonshot"
-            | "qwen"
-            | "stepfun";
-          rateLimit?: {
-            capacity?: number;
-            enabled: boolean;
-            kind: "fixed window" | "token bucket";
-            period: number;
-            rate: number;
-            scope: "global" | "user";
-            shards?: number;
-          };
-          sortOrder: number;
-        };
-        providerId: Id<"providers">;
-        providerName: string;
-        rateLimit?: {
-          capacity?: number;
-          enabled: boolean;
-          kind: "fixed window" | "token bucket";
-          period: number;
-          rate: number;
-          scope: "global" | "user";
-          shards?: number;
-        };
-        sortOrder: number;
-      }>
-    >;
-    listAllProviders: FunctionReference<
-      "query",
-      "public",
-      {},
-      Array<{
-        _creationTime: number;
-        _id: Id<"providers">;
-        apiKey: string;
-        baseURL?: string;
-        config?: {
-          headers?: Record<string, string>;
-          organization?: string;
-          project?: string;
-          queryParams?: Record<string, string>;
-        };
-        description?: string;
-        icon?: string;
-        iconId?: Id<"_storage">;
-        iconType?: "emoji" | "lucide" | "upload";
-        iconUrl?: string;
-        isEnabled: boolean;
-        lastDiscoveredAt?: number;
-        lastDiscoveredModelCount?: number;
-        lastDiscoveryError?: string;
-        name: string;
-        providerType:
-          | "openrouter"
-          | "openai"
-          | "anthropic"
-          | "google"
-          | "azure"
-          | "groq"
-          | "deepseek"
-          | "xai"
-          | "cerebras"
-          | "openai-compatible"
-          | "opencode"
-          | "mistral"
-          | "cohere"
-          | "perplexity"
-          | "fireworks"
-          | "together"
-          | "replicate"
-          | "moonshot"
-          | "qwen"
-          | "stepfun";
-        rateLimit?: {
-          capacity?: number;
-          enabled: boolean;
-          kind: "fixed window" | "token bucket";
-          period: number;
-          rate: number;
-          scope: "global" | "user";
-          shards?: number;
-        };
-        sortOrder: number;
-      }>
-    >;
+    listAllModels: FunctionReference<"query", "public", {}, any>;
+    listAllProviders: FunctionReference<"query", "public", {}, any>;
     listEnabledModels: FunctionReference<
       "query",
       "public",
@@ -769,13 +398,13 @@ export declare const api: {
       "mutation",
       "public",
       { clientUpdatedAt?: number; isFavorite: boolean; modelId: Id<"models"> },
-      { favorited: boolean }
+      any
     >;
     toggleFavoriteModel: FunctionReference<
       "mutation",
       "public",
       { modelId: Id<"models"> },
-      { favorited: boolean }
+      any
     >;
     toggleModelEnabled: FunctionReference<
       "mutation",
@@ -803,7 +432,7 @@ export declare const api: {
           shards?: number;
         };
       },
-      Id<"adminSettings">
+      any
     >;
     updateModel: FunctionReference<
       "mutation",
@@ -918,7 +547,7 @@ export declare const api: {
       "mutation",
       "public",
       {},
-      string
+      any
     >;
     generateMessage: FunctionReference<
       "mutation",
@@ -935,7 +564,7 @@ export declare const api: {
         searchEnabled?: boolean;
         threadId: string;
       },
-      null
+      any
     >;
     listThreadsWithMetadata: FunctionReference<
       "query",
@@ -999,37 +628,14 @@ export declare const api: {
     >;
   };
   chat: {
-    createThread: FunctionReference<"mutation", "public", {}, string>;
+    createThread: FunctionReference<"mutation", "public", {}, any>;
     deleteThread: FunctionReference<
       "mutation",
       "public",
       { threadId: string },
-      null
+      any
     >;
-    getThread: FunctionReference<
-      "query",
-      "public",
-      { threadId: string },
-      null | {
-        _creationTime: number;
-        _id: string;
-        metadata: null | {
-          _creationTime: number;
-          _id: Id<"threadMetadata">;
-          emoji: string;
-          icon?: string;
-          lastLabelUpdateAt: number;
-          projectId?: Id<"projects">;
-          sectionId?: Id<"sections">;
-          sortOrder: number;
-          threadId: string;
-          userId: Id<"users">;
-        };
-        project: null | { description?: string; id: string; name: string };
-        title?: string;
-        userId?: string;
-      }
-    >;
+    getThread: FunctionReference<"query", "public", { threadId: string }, any>;
     listMessages: FunctionReference<
       "query",
       "public",
@@ -1539,19 +1145,19 @@ export declare const api: {
       "mutation",
       "public",
       { projectId: Id<"projects">; threadId: string },
-      null
+      any
     >;
     createProject: FunctionReference<
       "mutation",
       "public",
       { description?: string; name: string },
-      { id: string }
+      any
     >;
     deleteProject: FunctionReference<
       "mutation",
       "public",
       { projectId: Id<"projects"> },
-      null
+      any
     >;
     getProjectForThread: FunctionReference<
       "query",
@@ -1565,19 +1171,7 @@ export declare const api: {
         updatedAt: number;
       }
     >;
-    listProjects: FunctionReference<
-      "query",
-      "public",
-      any,
-      Array<{
-        createdAt: number;
-        description?: string;
-        id: string;
-        name: string;
-        threadCount: number;
-        updatedAt: number;
-      }>
-    >;
+    listProjects: FunctionReference<"query", "public", any, any>;
     listThreadsByProject: FunctionReference<
       "query",
       "public",
@@ -1588,19 +1182,19 @@ export declare const api: {
       "mutation",
       "public",
       {},
-      { conflicts: number; migrated: number }
+      any
     >;
     removeThreadFromProject: FunctionReference<
       "mutation",
       "public",
       { threadId: string },
-      null
+      any
     >;
     updateProject: FunctionReference<
       "mutation",
       "public",
       { description?: string; name?: string; projectId: Id<"projects"> },
-      null
+      any
     >;
   };
   sections: {
@@ -1641,7 +1235,7 @@ export declare const api: {
       "mutation",
       "public",
       { threadId: string },
-      { messageCount: number; title: string; token: string }
+      any
     >;
     getChatShare: FunctionReference<
       "query",
@@ -1684,20 +1278,13 @@ export declare const api: {
       "action",
       "public",
       { limit?: number; query: string },
-      Array<{
-        createdAt: number;
-        messageId: string;
-        projectId?: string;
-        projectName?: string;
-        role: "user" | "assistant";
-        snippet: string;
-        threadId: string;
-        threadTitle: string;
-      }>
+      any
     >;
   };
   users: {
-    ensureCurrentUser: FunctionReference<"mutation", "public", {}, Id<"users">>;
+    ensureCurrentUser: FunctionReference<"mutation", "public", {}, any>;
+    getOrCreateProfile: FunctionReference<"mutation", "public", {}, any>;
+    getProfile: FunctionReference<"query", "public", {}, any>;
     getSettings: FunctionReference<
       "query",
       "public",
@@ -1718,32 +1305,7 @@ export declare const api: {
       { bio?: string; displayName?: string; image?: string },
       { success: boolean }
     >;
-    viewer: FunctionReference<
-      "query",
-      "public",
-      {},
-      null | {
-        _creationTime: number;
-        _id: Id<"users">;
-        email?: string;
-        emailVerificationTime?: number;
-        image?: string;
-        isAnonymous?: boolean;
-        name?: string;
-        phone?: string;
-        phoneVerificationTime?: number;
-        settings: null | {
-          _creationTime: number;
-          _id: Id<"userSettings">;
-          bio?: string;
-          displayName?: string;
-          image?: string;
-          updatedAt: number;
-          userId: Id<"users">;
-        };
-        tokenIdentifier?: string;
-      }
-    >;
+    viewer: FunctionReference<"query", "public", {}, any>;
   };
 };
 
@@ -2258,6 +1820,16 @@ export declare const internal: {
         threadId: string;
         threadTitle: string;
       }>
+    >;
+  };
+  users: {
+    deleteUser: FunctionReference<"mutation", "internal", { id: string }, any>;
+    getUser: FunctionReference<"query", "internal", { subject: string }, any>;
+    updateOrCreateUser: FunctionReference<
+      "mutation",
+      "internal",
+      { clerkUser: any },
+      any
     >;
   };
 };

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { usePaginatedQuery, useQuery } from '@/lib/convex-query-cache'
 
 export const Route = createFileRoute('/share/$shareId')({
+  ssr: false,
   component: SharedChatPage,
 })
 

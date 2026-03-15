@@ -832,6 +832,7 @@ export type DataModel = {
   };
   users: {
     document: {
+      clerkUserId?: string;
       email?: string;
       emailVerificationTime?: number;
       image?: string;
@@ -846,6 +847,7 @@ export type DataModel = {
     fieldPaths:
       | "_creationTime"
       | "_id"
+      | "clerkUserId"
       | "email"
       | "emailVerificationTime"
       | "image"
@@ -858,6 +860,7 @@ export type DataModel = {
       by_id: ["_id"];
       by_creation_time: ["_creationTime"];
       by_tokenIdentifier: ["tokenIdentifier", "_creationTime"];
+      clerkUserId: ["clerkUserId", "_creationTime"];
       email: ["email", "_creationTime"];
       phone: ["phone", "_creationTime"];
     };

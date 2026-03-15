@@ -26,10 +26,7 @@ export const createSection = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) {
-      throw new ConvexError({
-        code: 'UNAUTHORIZED',
-        message: 'You must be logged in to create a section',
-      })
+      return null
     }
 
     return await ctx.db.insert('sections', {
@@ -54,18 +51,12 @@ export const updateSection = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) {
-      throw new ConvexError({
-        code: 'UNAUTHORIZED',
-        message: 'You must be logged in to update a section',
-      })
+      return
     }
 
     const section = await ctx.db.get('sections', args.id)
     if (!section || section.userId !== userId) {
-      throw new ConvexError({
-        code: 'NOT_FOUND',
-        message: 'Section not found or you do not have permission to update it',
-      })
+      return
     }
 
     const { id, ...updates } = args
@@ -74,6 +65,7 @@ export const updateSection = mutation({
     )
 
     await ctx.db.patch('sections', id, cleanUpdates)
+    return
   },
 })
 
@@ -83,21 +75,16 @@ export const deleteSection = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) {
-      throw new ConvexError({
-        code: 'UNAUTHORIZED',
-        message: 'You must be logged in to delete a section',
-      })
+      return
     }
 
     const section = await ctx.db.get('sections', args.id)
     if (!section || section.userId !== userId) {
-      throw new ConvexError({
-        code: 'NOT_FOUND',
-        message: 'Section not found or you do not have permission to delete it',
-      })
+      return
     }
 
     await ctx.db.delete('sections', args.id)
+    return
   },
 })
 
@@ -107,20 +94,15 @@ export const toggleSection = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) {
-      throw new ConvexError({
-        code: 'UNAUTHORIZED',
-        message: 'You must be logged in to update a section',
-      })
+      return
     }
 
     const section = await ctx.db.get('sections', args.id)
     if (!section || section.userId !== userId) {
-      throw new ConvexError({
-        code: 'NOT_FOUND',
-        message: 'Section not found or you do not have permission to update it',
-      })
+      return
     }
 
     await ctx.db.patch('sections', args.id, { isExpanded: !section.isExpanded })
+    return
   },
 })

@@ -1,23 +1,19 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState } from 'react'
 import { Loader2, MessageSquare, Folder, X } from 'lucide-react'
 import { AuthRedirect } from '@/components/auth-redirect'
 import { ChatMessageList } from '@/components/ChatMessageList'
 import { ShareChatDialog } from '@/components/chat/ShareChatDialog'
 import { Button } from '@/components/ui/button'
 import { SidebarTrigger } from '@/components/ui/sidebar'
-import { useIsMobile } from '@/hooks/use-mobile'
 import {
   useCachedSessionStatus,
   useMessages,
   useProjects,
   useThread,
 } from '@/hooks/use-chat-data'
-import { useChatModel } from '@/components/chat-model-context'
-import { Sheet, SheetContent } from '@/components/ui/sheet'
-import { ModelSelectorPanel } from '@/components/model-selector'
 
 export const Route = createFileRoute('/_layout/$chatId')({
+  ssr: false,
   component: ChatPage,
 })
 

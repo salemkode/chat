@@ -6,7 +6,6 @@ import {
 } from '@tanstack/react-virtual'
 import type { FunctionReturnType } from 'convex/server'
 import { api } from 'convex/_generated/api'
-import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
 import { MessageLoadingSkeleton } from './chat/MessageLoadingSkeleton'
 import { Message } from './Message'
@@ -133,7 +132,10 @@ export function ChatMessageList({
               <Message
                 threadId={threadId}
                 message={msg}
-                promptMessageId={findPromptMessageId(messages, virtualRow.index)}
+                promptMessageId={findPromptMessageId(
+                  messages,
+                  virtualRow.index,
+                )}
               />
             </div>
           )

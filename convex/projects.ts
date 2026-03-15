@@ -1,16 +1,20 @@
-import { query, mutation, type QueryCtx, type MutationCtx } from './_generated/server'
+import {
+  query,
+  mutation,
+  type QueryCtx,
+  type MutationCtx,
+} from './_generated/server'
 import { components } from './_generated/api'
 import type { Id } from './_generated/dataModel'
 import { v, ConvexError } from 'convex/values'
 import { getAuthUserId } from './lib/auth'
 
-async function requireUserId(ctx: QueryCtx | MutationCtx) {
+async function requireUserId(
+  ctx: QueryCtx | MutationCtx,
+): Promise<Id<'users'> | null> {
   const userId = await getAuthUserId(ctx)
   if (!userId) {
-    throw new ConvexError({
-      code: 'UNAUTHORIZED',
-      message: 'You must be logged in to manage projects',
-    })
+    return null
   }
   return userId
 }
@@ -18,14 +22,12 @@ async function requireUserId(ctx: QueryCtx | MutationCtx) {
 async function getOwnedProject(
   ctx: QueryCtx | MutationCtx,
   projectId: Id<'projects'>,
-  userId: Id<'users'>,
+  userId: Id<'users'> | null,
 ) {
+  if (!userId) return null
   const project = await ctx.db.get(projectId)
   if (!project || project.userId !== userId) {
-    throw new ConvexError({
-      code: 'NOT_FOUND',
-      message: 'Project not found',
-    })
+    return null
   }
   return project
 }
@@ -33,18 +35,16 @@ async function getOwnedProject(
 async function getOwnedThreadMetadata(
   ctx: MutationCtx,
   threadId: string,
-  userId: Id<'users'>,
+  userId: Id<'users'> | null,
 ) {
+  if (!userId) return null
   const metadata = await ctx.db
     .query('threadMetadata')
     .withIndex('by_threadId', (q) => q.eq('threadId', threadId))
     .first()
 
   if (!metadata || metadata.userId !== userId) {
-    throw new ConvexError({
-      code: 'NOT_FOUND',
-      message: 'Thread not found',
-    })
+    return null
   }
 
   return metadata
@@ -55,19 +55,15 @@ export const createProject = mutation({
     name: v.string(),
     description: v.optional(v.string()),
   },
-  returns: v.object({
-    id: v.string(),
-  }),
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx)
+    if (!userId) return null
+
     const now = Date.now()
     const name = args.name.trim()
 
     if (!name) {
-      throw new ConvexError({
-        code: 'VALIDATION_ERROR',
-        message: 'Project name is required',
-      })
+      return null
     }
 
     const id = await ctx.db.insert('projects', {
@@ -84,18 +80,9 @@ export const createProject = mutation({
 })
 
 export const listProjects = query({
-  returns: v.array(
-    v.object({
-      id: v.string(),
-      name: v.string(),
-      description: v.optional(v.string()),
-      threadCount: v.number(),
-      createdAt: v.number(),
-      updatedAt: v.number(),
-    }),
-  ),
   handler: async (ctx) => {
     const userId = await requireUserId(ctx)
+    if (!userId) return []
 
     const [projects, metadata] = await Promise.all([
       ctx.db
@@ -135,10 +122,12 @@ export const updateProject = mutation({
     name: v.optional(v.string()),
     description: v.optional(v.string()),
   },
-  returns: v.null(),
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx)
+    if (!userId) return null
+
     const project = await getOwnedProject(ctx, args.projectId, userId)
+    if (!project) return null
 
     const patch: {
       name?: string
@@ -151,10 +140,7 @@ export const updateProject = mutation({
     if (args.name !== undefined) {
       const name = args.name.trim()
       if (!name) {
-        throw new ConvexError({
-          code: 'VALIDATION_ERROR',
-          message: 'Project name is required',
-        })
+        return null
       }
       patch.name = name
     }
@@ -172,10 +158,12 @@ export const deleteProject = mutation({
   args: {
     projectId: v.id('projects'),
   },
-  returns: v.null(),
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx)
+    if (!userId) return null
+
     const project = await getOwnedProject(ctx, args.projectId, userId)
+    if (!project) return null
 
     const [projectMemories, linkedThreads] = await Promise.all([
       ctx.db
@@ -207,13 +195,16 @@ export const assignThreadToProject = mutation({
     threadId: v.string(),
     projectId: v.id('projects'),
   },
-  returns: v.null(),
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx)
+    if (!userId) return null
+
     const [metadata, project] = await Promise.all([
       getOwnedThreadMetadata(ctx, args.threadId, userId),
       getOwnedProject(ctx, args.projectId, userId),
     ])
+
+    if (!metadata || !project) return null
 
     const now = Date.now()
     const previousProjectId = metadata.projectId
@@ -243,10 +234,13 @@ export const removeThreadFromProject = mutation({
   args: {
     threadId: v.string(),
   },
-  returns: v.null(),
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx)
+    if (!userId) return null
+
     const metadata = await getOwnedThreadMetadata(ctx, args.threadId, userId)
+    if (!metadata) return null
+
     const projectId = metadata.projectId
 
     await ctx.db.patch(metadata._id, {
@@ -312,7 +306,10 @@ export const listThreadsByProject = query({
   },
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx)
-    await getOwnedProject(ctx, args.projectId, userId)
+    if (!userId) return []
+
+    const project = await getOwnedProject(ctx, args.projectId, userId)
+    if (!project) return []
 
     const metadata = await ctx.db
       .query('threadMetadata')
@@ -345,12 +342,10 @@ export const listThreadsByProject = query({
 
 export const migrateLegacyThreadProjectAssignments = mutation({
   args: {},
-  returns: v.object({
-    migrated: v.number(),
-    conflicts: v.number(),
-  }),
   handler: async (ctx) => {
     const userId = await requireUserId(ctx)
+    if (!userId) return { migrated: 0, conflicts: 0 }
+
     const projects = await ctx.db
       .query('projects')
       .withIndex('by_user', (q) => q.eq('userId', userId))

@@ -16,7 +16,9 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as LayoutRouteImport } from './routes/_layout'
 import { Route as LayoutIndexRouteImport } from './routes/_layout.index'
+import { Route as SignupSsoCallbackRouteImport } from './routes/signup.sso-callback'
 import { Route as ShareShareIdRouteImport } from './routes/share.$shareId'
+import { Route as LoginSsoCallbackRouteImport } from './routes/login.sso-callback'
 import { Route as LayoutChatIdRouteImport } from './routes/_layout.$chatId'
 
 const SignupRoute = SignupRouteImport.update({
@@ -53,10 +55,20 @@ const LayoutIndexRoute = LayoutIndexRouteImport.update({
   path: '/',
   getParentRoute: () => LayoutRoute,
 } as any)
+const SignupSsoCallbackRoute = SignupSsoCallbackRouteImport.update({
+  id: '/sso-callback',
+  path: '/sso-callback',
+  getParentRoute: () => SignupRoute,
+} as any)
 const ShareShareIdRoute = ShareShareIdRouteImport.update({
   id: '/share/$shareId',
   path: '/share/$shareId',
   getParentRoute: () => rootRouteImport,
+} as any)
+const LoginSsoCallbackRoute = LoginSsoCallbackRouteImport.update({
+  id: '/sso-callback',
+  path: '/sso-callback',
+  getParentRoute: () => LoginRoute,
 } as any)
 const LayoutChatIdRoute = LayoutChatIdRouteImport.update({
   id: '/$chatId',
@@ -67,33 +79,39 @@ const LayoutChatIdRoute = LayoutChatIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof LayoutIndexRoute
   '/admin': typeof AdminRoute
-  '/login': typeof LoginRoute
+  '/login': typeof LoginRouteWithChildren
   '/memory': typeof MemoryRoute
   '/memory-demo': typeof MemoryDemoRoute
-  '/signup': typeof SignupRoute
+  '/signup': typeof SignupRouteWithChildren
   '/$chatId': typeof LayoutChatIdRoute
+  '/login/sso-callback': typeof LoginSsoCallbackRoute
   '/share/$shareId': typeof ShareShareIdRoute
+  '/signup/sso-callback': typeof SignupSsoCallbackRoute
 }
 export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
-  '/login': typeof LoginRoute
+  '/login': typeof LoginRouteWithChildren
   '/memory': typeof MemoryRoute
   '/memory-demo': typeof MemoryDemoRoute
-  '/signup': typeof SignupRoute
+  '/signup': typeof SignupRouteWithChildren
   '/$chatId': typeof LayoutChatIdRoute
+  '/login/sso-callback': typeof LoginSsoCallbackRoute
   '/share/$shareId': typeof ShareShareIdRoute
+  '/signup/sso-callback': typeof SignupSsoCallbackRoute
   '/': typeof LayoutIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_layout': typeof LayoutRouteWithChildren
   '/admin': typeof AdminRoute
-  '/login': typeof LoginRoute
+  '/login': typeof LoginRouteWithChildren
   '/memory': typeof MemoryRoute
   '/memory-demo': typeof MemoryDemoRoute
-  '/signup': typeof SignupRoute
+  '/signup': typeof SignupRouteWithChildren
   '/_layout/$chatId': typeof LayoutChatIdRoute
+  '/login/sso-callback': typeof LoginSsoCallbackRoute
   '/share/$shareId': typeof ShareShareIdRoute
+  '/signup/sso-callback': typeof SignupSsoCallbackRoute
   '/_layout/': typeof LayoutIndexRoute
 }
 export interface FileRouteTypes {
@@ -106,7 +124,9 @@ export interface FileRouteTypes {
     | '/memory-demo'
     | '/signup'
     | '/$chatId'
+    | '/login/sso-callback'
     | '/share/$shareId'
+    | '/signup/sso-callback'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/admin'
@@ -115,7 +135,9 @@ export interface FileRouteTypes {
     | '/memory-demo'
     | '/signup'
     | '/$chatId'
+    | '/login/sso-callback'
     | '/share/$shareId'
+    | '/signup/sso-callback'
     | '/'
   id:
     | '__root__'
@@ -126,17 +148,19 @@ export interface FileRouteTypes {
     | '/memory-demo'
     | '/signup'
     | '/_layout/$chatId'
+    | '/login/sso-callback'
     | '/share/$shareId'
+    | '/signup/sso-callback'
     | '/_layout/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   LayoutRoute: typeof LayoutRouteWithChildren
   AdminRoute: typeof AdminRoute
-  LoginRoute: typeof LoginRoute
+  LoginRoute: typeof LoginRouteWithChildren
   MemoryRoute: typeof MemoryRoute
   MemoryDemoRoute: typeof MemoryDemoRoute
-  SignupRoute: typeof SignupRoute
+  SignupRoute: typeof SignupRouteWithChildren
   ShareShareIdRoute: typeof ShareShareIdRoute
 }
 
@@ -191,12 +215,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutIndexRouteImport
       parentRoute: typeof LayoutRoute
     }
+    '/signup/sso-callback': {
+      id: '/signup/sso-callback'
+      path: '/sso-callback'
+      fullPath: '/signup/sso-callback'
+      preLoaderRoute: typeof SignupSsoCallbackRouteImport
+      parentRoute: typeof SignupRoute
+    }
     '/share/$shareId': {
       id: '/share/$shareId'
       path: '/share/$shareId'
       fullPath: '/share/$shareId'
       preLoaderRoute: typeof ShareShareIdRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/login/sso-callback': {
+      id: '/login/sso-callback'
+      path: '/sso-callback'
+      fullPath: '/login/sso-callback'
+      preLoaderRoute: typeof LoginSsoCallbackRouteImport
+      parentRoute: typeof LoginRoute
     }
     '/_layout/$chatId': {
       id: '/_layout/$chatId'
@@ -221,15 +259,46 @@ const LayoutRouteChildren: LayoutRouteChildren = {
 const LayoutRouteWithChildren =
   LayoutRoute._addFileChildren(LayoutRouteChildren)
 
+interface LoginRouteChildren {
+  LoginSsoCallbackRoute: typeof LoginSsoCallbackRoute
+}
+
+const LoginRouteChildren: LoginRouteChildren = {
+  LoginSsoCallbackRoute: LoginSsoCallbackRoute,
+}
+
+const LoginRouteWithChildren = LoginRoute._addFileChildren(LoginRouteChildren)
+
+interface SignupRouteChildren {
+  SignupSsoCallbackRoute: typeof SignupSsoCallbackRoute
+}
+
+const SignupRouteChildren: SignupRouteChildren = {
+  SignupSsoCallbackRoute: SignupSsoCallbackRoute,
+}
+
+const SignupRouteWithChildren =
+  SignupRoute._addFileChildren(SignupRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   LayoutRoute: LayoutRouteWithChildren,
   AdminRoute: AdminRoute,
-  LoginRoute: LoginRoute,
+  LoginRoute: LoginRouteWithChildren,
   MemoryRoute: MemoryRoute,
   MemoryDemoRoute: MemoryDemoRoute,
-  SignupRoute: SignupRoute,
+  SignupRoute: SignupRouteWithChildren,
   ShareShareIdRoute: ShareShareIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

@@ -1,4 +1,4 @@
-import { useAuth } from '@clerk/clerk-react'
+import { useAuth } from '@clerk/tanstack-react-start'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import type { FunctionReturnType } from 'convex/server'
 import { useAction, useMutation } from 'convex/react'
@@ -87,6 +87,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 
 export const Route = createFileRoute('/admin')({
+  ssr: false,
   component: AdminPage,
 })
 

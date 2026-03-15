@@ -99,25 +99,13 @@ export const searchSidebar = action({
     query: v.string(),
     limit: v.optional(v.number()),
   },
-  returns: v.array(
-    v.object({
-      messageId: v.string(),
-      threadId: v.string(),
-      threadTitle: v.string(),
-      projectId: v.optional(v.string()),
-      projectName: v.optional(v.string()),
-      snippet: v.string(),
-      createdAt: v.number(),
-      role: v.union(v.literal('user'), v.literal('assistant')),
-    }),
-  ),
   handler: async (ctx, args) => {
-    const userId = await ctx.runQuery(internal.sidebarSearch.getSearchUserId, {})
+    const userId = await ctx.runQuery(
+      internal.sidebarSearch.getSearchUserId,
+      {},
+    )
     if (!userId) {
-      throw new ConvexError({
-        code: 'UNAUTHORIZED',
-        message: 'You must be logged in to search chats',
-      })
+      return []
     }
 
     const query = args.query.trim()
@@ -136,24 +124,32 @@ export const searchSidebar = action({
         ).embeddings[0]
       : undefined
 
-    const results = await ctx.runAction(components.agent.messages.searchMessages, {
-      searchAllMessagesForUserId: userId,
-      text: query,
-      textSearch: true,
-      vectorSearch: vectorSearchEnabled,
-      embedding,
-      embeddingModel: vectorSearchEnabled ? SEARCH_EMBEDDING_MODEL : undefined,
-      limit,
-    })
+    const results = await ctx.runAction(
+      components.agent.messages.searchMessages,
+      {
+        searchAllMessagesForUserId: userId,
+        text: query,
+        textSearch: true,
+        vectorSearch: vectorSearchEnabled,
+        embedding,
+        embeddingModel: vectorSearchEnabled
+          ? SEARCH_EMBEDDING_MODEL
+          : undefined,
+        limit,
+      },
+    )
 
     const threadIds = Array.from(
       new Set(results.map((result) => result.threadId).filter(Boolean)),
     )
 
-    const threads = await ctx.runQuery(internal.sidebarSearch.getThreadSearchMetadata, {
-      userId,
-      threadIds,
-    })
+    const threads = await ctx.runQuery(
+      internal.sidebarSearch.getThreadSearchMetadata,
+      {
+        userId,
+        threadIds,
+      },
+    )
 
     const threadMap = new Map(
       threads.map((thread) => [
@@ -168,12 +164,15 @@ export const searchSidebar = action({
 
     return results
       .filter(
-        (result): result is (typeof results)[number] & {
+        (
+          result,
+        ): result is (typeof results)[number] & {
           message: {
             role: 'user' | 'assistant'
           }
         } =>
-          result.message?.role === 'user' || result.message?.role === 'assistant',
+          result.message?.role === 'user' ||
+          result.message?.role === 'assistant',
       )
       .map((result) => {
         const text = extractMessageText(result)

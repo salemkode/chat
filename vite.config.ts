@@ -1,15 +1,14 @@
 import { defineConfig } from 'vite'
 import { devtools } from '@tanstack/devtools-vite'
-import { tanstackRouter } from '@tanstack/router-plugin/vite'
+import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import viteReact from '@vitejs/plugin-react'
 import viteTsConfigPaths from 'vite-tsconfig-paths'
 import { VitePWA } from 'vite-plugin-pwa'
-import { fileURLToPath, URL } from 'url'
+import { fileURLToPath, URL } from 'node:url'
 
 import tailwindcss from '@tailwindcss/vite'
 
-const tanstackEventBusEnabled =
-  process.env.TANSTACK_DEVTOOLS_EVENT_BUS === '1'
+const tanstackEventBusEnabled = process.env.TANSTACK_DEVTOOLS_EVENT_BUS === '1'
 const tanstackEventBusPort = Number.parseInt(
   process.env.TANSTACK_DEVTOOLS_EVENT_BUS_PORT ?? '42069',
   10,
@@ -30,12 +29,14 @@ const config = defineConfig({
           : 42069,
       },
     }),
-    tanstackRouter({
-      target: 'react',
-      routesDirectory: './src/routes',
-      generatedRouteTree: './src/routeTree.gen.ts',
-      quoteStyle: 'single',
-      semicolons: false,
+    tanstackStart({
+      srcDirectory: 'src',
+      router: {
+        routesDirectory: './routes',
+        generatedRouteTree: './routeTree.gen.ts',
+        quoteStyle: 'single',
+        semicolons: false,
+      },
     }),
     // this is the plugin that enables path aliases
     viteTsConfigPaths({

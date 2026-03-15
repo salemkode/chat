@@ -30,6 +30,7 @@ import {
 } from '@/hooks/use-chat-data'
 
 export const Route = createFileRoute('/_layout')({
+  ssr: false,
   component: ChatLayout,
 })
 
@@ -114,9 +115,9 @@ function AuthenticatedChatLayout() {
           style={
             isMobile
               ? ({
-                '--mobile-header-height': '52px',
-                '--mobile-composer-height': `${mobileComposerHeight}px`,
-              } as CSSProperties)
+                  '--mobile-header-height': '52px',
+                  '--mobile-composer-height': `${mobileComposerHeight}px`,
+                } as CSSProperties)
               : undefined
           }
         >

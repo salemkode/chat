@@ -1,16 +1,16 @@
 import {
   ClerkLoaded,
   ClerkLoading,
+  Show,
   SignUp,
-  SignedIn,
-  SignedOut,
-} from '@clerk/clerk-react'
+} from '@clerk/tanstack-react-start'
 import { createFileRoute, Navigate, useSearch } from '@tanstack/react-router'
 import { Loader2 } from 'lucide-react'
 import { getPostLoginRedirectTarget } from '@/lib/auth-redirect'
 import { parseRouteSearchRedirects } from '@/lib/parsers'
 
 export const Route = createFileRoute('/signup')({
+  ssr: false,
   component: SignupPage,
   validateSearch: parseRouteSearchRedirects,
 })
@@ -36,18 +36,18 @@ function SignupPage() {
       </ClerkLoading>
 
       <ClerkLoaded>
-        <SignedIn>
+        <Show when="signed-in">
           <Navigate to={targetAfterSignup} replace />
-        </SignedIn>
+        </Show>
 
-        <SignedOut>
+        <Show when="signed-out">
           <SignUp
             path="/signup"
             routing="path"
             signInUrl="/login"
             {...redirectProps}
           />
-        </SignedOut>
+        </Show>
       </ClerkLoaded>
     </div>
   )

@@ -36,20 +36,14 @@ async function getOwnedThread(
     })
   } catch (error) {
     if (isInvalidThreadIdError(error)) {
-      throw new ConvexError({
-        code: 'NOT_FOUND',
-        message: 'Thread not found',
-      })
+      return null
     }
 
-    throw error
+    return null
   }
 
   if (!thread || thread.userId !== userId) {
-    throw new ConvexError({
-      code: 'NOT_FOUND',
-      message: 'Thread not found or you do not have access to it',
-    })
+    return null
   }
 
   return thread
@@ -114,29 +108,20 @@ export const createOrUpdateChatShare = mutation({
   args: {
     threadId: v.string(),
   },
-  returns: v.object({
-    token: v.string(),
-    title: v.string(),
-    messageCount: v.number(),
-  }),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
 
     if (!userId) {
-      throw new ConvexError({
-        code: 'UNAUTHORIZED',
-        message: 'You must be logged in to share chats',
-      })
+      return null
     }
 
     const thread = await getOwnedThread(ctx, args.threadId, userId)
+    if (!thread) return null
+
     const messages = await listShareableMessages(ctx, args.threadId)
 
     if (messages.length === 0) {
-      throw new ConvexError({
-        code: 'VALIDATION_ERROR',
-        message: 'Only chats with messages can be shared',
-      })
+      return null
     }
 
     const title = thread.title?.trim() || 'Shared chat'

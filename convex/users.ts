@@ -1,6 +1,13 @@
-import { query, mutation } from './_generated/server'
 import { getAuthUserId } from './lib/auth'
 import { v } from 'convex/values'
+import {
+  internalMutation,
+  internalQuery,
+  mutation,
+  query,
+  QueryCtx,
+} from "./_generated/server";
+import { UserJSON } from "@clerk/backend";
 
 const userSettingsValidator = v.object({
   _id: v.id('userSettings'),
@@ -12,9 +19,43 @@ const userSettingsValidator = v.object({
   updatedAt: v.number(),
 })
 
+export const getProfile = query({
+  args: {},
+  handler: async (ctx) => {
+    try {
+      const identity = await ctx.auth.getUserIdentity()
+      if (identity === null) {
+        return null
+      }
+
+      const user = await ctx.db
+        .query('users')
+        .withIndex('by_tokenIdentifier', (q) =>
+          q.eq('tokenIdentifier', identity.tokenIdentifier),
+        )
+        .unique()
+
+      return user
+    } catch (error) {
+      console.error('getProfile error:', error)
+      return null
+    }
+  },
+})
+
+export const getOrCreateProfile = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx)
+    if (userId === null) {
+      throw new Error('Not authenticated')
+    }
+    return userId
+  },
+})
+
 export const ensureCurrentUser = mutation({
   args: {},
-  returns: v.id('users'),
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx)
     if (userId === null) {
@@ -26,22 +67,6 @@ export const ensureCurrentUser = mutation({
 
 export const viewer = query({
   args: {},
-  returns: v.union(
-    v.null(),
-    v.object({
-      _id: v.id('users'),
-      _creationTime: v.number(),
-      tokenIdentifier: v.optional(v.string()),
-      name: v.optional(v.string()),
-      image: v.optional(v.string()),
-      email: v.optional(v.string()),
-      emailVerificationTime: v.optional(v.number()),
-      phone: v.optional(v.string()),
-      phoneVerificationTime: v.optional(v.number()),
-      isAnonymous: v.optional(v.boolean()),
-      settings: v.union(v.null(), userSettingsValidator),
-    }),
-  ),
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx)
     if (userId === null) {
@@ -123,3 +148,65 @@ export const updateSettings = mutation({
     return { success: true }
   },
 })
+
+export async function userQuery(
+  ctx: QueryCtx,
+  clerkUserId: string
+) {
+  return await ctx.db
+    .query("users")
+    .withIndex("clerkUserId", (q) => q.eq("clerkUserId", clerkUserId))
+    .unique();
+}
+
+/** Get user by Clerk use id (AKA "subject" on auth)  */
+export const getUser = internalQuery({
+  args: { subject: v.string() },
+  async handler(ctx, args) {
+    return await userQuery(ctx, args.subject);
+  },
+});
+
+/** Create a new Clerk user or update existing Clerk user data. */
+export const updateOrCreateUser = internalMutation({
+  args: { clerkUser: v.any() }, // no runtime validation, trust Clerk
+  async handler(ctx, { clerkUser }: { clerkUser: UserJSON }) {
+    const userRecord = await userQuery(ctx, clerkUser.id);
+
+    if (userRecord === null) {
+      return await ctx.db.insert('users', {
+        name: `${clerkUser.first_name} ${clerkUser.last_name}`,
+        image: clerkUser.image_url,
+        email: clerkUser.email_addresses[0].email_address,
+        emailVerificationTime: clerkUser.email_addresses[0].verification?.status === 'verified' ? Date.now() : undefined,
+        isAnonymous: false,
+        clerkUserId: clerkUser.id,
+      })
+    }
+
+    await ctx.db.patch(userRecord._id, {
+      name: `${clerkUser.first_name} ${clerkUser.last_name}`,
+      image: clerkUser.image_url,
+      email: clerkUser.email_addresses[0].email_address,
+      emailVerificationTime: clerkUser.email_addresses[0].verification?.status === 'verified' ? Date.now() : undefined,
+      clerkUserId: clerkUser.id,
+    })
+
+    return userRecord?._id || null;
+  },
+});
+
+/** Delete a user by clerk user ID. */
+export const deleteUser = internalMutation({
+  args: { id: v.string() },
+  async handler(ctx, { id }) {
+    const userRecord = await userQuery(ctx, id);
+
+    if (userRecord === null) {
+      console.warn("can't delete user, does not exist", id);
+    } else {
+      await ctx.db.delete(userRecord._id);
+    }
+  },
+});
+

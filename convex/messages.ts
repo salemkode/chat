@@ -25,10 +25,7 @@ export const send = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) {
-      throw new ConvexError({
-        code: 'UNAUTHORIZED',
-        message: 'You must be logged in to send messages',
-      })
+      return
     }
 
     await ctx.db.insert('messages', {
@@ -36,5 +33,6 @@ export const send = mutation({
       userId,
       role: args.role,
     })
+    return
   },
 })

@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { useClerk, useUser } from '@clerk/clerk-react'
+import { useClerk, useUser } from '@clerk/tanstack-react-start'
 import { useNavigate } from '@tanstack/react-router'
 import {
   CircleDollarSign,
@@ -665,7 +665,11 @@ function ThreadRow({
             <IconActionButton
               label={thread.pinned ? 'Unpin chat' : 'Pin chat'}
               onClick={onTogglePinned}
-              icon={<Pin className={cn('size-3.5', thread.pinned && 'fill-current')} />}
+              icon={
+                <Pin
+                  className={cn('size-3.5', thread.pinned && 'fill-current')}
+                />
+              }
             />
             {onRemoveFromProject ? (
               <IconActionButton

@@ -9,6 +9,7 @@ import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { ModelSelectorPanel } from '@/components/model-selector'
 
 export const Route = createFileRoute('/_layout/')({
+  ssr: false,
   component: NewChatIndex,
 })
 

@@ -32,10 +32,12 @@ export default defineSchema({
     phone: v.optional(v.string()),
     phoneVerificationTime: v.optional(v.number()),
     isAnonymous: v.optional(v.boolean()),
+    clerkUserId: v.optional(v.string()),
   })
     .index('by_tokenIdentifier', ['tokenIdentifier'])
     .index('email', ['email'])
-    .index('phone', ['phone']),
+    .index('phone', ['phone'])
+    .index('clerkUserId', ['clerkUserId']),
 
   messages: defineTable({
     body: v.string(),

@@ -133,11 +133,7 @@ function isPlaceholderThreadTitle(
   const normalizedTitle = title?.trim().toLowerCase()
   if (!normalizedTitle) return true
 
-  const placeholderTitles = new Set([
-    'new chat',
-    'untitled',
-    'untitled chat',
-  ])
+  const placeholderTitles = new Set(['new chat', 'untitled', 'untitled chat'])
 
   if (placeholderTitles.has(normalizedTitle)) {
     return true
@@ -228,7 +224,10 @@ async function getConversationSnapshot(
     messageCount,
     firstUserMessage,
     recentTranscript: recentMessages
-      .map((message) => `${message.role}: ${summarizeForPrompt(message.text, 180)}`)
+      .map(
+        (message) =>
+          `${message.role}: ${summarizeForPrompt(message.text, 180)}`,
+      )
       .join('\n'),
   }
 }
@@ -342,14 +341,15 @@ async function markPendingGenerationFailed(
       order: resolvedOrder,
       reason: args.error,
     }),
-    ...matchingPendingMessages.map((message: (typeof matchingPendingMessages)[number]) =>
-      ctx.runMutation(components.agent.messages.finalizeMessage, {
-        messageId: message._id,
-        result: {
-          status: 'failed',
-          error: args.error,
-        },
-      }),
+    ...matchingPendingMessages.map(
+      (message: (typeof matchingPendingMessages)[number]) =>
+        ctx.runMutation(components.agent.messages.finalizeMessage, {
+          messageId: message._id,
+          result: {
+            status: 'failed',
+            error: args.error,
+          },
+        }),
     ),
   ])
 }
@@ -670,12 +670,15 @@ async function deleteResponseStepsForPrompt(
   let startStepOrder = args.promptStepOrder + 1
 
   while (true) {
-    const result = await ctx.runMutation(components.agent.messages.deleteByOrder, {
-      threadId: args.threadId,
-      startOrder,
-      startStepOrder,
-      endOrder: args.promptOrder + 1,
-    })
+    const result = await ctx.runMutation(
+      components.agent.messages.deleteByOrder,
+      {
+        threadId: args.threadId,
+        startOrder,
+        startStepOrder,
+        endOrder: args.promptOrder + 1,
+      },
+    )
 
     if (result.isDone) {
       return
@@ -715,10 +718,13 @@ async function registerChatAttachments(
     }
 
     const filename = attachment.filename?.trim() || undefined
-    const existing = await ctx.runMutation(components.agent.files.useExistingFile, {
-      hash: metadata.sha256,
-      filename,
-    })
+    const existing = await ctx.runMutation(
+      components.agent.files.useExistingFile,
+      {
+        hash: metadata.sha256,
+        filename,
+      },
+    )
 
     const fileId =
       existing?.fileId ??
@@ -731,7 +737,8 @@ async function registerChatAttachments(
         })
       ).fileId
 
-    const storageId = (existing?.storageId || attachment.storageId) as Id<'_storage'>
+    const storageId = (existing?.storageId ||
+      attachment.storageId) as Id<'_storage'>
     if (!(await ctx.storage.getUrl(storageId))) {
       throw new ConvexError({
         code: 'NOT_FOUND',
@@ -1157,14 +1164,10 @@ export const streamMessage = internalAction({
 
 export const generateAttachmentUploadUrl = mutation({
   args: {},
-  returns: v.string(),
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) {
-      throw new ConvexError({
-        code: 'UNAUTHORIZED',
-        message: 'You must be logged in to upload files',
-      })
+      return ''
     }
 
     return await ctx.storage.generateUploadUrl()
@@ -1180,10 +1183,11 @@ export const generateMessage = mutation({
     searchEnabled: v.optional(v.boolean()),
     attachments: v.optional(v.array(chatAttachmentValidator)),
   },
-  returns: v.null(),
   handler: async (ctx, args) => {
-    const { userId, model, provider, resolvedProjectId } =
-      await resolveGenerationDependencies(ctx, args)
+    const result = await resolveGenerationDependencies(ctx, args)
+    if (!result) return null
+
+    const { userId, model, provider, resolvedProjectId } = result
 
     let promptMessageId: string | undefined
 
@@ -1212,10 +1216,7 @@ export const generateMessage = mutation({
       }
 
       if (content.length === 0) {
-        throw new ConvexError({
-          code: 'VALIDATION_ERROR',
-          message: 'Message requires text or an attachment',
-        })
+        return null
       }
 
       const saved = await saveMessage(ctx, components.agent, {
@@ -1573,17 +1574,18 @@ export const listThreadsWithMetadata = query({
     )
     const projectMap = new Map(
       projects
-        .filter((project): project is NonNullable<typeof project> => project !== null)
+        .filter(
+          (project): project is NonNullable<typeof project> => project !== null,
+        )
         .map((project) => [project._id.toString(), project]),
     )
 
     return threads.page
       .map((thread) => {
         const itemMetadata = metadataByThreadId.get(thread._id) ?? null
-        const project =
-          itemMetadata?.projectId
-            ? projectMap.get(itemMetadata.projectId.toString())
-            : null
+        const project = itemMetadata?.projectId
+          ? projectMap.get(itemMetadata.projectId.toString())
+          : null
 
         return {
           _id: thread._id,

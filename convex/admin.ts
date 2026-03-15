@@ -309,9 +309,16 @@ export const getAdminContext = internalQuery({
 
 export const generateUploadUrl = mutation({
   args: {},
-  returns: v.string(),
   handler: async (ctx) => {
-    await requireAdmin(ctx)
+    const userId = await getAuthUserId(ctx)
+    if (!userId) return ''
+    const admin = await ctx.db
+      .query('admins')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .first()
+
+    if (!admin) return ''
+
     return await ctx.storage.generateUploadUrl()
   },
 })
@@ -336,9 +343,28 @@ export const isAdmin = query({
 
 export const getAdminSettings = query({
   args: {},
-  returns: adminSettingsValidator,
   handler: async (ctx) => {
-    await requireAdmin(ctx)
+    const userId = await getAuthUserId(ctx)
+    if (!userId)
+      return {
+        _id: undefined,
+        key: 'global',
+        defaultRateLimit: undefined,
+        updatedAt: 0,
+      }
+    const admin = await ctx.db
+      .query('admins')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .first()
+
+    if (!admin)
+      return {
+        _id: undefined,
+        key: 'global',
+        defaultRateLimit: undefined,
+        updatedAt: 0,
+      }
+
     return await getCurrentAdminSettings(ctx)
   },
 })
@@ -347,9 +373,16 @@ export const updateAdminSettings = mutation({
   args: {
     defaultRateLimit: v.optional(rateLimitPolicyValidator),
   },
-  returns: v.id('adminSettings'),
   handler: async (ctx, args) => {
-    await requireAdmin(ctx)
+    const userId = await getAuthUserId(ctx)
+    if (!userId) return null
+    const admin = await ctx.db
+      .query('admins')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .first()
+
+    if (!admin) return null
+
     const existing = await ctx.db
       .query('adminSettings')
       .withIndex('by_key', (q) => q.eq('key', 'global'))
@@ -372,9 +405,16 @@ export const updateAdminSettings = mutation({
 
 export const listAllProviders = query({
   args: {},
-  returns: v.array(providerWithIconUrlValidator),
   handler: async (ctx) => {
-    await requireAdmin(ctx)
+    const userId = await getAuthUserId(ctx)
+    if (!userId) return []
+    const admin = await ctx.db
+      .query('admins')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .first()
+
+    if (!admin) return []
+
     const providers = await ctx.db.query('providers').collect()
     return await Promise.all(
       providers
@@ -391,35 +431,16 @@ export const listAllProviders = query({
 
 export const listAllModels = query({
   args: {},
-  returns: v.array(
-    v.object({
-      _id: v.id('models'),
-      _creationTime: v.number(),
-      modelId: v.string(),
-      displayName: v.string(),
-      description: v.optional(v.string()),
-      isEnabled: v.boolean(),
-      isFree: v.boolean(),
-      sortOrder: v.number(),
-      providerId: v.id('providers'),
-      icon: v.optional(v.string()),
-      iconType: v.optional(iconTypeValidator),
-      iconId: v.optional(v.id('_storage')),
-      capabilities: v.optional(v.array(v.string())),
-      ownedBy: v.optional(v.string()),
-      contextWindow: v.optional(v.number()),
-      maxOutputTokens: v.optional(v.number()),
-      modalities: v.optional(modalitiesValidator),
-      rateLimit: v.optional(rateLimitPolicyValidator),
-      discoveredAt: v.optional(v.number()),
-      lastSyncedAt: v.optional(v.number()),
-      iconUrl: v.optional(v.string()),
-      providerName: v.string(),
-      provider: v.optional(providerBaseValidator),
-    }),
-  ),
   handler: async (ctx) => {
-    await requireAdmin(ctx)
+    const userId = await getAuthUserId(ctx)
+    if (!userId) return []
+    const admin = await ctx.db
+      .query('admins')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .first()
+
+    if (!admin) return []
+
     const [models, providers] = await Promise.all([
       ctx.db.query('models').collect(),
       ctx.db.query('providers').collect(),
@@ -570,14 +591,10 @@ export const listModelsWithProviders = query({
 
 export const toggleFavoriteModel = mutation({
   args: { modelId: v.id('models') },
-  returns: v.object({ favorited: v.boolean() }),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) {
-      throw new ConvexError({
-        code: 'UNAUTHORIZED',
-        message: 'You must be logged in to favorite a model',
-      })
+      return { favorited: false }
     }
 
     const existing = await ctx.db
@@ -607,14 +624,10 @@ export const setFavoriteModel = mutation({
     isFavorite: v.boolean(),
     clientUpdatedAt: v.optional(v.number()),
   },
-  returns: v.object({ favorited: v.boolean() }),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) {
-      throw new ConvexError({
-        code: 'UNAUTHORIZED',
-        message: 'You must be logged in to favorite a model',
-      })
+      return { favorited: false }
     }
 
     const existing = await ctx.db
@@ -660,9 +673,16 @@ export const addProvider = mutation({
     rateLimit: v.optional(rateLimitPolicyValidator),
     config: v.optional(providerConfigValidator),
   },
-  returns: v.id('providers'),
   handler: async (ctx, args) => {
-    await requireAdmin(ctx)
+    const userId = await getAuthUserId(ctx)
+    if (!userId) return null
+    const admin = await ctx.db
+      .query('admins')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .first()
+
+    if (!admin) return null
+
     return await ctx.db.insert('providers', {
       ...args,
       lastDiscoveredAt: undefined,
@@ -689,9 +709,18 @@ export const updateProvider = mutation({
     config: v.optional(providerConfigValidator),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx)
+    const userId = await getAuthUserId(ctx)
+    if (!userId) return
+    const admin = await ctx.db
+      .query('admins')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .first()
+
+    if (!admin) return
+
     const { id, ...updates } = args
     await ctx.db.patch(id, cleanUpdates(updates))
+    return
   },
 })
 
@@ -701,29 +730,43 @@ export const toggleProviderEnabled = mutation({
     isEnabled: v.boolean(),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx)
+    const userId = await getAuthUserId(ctx)
+    if (!userId) return
+    const admin = await ctx.db
+      .query('admins')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .first()
+
+    if (!admin) return
+
     await ctx.db.patch(args.id, { isEnabled: args.isEnabled })
+    return
   },
 })
 
 export const deleteProvider = mutation({
   args: { id: v.id('providers') },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx)
+    const userId = await getAuthUserId(ctx)
+    if (!userId) return
+    const admin = await ctx.db
+      .query('admins')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .first()
+
+    if (!admin) return
+
     const models = await ctx.db
       .query('models')
       .withIndex('by_providerId', (q) => q.eq('providerId', args.id))
       .collect()
 
     if (models.length > 0) {
-      throw new ConvexError({
-        code: 'VALIDATION_ERROR',
-        message:
-          'Cannot delete provider with existing models. Remove models first.',
-      })
+      return
     }
 
     await ctx.db.delete(args.id)
+    return
   },
 })
 
@@ -746,9 +789,16 @@ export const addModel = mutation({
     modalities: v.optional(modalitiesValidator),
     rateLimit: v.optional(rateLimitPolicyValidator),
   },
-  returns: v.id('models'),
   handler: async (ctx, args) => {
-    await requireAdmin(ctx)
+    const userId = await getAuthUserId(ctx)
+    if (!userId) return null
+    const admin = await ctx.db
+      .query('admins')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .first()
+
+    if (!admin) return null
+
     return await ctx.db.insert('models', args)
   },
 })
@@ -774,9 +824,18 @@ export const updateModel = mutation({
     rateLimit: v.optional(rateLimitPolicyValidator),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx)
+    const userId = await getAuthUserId(ctx)
+    if (!userId) return
+    const admin = await ctx.db
+      .query('admins')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .first()
+
+    if (!admin) return
+
     const { id, ...updates } = args
     await ctx.db.patch(id, cleanUpdates(updates))
+    return
   },
 })
 
@@ -786,15 +845,32 @@ export const toggleModelEnabled = mutation({
     isEnabled: v.boolean(),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx)
+    const userId = await getAuthUserId(ctx)
+    if (!userId) return
+    const admin = await ctx.db
+      .query('admins')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .first()
+
+    if (!admin) return
+
     await ctx.db.patch(args.id, { isEnabled: args.isEnabled })
+    return
   },
 })
 
 export const deleteModel = mutation({
   args: { id: v.id('models') },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx)
+    const userId = await getAuthUserId(ctx)
+    if (!userId) return
+    const admin = await ctx.db
+      .query('admins')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .first()
+
+    if (!admin) return
+
     const [collections, favorites] = await Promise.all([
       ctx.db.query('modelCollections').collect(),
       ctx.db.query('userFavoriteModels').collect(),
@@ -816,6 +892,7 @@ export const deleteModel = mutation({
     ])
 
     await ctx.db.delete(args.id)
+    return
   },
 })
 
@@ -826,9 +903,16 @@ export const addModelCollection = mutation({
     sortOrder: v.number(),
     modelIds: v.array(v.id('models')),
   },
-  returns: v.id('modelCollections'),
   handler: async (ctx, args) => {
-    await requireAdmin(ctx)
+    const userId = await getAuthUserId(ctx)
+    if (!userId) return null
+    const admin = await ctx.db
+      .query('admins')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .first()
+
+    if (!admin) return null
+
     const modelIds = await normalizeCollectionModelIds(ctx, args.modelIds)
 
     return await ctx.db.insert('modelCollections', {
@@ -847,7 +931,15 @@ export const updateModelCollection = mutation({
     modelIds: v.optional(v.array(v.id('models'))),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx)
+    const userId = await getAuthUserId(ctx)
+    if (!userId) return
+    const admin = await ctx.db
+      .query('admins')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .first()
+
+    if (!admin) return
+
     const { id, modelIds, ...updates } = args
     await ctx.db.patch(id, {
       ...cleanUpdates(updates),
@@ -855,14 +947,24 @@ export const updateModelCollection = mutation({
         ? { modelIds: await normalizeCollectionModelIds(ctx, modelIds) }
         : {}),
     })
+    return
   },
 })
 
 export const deleteModelCollection = mutation({
   args: { id: v.id('modelCollections') },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx)
+    const userId = await getAuthUserId(ctx)
+    if (!userId) return
+    const admin = await ctx.db
+      .query('admins')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .first()
+
+    if (!admin) return
+
     await ctx.db.delete(args.id)
+    return
   },
 })
 
@@ -872,9 +974,15 @@ export const importDiscoveredModels = mutation({
     models: v.array(discoveredModelValidator),
     enableImportedModels: v.optional(v.boolean()),
   },
-  returns: v.object({ inserted: v.number(), updated: v.number() }),
   handler: async (ctx, args) => {
-    await requireAdmin(ctx)
+    const userId = await getAuthUserId(ctx)
+    if (!userId) return { inserted: 0, updated: 0 }
+    const admin = await ctx.db
+      .query('admins')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .first()
+
+    if (!admin) return { inserted: 0, updated: 0 }
 
     const existingModels = await ctx.db
       .query('models')
@@ -948,14 +1056,16 @@ export const inspectProviderCatalog = action({
     baseURL: v.optional(v.string()),
     config: v.optional(providerConfigValidator),
   },
-  returns: providerCatalogResultValidator,
   handler: async (ctx, args) => {
     const adminContext = await ctx.runQuery(internal.admin.getAdminContext, {})
     if (!adminContext.isAdmin) {
-      throw new ConvexError({
-        code: 'FORBIDDEN',
-        message: 'Admin access required to inspect provider catalogs',
-      })
+      return {
+        providerType: args.providerType,
+        fetchedAt: 0,
+        modelCount: 0,
+        error: 'Admin access required',
+        models: [],
+      }
     }
 
     const result = await fetchProviderCatalog(args)
@@ -1010,42 +1120,63 @@ export const recordModelUsage = internalMutation({
 
 export const getDashboardData = query({
   args: {},
-  returns: v.object({
-    settings: adminSettingsValidator,
-    summary: v.object({
-      totalProviders: v.number(),
-      enabledProviders: v.number(),
-      totalModels: v.number(),
-      visibleModels: v.number(),
-      hiddenModels: v.number(),
-      totalRequests30d: v.number(),
-      totalTokens30d: v.number(),
-      activeUsers30d: v.number(),
-    }),
-    usageSeries: v.array(
-      v.object({
-        date: v.string(),
-        requests: v.number(),
-        tokens: v.number(),
-      }),
-    ),
-    providers: v.array(dashboardProviderValidator),
-    models: v.array(dashboardModelValidator),
-    collections: v.array(dashboardModelCollectionValidator),
-    users: v.array(
-      v.object({
-        userId: v.string(),
-        name: v.string(),
-        email: v.optional(v.string()),
-        requests: v.number(),
-        tokens: v.number(),
-        models: v.number(),
-        lastUsedAt: v.number(),
-      }),
-    ),
-  }),
   handler: async (ctx) => {
-    await requireAdmin(ctx)
+    const userId = await getAuthUserId(ctx)
+    if (!userId) {
+      return {
+        settings: {
+          _id: undefined,
+          key: 'global',
+          defaultRateLimit: undefined,
+          updatedAt: 0,
+        },
+        summary: {
+          totalProviders: 0,
+          enabledProviders: 0,
+          totalModels: 0,
+          visibleModels: 0,
+          hiddenModels: 0,
+          totalRequests30d: 0,
+          totalTokens30d: 0,
+          activeUsers30d: 0,
+        },
+        usageSeries: [],
+        providers: [],
+        models: [],
+        collections: [],
+        users: [],
+      }
+    }
+    const admin = await ctx.db
+      .query('admins')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .first()
+
+    if (!admin) {
+      return {
+        settings: {
+          _id: undefined,
+          key: 'global',
+          defaultRateLimit: undefined,
+          updatedAt: 0,
+        },
+        summary: {
+          totalProviders: 0,
+          enabledProviders: 0,
+          totalModels: 0,
+          visibleModels: 0,
+          hiddenModels: 0,
+          totalRequests30d: 0,
+          totalTokens30d: 0,
+          activeUsers30d: 0,
+        },
+        usageSeries: [],
+        providers: [],
+        models: [],
+        collections: [],
+        users: [],
+      }
+    }
 
     const now = Date.now()
     const since30d = now - 30 * DAY_MS
@@ -1300,7 +1431,14 @@ export const getDashboardData = query({
 export const seedModels = mutation({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx)
+    const userId = await getAuthUserId(ctx)
+    if (!userId) return ''
+    const admin = await ctx.db
+      .query('admins')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .first()
+
+    if (!admin) return ''
 
     const existing = await ctx.db.query('models').first()
     if (existing) {
@@ -1370,7 +1508,14 @@ export const makeAdmin = mutation({
     const existingAdmin = await ctx.db.query('admins').first()
 
     if (existingAdmin) {
-      await requireAdmin(ctx)
+      const userId = await getAuthUserId(ctx)
+      if (!userId) return ''
+      const admin = await ctx.db
+        .query('admins')
+        .withIndex('by_userId', (q) => q.eq('userId', userId))
+        .first()
+
+      if (!admin) return ''
     }
 
     const existing = await ctx.db

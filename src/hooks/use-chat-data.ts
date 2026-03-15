@@ -1,4 +1,4 @@
-import { useAuth } from '@clerk/clerk-react'
+import { useAuth } from '@clerk/tanstack-react-start'
 import { useUIMessages } from '@convex-dev/agent/react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useMutation } from 'convex/react'
@@ -22,7 +22,9 @@ const DRAFT_PREFIX = 'chat-draft:'
 
 type ViewerRecord = FunctionReturnType<typeof api.users.viewer>
 type SettingsRecord = FunctionReturnType<typeof api.users.getSettings>
-type ThreadsRecord = FunctionReturnType<typeof api.agents.listThreadsWithMetadata>
+type ThreadsRecord = FunctionReturnType<
+  typeof api.agents.listThreadsWithMetadata
+>
 type ThreadRecord = ThreadsRecord[number]
 type ThreadWithProject = ThreadRecord & {
   project?: {
@@ -44,7 +46,9 @@ type ProjectRecord = {
   updatedAt: number
 }
 type ProjectsRecord = ProjectRecord[]
-type ChatMessage = FunctionReturnType<typeof api.chat.listMessages>['page'][number]
+type ChatMessage = FunctionReturnType<
+  typeof api.chat.listMessages
+>['page'][number]
 type CachedSettingsView = {
   displayName?: string
   image?: string
@@ -193,7 +197,10 @@ async function cacheSettings(settings: SettingsRecord | null | undefined) {
   })
 }
 
-async function cacheViewer(viewer: ViewerRecord, settings: SettingsRecord | null | undefined) {
+async function cacheViewer(
+  viewer: ViewerRecord,
+  settings: SettingsRecord | null | undefined,
+) {
   if (!viewer) {
     return
   }
@@ -362,7 +369,10 @@ export function useThreads() {
 }
 
 export function useThread(threadId?: string) {
-  const liveThread = useQuery(api.chat.getThread, threadId ? { threadId } : 'skip')
+  const liveThread = useQuery(
+    api.chat.getThread,
+    threadId ? { threadId } : 'skip',
+  )
   const cachedThread = useLiveQuery(
     () => (threadId ? offlineDb.threads.get(threadId) : undefined),
     [threadId],
@@ -370,9 +380,11 @@ export function useThread(threadId?: string) {
 
   return useMemo(() => {
     if (liveThread) {
-      const project = (liveThread as typeof liveThread & {
-        project?: { id: string; name: string } | null
-      }).project
+      const project = (
+        liveThread as typeof liveThread & {
+          project?: { id: string; name: string } | null
+        }
+      ).project
 
       return {
         id: liveThread._id,
@@ -401,37 +413,34 @@ export function useMessages(threadId?: string) {
     initialNumItems: 30,
     stream: true,
   })
-  const cachedMessages = useLiveQuery(
-    async () => {
-      if (!threadId) {
-        return []
-      }
+  const cachedMessages = useLiveQuery(async () => {
+    if (!threadId) {
+      return []
+    }
 
-      const messages = await offlineDb.messages
-        .where('threadId')
-        .equals(threadId)
-        .toArray()
+    const messages = await offlineDb.messages
+      .where('threadId')
+      .equals(threadId)
+      .toArray()
 
-      return messages
-        .sort((left, right) => left.createdAt - right.createdAt)
-        .map(
-          (message) =>
-            ({
-              id: message.id,
-              role: message.role,
-              text: message.text,
-              parts: message.parts,
-              status:
-                message.status === 'streaming'
-                  ? 'streaming'
-                  : message.status === 'failed'
-                    ? 'failed'
-                    : 'success',
-            }) as ChatMessage,
-        )
-    },
-    [threadId],
-  )
+    return messages
+      .sort((left, right) => left.createdAt - right.createdAt)
+      .map(
+        (message) =>
+          ({
+            id: message.id,
+            role: message.role,
+            text: message.text,
+            parts: message.parts,
+            status:
+              message.status === 'streaming'
+                ? 'streaming'
+                : message.status === 'failed'
+                  ? 'failed'
+                  : 'success',
+          }) as ChatMessage,
+      )
+  }, [threadId])
 
   useEffect(() => {
     if (threadId && results && results.length > 0) {
@@ -478,16 +487,18 @@ export function useModels() {
 
 export function useProjects() {
   const { isOnline } = useOnlineStatus()
-  const projectsApi = (api as typeof api & {
-    projects: {
-      listProjects: unknown
-      createProject: unknown
-      updateProject: unknown
-      deleteProject: unknown
-      assignThreadToProject: unknown
-      removeThreadFromProject: unknown
+  const projectsApi = (
+    api as typeof api & {
+      projects: {
+        listProjects: unknown
+        createProject: unknown
+        updateProject: unknown
+        deleteProject: unknown
+        assignThreadToProject: unknown
+        removeThreadFromProject: unknown
+      }
     }
-  }).projects
+  ).projects
   const liveProjects = (useQuery(projectsApi.listProjects as never) ||
     []) as ProjectsRecord
   const cachedProjects = useLiveQuery(
@@ -599,11 +610,7 @@ export function useSettings() {
       : null)
 
   const updateSettings = useCallback(
-    async (values: {
-      displayName?: string
-      image?: string
-      bio?: string
-    }) => {
+    async (values: { displayName?: string; image?: string; bio?: string }) => {
       if (!isOnline) {
         return
       }

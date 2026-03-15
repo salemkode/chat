@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useAuth } from '@clerk/clerk-react'
+import { useAuth } from '@clerk/tanstack-react-start'
 import { useAction } from 'convex/react'
 import { useEffect, useReducer } from 'react'
 import { formatDistanceToNow } from 'date-fns'
@@ -36,6 +36,7 @@ import {
 import { Loader2, Pencil, Save, Search, Trash2, X } from 'lucide-react'
 
 export const Route = createFileRoute('/memory')({
+  ssr: false,
   component: MemoryPage,
 })
 
