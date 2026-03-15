@@ -181,11 +181,6 @@ export function ModelSelectorPanel({
                         <div className="text-xs text-muted-foreground">
                           {model.modelId}
                         </div>
-                        {model.description ? (
-                          <div className="mt-1 text-xs text-muted-foreground">
-                            {model.description}
-                          </div>
-                        ) : null}
                       </div>
                     </button>
 
