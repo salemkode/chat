@@ -12,7 +12,7 @@ import { parseRouteSearchRedirects } from '@/lib/parsers'
 export const Route = createFileRoute('/login')({
   ssr: false,
   component: LoginPage,
-  validateSearch: parseRouteSearchRedirects,
+  //validateSearch: parseRouteSearchRedirects,
 })
 
 function LoginPage() {

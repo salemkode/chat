@@ -4,14 +4,11 @@ import {
   createRootRouteWithContext,
   Outlet,
 } from '@tanstack/react-router'
-import { ClerkProvider, useAuth } from '@clerk/tanstack-react-start'
+import { ClerkProvider } from '@clerk/tanstack-react-start'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 import { ConvexClientProvider } from '@/components/ConvexClientProvider'
 import { ThemeProvider } from '@/components/theme-provider'
 import appCss from '@/styles.css?url'
-import { useEffect, useState } from 'react'
-import { useMutation, useQuery } from 'convex/react'
-import { api } from '../../convex/_generated/api'
 
 export const Route = createRootRouteWithContext()({
   ssr: false,
