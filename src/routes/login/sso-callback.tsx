@@ -42,7 +42,7 @@ function SsoCallbackPage() {
 
   useEffect(() => {
     if (clerk.loaded) {
-      handleRedirect()
+      // handleRedirect()
     }
   }, [clerk.loaded])
 
