@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import { devtools } from '@tanstack/devtools-vite'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
+import netlify from '@netlify/vite-plugin-tanstack-start'
 import viteReact from '@vitejs/plugin-react'
 import viteTsConfigPaths from 'vite-tsconfig-paths'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -38,6 +39,7 @@ const config = defineConfig({
         semicolons: false,
       },
     }),
+    netlify(),
     // this is the plugin that enables path aliases
     viteTsConfigPaths({
       projects: ['./tsconfig.json'],
