@@ -1,5 +1,5 @@
 [build]
-  command = "bun run build && cp public/_redirects dist/_redirects"
+  command = "bun run build && cp public/_redirects dist/_redirects && cp dist/index.html dist/404.html"
   publish = "dist"
 
 [build.environment]
@@ -9,3 +9,4 @@
   from = "/*"
   to = "/index.html"
   status = 200
+  force = true

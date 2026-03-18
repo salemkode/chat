@@ -6,6 +6,7 @@ import {
 } from '@clerk/tanstack-react-start'
 import { createFileRoute, Navigate, useSearch } from '@tanstack/react-router'
 import { Loader2 } from 'lucide-react'
+import { useEffect } from 'react'
 import { getPostLoginRedirectTarget } from '@/lib/auth-redirect'
 import { parseRouteSearchRedirects } from '@/lib/parsers'
 
@@ -66,10 +67,25 @@ function LoginPage() {
             />
           )}
           {useExternalAuth && authLoginUrl && (
-            <Navigate to={authLoginUrl.toString()} replace />
+            <ExternalAuthRedirect to={authLoginUrl.toString()} />
           )}
         </Show>
       </ClerkLoaded>
+    </div>
+  )
+}
+
+function ExternalAuthRedirect({ to }: { to: string }) {
+  useEffect(() => {
+    window.location.replace(to)
+  }, [to])
+
+  return (
+    <div className="flex flex-col items-center gap-4">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <p className="text-sm text-muted-foreground">
+        Redirecting to sign in...
+      </p>
     </div>
   )
 }
