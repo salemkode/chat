@@ -9,10 +9,15 @@ export function AuthRedirect() {
       ),
   })
 
+  const redirect_url =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}${redirect}`
+      : undefined
+
   return (
     <Navigate
       to="/login"
-      search={{ redirect, redirect_url: undefined }}
+      search={{ redirect, redirect_url }}
       replace
     />
   )
