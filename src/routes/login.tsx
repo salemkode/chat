@@ -9,7 +9,6 @@ import { Loader2 } from 'lucide-react'
 import { getPostLoginRedirectTarget } from '@/lib/auth-redirect'
 import { parseRouteSearchRedirects } from '@/lib/parsers'
 
-const DEFAULT_AUTH_FRONTEND_URL = 'https://accountist.salincode.com'
 const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1'])
 
 export const Route = createFileRoute('/login')({
@@ -27,9 +26,12 @@ function LoginPage() {
   const authFrontendBase = resolveAuthFrontendBaseUrl(
     import.meta.env.VITE_AUTH_FRONTEND_URL,
   )
-  const authLoginUrl = new URL('/login', authFrontendBase)
-  authLoginUrl.searchParams.set('redirect', targetAfterLogin)
-  authLoginUrl.searchParams.set(
+  const useExternalAuth = !isLocalhost && Boolean(authFrontendBase)
+  const authLoginUrl = authFrontendBase
+    ? new URL('/login', authFrontendBase)
+    : null
+  authLoginUrl?.searchParams.set('redirect', targetAfterLogin)
+  authLoginUrl?.searchParams.set(
     'redirect_url',
     `${location.origin}${targetAfterLogin}`,
   )
@@ -55,7 +57,7 @@ function LoginPage() {
         </Show>
 
         <Show when="signed-out">
-          {isLocalhost && (
+          {!useExternalAuth && (
             <SignIn
               path="/login"
               routing="path"
@@ -63,7 +65,7 @@ function LoginPage() {
               {...redirectProps}
             />
           )}
-          {!isLocalhost && (
+          {useExternalAuth && authLoginUrl && (
             <Navigate to={authLoginUrl.toString()} replace />
           )}
         </Show>
@@ -74,12 +76,12 @@ function LoginPage() {
 
 function resolveAuthFrontendBaseUrl(configuredUrl?: string) {
   if (!configuredUrl) {
-    return DEFAULT_AUTH_FRONTEND_URL
+    return undefined
   }
 
   try {
     return new URL(configuredUrl).origin
   } catch {
-    return DEFAULT_AUTH_FRONTEND_URL
+    return undefined
   }
 }

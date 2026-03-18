@@ -1,5 +1,5 @@
 [build]
-  command = "bun run build"
+  command = "bun run build && cp public/_redirects dist/_redirects"
   publish = "dist"
 
 [build.environment]
