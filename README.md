@@ -56,6 +56,7 @@ The app expects frontend and Convex auth configuration, including:
 
 - `VITE_CONVEX_URL`
 - `VITE_CLERK_PUBLISHABLE_KEY`
+- `VITE_AUTH_FRONTEND_URL` (production auth frontend origin, for example `https://accountist.salincode.com`)
 
 Some backend features also require provider API keys, for example:
 

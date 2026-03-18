@@ -9,6 +9,9 @@ import { Loader2 } from 'lucide-react'
 import { getPostLoginRedirectTarget } from '@/lib/auth-redirect'
 import { parseRouteSearchRedirects } from '@/lib/parsers'
 
+const DEFAULT_AUTH_FRONTEND_URL = 'https://accountist.salincode.com'
+const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1'])
+
 export const Route = createFileRoute('/login')({
   ssr: false,
   component: LoginPage,
@@ -17,9 +20,19 @@ export const Route = createFileRoute('/login')({
 
 function LoginPage() {
   const hostname = location.hostname
+  const isLocalhost = LOCAL_HOSTNAMES.has(hostname)
   const search = useSearch({ from: '/login' })
-  const redirect = search.redirect ?? search.redirect_url
+  const redirect = search.redirect
   const targetAfterLogin = getPostLoginRedirectTarget(redirect)
+  const authFrontendBase = resolveAuthFrontendBaseUrl(
+    import.meta.env.VITE_AUTH_FRONTEND_URL,
+  )
+  const authLoginUrl = new URL('/login', authFrontendBase)
+  authLoginUrl.searchParams.set('redirect', targetAfterLogin)
+  authLoginUrl.searchParams.set(
+    'redirect_url',
+    `${location.origin}${targetAfterLogin}`,
+  )
   const redirectProps = redirect
     ? {
         forceRedirectUrl: targetAfterLogin,
@@ -42,7 +55,7 @@ function LoginPage() {
         </Show>
 
         <Show when="signed-out">
-          {hostname === "localhost" && (
+          {isLocalhost && (
             <SignIn
               path="/login"
               routing="path"
@@ -50,11 +63,23 @@ function LoginPage() {
               {...redirectProps}
             />
           )}
-          {hostname !== "localhost" && (
-            <Navigate to="https://accounts.salemkode.com" replace />
+          {!isLocalhost && (
+            <Navigate to={authLoginUrl.toString()} replace />
           )}
         </Show>
       </ClerkLoaded>
     </div>
   )
+}
+
+function resolveAuthFrontendBaseUrl(configuredUrl?: string) {
+  if (!configuredUrl) {
+    return DEFAULT_AUTH_FRONTEND_URL
+  }
+
+  try {
+    return new URL(configuredUrl).origin
+  } catch {
+    return DEFAULT_AUTH_FRONTEND_URL
+  }
 }
