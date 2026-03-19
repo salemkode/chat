@@ -5,7 +5,7 @@ import { useAuth } from '@clerk/tanstack-react-start'
 export function TestUserStore() {
   const { isSignedIn } = useAuth()
   const profile = useQuery(api.users.getProfile)
-  const storeUser = useMutation(api.users.store)
+  const storeUser = useMutation(api.users.ensureCurrentUser)
 
   if (!isSignedIn) {
     return (

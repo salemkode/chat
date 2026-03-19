@@ -5,7 +5,7 @@ import { useState } from 'react'
 export function UserProfileExample() {
   const { isAuthenticated } = useConvexAuth()
   const profile = useQuery(api.users.getProfile)
-  const storeUser = useMutation(api.users.store)
+  const storeUser = useMutation(api.users.ensureCurrentUser)
   const getOrCreate = useMutation(api.users.getOrCreateProfile)
   const [isStoring, setIsStoring] = useState(false)
 

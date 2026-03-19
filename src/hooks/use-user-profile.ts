@@ -8,7 +8,7 @@ export function useStoreUserEffect() {
   const profile = useQuery(api.users.getProfile)
   const [userId, setUserId] = useState<Id<'users'> | null>(null)
   const [isStoring, setIsStoring] = useState(false)
-  const storeUser = useMutation(api.users.store)
+  const storeUser = useMutation(api.users.ensureCurrentUser)
 
   useEffect(() => {
     if (!isAuthenticated) {
