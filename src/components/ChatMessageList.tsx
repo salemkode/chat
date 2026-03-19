@@ -1,11 +1,14 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
+
+/** Cap how often we follow a streaming tail — each scroll forces virtualizer + layout work. */
+const STREAM_AUTO_SCROLL_MIN_INTERVAL_MS = 100
 import {
-  measureElement,
   type VirtualItem,
   useVirtualizer,
 } from '@tanstack/react-virtual'
 import type { FunctionReturnType } from 'convex/server'
 import { api } from 'convex/_generated/api'
+import { buildPromptMessageIdsByIndex } from '@/lib/chat-generation'
 import { cn } from '@/lib/utils'
 import { MessageLoadingSkeleton } from './chat/MessageLoadingSkeleton'
 import { Message } from './Message'
@@ -16,6 +19,8 @@ interface ChatMessageListProps {
   messages: FunctionReturnType<typeof api.chat.listMessages>['page']
   isLoading?: boolean
   className?: string
+  activeAssistantMessageId?: string
+  stalledAssistantMessageId?: string
 }
 
 export function ChatMessageList({
@@ -23,20 +28,85 @@ export function ChatMessageList({
   messages,
   isLoading = false,
   className,
+  activeAssistantMessageId,
+  stalledAssistantMessageId,
 }: ChatMessageListProps) {
   const isMobile = false
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const shouldAutoScrollRef = useRef(true)
+  const messageHeightCacheRef = useRef(new Map<string, number>())
+  const lastStreamAutoScrollAtRef = useRef(0)
+  const streamAutoScrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  )
+
+  const promptMessageIdByIndex = useMemo(
+    () => buildPromptMessageIdsByIndex(messages),
+    [messages],
+  )
+
+  const estimateMessageSize = useCallback(
+    (index: number) => {
+      const message = messages[index]
+      if (!message) {
+        return 140
+      }
+
+      const cachedHeight = messageHeightCacheRef.current.get(message.id)
+      if (cachedHeight !== undefined) {
+        return cachedHeight
+      }
+
+      return message.role === 'assistant' ? 220 : 108
+    },
+    [messages],
+  )
+
+  const measureMessageElement = useCallback(
+    (element: HTMLElement, entry?: ResizeObserverEntry) => {
+      const messageId = element.getAttribute('data-message-id')
+      const sizes = entry?.borderBoxSize
+      const measuredSize = sizes?.[0]?.blockSize
+      const nextHeight = Math.ceil(
+        measuredSize ?? element.getBoundingClientRect().height,
+      )
+
+      if (messageId) {
+        messageHeightCacheRef.current.set(messageId, nextHeight)
+      }
+
+      return nextHeight
+    },
+    [],
+  )
 
   const rowVirtualizer = useVirtualizer({
     count: messages.length,
     getScrollElement: () => scrollContainerRef.current,
     getItemKey: (index: number) => messages[index]?.id ?? index,
-    estimateSize: (index: number) =>
-      messages[index]?.role === 'assistant' ? 220 : 108,
-    measureElement,
-    overscan: 8,
+    estimateSize: estimateMessageSize,
+    measureElement: measureMessageElement,
+    overscan: 3,
   })
+
+  useEffect(() => {
+    messageHeightCacheRef.current.clear()
+    lastStreamAutoScrollAtRef.current = 0
+    if (streamAutoScrollTimeoutRef.current !== null) {
+      clearTimeout(streamAutoScrollTimeoutRef.current)
+      streamAutoScrollTimeoutRef.current = null
+    }
+    rowVirtualizer.measure()
+  }, [rowVirtualizer, threadId])
+
+  useEffect(() => {
+    return () => {
+      if (streamAutoScrollTimeoutRef.current !== null) {
+        clearTimeout(streamAutoScrollTimeoutRef.current)
+        streamAutoScrollTimeoutRef.current = null
+      }
+    }
+  }, [])
 
   const onScroll = useCallback(() => {
     const scrollElement = scrollContainerRef.current
@@ -54,6 +124,37 @@ export function ChatMessageList({
     },
     [messages.length, rowVirtualizer],
   )
+
+  const scrollToLatestThrottledWhileStreaming = useCallback(() => {
+    const run = () => {
+      if (!shouldAutoScrollRef.current || messages.length === 0) {
+        return
+      }
+      scrollToLatestMessage('auto')
+      lastStreamAutoScrollAtRef.current = Date.now()
+    }
+
+    const now = Date.now()
+    const elapsed = now - lastStreamAutoScrollAtRef.current
+    if (elapsed >= STREAM_AUTO_SCROLL_MIN_INTERVAL_MS) {
+      if (streamAutoScrollTimeoutRef.current !== null) {
+        clearTimeout(streamAutoScrollTimeoutRef.current)
+        streamAutoScrollTimeoutRef.current = null
+      }
+      run()
+      return
+    }
+
+    if (streamAutoScrollTimeoutRef.current !== null) {
+      return
+    }
+
+    streamAutoScrollTimeoutRef.current = setTimeout(() => {
+      streamAutoScrollTimeoutRef.current = null
+      run()
+    }, STREAM_AUTO_SCROLL_MIN_INTERVAL_MS - elapsed)
+  }, [messages.length, scrollToLatestMessage])
+
   const lastMessage = messages[messages.length - 1]
 
   useEffect(() => {
@@ -61,9 +162,21 @@ export function ChatMessageList({
       return
     }
 
-    const behavior = lastMessage?.status === 'streaming' ? 'auto' : 'smooth'
+    const isLive =
+      lastMessage?.status === 'streaming' || lastMessage?.status === 'pending'
+
+    if (isLive) {
+      scrollToLatestThrottledWhileStreaming()
+      return
+    }
+
+    if (streamAutoScrollTimeoutRef.current !== null) {
+      clearTimeout(streamAutoScrollTimeoutRef.current)
+      streamAutoScrollTimeoutRef.current = null
+    }
+
     const frame = window.requestAnimationFrame(() => {
-      scrollToLatestMessage(behavior)
+      scrollToLatestMessage('smooth')
     })
 
     return () => {
@@ -74,6 +187,7 @@ export function ChatMessageList({
     lastMessage?.status,
     lastMessage?.text,
     scrollToLatestMessage,
+    scrollToLatestThrottledWhileStreaming,
   ])
 
   if (isLoading && messages.length === 0) {
@@ -118,11 +232,17 @@ export function ChatMessageList({
         {rowVirtualizer.getVirtualItems().map((virtualRow: VirtualItem) => {
           const msg = messages[virtualRow.index]
           if (!msg) return null
+          const shouldTrackDynamicHeight =
+            msg.status === 'streaming' ||
+            msg.status === 'pending' ||
+            !messageHeightCacheRef.current.has(msg.id)
+
           return (
             <div
               key={msg.id}
               data-index={virtualRow.index}
-              ref={rowVirtualizer.measureElement}
+              data-message-id={msg.id}
+              ref={shouldTrackDynamicHeight ? rowVirtualizer.measureElement : undefined}
               className={cn(
                 'absolute left-0 top-0 w-full',
                 isMobile ? 'pb-5' : 'pb-4 sm:pb-6',
@@ -132,10 +252,9 @@ export function ChatMessageList({
               <Message
                 threadId={threadId}
                 message={msg}
-                promptMessageId={findPromptMessageId(
-                  messages,
-                  virtualRow.index,
-                )}
+                promptMessageId={promptMessageIdByIndex[virtualRow.index]}
+                isActiveGeneration={msg.id === activeAssistantMessageId}
+                isStalled={msg.id === stalledAssistantMessageId}
               />
             </div>
           )
@@ -143,20 +262,6 @@ export function ChatMessageList({
       </div>
     </div>
   )
-}
-
-function findPromptMessageId(
-  messages: ChatMessageListProps['messages'],
-  assistantIndex: number,
-) {
-  for (let index = assistantIndex - 1; index >= 0; index -= 1) {
-    const message = messages[index]
-    if (message?.role === 'user') {
-      return message.id
-    }
-  }
-
-  return undefined
 }
 
 const AUTO_SCROLL_BOTTOM_THRESHOLD_PX = 120

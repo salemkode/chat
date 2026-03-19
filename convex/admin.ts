@@ -419,6 +419,116 @@ export const updateAdminSettings = mutation({
   },
 })
 
+export const searchUsersForAdmin = query({
+  args: {
+    query: v.string(),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId) return []
+    const admin = await ctx.db
+      .query('admins')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .first()
+    if (!admin) return []
+
+    const needle = args.query.trim().toLowerCase()
+    if (needle.length < 2) {
+      return []
+    }
+
+    const limit = Math.max(1, Math.min(25, args.limit ?? 8))
+    const since30d = Date.now() - 30 * DAY_MS
+    const [users, usageEvents] = await Promise.all([
+      ctx.db.query('users').collect(),
+      ctx.db
+        .query('modelUsageEvents')
+        .withIndex('by_createdAt', (q) => q.gte('createdAt', since30d))
+        .collect(),
+    ])
+
+    const usageByUserId = new Map<
+      Id<'users'>,
+      {
+        requests: number
+        tokens: number
+        lastUsedAt: number
+      }
+    >()
+    for (const event of usageEvents) {
+      const existing = usageByUserId.get(event.userId) ?? {
+        requests: 0,
+        tokens: 0,
+        lastUsedAt: 0,
+      }
+      existing.requests += 1
+      existing.tokens += event.totalTokens
+      existing.lastUsedAt = Math.max(existing.lastUsedAt, event.createdAt)
+      usageByUserId.set(event.userId, existing)
+    }
+
+    return users
+      .filter((candidate) => {
+        const email = candidate.email?.toLowerCase() ?? ''
+        const name = candidate.name?.toLowerCase() ?? ''
+        return email.includes(needle) || name.includes(needle)
+      })
+      .map((candidate) => {
+        const usage = usageByUserId.get(candidate._id)
+        return {
+          userId: candidate._id,
+          name: candidate.name ?? candidate.email ?? 'Unknown user',
+          email: candidate.email,
+          appPlan: candidate.appPlan ?? DEFAULT_APP_PLAN,
+          requests: usage?.requests ?? 0,
+          tokens: usage?.tokens ?? 0,
+          lastUsedAt: usage?.lastUsedAt,
+        }
+      })
+      .sort((left, right) => {
+        if (right.tokens !== left.tokens) {
+          return right.tokens - left.tokens
+        }
+        return left.name.localeCompare(right.name)
+      })
+      .slice(0, limit)
+  },
+})
+
+export const setUserAppPlan = mutation({
+  args: {
+    userId: v.id('users'),
+    appPlan: appPlanValidator,
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId) return null
+    const admin = await ctx.db
+      .query('admins')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .first()
+    if (!admin) return null
+
+    const user = await ctx.db.get(args.userId)
+    if (!user) {
+      throw new ConvexError({
+        code: 'NOT_FOUND',
+        message: 'User not found',
+      })
+    }
+
+    await ctx.db.patch(args.userId, {
+      appPlan: args.appPlan,
+    })
+
+    return {
+      userId: args.userId,
+      appPlan: args.appPlan,
+    }
+  },
+})
+
 export const listAllProviders = query({
   args: {},
   handler: async (ctx) => {
@@ -492,7 +602,7 @@ export const listEnabledModels = query({
       return []
     }
 
-    const [models, providers, settings] = await Promise.all([
+    const [models, providers, settings, user] = await Promise.all([
       ctx.db
         .query('models')
         .withIndex('by_enabled', (q) => q.eq('isEnabled', true))
@@ -502,8 +612,13 @@ export const listEnabledModels = query({
         .withIndex('by_enabled', (q) => q.eq('isEnabled', true))
         .collect(),
       getCurrentAdminSettings(ctx),
+      ctx.db.get(userId),
     ])
-    const effectiveAppPlan = await resolveEffectiveAppPlan(ctx, settings)
+    const effectiveAppPlan = await resolveEffectiveAppPlan(
+      ctx,
+      settings,
+      user ?? undefined,
+    )
 
     const enabledProviderIds = new Set(
       providers.map((provider) => provider._id),
@@ -532,7 +647,7 @@ export const listModelsWithProviders = query({
       return { providers: [], favorites: [], models: [] }
     }
 
-    const [models, providers, favorites, settings] = await Promise.all([
+    const [models, providers, favorites, settings, user] = await Promise.all([
       ctx.db
         .query('models')
         .withIndex('by_enabled', (q) => q.eq('isEnabled', true))
@@ -546,8 +661,13 @@ export const listModelsWithProviders = query({
         .withIndex('by_user', (q) => q.eq('userId', userId))
         .collect(),
       getCurrentAdminSettings(ctx),
+      ctx.db.get(userId),
     ])
-    const effectiveAppPlan = await resolveEffectiveAppPlan(ctx, settings)
+    const effectiveAppPlan = await resolveEffectiveAppPlan(
+      ctx,
+      settings,
+      user ?? undefined,
+    )
 
     const favoriteModelIds = new Set(
       favorites.map((favorite) => favorite.modelId),
@@ -1448,6 +1568,7 @@ export const getDashboardData = query({
           userId,
           name: user?.name ?? user?.email ?? 'Unknown user',
           email: user?.email,
+          appPlan: user?.appPlan ?? DEFAULT_APP_PLAN,
           requests: usage.requests,
           tokens: usage.tokens,
           models: usage.models.size,

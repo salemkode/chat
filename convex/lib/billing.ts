@@ -52,9 +52,16 @@ export async function resolveEffectiveAppPlan(
     ) => Promise<unknown>
   },
   settings?: { appPlan?: AppPlan | undefined },
+  user?: { appPlan?: AppPlan | undefined },
 ) {
   const subscription = await getAppBillingSubscription(ctx)
-  return isStripeSubscriptionActive(subscription)
-    ? 'pro'
-    : resolveAppPlan(settings)
+  if (isStripeSubscriptionActive(subscription)) {
+    return 'pro'
+  }
+
+  if (user?.appPlan === 'pro') {
+    return 'pro'
+  }
+
+  return resolveAppPlan(settings)
 }

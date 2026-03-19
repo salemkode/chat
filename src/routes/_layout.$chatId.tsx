@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import {
   useCachedSessionStatus,
+  useGenerationState,
   useMessages,
   useProjects,
   useThread,
@@ -41,6 +42,7 @@ function AuthenticatedChatPage() {
   const thread = useThread(chatId)
   const { removeThreadFromProject } = useProjects()
   const { messages, status } = useMessages(chatId)
+  const { activeGeneration, isStalled } = useGenerationState(messages || [])
   const threadTitle = thread?.title || 'New Chat'
 
   return (
@@ -88,6 +90,10 @@ function AuthenticatedChatPage() {
         threadId={chatId}
         messages={messages || []}
         isLoading={status === 'LoadingFirstPage'}
+        activeAssistantMessageId={activeGeneration?.message.id}
+        stalledAssistantMessageId={
+          isStalled ? activeGeneration?.message.id : undefined
+        }
       />
     </div>
   )

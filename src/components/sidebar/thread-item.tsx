@@ -1,5 +1,6 @@
 'use client'
 
+import { memo } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Pin, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -27,7 +28,7 @@ interface ThreadItemProps {
   onDelete?: (threadId: string) => void
 }
 
-export function ThreadItem({
+export const ThreadItem = memo(function ThreadItem({
   thread,
   isActive,
   onPin,
@@ -151,5 +152,24 @@ export function ThreadItem({
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
+  )
+}, areThreadItemPropsEqual)
+
+function areThreadItemPropsEqual(
+  prev: ThreadItemProps,
+  next: ThreadItemProps,
+): boolean {
+  if (prev.isActive !== next.isActive) return false
+  if (prev.onPin !== next.onPin) return false
+  if (prev.onDelete !== next.onDelete) return false
+  const a = prev.thread
+  const b = next.thread
+  if (a === b) return true
+  return (
+    a._id === b._id &&
+    a.title === b.title &&
+    a._creationTime === b._creationTime &&
+    a.metadata?.emoji === b.metadata?.emoji &&
+    a.metadata?.sectionId === b.metadata?.sectionId
   )
 }

@@ -8,6 +8,7 @@ import {
   QueryCtx,
 } from "./_generated/server";
 import { UserJSON } from "@clerk/backend";
+import { DEFAULT_APP_PLAN } from './lib/appPlan'
 
 const userSettingsValidator = v.object({
   _id: v.id('userSettings'),
@@ -181,6 +182,7 @@ export const updateOrCreateUser = internalMutation({
         emailVerificationTime: clerkUser.email_addresses[0].verification?.status === 'verified' ? Date.now() : undefined,
         isAnonymous: false,
         clerkUserId: clerkUser.id,
+        appPlan: DEFAULT_APP_PLAN,
       })
     }
 
@@ -209,4 +211,3 @@ export const deleteUser = internalMutation({
     }
   },
 });
-

@@ -36,6 +36,9 @@ export interface OfflineMessageRecord {
   deletedAt?: number
   version: number
   status?: 'success' | 'streaming' | 'failed'
+  failureKind?: 'stopped' | 'error'
+  failureMode?: 'replace' | 'clarify'
+  failureNote?: string
 }
 
 export interface OfflineModelRecord {
@@ -43,6 +46,7 @@ export interface OfflineModelRecord {
   modelId: string
   displayName: string
   description?: string
+  capabilities?: string[]
   sortOrder: number
   isFavorite: boolean
   isFree?: boolean

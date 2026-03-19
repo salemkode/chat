@@ -6,7 +6,14 @@ import {
 } from '@tanstack/react-router'
 import type { Id } from 'convex/_generated/dataModel'
 import { Loader2 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react'
 import { AIPromptInput } from '@/components/ai-prompt-input'
 import { AppSidebar } from '@/components/app-sidebar'
 import { AuthRedirect } from '@/components/auth-redirect'
@@ -16,6 +23,12 @@ import {
 } from '@/components/chat-model-context'
 import { useIsMobile } from '@/hooks/use-mobile'
 import {
+  dequeueQueuedMessage,
+  enqueueQueuedMessage,
+  QUEUE_CAPACITY,
+  type QueuedMessage,
+} from '@/lib/chat-generation'
+import {
   readPendingNewChatProjectId,
   writePendingNewChatProjectId,
 } from '@/lib/project-selection'
@@ -23,6 +36,8 @@ import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import {
   useCachedSessionStatus,
   useDraft,
+  useGenerationState,
+  useMessages,
   useModels,
   useProjects,
   useSendMessage,
@@ -144,14 +159,18 @@ function ChatComposer({
   const navigate = useNavigate()
   const { models } = useModels()
   const { projects } = useProjects()
-  const { send, disabledReason } = useSendMessage()
+  const { send, stop, disabledReason } = useSendMessage()
   const thread = useThread(threadId)
+  const { messages } = useMessages(threadId)
+  const { activeGeneration } = useGenerationState(messages || [])
   const draftKey = threadId || 'new'
   const { draft, setDraft } = useDraft(draftKey)
   const { selectedModelId, setSelectedModelId } = useChatModel()
   const [selectedProjectId, setSelectedProjectId] = useState<
     string | undefined
   >(undefined)
+  const [queuedMessages, setQueuedMessages] = useState<QueuedMessage[]>([])
+  const [isQueueDispatching, setIsQueueDispatching] = useState(false)
 
   useEffect(() => {
     if (threadId) {
@@ -171,26 +190,112 @@ function ChatComposer({
     [models, selectedModelId],
   )
 
+  const sendNow = useCallback(
+    async (input: QueuedMessage) => {
+      const result = await send({
+        text: input.text,
+        threadId,
+        modelDocId: toModelDocId(input.modelDocId),
+        projectId: input.projectId as Id<'projects'> | undefined,
+        searchEnabled: input.searchEnabled,
+        attachments: input.attachments,
+      })
+
+      if (!threadId) {
+        writePendingNewChatProjectId(undefined)
+      }
+
+      if (result.threadId && result.threadId !== threadId) {
+        await navigate({ to: '/$chatId', params: { chatId: result.threadId } })
+      }
+    },
+    [navigate, send, threadId],
+  )
+
+  const dispatchNextQueued = useCallback(
+    async (forceStopFirst: boolean) => {
+      if (isQueueDispatching) {
+        return
+      }
+
+      let nextItem: QueuedMessage | null = null
+      setQueuedMessages((current) => {
+        const next = dequeueQueuedMessage(current)
+        nextItem = next.item
+        return next.queue
+      })
+
+      if (!nextItem) {
+        return
+      }
+
+      setIsQueueDispatching(true)
+      try {
+        if (forceStopFirst && threadId && activeGeneration?.promptMessageId) {
+          await stop({
+            threadId,
+            promptMessageId: activeGeneration.promptMessageId,
+          })
+        }
+        await sendNow(nextItem)
+      } catch (error) {
+        setQueuedMessages((current) => [nextItem as QueuedMessage, ...current])
+        throw error
+      } finally {
+        setIsQueueDispatching(false)
+      }
+    },
+    [
+      activeGeneration?.promptMessageId,
+      isQueueDispatching,
+      sendNow,
+      stop,
+      threadId,
+    ],
+  )
+
+  useEffect(() => {
+    setQueuedMessages([])
+    setIsQueueDispatching(false)
+  }, [threadId])
+
+  useEffect(() => {
+    if (!threadId || activeGeneration || queuedMessages.length === 0) {
+      return
+    }
+
+    void dispatchNextQueued(false).catch(() => {
+      // sendNow errors are surfaced by the composer on direct sends.
+    })
+  }, [
+    activeGeneration,
+    dispatchNextQueued,
+    queuedMessages.length,
+    threadId,
+  ])
+
   async function handleSendMessage(
     text: string,
     opts: { searchEnabled: boolean; projectId?: string; attachments: File[] },
   ) {
-    const result = await send({
+    const payload: QueuedMessage = {
       text,
-      threadId,
-      modelDocId: toModelDocId(selectedModelDocId),
-      projectId: opts.projectId as Id<'projects'> | undefined,
+      modelDocId: selectedModelDocId,
+      projectId: opts.projectId,
       searchEnabled: opts.searchEnabled,
       attachments: opts.attachments,
-    })
-
-    if (!threadId) {
-      writePendingNewChatProjectId(undefined)
     }
 
-    if (result.threadId && result.threadId !== threadId) {
-      await navigate({ to: '/$chatId', params: { chatId: result.threadId } })
+    if (threadId && activeGeneration) {
+      const next = enqueueQueuedMessage(queuedMessages, payload, QUEUE_CAPACITY)
+      if (next.overflow) {
+        throw new Error(`Queue full (${QUEUE_CAPACITY}). Wait or stop current response.`)
+      }
+      setQueuedMessages(next.queue)
+      return
     }
+
+    await sendNow(payload)
   }
 
   return (
@@ -242,6 +347,15 @@ function ChatComposer({
       }}
       selectedModel={selectedModelId}
       onModelChange={setSelectedModelId}
+      onEmptyEnter={() => {
+        if (!threadId || queuedMessages.length === 0) {
+          return
+        }
+
+        void dispatchNextQueued(Boolean(activeGeneration)).catch(() => {
+          // Errors are shown through the composer error state on direct sends.
+        })
+      }}
     />
   )
 }

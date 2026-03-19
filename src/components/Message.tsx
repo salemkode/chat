@@ -2,16 +2,24 @@ import { useSmoothText } from '@convex-dev/agent/react'
 import type { FunctionReturnType } from 'convex/server'
 import type { Id } from 'convex/_generated/dataModel'
 import { api } from 'convex/_generated/api'
-import { AlertCircle, ExternalLink, FileText, RefreshCw } from 'lucide-react'
+import {
+  AlertCircle,
+  ExternalLink,
+  FileText,
+  RefreshCw,
+  RotateCcw,
+  Square,
+} from 'lucide-react'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useChatModel } from '@/components/chat-model-context'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { getMessageFailurePresentation } from '@/lib/chat-generation'
 import { useModels, useSendMessage } from '@/hooks/use-chat-data'
 import { cn } from '@/lib/utils'
 import { ModelSelectorPanel } from './model-selector'
 import { MessageActivityTimeline } from './chat/MessageActivityTimeline'
+import { ChatMarkdown } from './ChatMarkdown'
 import { CopyButton } from './CopyButton'
-import { MarkdownContent } from './MarkdownContent'
 import { Alert, AlertDescription, AlertTitle } from './ui/alert'
 import { Popover, PopoverAnchor, PopoverContent } from './ui/popover'
 
@@ -22,12 +30,16 @@ interface MessageProps {
   threadId: string
   message: FunctionReturnType<typeof api.chat.listMessages>['page'][number]
   promptMessageId?: string
+  isActiveGeneration?: boolean
+  isStalled?: boolean
 }
 
 export const Message = memo(function Message({
   threadId,
   message,
   promptMessageId,
+  isActiveGeneration = false,
+  isStalled = false,
 }: MessageProps) {
   const isMobile = useIsMobile()
   const shouldSmoothText =
@@ -38,6 +50,11 @@ export const Message = memo(function Message({
   const visibleText = shouldSmoothText ? smoothedText : message.text
   const isFailedAssistant =
     message.role === 'assistant' && message.status === 'failed'
+  const failurePresentation = getMessageFailurePresentation(message)
+  const shouldReplaceWithFailureMessage =
+    isFailedAssistant && failurePresentation?.mode === 'replace'
+  const shouldShowFailureClarification =
+    isFailedAssistant && failurePresentation?.mode === 'clarify'
   const hasActivity = useMemo(
     () =>
       message.parts.some((part: Record<string, unknown>) => {
@@ -61,6 +78,15 @@ export const Message = memo(function Message({
   if (message.role === 'assistant') {
     const disableRepeat =
       message.status === 'streaming' || message.status === 'pending'
+    const failureTitle =
+      failurePresentation?.kind === 'stopped'
+        ? 'Generation stopped'
+        : 'Message failed'
+    const failureNote =
+      failurePresentation?.note || 'The model could not complete this response.'
+    const failureVariant =
+      failurePresentation?.kind === 'error' ? 'destructive' : 'default'
+    const shouldShowResend = isFailedAssistant || isStalled
 
     return (
       <div className={cn('mx-auto w-full max-w-3xl', isMobile && 'px-0.5')}>
@@ -71,14 +97,17 @@ export const Message = memo(function Message({
           />
         ) : null}
 
-        {isFailedAssistant ? (
-          <Alert variant="destructive" className="border-destructive/40">
+        {shouldReplaceWithFailureMessage ? (
+          <Alert
+            variant={failureVariant}
+            className={
+              failureVariant === 'destructive' ? 'border-destructive/40' : ''
+            }
+          >
             <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Message failed</AlertTitle>
+            <AlertTitle>{failureTitle}</AlertTitle>
             <AlertDescription>
-              <p className="whitespace-pre-wrap break-words">
-                {visibleText || 'The model could not complete this response.'}
-              </p>
+              <p className="whitespace-pre-wrap break-words">{failureNote}</p>
             </AlertDescription>
           </Alert>
         ) : shouldShowResponsePlaceholder ? (
@@ -94,9 +123,29 @@ export const Message = memo(function Message({
             dir="auto"
             className={cn('px-1 py-1', isMobile && 'px-0.5 py-1.5')}
           >
-            <MarkdownContent content={visibleText} />
+            <ChatMarkdown
+              text={visibleText}
+              isStreaming={
+                message.status === 'streaming' || message.status === 'pending'
+              }
+            />
           </div>
         )}
+        {shouldShowFailureClarification ? (
+          <Alert
+            variant={failureVariant}
+            className={cn(
+              'mt-3',
+              failureVariant === 'destructive' && 'border-destructive/40',
+            )}
+          >
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>{failureTitle}</AlertTitle>
+            <AlertDescription>
+              <p className="whitespace-pre-wrap break-words">{failureNote}</p>
+            </AlertDescription>
+          </Alert>
+        ) : null}
 
         {fileParts.length > 0 ? (
           <div className="mt-3">
@@ -111,11 +160,23 @@ export const Message = memo(function Message({
           )}
         >
           <CopyButton text={message.text} />
-          <RepeatButton
-            threadId={threadId}
-            promptMessageId={promptMessageId}
-            disabled={disableRepeat}
-          />
+          {isActiveGeneration ? (
+            <StopButton threadId={threadId} promptMessageId={promptMessageId} />
+          ) : null}
+          {shouldShowResend ? (
+            <ResendButton
+              threadId={threadId}
+              promptMessageId={promptMessageId}
+              forceStopFirst={isStalled}
+            />
+          ) : null}
+          {!shouldShowResend ? (
+            <RepeatButton
+              threadId={threadId}
+              promptMessageId={promptMessageId}
+              disabled={disableRepeat}
+            />
+          ) : null}
         </div>
       </div>
     )
@@ -368,9 +429,105 @@ function RepeatButton({
   )
 }
 
+function StopButton({
+  threadId,
+  promptMessageId,
+}: {
+  threadId: string
+  promptMessageId?: string
+}) {
+  const { stop, disabledReason } = useSendMessage()
+  const [isStopping, setIsStopping] = useState(false)
+
+  return (
+    <button
+      type="button"
+      disabled={!promptMessageId || disabledReason !== null || isStopping}
+      className="inline-flex items-center gap-1.5 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+      aria-label="Stop generation"
+      title="Stop generation"
+      onClick={async () => {
+        if (!promptMessageId || isStopping) {
+          return
+        }
+
+        setIsStopping(true)
+        try {
+          await stop({ threadId, promptMessageId })
+        } finally {
+          setIsStopping(false)
+        }
+      }}
+    >
+      <Square className={cn('h-4 w-4', isStopping && 'animate-pulse')} />
+    </button>
+  )
+}
+
+function ResendButton({
+  threadId,
+  promptMessageId,
+  forceStopFirst,
+}: {
+  threadId: string
+  promptMessageId?: string
+  forceStopFirst: boolean
+}) {
+  const { models } = useModels()
+  const { regenerate, stop, disabledReason } = useSendMessage()
+  const { selectedModelId } = useChatModel()
+  const [isResending, setIsResending] = useState(false)
+
+  const selectedModelDocId = useMemo(
+    () =>
+      models.find((model) => model.modelId === selectedModelId)?.id as
+        | Id<'models'>
+        | undefined,
+    [models, selectedModelId],
+  )
+
+  return (
+    <button
+      type="button"
+      disabled={
+        !promptMessageId ||
+        !selectedModelDocId ||
+        disabledReason !== null ||
+        isResending
+      }
+      className="inline-flex items-center gap-1.5 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+      aria-label="Resend response"
+      title="Resend response"
+      onClick={async () => {
+        if (!promptMessageId || !selectedModelDocId || isResending) {
+          return
+        }
+
+        setIsResending(true)
+        try {
+          if (forceStopFirst) {
+            await stop({ threadId, promptMessageId })
+          }
+          await regenerate({
+            threadId,
+            promptMessageId,
+            modelDocId: selectedModelDocId,
+          })
+        } finally {
+          setIsResending(false)
+        }
+      }}
+    >
+      <RotateCcw className={cn('h-4 w-4', isResending && 'animate-spin')} />
+    </button>
+  )
+}
+
 function areMessagePropsEqual(prev: MessageProps, next: MessageProps): boolean {
   if (prev.threadId !== next.threadId) return false
   if (prev.promptMessageId !== next.promptMessageId) return false
+  if (prev.isActiveGeneration !== next.isActiveGeneration) return false
+  if (prev.isStalled !== next.isStalled) return false
   if (prev.message === next.message) return true
 
   const previousMessage = prev.message
@@ -380,7 +537,10 @@ function areMessagePropsEqual(prev: MessageProps, next: MessageProps): boolean {
     previousMessage.id !== nextMessage.id ||
     previousMessage.role !== nextMessage.role ||
     previousMessage.status !== nextMessage.status ||
-    previousMessage.text !== nextMessage.text
+    previousMessage.text !== nextMessage.text ||
+    previousMessage.failureKind !== nextMessage.failureKind ||
+    previousMessage.failureMode !== nextMessage.failureMode ||
+    previousMessage.failureNote !== nextMessage.failureNote
   ) {
     return false
   }
@@ -389,16 +549,41 @@ function areMessagePropsEqual(prev: MessageProps, next: MessageProps): boolean {
     return false
   }
 
+  if (previousMessage.parts === nextMessage.parts) {
+    return true
+  }
+
   for (let index = 0; index < previousMessage.parts.length; index += 1) {
     const prevPart = previousMessage.parts[index]
     const nextPart = nextMessage.parts[index]
-    if (
-      !prevPart ||
-      !nextPart ||
-      JSON.stringify(prevPart) !== JSON.stringify(nextPart)
-    ) {
+    if (!prevPart || !nextPart || !areMessagePartObjectsEqual(prevPart, nextPart)) {
       return false
     }
+  }
+
+  return true
+}
+
+function areMessagePartObjectsEqual(
+  previousPart: Record<string, unknown>,
+  nextPart: Record<string, unknown>,
+): boolean {
+  if (previousPart === nextPart) {
+    return true
+  }
+
+  const previousEntries = Object.entries(previousPart)
+  if (previousEntries.length !== Object.keys(nextPart).length) {
+    return false
+  }
+
+  for (const [key, previousValue] of previousEntries) {
+    const nextValue = nextPart[key]
+    if (previousValue === nextValue) {
+      continue
+    }
+
+    return false
   }
 
   return true

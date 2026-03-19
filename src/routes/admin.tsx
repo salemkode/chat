@@ -11,7 +11,7 @@ import {
   Sparkles,
   WandSparkles,
 } from 'lucide-react'
-import { useEffect, useId, useMemo, useReducer } from 'react'
+import { useEffect, useId, useMemo, useReducer, useState } from 'react'
 import { toast } from 'sonner'
 import { api } from '../../convex/_generated/api'
 import { AdminBackdrop } from '@/components/admin/admin-backdrop'
@@ -457,6 +457,11 @@ function AdminPage() {
   const isAuthenticated = isSignedIn ?? false
   const isLoading = !isLoaded
   const ensureCurrentUser = useMutation(api.users.ensureCurrentUser)
+  const [userSearchQuery, setUserSearchQuery] = useState('')
+  const [selectedUserId, setSelectedUserId] = useState<string | undefined>(
+    undefined,
+  )
+  const [isUpdatingUserPlan, setIsUpdatingUserPlan] = useState(false)
   const [sessionState, updateSessionState] = useReducer(
     mergeReducer<AdminSessionState>,
     initialAdminSessionState,
@@ -613,6 +618,16 @@ function AdminPage() {
     api.stripe.createBillingPortalSession,
   )
   const generateUploadUrl = useMutation(api.admin.generateUploadUrl)
+  const setUserAppPlan = useMutation(api.admin.setUserAppPlan)
+  const searchedUsers = useQuery(
+    api.admin.searchUsersForAdmin,
+    isAuthenticated &&
+      isUserReady &&
+      isAdmin &&
+      userSearchQuery.trim().length >= 2
+      ? { query: userSearchQuery, limit: 8 }
+      : 'skip',
+  )
 
   useEffect(() => {
     if (!isAuthenticated || !userId) {
@@ -704,6 +719,12 @@ function AdminPage() {
         selectedIds.has(model.modelId),
     )
   }, [discoveryResult, selectedDiscoveryModelIds])
+
+  useEffect(() => {
+    if (!selectedUserId && users[0]?.userId) {
+      setSelectedUserId(users[0].userId)
+    }
+  }, [selectedUserId, users])
 
   const openProviderDialog = (provider?: AdminProvider) => {
     if (provider) {
@@ -1151,6 +1172,30 @@ function AdminPage() {
       })
       .finally(() => {
         setIsSavingSettings(false)
+      })
+  }
+
+  const handleSetUserPlan = (nextAppPlan: AppPlan) => {
+    if (!selectedUserId) {
+      toast.error('Select a user first')
+      return
+    }
+
+    setIsUpdatingUserPlan(true)
+    return setUserAppPlan({
+      userId: selectedUserId as Id<'users'>,
+      appPlan: nextAppPlan,
+    })
+      .then(() => {
+        toast.success(`User plan set to ${nextAppPlan.toUpperCase()}`)
+      })
+      .catch((error) => {
+        toast.error(
+          error instanceof Error ? error.message : 'Failed to update user plan',
+        )
+      })
+      .finally(() => {
+        setIsUpdatingUserPlan(false)
       })
   }
 
@@ -2157,6 +2202,13 @@ function AdminPage() {
               summary={summary}
               usageSeries={dashboard.usageSeries}
               users={users}
+              userSearchQuery={userSearchQuery}
+              searchedUsers={searchedUsers ?? []}
+              selectedUserId={selectedUserId}
+              isUpdatingUserPlan={isUpdatingUserPlan}
+              onUserSearchQueryChange={setUserSearchQuery}
+              onSelectUser={setSelectedUserId}
+              onSetUserPlan={(nextAppPlan) => void handleSetUserPlan(nextAppPlan)}
             />
             <AdminTabsSection
               providers={providers}

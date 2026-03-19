@@ -34,6 +34,7 @@ export default defineSchema({
     phoneVerificationTime: v.optional(v.number()),
     isAnonymous: v.optional(v.boolean()),
     clerkUserId: v.optional(v.string()),
+    appPlan: v.optional(appPlanValidator),
   })
     .index('by_tokenIdentifier', ['tokenIdentifier'])
     .index('email', ['email'])

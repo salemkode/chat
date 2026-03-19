@@ -4,9 +4,14 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useMutation } from 'convex/react'
 import type { FunctionReturnType } from 'convex/server'
 import type { Id } from '../../convex/_generated/dataModel'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../../convex/_generated/api'
 import { useQuery } from '@/lib/convex-query-cache'
+import {
+  buildMessageProgressSignature,
+  getLatestActiveAssistant,
+  isGenerationStalled,
+} from '@/lib/chat-generation'
 import { parseUploadResponse } from '@/lib/parsers'
 import { compareThreadsForSidebar } from '@/lib/project-sidebar'
 import { useOnlineStatus } from '@/hooks/use-online-status'
@@ -121,6 +126,7 @@ function normalizeModel(model: ModelRecord): OfflineModelRecord {
     modelId: model.modelId,
     displayName: model.displayName,
     description: model.description,
+    capabilities: model.capabilities,
     sortOrder: model.sortOrder,
     isFavorite: model.isFavorite,
     isFree: model.isFree,
@@ -219,30 +225,38 @@ async function cacheViewer(
 }
 
 async function cacheMessages(threadId: string, messages: ChatMessage[]) {
+  const versionBase = Date.now()
+  const normalizedMessages = messages.map((message, index) => ({
+    id: message.id,
+    threadId,
+    role: message.role,
+    text: message.text,
+    parts: message.parts as Array<Record<string, unknown>>,
+    failureKind:
+      message.failureKind === 'stopped' || message.failureKind === 'error'
+        ? message.failureKind
+        : undefined,
+    failureMode:
+      message.failureMode === 'replace' || message.failureMode === 'clarify'
+        ? message.failureMode
+        : undefined,
+    failureNote:
+      typeof message.failureNote === 'string' ? message.failureNote : undefined,
+    createdAt: message.order ?? index,
+    updatedAt: versionBase + index,
+    version: versionBase + index,
+    status:
+      message.status === 'streaming' || message.status === 'pending'
+        ? 'streaming'
+        : message.status === 'failed'
+          ? 'failed'
+          : 'success',
+  }))
+
   await offlineDb.transaction('rw', offlineDb.messages, async () => {
     await offlineDb.messages.where('threadId').equals(threadId).delete()
-    for (let index = 0; index < messages.length; index += 1) {
-      const message = messages[index]
-      if (!message) {
-        continue
-      }
-      const version = Date.now() + index
-      await offlineDb.messages.put({
-        id: message.id,
-        threadId,
-        role: message.role,
-        text: message.text,
-        parts: message.parts as Array<Record<string, unknown>>,
-        createdAt: message.order ?? index,
-        updatedAt: version,
-        version,
-        status:
-          message.status === 'streaming' || message.status === 'pending'
-            ? 'streaming'
-            : message.status === 'failed'
-              ? 'failed'
-              : 'success',
-      })
+    if (normalizedMessages.length > 0) {
+      await offlineDb.messages.bulkPut(normalizedMessages)
     }
   })
 }
@@ -432,6 +446,9 @@ export function useMessages(threadId?: string) {
             role: message.role,
             text: message.text,
             parts: message.parts,
+            failureKind: message.failureKind,
+            failureMode: message.failureMode,
+            failureNote: message.failureNote,
             status:
               message.status === 'streaming'
                 ? 'streaming'
@@ -441,16 +458,152 @@ export function useMessages(threadId?: string) {
           }) as ChatMessage,
       )
   }, [threadId])
+  const pendingCacheWriteRef = useRef<number | null>(null)
+  const lastCachedSignatureRef = useRef('')
+  const hasStreamingMessages = useMemo(
+    () =>
+      Boolean(
+        results?.some(
+          (message) =>
+            message.status === 'streaming' || message.status === 'pending',
+        ),
+      ),
+    [results],
+  )
+  const cacheSignature = useMemo(() => {
+    if (!threadId || !results || results.length === 0) {
+      return ''
+    }
+
+    const lastMessage = results[results.length - 1]
+    return [
+      threadId,
+      results.length,
+      lastMessage?.id || '',
+      lastMessage?.status || '',
+      lastMessage?.text.length || 0,
+      hasStreamingMessages ? 1 : 0,
+    ].join(':')
+  }, [hasStreamingMessages, results, threadId])
 
   useEffect(() => {
-    if (threadId && results && results.length > 0) {
-      void cacheMessages(threadId, results)
+    return () => {
+      if (pendingCacheWriteRef.current !== null) {
+        window.clearTimeout(pendingCacheWriteRef.current)
+      }
     }
-  }, [results, threadId])
+  }, [])
+
+  useEffect(() => {
+    lastCachedSignatureRef.current = ''
+
+    if (pendingCacheWriteRef.current !== null) {
+      window.clearTimeout(pendingCacheWriteRef.current)
+      pendingCacheWriteRef.current = null
+    }
+  }, [threadId])
+
+  useEffect(() => {
+    if (!threadId || !results || results.length === 0 || !cacheSignature) {
+      return
+    }
+
+    if (cacheSignature === lastCachedSignatureRef.current) {
+      return
+    }
+
+    if (pendingCacheWriteRef.current !== null) {
+      window.clearTimeout(pendingCacheWriteRef.current)
+    }
+
+    // Streaming updates can happen multiple times per second; debounce disk writes.
+    const writeDelayMs = hasStreamingMessages ? 1200 : 180
+    pendingCacheWriteRef.current = window.setTimeout(() => {
+      const snapshot = results
+      void cacheMessages(threadId, snapshot)
+        .then(() => {
+          lastCachedSignatureRef.current = cacheSignature
+        })
+        .catch(() => {
+          // Ignore caching failures; live data path remains authoritative.
+        })
+      pendingCacheWriteRef.current = null
+    }, writeDelayMs)
+
+    return () => {
+      if (pendingCacheWriteRef.current !== null) {
+        window.clearTimeout(pendingCacheWriteRef.current)
+        pendingCacheWriteRef.current = null
+      }
+    }
+  }, [cacheSignature, hasStreamingMessages, results, threadId])
 
   return {
     messages: results && results.length > 0 ? results : cachedMessages || [],
     status,
+  }
+}
+
+export function useGenerationState(messages: ChatMessage[]) {
+  const activeGeneration = useMemo(
+    () => getLatestActiveAssistant(messages),
+    [messages],
+  )
+  const activeMessage = activeGeneration?.message
+  const activeSignature = useMemo(
+    () => (activeMessage ? buildMessageProgressSignature(activeMessage) : null),
+    [activeMessage],
+  )
+  const [lastProgressAt, setLastProgressAt] = useState(() => Date.now())
+  const [tick, setTick] = useState(() => Date.now())
+  const activeMessageIdRef = useRef<string | null>(null)
+  const activeSignatureRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!activeMessage || !activeSignature) {
+      activeMessageIdRef.current = null
+      activeSignatureRef.current = null
+      return
+    }
+
+    if (activeMessageIdRef.current !== activeMessage.id) {
+      activeMessageIdRef.current = activeMessage.id
+      activeSignatureRef.current = activeSignature
+      setLastProgressAt(Date.now())
+      return
+    }
+
+    if (activeSignatureRef.current !== activeSignature) {
+      activeSignatureRef.current = activeSignature
+      setLastProgressAt(Date.now())
+    }
+  }, [activeMessage, activeSignature])
+
+  useEffect(() => {
+    if (!activeMessage) {
+      return
+    }
+
+    const intervalId = window.setInterval(() => {
+      setTick(Date.now())
+    }, 1000)
+
+    return () => {
+      window.clearInterval(intervalId)
+    }
+  }, [activeMessage])
+
+  const isStalled = Boolean(
+    activeMessage &&
+      isGenerationStalled({
+        lastProgressAt,
+        now: tick,
+      }),
+  )
+
+  return {
+    activeGeneration,
+    isStalled,
   }
 }
 
@@ -653,6 +806,14 @@ export function useSendMessage() {
   )
   const sendMessage = useMutation(api.agents.generateMessage)
   const regenerateMessage = useMutation(api.agents.regenerateMessage)
+  const stopGenerationApi = (
+    api as typeof api & {
+      agents: {
+        stopGeneration: unknown
+      }
+    }
+  ).agents
+  const stopGeneration = useMutation(stopGenerationApi.stopGeneration as never)
 
   const uploadAttachments = useCallback(
     async (files: File[]) => {
@@ -744,6 +905,30 @@ export function useSendMessage() {
 
   return {
     send,
+    stop: useCallback(
+      async ({
+        threadId,
+        promptMessageId,
+      }: {
+        threadId: string
+        promptMessageId?: string
+      }) => {
+        if (!isOnline) {
+          return { disabledReason: 'offline' as const, stopped: false }
+        }
+
+        const result = (await stopGeneration({
+          threadId,
+          promptMessageId,
+        } as never)) as { stopped?: boolean } | null
+
+        return {
+          disabledReason: null,
+          stopped: Boolean(result?.stopped),
+        }
+      },
+      [isOnline, stopGeneration],
+    ),
     regenerate: useCallback(
       async ({
         threadId,

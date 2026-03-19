@@ -11,6 +11,7 @@ import {
 } from '@convex-dev/agent'
 import { ConvexError } from 'convex/values'
 import { threadMetadataValidator } from './lib/validators'
+import { GENERATION_STOPPED_BY_USER } from './agents'
 
 type AgentThreadId = FunctionArgs<
   typeof components.agent.threads.getThread
@@ -118,13 +119,16 @@ export const listMessages = query({
         return message
       }
 
-      const errorText = formatFailedMessage(
+      const failure = buildFailureMetadata(
         failedErrorsByOrder.get(message.order),
+        message.text,
       )
 
       return {
         ...message,
-        text: message.text ? `${message.text}\n\n${errorText}` : errorText,
+        failureKind: failure.kind,
+        failureMode: failure.mode,
+        failureNote: failure.note,
       }
     })
 
@@ -211,14 +215,49 @@ export const getThread = query({
   },
 })
 
-function formatFailedMessage(error: string | undefined): string {
-  const cleaned = sanitizeFailedMessage(error)
+type FailureKind = 'stopped' | 'error'
+type FailureMode = 'replace' | 'clarify'
 
-  if (!cleaned) {
-    return 'This message failed to generate.'
+function buildFailureMetadata(
+  error: string | undefined,
+  text: string | undefined,
+): {
+  kind: FailureKind
+  mode: FailureMode
+  note: string
+} {
+  const kind: FailureKind = isStoppedFailure(error) ? 'stopped' : 'error'
+  const hasGeneratedContent = Boolean(text?.trim())
+  const mode: FailureMode = hasGeneratedContent ? 'clarify' : 'replace'
+
+  if (kind === 'stopped') {
+    return {
+      kind,
+      mode,
+      note: 'Generation stopped.',
+    }
   }
 
-  return `Message failed: ${cleaned}`
+  const cleaned = sanitizeFailedMessage(error)
+
+  return {
+    kind,
+    mode,
+    note: cleaned || 'This message failed to generate.',
+  }
+}
+
+function isStoppedFailure(error: string | undefined) {
+  if (!error) {
+    return false
+  }
+
+  const normalized = error.trim().toLowerCase()
+  return (
+    normalized === GENERATION_STOPPED_BY_USER.toLowerCase() ||
+    normalized.includes('stopped by user') ||
+    normalized === 'generation stopped.'
+  )
 }
 
 function sanitizeFailedMessage(error: string | undefined): string {

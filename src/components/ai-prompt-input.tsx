@@ -12,7 +12,6 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ModelSelector } from './model-selector'
-import { Alert, AlertDescription, AlertTitle } from './ui/alert'
 import { Badge } from './ui/badge'
 
 interface AIPromptInputProps {
@@ -34,6 +33,7 @@ interface AIPromptInputProps {
   selectedProjectId?: string
   onProjectChange?: (projectId?: string) => void
   mobile?: boolean
+  onEmptyEnter?: () => void
 }
 
 type ProjectMentionState = {
@@ -62,6 +62,7 @@ export function AIPromptInput({
   selectedProjectId,
   onProjectChange,
   mobile = false,
+  onEmptyEnter,
 }: AIPromptInputProps) {
   const [internalValue, setInternalValue] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -130,6 +131,18 @@ export function AIPromptInput({
   useEffect(() => {
     attachmentsRef.current = attachments
   }, [attachments])
+
+  useEffect(() => {
+    if (!submitError) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setSubmitError(null)
+    }, 3500)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [submitError])
 
   useEffect(() => {
     return () => {
@@ -203,6 +216,10 @@ export function AIPromptInput({
 
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
+      if (!value.trim() && attachments.length === 0) {
+        onEmptyEnter?.()
+        return
+      }
       handleSubmit()
     }
   }
@@ -314,6 +331,18 @@ export function AIPromptInput({
 
   return (
     <div className="pointer-events-auto w-full">
+      {submitError ? (
+        <div className="mb-2 flex justify-center">
+          <div
+            role="alert"
+            aria-live="assertive"
+            className="inline-flex max-w-[min(100%,42rem)] items-start gap-2 rounded-xl border border-destructive/45 bg-background/95 px-3 py-2 text-sm text-destructive shadow-lg backdrop-blur"
+          >
+            <AlertCircle className="mt-0.5 size-4 shrink-0" />
+            <span className="leading-5">{submitError}</span>
+          </div>
+        </div>
+      ) : null}
       <form
         onSubmit={handleSubmit}
         onDragEnter={(event) => {
@@ -602,13 +631,6 @@ export function AIPromptInput({
           </div>
         </div>
       </form>
-      {submitError ? (
-        <Alert variant="destructive" className="mt-2 border-destructive/40">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Message failed</AlertTitle>
-          <AlertDescription>{submitError}</AlertDescription>
-        </Alert>
-      ) : null}
       {footerText ? (
         <p className="mt-2 px-1 text-xs text-muted-foreground">{footerText}</p>
       ) : null}

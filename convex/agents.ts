@@ -76,6 +76,9 @@ const THREAD_TITLE_MAX_LENGTH = 60
 const AUTO_METADATA_MESSAGE_THRESHOLD = 5
 const AUTO_METADATA_STALE_AFTER_MS = 5 * 60 * 1000
 const SUPPORTED_CHAT_ATTACHMENT_TYPES = ['application/pdf'] as const
+export const GENERATION_STOPPED_BY_USER = 'GENERATION_STOPPED_BY_USER'
+const GENERATION_FAILED_FALLBACK_MESSAGE = 'The model could not complete this response.'
+const GENERATION_REPLACED_BY_RESEND = 'Regenerating response.'
 
 const chatAttachmentValidator = v.object({
   storageId: v.id('_storage'),
@@ -295,23 +298,59 @@ function extractAccessDeniedModel(message: string) {
 }
 
 async function markPendingGenerationFailed(
-  ctx: ActionCtx,
+  ctx: Pick<ActionCtx, 'runQuery' | 'runMutation'>,
   args: {
     threadId: string
     promptMessageId?: string
     error: string
   },
 ) {
-  let targetOrder: number | undefined
+  const targetOrder = await resolvePromptOrder(ctx, {
+    promptMessageId: args.promptMessageId,
+  })
 
-  if (args.promptMessageId) {
-    const [promptMessage] = await ctx.runQuery(
-      components.agent.messages.getMessagesByIds,
-      { messageIds: [args.promptMessageId] },
-    )
-    targetOrder = promptMessage?.order
+  const resolvedOrder = await resolvePendingOrder(ctx, {
+    threadId: args.threadId,
+    targetOrder,
+  })
+
+  if (resolvedOrder === undefined) {
+    return { order: undefined, stopped: false }
   }
 
+  const stopped = await failPendingMessagesByOrder(ctx, {
+    threadId: args.threadId,
+    order: resolvedOrder,
+    error: args.error,
+  })
+
+  return { order: resolvedOrder, stopped }
+}
+
+async function resolvePromptOrder(
+  ctx: Pick<ActionCtx, 'runQuery'>,
+  args: {
+    promptMessageId?: string
+  },
+) {
+  if (!args.promptMessageId) {
+    return undefined
+  }
+
+  const [promptMessage] = await ctx.runQuery(
+    components.agent.messages.getMessagesByIds,
+    { messageIds: [args.promptMessageId] },
+  )
+  return promptMessage?.order
+}
+
+async function resolvePendingOrder(
+  ctx: Pick<ActionCtx, 'runQuery'>,
+  args: {
+    threadId: string
+    targetOrder?: number
+  },
+) {
   const pendingMessages = await ctx.runQuery(
     components.agent.messages.listMessagesByThreadId,
     {
@@ -326,22 +365,39 @@ async function markPendingGenerationFailed(
   )
 
   const fallbackOrder = pendingMessages.page[0]?.order
-  const resolvedOrder = targetOrder ?? fallbackOrder
+  return args.targetOrder ?? fallbackOrder
+}
 
-  if (resolvedOrder === undefined) {
-    return
-  }
+async function failPendingMessagesByOrder(
+  ctx: Pick<ActionCtx, 'runQuery' | 'runMutation'>,
+  args: {
+    threadId: string
+    order: number
+    error: string
+  },
+) {
+  const pendingMessages = await ctx.runQuery(
+    components.agent.messages.listMessagesByThreadId,
+    {
+      threadId: args.threadId,
+      statuses: ['pending'],
+      order: 'desc',
+      paginationOpts: {
+        cursor: null,
+        numItems: 20,
+      },
+    },
+  )
 
   const matchingPendingMessages = pendingMessages.page.filter(
-    (message: (typeof pendingMessages.page)[number]) =>
-      message.order === resolvedOrder,
+    (message: (typeof pendingMessages.page)[number]) => message.order === args.order,
   )
 
   await Promise.all([
     ctx.runMutation(components.agent.streams.abortByOrder, {
       threadId: args.threadId,
-      order: resolvedOrder,
-      reason: args.error,
+      order: args.order,
+      reason: args.error || GENERATION_FAILED_FALLBACK_MESSAGE,
     }),
     ...matchingPendingMessages.map(
       (message: (typeof matchingPendingMessages)[number]) =>
@@ -349,11 +405,13 @@ async function markPendingGenerationFailed(
           messageId: message._id,
           result: {
             status: 'failed',
-            error: args.error,
+            error: args.error || GENERATION_FAILED_FALLBACK_MESSAGE,
           },
         }),
     ),
   ])
+
+  return matchingPendingMessages.length > 0
 }
 
 const threadPresentationValidator = v.union(
@@ -586,13 +644,17 @@ async function resolveGenerationDependencies(
     })
   }
 
-  const adminSettings = await ctx.db
-    .query('adminSettings')
-    .withIndex('by_key', (q) => q.eq('key', 'global'))
-    .first()
+  const [adminSettings, user] = await Promise.all([
+    ctx.db
+      .query('adminSettings')
+      .withIndex('by_key', (q) => q.eq('key', 'global'))
+      .first(),
+    ctx.db.get(userId),
+  ])
   const effectiveAppPlan = await resolveEffectiveAppPlan(
     ctx,
     adminSettings ?? undefined,
+    user ?? undefined,
   )
 
   if (!model.isEnabled || !provider.isEnabled) {
@@ -1175,7 +1237,7 @@ export const streamMessage = internalAction({
       await markPendingGenerationFailed(ctx, {
         threadId: args.threadId,
         promptMessageId: args.promptMessageId,
-        error: formattedError,
+        error: formattedError || GENERATION_FAILED_FALLBACK_MESSAGE,
       })
       return { success: false, error: formattedError }
     }
@@ -1312,6 +1374,12 @@ export const regenerateMessage = mutation({
       })
     }
 
+    await markPendingGenerationFailed(ctx, {
+      threadId: args.threadId,
+      promptMessageId: args.promptMessageId,
+      error: GENERATION_REPLACED_BY_RESEND,
+    })
+
     await deleteResponseStepsForPrompt(ctx, {
       threadId: args.threadId,
       promptOrder: promptMessage.order,
@@ -1337,6 +1405,49 @@ export const regenerateMessage = mutation({
     })
 
     return null
+  },
+})
+
+export const stopGeneration = mutation({
+  args: {
+    threadId: v.string(),
+    promptMessageId: v.optional(v.string()),
+  },
+  returns: v.object({
+    stopped: v.boolean(),
+    order: v.optional(v.number()),
+  }),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId) {
+      throw new ConvexError({
+        code: 'UNAUTHORIZED',
+        message: 'You must be logged in to stop generation',
+      })
+    }
+
+    const metadata = await ctx.db
+      .query('threadMetadata')
+      .withIndex('by_threadId', (q) => q.eq('threadId', args.threadId))
+      .first()
+
+    if (!metadata || metadata.userId !== userId) {
+      throw new ConvexError({
+        code: 'NOT_FOUND',
+        message: 'Thread not found',
+      })
+    }
+
+    const result = await markPendingGenerationFailed(ctx, {
+      threadId: args.threadId,
+      promptMessageId: args.promptMessageId,
+      error: GENERATION_STOPPED_BY_USER,
+    })
+
+    return {
+      stopped: result.stopped,
+      order: result.order,
+    }
   },
 })
 

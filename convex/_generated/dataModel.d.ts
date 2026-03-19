@@ -834,6 +834,7 @@ export type DataModel = {
   };
   users: {
     document: {
+      appPlan?: "free" | "pro";
       clerkUserId?: string;
       email?: string;
       emailVerificationTime?: number;
@@ -849,6 +850,7 @@ export type DataModel = {
     fieldPaths:
       | "_creationTime"
       | "_id"
+      | "appPlan"
       | "clerkUserId"
       | "email"
       | "emailVerificationTime"

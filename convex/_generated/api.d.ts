@@ -393,11 +393,23 @@ export declare const api: {
       { userId: Id<"users"> },
       any
     >;
+    searchUsersForAdmin: FunctionReference<
+      "query",
+      "public",
+      { limit?: number; query: string },
+      any
+    >;
     seedModels: FunctionReference<"mutation", "public", {}, any>;
     setFavoriteModel: FunctionReference<
       "mutation",
       "public",
       { clientUpdatedAt?: number; isFavorite: boolean; modelId: Id<"models"> },
+      any
+    >;
+    setUserAppPlan: FunctionReference<
+      "mutation",
+      "public",
+      { appPlan: "free" | "pro"; userId: Id<"users"> },
       any
     >;
     toggleFavoriteModel: FunctionReference<

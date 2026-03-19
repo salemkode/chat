@@ -20,7 +20,7 @@ class OfflineDatabase extends Dexie {
 
   constructor() {
     super('salemkode-chat-offline')
-    this.version(2).stores({
+    this.version(4).stores({
       session: 'id, userId, lastSyncedAt',
       threads:
         'id, projectId, updatedAt, lastMessageAt, pinned, deletedAt, version',
