@@ -3,6 +3,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { Loader2, MessageSquareText, MoveRight } from 'lucide-react'
 import { useEffect } from 'react'
 import { api } from 'convex/_generated/api'
+import { SharedChatSidebar } from '@/components/chat/SharedChatSidebar'
 import { MarkdownContent } from '@/components/MarkdownContent'
 import { Button } from '@/components/ui/button'
 import { usePaginatedQuery, useQuery } from '@/lib/convex-query-cache'
@@ -15,6 +16,7 @@ export const Route = createFileRoute('/share/$shareId')({
 function SharedChatPage() {
   const { shareId } = Route.useParams()
   const share = useQuery(api.shares.getChatShare, { token: shareId })
+  const shareUrl = typeof window === 'undefined' ? '' : window.location.href
   const { results, status, loadMore } = usePaginatedQuery(
     api.shares.listChatShareMessages,
     { token: shareId },
@@ -37,7 +39,7 @@ function SharedChatPage() {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 py-6 sm:px-6 sm:py-8">
+      <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-6 sm:px-6 sm:py-8">
         <header className="flex flex-col gap-4 border-b border-border/70 pb-6 sm:flex-row sm:items-end sm:justify-between">
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-muted/30 px-3 py-1 text-xs font-medium text-muted-foreground">
@@ -66,36 +68,46 @@ function SharedChatPage() {
         </header>
 
         <section className="flex-1 py-8">
-          <div className="mx-auto w-full max-w-3xl space-y-6">
-            {results.map((message) => (
-              <article
-                key={`${message.order}-${message.role}`}
-                className={
-                  message.role === 'user'
-                    ? 'flex justify-end'
-                    : 'flex justify-start'
-                }
-              >
-                {message.role === 'user' ? (
-                  <div className="max-w-[85%] rounded-3xl rounded-br-md bg-secondary px-4 py-3 text-sm leading-relaxed text-secondary-foreground shadow-sm sm:max-w-[75%]">
-                    <p className="whitespace-pre-wrap break-words">
-                      {message.text}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="w-full rounded-3xl border border-border/60 bg-background px-4 py-4 shadow-xs">
-                    <MarkdownContent content={message.text} />
-                  </div>
-                )}
-              </article>
-            ))}
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start">
+            <div className="min-w-0">
+              <div className="mx-auto w-full max-w-3xl space-y-6 lg:mx-0 lg:max-w-none">
+                {results.map((message) => (
+                  <article
+                    key={`${message.order}-${message.role}`}
+                    className={
+                      message.role === 'user'
+                        ? 'flex justify-end'
+                        : 'flex justify-start'
+                    }
+                  >
+                    {message.role === 'user' ? (
+                      <div className="max-w-[85%] rounded-3xl rounded-br-md bg-secondary px-4 py-3 text-sm leading-relaxed text-secondary-foreground shadow-sm sm:max-w-[75%]">
+                        <p className="whitespace-pre-wrap break-words">
+                          {message.text}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="w-full rounded-3xl border border-border/60 bg-background px-4 py-4 shadow-xs">
+                        <MarkdownContent content={message.text} />
+                      </div>
+                    )}
+                  </article>
+                ))}
 
-            {status === 'LoadingFirstPage' || status === 'LoadingMore' ? (
-              <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
-                <Loader2 className="mr-2 size-4 animate-spin" />
-                <span>Loading transcript...</span>
+                {status === 'LoadingFirstPage' || status === 'LoadingMore' ? (
+                  <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
+                    <Loader2 className="mr-2 size-4 animate-spin" />
+                    <span>Loading transcript...</span>
+                  </div>
+                ) : null}
               </div>
-            ) : null}
+            </div>
+
+            <SharedChatSidebar
+              shareTitle={share.title}
+              shareUrl={shareUrl}
+              messageCount={share.messageCount}
+            />
           </div>
         </section>
       </div>

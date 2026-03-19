@@ -40,6 +40,7 @@ export type DataModel = {
   };
   adminSettings: {
     document: {
+      appPlan: "free" | "pro";
       defaultRateLimit?: {
         capacity?: number;
         enabled: boolean;
@@ -57,6 +58,7 @@ export type DataModel = {
     fieldPaths:
       | "_creationTime"
       | "_id"
+      | "appPlan"
       | "defaultRateLimit"
       | "defaultRateLimit.capacity"
       | "defaultRateLimit.enabled"

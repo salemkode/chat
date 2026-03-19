@@ -21,21 +21,15 @@ export const Route = createFileRoute('/login')({
 function LoginPage() {
   const hostname = location.hostname
   const isLocalhost = LOCAL_HOSTNAMES.has(hostname)
+  const isProduction = import.meta.env.PROD
   const search = useSearch({ from: '/login' })
   const redirect = search.redirect
   const targetAfterLogin = getPostLoginRedirectTarget(redirect)
   const authFrontendBase = resolveAuthFrontendBaseUrl(
     import.meta.env.VITE_AUTH_FRONTEND_URL,
   )
-  const useExternalAuth = !isLocalhost && Boolean(authFrontendBase)
-  const authLoginUrl = authFrontendBase
-    ? new URL('/login', authFrontendBase)
-    : null
-  authLoginUrl?.searchParams.set('redirect', targetAfterLogin)
-  authLoginUrl?.searchParams.set(
-    'redirect_url',
-    `${location.origin}${targetAfterLogin}`,
-  )
+  const useExternalAuth =
+    isProduction && !isLocalhost && Boolean(authFrontendBase)
   const redirectProps = redirect
     ? {
         forceRedirectUrl: targetAfterLogin,
@@ -66,8 +60,8 @@ function LoginPage() {
               {...redirectProps}
             />
           )}
-          {useExternalAuth && authLoginUrl && (
-            <ExternalAuthRedirect to={authLoginUrl.toString()} />
+          {useExternalAuth && authFrontendBase && (
+            <ExternalAuthRedirect to={authFrontendBase} />
           )}
         </Show>
       </ClerkLoaded>

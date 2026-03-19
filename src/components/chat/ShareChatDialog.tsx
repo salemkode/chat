@@ -127,6 +127,10 @@ export function ShareChatDialog({
                     ? ` Current snapshot: ${messageCount} messages.`
                     : ''}
                 </p>
+                <p>
+                  The shared page includes a handoff sidebar for ChatGPT,
+                  Gemini, Claude, and T3 Chat.
+                </p>
                 <div className="flex gap-2">
                   <Input value={shareUrl} readOnly aria-label="Share URL" />
                   <Button

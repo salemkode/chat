@@ -1,5 +1,6 @@
 import { defineSchema, defineTable } from 'convex/server'
 import { v } from 'convex/values'
+import { appPlanValidator } from './lib/appPlan'
 
 const iconTypeValidator = v.union(
   v.literal('emoji'),
@@ -147,6 +148,7 @@ export default defineSchema({
 
   adminSettings: defineTable({
     key: v.string(),
+    appPlan: appPlanValidator,
     defaultRateLimit: v.optional(rateLimitPolicyValidator),
     updatedAt: v.number(),
   }).index('by_key', ['key']),

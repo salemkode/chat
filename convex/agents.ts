@@ -31,6 +31,8 @@ import { rateLimiter } from './lib/rateLimiter'
 import { threadMetadataTools } from './lib/threadMetadataTools'
 import { extractMessageText } from './functions/memoryShared'
 import { threadMetadataValidator } from './lib/validators'
+import { isModelAllowedForPlan } from './lib/appPlan'
+import { resolveEffectiveAppPlan } from './lib/billing'
 
 // Random emoji picker for new chats
 const CHAT_EMOJIS = [
@@ -588,6 +590,24 @@ async function resolveGenerationDependencies(
     .query('adminSettings')
     .withIndex('by_key', (q) => q.eq('key', 'global'))
     .first()
+  const effectiveAppPlan = await resolveEffectiveAppPlan(
+    ctx,
+    adminSettings ?? undefined,
+  )
+
+  if (!model.isEnabled || !provider.isEnabled) {
+    throw new ConvexError({
+      code: 'FORBIDDEN',
+      message: 'The selected model is not available right now',
+    })
+  }
+
+  if (!isModelAllowedForPlan(model, { appPlan: effectiveAppPlan })) {
+    throw new ConvexError({
+      code: 'FORBIDDEN',
+      message: 'The selected model requires the Pro plan',
+    })
+  }
 
   await enforceRateLimit(ctx, {
     name: 'chat:global',

@@ -21,12 +21,23 @@ import {
   rateLimitPolicyValidator,
 } from './lib/validators'
 import type { Id } from './_generated/dataModel'
+import {
+  appPlanValidator,
+  DEFAULT_APP_PLAN,
+  isModelAllowedForPlan,
+} from './lib/appPlan'
+import {
+  getAppBillingSubscription,
+  isStripeSubscriptionActive,
+  resolveEffectiveAppPlan,
+} from './lib/billing'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
 const adminSettingsValidator = v.object({
   _id: v.optional(v.id('adminSettings')),
   key: v.string(),
+  appPlan: appPlanValidator,
   defaultRateLimit: v.optional(rateLimitPolicyValidator),
   updatedAt: v.number(),
 })
@@ -251,6 +262,7 @@ async function getCurrentAdminSettings(ctx: QueryCtx | MutationCtx) {
     settings ?? {
       _id: undefined,
       key: 'global',
+      appPlan: DEFAULT_APP_PLAN,
       defaultRateLimit: undefined,
       updatedAt: 0,
     }
@@ -349,6 +361,7 @@ export const getAdminSettings = query({
       return {
         _id: undefined,
         key: 'global',
+        appPlan: DEFAULT_APP_PLAN,
         defaultRateLimit: undefined,
         updatedAt: 0,
       }
@@ -361,6 +374,7 @@ export const getAdminSettings = query({
       return {
         _id: undefined,
         key: 'global',
+        appPlan: DEFAULT_APP_PLAN,
         defaultRateLimit: undefined,
         updatedAt: 0,
       }
@@ -371,6 +385,7 @@ export const getAdminSettings = query({
 
 export const updateAdminSettings = mutation({
   args: {
+    appPlan: v.optional(appPlanValidator),
     defaultRateLimit: v.optional(rateLimitPolicyValidator),
   },
   handler: async (ctx, args) => {
@@ -390,6 +405,7 @@ export const updateAdminSettings = mutation({
 
     const patch = {
       key: 'global',
+      appPlan: args.appPlan ?? existing?.appPlan ?? DEFAULT_APP_PLAN,
       defaultRateLimit: args.defaultRateLimit,
       updatedAt: Date.now(),
     }
@@ -476,7 +492,7 @@ export const listEnabledModels = query({
       return []
     }
 
-    const [models, providers] = await Promise.all([
+    const [models, providers, settings] = await Promise.all([
       ctx.db
         .query('models')
         .withIndex('by_enabled', (q) => q.eq('isEnabled', true))
@@ -485,14 +501,20 @@ export const listEnabledModels = query({
         .query('providers')
         .withIndex('by_enabled', (q) => q.eq('isEnabled', true))
         .collect(),
+      getCurrentAdminSettings(ctx),
     ])
+    const effectiveAppPlan = await resolveEffectiveAppPlan(ctx, settings)
 
     const enabledProviderIds = new Set(
       providers.map((provider) => provider._id),
     )
 
     return models
-      .filter((model) => enabledProviderIds.has(model.providerId))
+      .filter(
+        (model) =>
+          enabledProviderIds.has(model.providerId) &&
+          isModelAllowedForPlan(model, { appPlan: effectiveAppPlan }),
+      )
       .sort((left, right) => left.sortOrder - right.sortOrder)
   },
 })
@@ -510,7 +532,7 @@ export const listModelsWithProviders = query({
       return { providers: [], favorites: [], models: [] }
     }
 
-    const [models, providers, favorites] = await Promise.all([
+    const [models, providers, favorites, settings] = await Promise.all([
       ctx.db
         .query('models')
         .withIndex('by_enabled', (q) => q.eq('isEnabled', true))
@@ -523,7 +545,9 @@ export const listModelsWithProviders = query({
         .query('userFavoriteModels')
         .withIndex('by_user', (q) => q.eq('userId', userId))
         .collect(),
+      getCurrentAdminSettings(ctx),
     ])
+    const effectiveAppPlan = await resolveEffectiveAppPlan(ctx, settings)
 
     const favoriteModelIds = new Set(
       favorites.map((favorite) => favorite.modelId),
@@ -534,7 +558,11 @@ export const listModelsWithProviders = query({
 
     const modelsWithInfo = await Promise.all(
       models
-        .filter((model) => providerMap.has(model.providerId))
+        .filter(
+          (model) =>
+            providerMap.has(model.providerId) &&
+            isModelAllowedForPlan(model, { appPlan: effectiveAppPlan }),
+        )
         .map(async (model) => {
           const provider = providerMap.get(model.providerId)
           const providerIconUrl = provider?.iconId
@@ -1127,8 +1155,19 @@ export const getDashboardData = query({
         settings: {
           _id: undefined,
           key: 'global',
+          appPlan: DEFAULT_APP_PLAN,
           defaultRateLimit: undefined,
           updatedAt: 0,
+        },
+        billing: {
+          effectiveAppPlan: DEFAULT_APP_PLAN,
+          hasActiveSubscription: false,
+          priceConfigured: Boolean(process.env.STRIPE_PRO_PRICE_ID),
+          status: undefined,
+          priceId: undefined,
+          stripeSubscriptionId: undefined,
+          currentPeriodEnd: undefined,
+          cancelAtPeriodEnd: false,
         },
         summary: {
           totalProviders: 0,
@@ -1157,8 +1196,19 @@ export const getDashboardData = query({
         settings: {
           _id: undefined,
           key: 'global',
+          appPlan: DEFAULT_APP_PLAN,
           defaultRateLimit: undefined,
           updatedAt: 0,
+        },
+        billing: {
+          effectiveAppPlan: DEFAULT_APP_PLAN,
+          hasActiveSubscription: false,
+          priceConfigured: Boolean(process.env.STRIPE_PRO_PRICE_ID),
+          status: undefined,
+          priceId: undefined,
+          stripeSubscriptionId: undefined,
+          currentPeriodEnd: undefined,
+          cancelAtPeriodEnd: false,
         },
         summary: {
           totalProviders: 0,
@@ -1190,6 +1240,7 @@ export const getDashboardData = query({
       favorites,
       settings,
       usageEvents,
+      billingSubscription,
     ] = await Promise.all([
       ctx.db.query('providers').collect(),
       ctx.db.query('models').collect(),
@@ -1201,7 +1252,11 @@ export const getDashboardData = query({
         .query('modelUsageEvents')
         .withIndex('by_createdAt', (q) => q.gte('createdAt', since30d))
         .collect(),
+      getAppBillingSubscription(ctx),
     ])
+    const hasActiveSubscription =
+      isStripeSubscriptionActive(billingSubscription)
+    const effectiveAppPlan = hasActiveSubscription ? 'pro' : settings.appPlan
 
     const usageLast30d = usageEvents
     const usageLast7d = usageEvents.filter(
@@ -1408,6 +1463,20 @@ export const getDashboardData = query({
 
     return {
       settings,
+      billing: {
+        effectiveAppPlan,
+        hasActiveSubscription,
+        priceConfigured: Boolean(process.env.STRIPE_PRO_PRICE_ID),
+        status: billingSubscription?.status,
+        priceId: billingSubscription?.priceId,
+        stripeSubscriptionId: billingSubscription?.stripeSubscriptionId,
+        currentPeriodEnd: billingSubscription?.currentPeriodEnd
+          ? billingSubscription.currentPeriodEnd < 1_000_000_000_000
+            ? billingSubscription.currentPeriodEnd * 1000
+            : billingSubscription.currentPeriodEnd
+          : undefined,
+        cancelAtPeriodEnd: billingSubscription?.cancelAtPeriodEnd ?? false,
+      },
       summary: {
         totalProviders: providers.length,
         enabledProviders: providers.filter((provider) => provider.isEnabled)

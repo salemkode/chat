@@ -1,48 +1,45 @@
 import { useAuth } from '@clerk/tanstack-react-start'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import type { FunctionReturnType } from 'convex/server'
 import { useAction, useMutation } from 'convex/react'
 import type { Doc, Id } from 'convex/_generated/dataModel'
 import {
   ArrowLeft,
-  Bot,
-  Boxes,
-  Eye,
-  EyeOff,
   Loader2,
   Plus,
   RefreshCcw,
-  Settings2,
   Shield,
   Sparkles,
-  Users,
   WandSparkles,
 } from 'lucide-react'
 import { useEffect, useId, useMemo, useReducer } from 'react'
-import { Area, AreaChart, CartesianGrid, XAxis } from 'recharts'
 import { toast } from 'sonner'
 import { api } from '../../convex/_generated/api'
+import { AdminBackdrop } from '@/components/admin/admin-backdrop'
+import { AdminOverviewSection } from '@/components/admin/admin-overview-section'
+import { AdminTabsSection } from '@/components/admin/admin-tabs-section'
 import { IconPickerField } from '@/components/admin/icon-picker-field'
 import { EntityIcon } from '@/components/admin/entity-icon'
 import {
   RateLimitEditor,
   type RateLimitPolicy,
 } from '@/components/admin/rate-limit-editor'
+import type {
+  AdminModel,
+  AdminModelCollection,
+  AdminProvider,
+  DashboardData,
+  IconType,
+  ProviderCatalogResult,
+} from '@/components/admin/types'
+import type { AppPlan } from '../../shared/admin-types'
 import { AuthRedirect } from '@/components/auth-redirect'
 import { Button } from '@/components/ui/button'
 import {
   Card,
-  CardAction,
-  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from '@/components/ui/chart'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
@@ -63,16 +60,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
@@ -91,13 +79,6 @@ export const Route = createFileRoute('/admin')({
   component: AdminPage,
 })
 
-type DashboardData = FunctionReturnType<typeof api.admin.getDashboardData>
-type ProviderCatalogResult = FunctionReturnType<
-  typeof api.admin.inspectProviderCatalog
->
-type AdminProvider = DashboardData['providers'][number]
-type AdminModel = DashboardData['models'][number]
-type AdminModelCollection = DashboardData['collections'][number]
 type ProviderType =
   | 'openrouter'
   | 'openai'
@@ -119,8 +100,6 @@ type ProviderType =
   | 'moonshot'
   | 'qwen'
   | 'stepfun'
-
-type IconType = 'emoji' | 'lucide' | 'upload' | undefined
 
 const PROVIDER_TYPES: Array<{
   value: ProviderType
@@ -213,17 +192,6 @@ const PROVIDER_TYPES: Array<{
   },
 ] as const
 
-const usageChartConfig = {
-  requests: {
-    label: 'Requests',
-    color: 'hsl(var(--chart-1))',
-  },
-  tokens: {
-    label: 'Tokens',
-    color: 'hsl(var(--chart-2))',
-  },
-}
-
 interface ProviderFormData {
   name: string
   providerType: ProviderType
@@ -303,6 +271,9 @@ type DiscoveryState = {
 
 type SettingsState = {
   isSavingSettings: boolean
+  isStartingCheckout: boolean
+  isOpeningBillingPortal: boolean
+  appPlanDraft?: AppPlan
   globalRateLimitDraft?: RateLimitPolicy
 }
 
@@ -396,6 +367,9 @@ const initialDiscoveryState: DiscoveryState = {
 
 const initialSettingsState: SettingsState = {
   isSavingSettings: false,
+  isStartingCheckout: false,
+  isOpeningBillingPortal: false,
+  appPlanDraft: undefined,
   globalRateLimitDraft: undefined,
 }
 
@@ -449,27 +423,6 @@ function safeJsonStringify(value: unknown) {
   return JSON.stringify(value, null, 2)
 }
 
-function formatCompactNumber(value: number) {
-  return new Intl.NumberFormat('en-US', { notation: 'compact' }).format(value)
-}
-
-function formatDateTime(value?: number) {
-  if (!value) {
-    return 'Never'
-  }
-
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(value)
-}
-
-function formatTokenCount(value: number) {
-  return new Intl.NumberFormat('en-US').format(value)
-}
-
 function formatModelModalities(modalities?: {
   input?: string[]
   output?: string[]
@@ -494,57 +447,6 @@ function getCapabilitiesTextFromModalities(modalities?: {
     .filter((value) => value.length > 0 && value !== 'text')
 
   return [...new Set(capabilities)].join(', ')
-}
-
-function getProviderName(
-  providers: DashboardData['providers'] | undefined,
-  providerId: string,
-) {
-  return (
-    providers?.find((provider: AdminProvider) => provider._id === providerId)
-      ?.name ?? 'Unknown Provider'
-  )
-}
-
-function StatCard({
-  title,
-  value,
-  description,
-  icon: Icon,
-}: {
-  title: string
-  value: string
-  description: string
-  icon: typeof Sparkles
-}) {
-  return (
-    <Card className="border-border bg-card shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <CardDescription>{title}</CardDescription>
-          <Icon className="size-4 text-muted-foreground" />
-        </div>
-        <CardTitle className="text-3xl tracking-tight">{value}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm text-muted-foreground">{description}</p>
-      </CardContent>
-    </Card>
-  )
-}
-
-function AdminBackdrop() {
-  return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden">
-      <div className="absolute inset-0 bg-white dark:bg-[#09090b]" />
-      <div className="absolute -left-20 top-16 h-72 w-72 rounded-full bg-[#efe3ff] dark:bg-[#21162d]" />
-      <div className="absolute right-[-5rem] top-[-2rem] h-96 w-96 rounded-[4rem] bg-[#dff1ff] dark:bg-[#102232]" />
-      <div className="absolute bottom-10 left-1/3 h-72 w-72 rounded-full bg-[#ffedcf] dark:bg-[#302311]" />
-      <div className="absolute left-[9%] top-[16%] hidden h-44 w-44 rotate-12 rounded-[2rem] border border-zinc-200 bg-[#f7f4ee] shadow-[0_24px_80px_rgba(15,23,42,0.08)] lg:block dark:border-zinc-800 dark:bg-[#141417] dark:shadow-[0_24px_80px_rgba(0,0,0,0.45)]" />
-      <div className="absolute right-[11%] top-[30%] hidden h-56 w-56 rounded-full border border-zinc-200 bg-[#faf7f2] xl:block dark:border-zinc-800 dark:bg-[#111216]" />
-      <div className="absolute inset-0 [background-image:linear-gradient(to_right,rgba(0,0,0,0.14)_1px,transparent_1px),linear-gradient(to_bottom,rgba(0,0,0,0.14)_1px,transparent_1px)] [background-size:72px_72px] dark:[background-image:linear-gradient(to_right,rgba(255,255,255,0.12)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.12)_1px,transparent_1px)]" />
-    </div>
-  )
 }
 
 function AdminPage() {
@@ -595,9 +497,12 @@ function AdminPage() {
   const isImportingDiscovery = discoveryState.isImporting
   const selectedDiscoveryModelIds = discoveryState.selectedModelIds
   const isSavingSettings = settingsState.isSavingSettings
+  const isStartingCheckout = settingsState.isStartingCheckout
+  const isOpeningBillingPortal = settingsState.isOpeningBillingPortal
   const providerForm = providerDialogState.form
   const modelForm = modelDialogState.form
   const collectionForm = modelCollectionDialogState.form
+  const appPlanDraft = settingsState.appPlanDraft
   const globalRateLimitDraft = settingsState.globalRateLimitDraft
   const setInitializedUserId = (value: string | null) =>
     updateSessionState({ initializedUserId: value })
@@ -630,6 +535,10 @@ function AdminPage() {
     updateDiscoveryState({ selectedModelIds })
   const setIsSavingSettings = (value: boolean) =>
     updateSettingsState({ isSavingSettings: value })
+  const setIsStartingCheckout = (value: boolean) =>
+    updateSettingsState({ isStartingCheckout: value })
+  const setIsOpeningBillingPortal = (value: boolean) =>
+    updateSettingsState({ isOpeningBillingPortal: value })
   const setProviderForm = (update: StateUpdate<ProviderFormData>) =>
     updateProviderDialogState((current) => ({
       ...current,
@@ -654,6 +563,8 @@ function AdminPage() {
           ? update(current.form)
           : { ...current.form, ...update },
     }))
+  const setAppPlan = (appPlanDraft: AppPlan | undefined) =>
+    updateSettingsState({ appPlanDraft })
   const setGlobalRateLimit = (
     globalRateLimitDraft: RateLimitPolicy | undefined,
   ) => updateSettingsState({ globalRateLimitDraft })
@@ -695,6 +606,12 @@ function AdminPage() {
   const updateModelCollection = useMutation(api.admin.updateModelCollection)
   const deleteModelCollection = useMutation(api.admin.deleteModelCollection)
   const updateAdminSettings = useMutation(api.admin.updateAdminSettings)
+  const createProSubscriptionCheckout = useAction(
+    api.stripe.createProSubscriptionCheckout,
+  )
+  const createBillingPortalSession = useAction(
+    api.stripe.createBillingPortalSession,
+  )
   const generateUploadUrl = useMutation(api.admin.generateUploadUrl)
 
   useEffect(() => {
@@ -723,6 +640,8 @@ function AdminPage() {
   const collections: DashboardData['collections'] = dashboard?.collections ?? []
   const users: DashboardData['users'] = dashboard?.users ?? []
   const summary = dashboard?.summary
+  const billing = dashboard?.billing
+  const appPlan = appPlanDraft ?? dashboard?.settings.appPlan ?? 'free'
   const globalRateLimit =
     globalRateLimitDraft ?? dashboard?.settings.defaultRateLimit ?? undefined
 
@@ -750,7 +669,8 @@ function AdminPage() {
     )
 
     return discoveryResult.models.filter(
-      (model) => !existingModelIds.has(model.modelId),
+      (model: ProviderCatalogResult['models'][number]) =>
+        !existingModelIds.has(model.modelId),
     )
   }, [
     discoveryResult,
@@ -762,7 +682,7 @@ function AdminPage() {
     hasDiscoveryForSelectedProvider ? (discoveryResult?.modelCount ?? 0) : 0
   const existingDiscoveredModelIds = useMemo(
     () =>
-      new Set(
+      new Set<string>(
         models
           .filter(
             (model: AdminModel) =>
@@ -779,8 +699,9 @@ function AdminPage() {
     }
 
     const selectedIds = new Set(selectedDiscoveryModelIds)
-    return discoveryResult.models.filter((model) =>
-      selectedIds.has(model.modelId),
+    return discoveryResult.models.filter(
+      (model: ProviderCatalogResult['models'][number]) =>
+        selectedIds.has(model.modelId),
     )
   }, [discoveryResult, selectedDiscoveryModelIds])
 
@@ -1202,7 +1123,9 @@ function AdminPage() {
   const selectAllDiscoveredModels = () => {
     setSelectedDiscoveryModelIds(
       discoveryResult?.ok
-        ? discoveryResult.models.map((model) => model.modelId)
+        ? discoveryResult.models.map(
+            (model: ProviderCatalogResult['models'][number]) => model.modelId,
+          )
         : [],
     )
   }
@@ -1211,10 +1134,11 @@ function AdminPage() {
     setSelectedDiscoveryModelIds([])
   }
 
-  const handleSaveGlobalRateLimit = () => {
+  const handleSaveSettings = () => {
     setIsSavingSettings(true)
 
     return updateAdminSettings({
+      appPlan,
       defaultRateLimit: globalRateLimit?.enabled ? globalRateLimit : undefined,
     })
       .then(() => {
@@ -1227,6 +1151,47 @@ function AdminPage() {
       })
       .finally(() => {
         setIsSavingSettings(false)
+      })
+  }
+
+  const handleStartCheckout = () => {
+    setIsStartingCheckout(true)
+
+    return createProSubscriptionCheckout({
+      origin: window.location.origin,
+    })
+      .then((result) => {
+        if (!result.url) {
+          throw new Error('Stripe checkout did not return a redirect URL')
+        }
+        window.location.assign(result.url)
+      })
+      .catch((error) => {
+        toast.error(
+          error instanceof Error ? error.message : 'Failed to start checkout',
+        )
+      })
+      .finally(() => {
+        setIsStartingCheckout(false)
+      })
+  }
+
+  const handleOpenBillingPortal = () => {
+    setIsOpeningBillingPortal(true)
+
+    return createBillingPortalSession({
+      origin: window.location.origin,
+    })
+      .then((result) => {
+        window.location.assign(result.url)
+      })
+      .catch((error) => {
+        toast.error(
+          error instanceof Error ? error.message : 'Failed to open billing',
+        )
+      })
+      .finally(() => {
+        setIsOpeningBillingPortal(false)
       })
   }
 
@@ -2188,880 +2153,52 @@ function AdminPage() {
           </div>
         ) : (
           <>
-            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <StatCard
-                title="Providers"
-                value={String(summary?.totalProviders ?? 0)}
-                description={`${summary?.enabledProviders ?? 0} enabled across the catalog`}
-                icon={Boxes}
-              />
-              <StatCard
-                title="Visible models"
-                value={String(summary?.visibleModels ?? 0)}
-                description={`${summary?.hiddenModels ?? 0} hidden from the selector`}
-                icon={Bot}
-              />
-              <StatCard
-                title="Requests / 30d"
-                value={formatCompactNumber(summary?.totalRequests30d ?? 0)}
-                description={`${formatCompactNumber(summary?.totalTokens30d ?? 0)} tokens processed`}
-                icon={Sparkles}
-              />
-              <StatCard
-                title="Active accounts"
-                value={String(summary?.activeUsers30d ?? 0)}
-                description="Distinct users with model activity in the last 30 days"
-                icon={Users}
-              />
-            </section>
-
-            <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
-              <Card className="border-border bg-card shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
-                <CardHeader>
-                  <CardTitle>Usage trend</CardTitle>
-                  <CardDescription>
-                    Requests and tokens over the last 7 days.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ChartContainer
-                    config={usageChartConfig}
-                    className="h-[280px] w-full"
-                  >
-                    <AreaChart data={dashboard.usageSeries}>
-                      <CartesianGrid vertical={false} />
-                      <XAxis
-                        dataKey="date"
-                        tickLine={false}
-                        axisLine={false}
-                        tickMargin={8}
-                      />
-                      <ChartTooltip
-                        content={<ChartTooltipContent indicator="dot" />}
-                      />
-                      <Area
-                        dataKey="requests"
-                        type="monotone"
-                        fill="var(--color-requests)"
-                        fillOpacity={0.18}
-                        stroke="var(--color-requests)"
-                        strokeWidth={2}
-                      />
-                      <Area
-                        dataKey="tokens"
-                        type="monotone"
-                        fill="var(--color-tokens)"
-                        fillOpacity={0.12}
-                        stroke="var(--color-tokens)"
-                        strokeWidth={2}
-                      />
-                    </AreaChart>
-                  </ChartContainer>
-                </CardContent>
-              </Card>
-
-              <Card className="border-border bg-card shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
-                <CardHeader>
-                  <CardTitle>Top accounts</CardTitle>
-                  <CardDescription>
-                    Who is using the catalog the most.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-3">
-                  {users
-                    .slice(0, 5)
-                    .map((user: DashboardData['users'][number]) => (
-                      <div
-                        key={user.userId}
-                        className="flex items-center justify-between rounded-xl border border-border bg-muted px-4 py-3"
-                      >
-                        <div className="min-w-0">
-                          <p className="truncate font-medium">{user.name}</p>
-                          <p className="truncate text-xs text-muted-foreground">
-                            {user.email || 'No email'}
-                          </p>
-                        </div>
-                        <div className="text-right text-xs text-muted-foreground">
-                          <p>{formatCompactNumber(user.requests)} req</p>
-                          <p>{formatCompactNumber(user.tokens)} tokens</p>
-                        </div>
-                      </div>
-                    ))}
-                </CardContent>
-              </Card>
-            </div>
-
-            <Tabs defaultValue="providers" className="grid gap-4">
-              <TabsList className="grid w-full grid-cols-5 lg:w-[640px]">
-                <TabsTrigger value="providers">Providers</TabsTrigger>
-                <TabsTrigger value="models">Models</TabsTrigger>
-                <TabsTrigger value="collections">Collections</TabsTrigger>
-                <TabsTrigger value="usage">Usage</TabsTrigger>
-                <TabsTrigger value="settings">Settings</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="providers" className="grid gap-4">
-                <Card className="border-border bg-card shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
-                  <CardHeader>
-                    <CardTitle>Providers</CardTitle>
-                    <CardDescription>
-                      Manage provider credentials, inspect API model catalogs,
-                      and apply provider-wide limits.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Provider</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Catalog</TableHead>
-                          <TableHead>Usage / 30d</TableHead>
-                          <TableHead>Last discovery</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {providers.map((provider: AdminProvider) => (
-                          <TableRow key={provider._id}>
-                            <TableCell>
-                              <div className="flex items-center gap-3">
-                                <div className="flex size-10 items-center justify-center rounded-xl border border-border bg-background">
-                                  <EntityIcon
-                                    icon={provider.icon}
-                                    iconType={provider.iconType as IconType}
-                                    iconUrl={provider.iconUrl}
-                                    fallback="Boxes"
-                                  />
-                                </div>
-                                <div>
-                                  <p className="font-medium">{provider.name}</p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {provider.providerType}
-                                  </p>
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-3">
-                                <Switch
-                                  checked={provider.isEnabled}
-                                  onCheckedChange={(checked) =>
-                                    void toggleProviderEnabled({
-                                      id: provider._id,
-                                      isEnabled: checked,
-                                    })
-                                  }
-                                />
-                                <Badge
-                                  variant={
-                                    provider.isEnabled ? 'default' : 'secondary'
-                                  }
-                                >
-                                  {provider.isEnabled ? 'Enabled' : 'Disabled'}
-                                </Badge>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="space-y-1 text-xs text-muted-foreground">
-                                <p>{provider.modelCount} models</p>
-                                <p>{provider.enabledModelCount} visible</p>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="space-y-1 text-xs text-muted-foreground">
-                                <p>
-                                  {formatCompactNumber(provider.usage.requests)}{' '}
-                                  requests
-                                </p>
-                                <p>
-                                  {formatCompactNumber(provider.usage.tokens)}{' '}
-                                  tokens
-                                </p>
-                                <p>{provider.usage.users} accounts</p>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-xs text-muted-foreground">
-                              <p>{formatDateTime(provider.lastDiscoveredAt)}</p>
-                              {provider.lastDiscoveryError ? (
-                                <p className="text-destructive">
-                                  Discovery failed
-                                </p>
-                              ) : (
-                                <p>
-                                  {provider.lastDiscoveredModelCount ?? 0}{' '}
-                                  models
-                                </p>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex justify-end gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() =>
-                                    void handleInspectProvider(provider)
-                                  }
-                                  disabled={
-                                    discoveringProviderId === provider._id
-                                  }
-                                >
-                                  {discoveringProviderId === provider._id ? (
-                                    <Loader2 className="mr-2 size-4 animate-spin" />
-                                  ) : (
-                                    <WandSparkles className="mr-2 size-4" />
-                                  )}
-                                  Inspect
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => openProviderDialog(provider)}
-                                >
-                                  Edit
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-destructive"
-                                  onClick={() =>
-                                    void deleteProvider({ id: provider._id })
-                                  }
-                                >
-                                  Delete
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-
-                {discoveryResult ? (
-                  <Card className="border-border bg-card shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
-                    <CardHeader>
-                      <CardTitle>Provider inspection result</CardTitle>
-                      <CardDescription>
-                        {discoveryResult.source.endpoint ||
-                          discoveryResult.source.baseURL ||
-                          'Provider discovery'}
-                      </CardDescription>
-                      <CardAction>
-                        {activeDiscoveryProviderId ? (
-                          <Button
-                            onClick={() => void handleImportDiscovery()}
-                            disabled={
-                              !discoveryResult.ok ||
-                              isImportingDiscovery ||
-                              selectedDiscoveredModels.length === 0
-                            }
-                          >
-                            {isImportingDiscovery ? (
-                              <Loader2 className="mr-2 size-4 animate-spin" />
-                            ) : (
-                              <Plus className="mr-2 size-4" />
-                            )}
-                            Import {selectedDiscoveredModels.length} selected
-                          </Button>
-                        ) : (
-                          <Badge variant="secondary">
-                            Save provider to import
-                          </Badge>
-                        )}
-                      </CardAction>
-                    </CardHeader>
-                    <CardContent className="grid gap-4">
-                      <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                        <Badge
-                          variant={
-                            discoveryResult.ok ? 'default' : 'destructive'
-                          }
-                        >
-                          {discoveryResult.ok
-                            ? 'Discovery succeeded'
-                            : 'Discovery failed'}
-                        </Badge>
-                        <Badge variant="secondary">
-                          {discoveryResult.providerType}
-                        </Badge>
-                        <Badge variant="secondary">
-                          {discoveryResult.modelCount} models
-                        </Badge>
-                        {discoveryResult.ok ? (
-                          <Badge variant="secondary">
-                            {selectedDiscoveredModels.length} selected
-                          </Badge>
-                        ) : null}
-                        <Badge variant="secondary">
-                          {discoveryResult.source.discoveryMode}
-                        </Badge>
-                      </div>
-                      {discoveryResult.ok ? (
-                        <div className="grid gap-4">
-                          <div className="flex flex-col gap-3 rounded-xl border border-border bg-muted/20 p-4 md:flex-row md:items-center md:justify-between">
-                            <div className="space-y-1">
-                              <p className="text-sm font-medium">
-                                Search and select models to import
-                              </p>
-                              <p className="text-sm text-muted-foreground">
-                                Inspect keeps the full provider catalog
-                                available. Search by name, model ID, owner, or
-                                capabilities, then import only the models you
-                                need.
-                              </p>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={selectAllDiscoveredModels}
-                                disabled={discoveryResult.models.length === 0}
-                              >
-                                Select all
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={clearDiscoveredModelSelection}
-                                disabled={
-                                  selectedDiscoveryModelIds.length === 0
-                                }
-                              >
-                                Clear
-                              </Button>
-                            </div>
-                          </div>
-
-                          <div className="overflow-hidden rounded-xl border border-border bg-background">
-                            <Command>
-                              <CommandInput placeholder="Search inspected models" />
-                              <CommandList className="max-h-[420px]">
-                                <CommandGroup
-                                  heading={`Discovered models (${discoveryResult.modelCount})`}
-                                >
-                                  {discoveryResult.models.map(
-                                    (
-                                      model: ProviderCatalogResult['models'][number],
-                                    ) => {
-                                      const isSelected =
-                                        selectedDiscoveryModelIds.includes(
-                                          model.modelId,
-                                        )
-                                      const isImported =
-                                        existingDiscoveredModelIds.has(
-                                          model.modelId,
-                                        )
-
-                                      return (
-                                        <CommandItem
-                                          key={model.modelId}
-                                          value={`${model.displayName} ${model.modelId} ${model.ownedBy ?? ''} ${formatModelModalities(model.modalities)}`}
-                                          onSelect={() =>
-                                            toggleDiscoveryModelSelection(
-                                              model.modelId,
-                                            )
-                                          }
-                                          className="items-start gap-3 py-3"
-                                        >
-                                          <Checkbox
-                                            checked={isSelected}
-                                            tabIndex={-1}
-                                            aria-hidden="true"
-                                            className="pointer-events-none mt-1"
-                                          />
-                                          <div className="min-w-0 flex-1 space-y-1">
-                                            <div className="flex flex-wrap items-center gap-2">
-                                              <span className="font-medium">
-                                                {model.displayName}
-                                              </span>
-                                              {isImported ? (
-                                                <Badge variant="secondary">
-                                                  Added
-                                                </Badge>
-                                              ) : null}
-                                              {isSelected ? (
-                                                <Badge variant="outline">
-                                                  Selected
-                                                </Badge>
-                                              ) : null}
-                                            </div>
-                                            <p className="truncate font-mono text-xs text-muted-foreground">
-                                              {model.modelId}
-                                            </p>
-                                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                                              <span>
-                                                Owner:{' '}
-                                                {model.ownedBy || 'Unknown'}
-                                              </span>
-                                              <span>
-                                                Context:{' '}
-                                                {model.contextWindow
-                                                  ? formatTokenCount(
-                                                      model.contextWindow,
-                                                    )
-                                                  : 'n/a'}
-                                              </span>
-                                              <span>
-                                                Max output:{' '}
-                                                {model.maxOutputTokens
-                                                  ? formatTokenCount(
-                                                      model.maxOutputTokens,
-                                                    )
-                                                  : 'n/a'}
-                                              </span>
-                                            </div>
-                                            <p className="text-xs text-muted-foreground">
-                                              Modalities:{' '}
-                                              {formatModelModalities(
-                                                model.modalities,
-                                              )}
-                                            </p>
-                                          </div>
-                                        </CommandItem>
-                                      )
-                                    },
-                                  )}
-                                </CommandGroup>
-                                <CommandEmpty>No matching models.</CommandEmpty>
-                              </CommandList>
-                            </Command>
-                          </div>
-                        </div>
-                      ) : null}
-                    </CardContent>
-                  </Card>
-                ) : null}
-              </TabsContent>
-
-              <TabsContent value="models" className="grid gap-4">
-                <Card className="border-border bg-card shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
-                  <CardHeader>
-                    <CardTitle>Models</CardTitle>
-                    <CardDescription>
-                      Show or hide models, set icons per model, and tune custom
-                      per-model limits.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Model</TableHead>
-                          <TableHead>Provider</TableHead>
-                          <TableHead>Visibility</TableHead>
-                          <TableHead>Usage / 30d</TableHead>
-                          <TableHead>Accounts</TableHead>
-                          <TableHead>Favorites</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {models.map((model: AdminModel) => (
-                          <TableRow key={model._id}>
-                            <TableCell>
-                              <div className="flex items-center gap-3">
-                                <div className="flex size-10 items-center justify-center rounded-xl border border-border bg-background">
-                                  <EntityIcon
-                                    icon={model.icon}
-                                    iconType={model.iconType as IconType}
-                                    iconUrl={
-                                      model.iconUrl || model.providerIconUrl
-                                    }
-                                  />
-                                </div>
-                                <div className="min-w-0">
-                                  <p className="font-medium">
-                                    {model.displayName}
-                                  </p>
-                                  <p className="truncate font-mono text-xs text-muted-foreground">
-                                    {model.modelId}
-                                  </p>
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              {getProviderName(providers, model.providerId)}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-3">
-                                <Switch
-                                  checked={model.isEnabled}
-                                  onCheckedChange={(checked) =>
-                                    void toggleModelEnabled({
-                                      id: model._id,
-                                      isEnabled: checked,
-                                    })
-                                  }
-                                />
-                                <Badge
-                                  variant={
-                                    model.isEnabled ? 'default' : 'secondary'
-                                  }
-                                >
-                                  {model.isEnabled ? (
-                                    <>
-                                      <Eye className="mr-1 size-3.5" />
-                                      Shown
-                                    </>
-                                  ) : (
-                                    <>
-                                      <EyeOff className="mr-1 size-3.5" />
-                                      Hidden
-                                    </>
-                                  )}
-                                </Badge>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-xs text-muted-foreground">
-                              <p>
-                                {formatCompactNumber(model.usage.requests)}{' '}
-                                requests
-                              </p>
-                              <p>
-                                {formatCompactNumber(model.usage.tokens)} tokens
-                              </p>
-                            </TableCell>
-                            <TableCell>{model.usage.users}</TableCell>
-                            <TableCell>{model.favorites}</TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex justify-end gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => openModelDialog(model)}
-                                >
-                                  Edit
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-destructive"
-                                  onClick={() =>
-                                    void deleteModel({ id: model._id })
-                                  }
-                                >
-                                  Delete
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="collections" className="grid gap-4">
-                <Card className="border-border bg-card shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
-                  <CardHeader>
-                    <CardTitle>Collections</CardTitle>
-                    <CardDescription>
-                      Curate reusable groups of existing models without
-                      duplicating their configuration.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Collection</TableHead>
-                          <TableHead>Models</TableHead>
-                          <TableHead>Sort</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {collections.length > 0 ? (
-                          collections.map(
-                            (collection: AdminModelCollection) => {
-                              const hiddenModels = collection.models.filter(
-                                (model) => !model.isEnabled,
-                              ).length
-
-                              return (
-                                <TableRow key={collection._id}>
-                                  <TableCell>
-                                    <div className="space-y-1">
-                                      <div className="flex items-center gap-2">
-                                        <p className="font-medium">
-                                          {collection.name}
-                                        </p>
-                                        <Badge variant="secondary">
-                                          {collection.modelCount} models
-                                        </Badge>
-                                      </div>
-                                      {collection.description ? (
-                                        <p className="max-w-xl text-sm text-muted-foreground">
-                                          {collection.description}
-                                        </p>
-                                      ) : null}
-                                    </div>
-                                  </TableCell>
-                                  <TableCell>
-                                    <div className="flex flex-wrap gap-2">
-                                      {collection.models
-                                        .slice(0, 4)
-                                        .map((model) => (
-                                          <Badge
-                                            key={model._id}
-                                            variant="outline"
-                                            className="gap-1.5"
-                                          >
-                                            <span>{model.displayName}</span>
-                                            <span className="text-muted-foreground">
-                                              ({model.providerName})
-                                            </span>
-                                          </Badge>
-                                        ))}
-                                      {collection.modelCount > 4 ? (
-                                        <Badge variant="outline">
-                                          +{collection.modelCount - 4} more
-                                        </Badge>
-                                      ) : null}
-                                      {hiddenModels > 0 ? (
-                                        <Badge variant="secondary">
-                                          {hiddenModels} hidden
-                                        </Badge>
-                                      ) : null}
-                                    </div>
-                                  </TableCell>
-                                  <TableCell>{collection.sortOrder}</TableCell>
-                                  <TableCell className="text-right">
-                                    <div className="flex justify-end gap-2">
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() =>
-                                          openCollectionDialog(collection)
-                                        }
-                                      >
-                                        Edit
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="text-destructive"
-                                        onClick={() =>
-                                          void deleteModelCollection({
-                                            id: collection._id,
-                                          })
-                                        }
-                                      >
-                                        Delete
-                                      </Button>
-                                    </div>
-                                  </TableCell>
-                                </TableRow>
-                              )
-                            },
-                          )
-                        ) : (
-                          <TableRow>
-                            <TableCell
-                              colSpan={4}
-                              className="py-10 text-center text-sm text-muted-foreground"
-                            >
-                              No collections yet. Create one from the current
-                              model catalog.
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent
-                value="usage"
-                className="grid gap-4 xl:grid-cols-[1.2fr_1fr]"
-              >
-                <Card className="border-border bg-card shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
-                  <CardHeader>
-                    <CardTitle>Model usage</CardTitle>
-                    <CardDescription>
-                      Requests, tokens, and the last active account view per
-                      model.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Model</TableHead>
-                          <TableHead>Requests</TableHead>
-                          <TableHead>Tokens</TableHead>
-                          <TableHead>Accounts</TableHead>
-                          <TableHead>Last used</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {models
-                          .slice()
-                          .sort(
-                            (left: AdminModel, right: AdminModel) =>
-                              right.usage.tokens - left.usage.tokens,
-                          )
-                          .slice(0, 12)
-                          .map((model: AdminModel) => (
-                            <TableRow key={model._id}>
-                              <TableCell>
-                                <div className="space-y-1">
-                                  <p className="font-medium">
-                                    {model.displayName}
-                                  </p>
-                                  <p className="font-mono text-xs text-muted-foreground">
-                                    {model.modelId}
-                                  </p>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                {formatCompactNumber(model.usage.requests)}
-                              </TableCell>
-                              <TableCell>
-                                {formatTokenCount(model.usage.tokens)}
-                              </TableCell>
-                              <TableCell>{model.usage.users}</TableCell>
-                              <TableCell>
-                                {formatDateTime(model.usage.lastUsedAt)}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-border bg-card shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
-                  <CardHeader>
-                    <CardTitle>Account activity</CardTitle>
-                    <CardDescription>
-                      Which accounts are using models, and how much they
-                      consume.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Account</TableHead>
-                          <TableHead>Requests</TableHead>
-                          <TableHead>Tokens</TableHead>
-                          <TableHead>Models</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {users
-                          .slice(0, 12)
-                          .map((user: DashboardData['users'][number]) => (
-                            <TableRow key={user.userId}>
-                              <TableCell>
-                                <div className="space-y-1">
-                                  <p className="font-medium">{user.name}</p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {user.email || 'No email'}
-                                  </p>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                {formatCompactNumber(user.requests)}
-                              </TableCell>
-                              <TableCell>
-                                {formatTokenCount(user.tokens)}
-                              </TableCell>
-                              <TableCell>{user.models}</TableCell>
-                            </TableRow>
-                          ))}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent
-                value="settings"
-                className="grid gap-4 xl:grid-cols-[1fr_0.8fr]"
-              >
-                <Card className="border-border bg-card shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
-                  <CardHeader>
-                    <CardTitle>Global message policy</CardTitle>
-                    <CardDescription>
-                      This limit applies to every message before provider and
-                      model-specific overrides.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="grid gap-4">
-                    <RateLimitEditor
-                      label="Default rate limit"
-                      description="Use this to throttle all model usage, especially custom providers."
-                      value={globalRateLimit}
-                      onChange={setGlobalRateLimit}
-                    />
-                    <div className="flex justify-end">
-                      <Button
-                        onClick={() => void handleSaveGlobalRateLimit()}
-                        disabled={isSavingSettings}
-                      >
-                        {isSavingSettings ? (
-                          <Loader2 className="mr-2 size-4 animate-spin" />
-                        ) : (
-                          <Settings2 className="mr-2 size-4" />
-                        )}
-                        Save admin settings
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-border bg-card shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
-                  <CardHeader>
-                    <CardTitle>Current limit order</CardTitle>
-                    <CardDescription>
-                      Requests are checked in this order. The first failed rule
-                      blocks the send.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="grid gap-4 text-sm text-muted-foreground">
-                    <div className="rounded-xl border border-border bg-muted p-4">
-                      <p className="font-medium text-foreground">
-                        1. Global default
-                      </p>
-                      <p>
-                        Applies to all models when enabled. Useful for app-wide
-                        per-user or global caps.
-                      </p>
-                    </div>
-                    <div className="rounded-xl border border-border bg-muted p-4">
-                      <p className="font-medium text-foreground">
-                        2. Provider policy
-                      </p>
-                      <p>
-                        Applies to every model inside a provider, including
-                        custom OpenAI-compatible endpoints.
-                      </p>
-                    </div>
-                    <div className="rounded-xl border border-border bg-muted p-4">
-                      <p className="font-medium text-foreground">
-                        3. Model policy
-                      </p>
-                      <p>
-                        Applies only to the selected model and is the final gate
-                        before the generation starts.
-                      </p>
-                    </div>
-                    <Separator />
-                    <p>
-                      The implementation uses the Convex rate limiter component
-                      at message send time, so the limits are transactional and
-                      enforced server-side.
-                    </p>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
+            <AdminOverviewSection
+              summary={summary}
+              usageSeries={dashboard.usageSeries}
+              users={users}
+            />
+            <AdminTabsSection
+              providers={providers}
+              models={models}
+              collections={collections}
+              users={users}
+              discoveringProviderId={discoveringProviderId}
+              discoveryResult={discoveryResult}
+              activeDiscoveryProviderId={activeDiscoveryProviderId}
+              existingDiscoveredModelIds={existingDiscoveredModelIds}
+              selectedDiscoveryModelIds={selectedDiscoveryModelIds}
+              selectedDiscoveredCount={selectedDiscoveredModels.length}
+              isImportingDiscovery={isImportingDiscovery}
+              onInspectProvider={handleInspectProvider}
+              onToggleProviderEnabled={toggleProviderEnabled}
+              onDeleteProvider={(providerId) =>
+                deleteProvider({ id: providerId })
+              }
+              onOpenProviderDialog={openProviderDialog}
+              onImportDiscovery={handleImportDiscovery}
+              onSelectAllDiscoveredModels={selectAllDiscoveredModels}
+              onClearDiscoveredModelSelection={clearDiscoveredModelSelection}
+              onToggleDiscoveryModelSelection={toggleDiscoveryModelSelection}
+              onToggleModelEnabled={toggleModelEnabled}
+              onOpenModelDialog={openModelDialog}
+              onDeleteModel={(modelId) => deleteModel({ id: modelId })}
+              onOpenCollectionDialog={openCollectionDialog}
+              onDeleteCollection={(collectionId) =>
+                deleteModelCollection({ id: collectionId })
+              }
+              billing={billing}
+              appPlan={appPlan}
+              onAppPlanChange={setAppPlan}
+              globalRateLimit={globalRateLimit}
+              onGlobalRateLimitChange={setGlobalRateLimit}
+              onSaveSettings={handleSaveSettings}
+              isSavingSettings={isSavingSettings}
+              onStartCheckout={handleStartCheckout}
+              onOpenBillingPortal={handleOpenBillingPortal}
+              isStartingCheckout={isStartingCheckout}
+              isOpeningBillingPortal={isOpeningBillingPortal}
+            />
           </>
         )}
       </div>
