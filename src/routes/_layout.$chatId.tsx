@@ -1,10 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { Loader2, MessageSquare, Folder, X } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { AuthRedirect } from '@/components/auth-redirect'
 import { ChatMessageList } from '@/components/ChatMessageList'
-import { ShareChatDialog } from '@/components/chat/ShareChatDialog'
-import { Button } from '@/components/ui/button'
-import { SidebarTrigger } from '@/components/ui/sidebar'
+import { ChatThreadHeader } from '@/components/chat/ChatThreadHeader'
 import {
   useCachedSessionStatus,
   useGenerationState,
@@ -47,42 +45,25 @@ function AuthenticatedChatPage() {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="h-14 shrink-0 border-b border-border bg-background/80 px-2 backdrop-blur-sm sm:px-4">
-        <div className="mx-auto flex h-full w-full items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <SidebarTrigger className="text-foreground hover:text-foreground hover:bg-muted" />
-            <div className="flex min-w-0 items-center gap-2">
-              <MessageSquare className="size-4 text-muted-foreground" />
-              <h1 className="max-w-[300px] truncate font-semibold text-foreground">
-                {threadTitle}
-              </h1>
-              {thread?.projectId ? (
-                <div className="flex items-center gap-2 rounded-full border bg-muted/60 px-2.5 py-1 text-xs text-muted-foreground">
-                  <Folder className="size-3.5" />
-                  <span>{thread.projectName || 'Project'}</span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-5"
-                    onClick={() => {
-                      if (
-                        window.confirm(
-                          `Remove this chat from ${thread.projectName || 'its project'}?`,
-                        )
-                      ) {
-                        void removeThreadFromProject(chatId)
-                      }
-                    }}
-                  >
-                    <X className="size-3" />
-                  </Button>
-                </div>
-              ) : null}
-            </div>
-          </div>
-          <ShareChatDialog threadId={chatId} threadTitle={threadTitle} />
-        </div>
-      </header>
+      <ChatThreadHeader
+        title={threadTitle}
+        threadId={chatId}
+        projectId={thread?.projectId}
+        projectName={thread?.projectName}
+        onRemoveFromProject={
+          thread?.projectId
+            ? () => {
+                if (
+                  window.confirm(
+                    `Remove this chat from ${thread?.projectName || 'its project'}?`,
+                  )
+                ) {
+                  void removeThreadFromProject(chatId)
+                }
+              }
+            : undefined
+        }
+      />
 
       <div className="pointer-events-none absolute inset-0 hidden bg-[linear-gradient(to_right,var(--border)_1px,transparent_1px),linear-gradient(to_bottom,var(--border)_1px,transparent_1px)] bg-size-[4rem_4rem] mask-[radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-[0.05] md:block" />
 

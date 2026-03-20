@@ -61,6 +61,9 @@ const config = defineConfig({
         cleanupOutdatedCaches: true,
         globPatterns: ['**/*.{css,html,ico,js,png,svg,woff2}'],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        // SPA: serve precached shell when offline so client router can hydrate deep links.
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/api\b/, /^\/__/],
       },
     }),
     viteReact({

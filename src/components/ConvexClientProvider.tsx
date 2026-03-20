@@ -3,6 +3,7 @@ import { ConvexQueryCacheProvider } from 'convex-helpers/react/cache'
 import { ConvexProvider, ConvexReactClient } from 'convex/react'
 import { useEffect, type ReactNode } from 'react'
 import { getRequiredEnv } from '@/lib/parsers'
+import { clearLocalOfflineCache } from '@/offline/local-cache'
 
 const convex = new ConvexReactClient(
   getRequiredEnv(import.meta.env, 'VITE_CONVEX_URL'),
@@ -25,6 +26,7 @@ function ConvexClerkProvider({ children }: { children: ReactNode }) {
 
     if (!isSignedIn) {
       convex.clearAuth()
+      clearLocalOfflineCache()
       return
     }
 
@@ -52,6 +54,7 @@ function ConvexClerkProvider({ children }: { children: ReactNode }) {
 
   return (
     <ConvexProvider client={convex}>
+      {/* Keeps idle Convex query subscriptions briefly after unmount for faster navigation; uses more bandwidth than uncached useQuery (see convex-helpers Query Caching docs). */}
       <ConvexQueryCacheProvider>{children}</ConvexQueryCacheProvider>
     </ConvexProvider>
   )

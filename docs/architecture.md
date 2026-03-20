@@ -12,10 +12,11 @@ Salemkode Chat is a web chat application built around:
 - Clerk authentication in the browser
 - Convex as the backend, database, mutations/actions layer, and AI orchestration layer
 - `@convex-dev/agent` for threaded AI conversations
-- A Dexie-backed offline cache in the browser
+- A **browser localStorage cache** of the last successfully loaded threads, messages, models, projects, and settings (keyed by Convex `users` id) so the UI can fall back when the device is offline
+- `ConvexQueryCacheProvider` from `convex-helpers` for in-session query subscription reuse (see [Query Caching](https://github.com/get-convex/convex-helpers/blob/main/packages/convex-helpers/README.md#query-caching))
 - A separate memory subsystem that stores durable user, thread, and project memories with embeddings via `@convex-dev/rag`
 
-At a high level, the app is **UI + offline cache first**, with Convex acting as the source of remote truth and orchestration layer.
+At a high level, the app is **Convex-first for live data**, with **localStorage + PWA shell** improving resilience when disconnected.
 
 ## High-Level System Layout
 
@@ -25,7 +26,7 @@ The frontend lives under `src/` and is responsible for:
 
 - Routing and app shell composition
 - Rendering chat threads, messages, memory screens, and admin screens
-- Managing local offline state in IndexedDB through Dexie
+- Persisting a minimal offline snapshot to `localStorage` (`src/offline/local-cache.ts`) and theme preferences (`public/theme-init.js`)
 - Triggering Convex mutations/actions for chat, sync, admin, and memory operations
 
 Main frontend entrypoints:
@@ -61,16 +62,13 @@ AI generation runs in Convex:
 
 Optional web search is injected as a tool through `exaWebSearchTool` when enabled in the prompt input.
 
-### 4. Offline subsystem
+### 4. Offline and PWA
 
-The offline subsystem is built from:
-
-- Dexie (`src/offline/db.ts`) for IndexedDB storage
-- A service worker (`src/offline/sw.ts`) registered by `OfflineProvider`
-- Sync mutations in `convex/offline.ts`
-- A repository layer in `src/offline/repositories.ts`
-
-The UI reads almost everything from Dexie, not directly from live Convex chat queries.
+- **Live data** comes from Convex (`useQuery` via `convex-helpers/react/cache` in `src/lib/convex-query-cache.ts`).
+- When the network drops, **hooks in `src/hooks/use-chat-data.ts`** prefer live results when present; otherwise they read the last snapshot from `localStorage` (threads, messages per thread, models, projects, session, settings).
+- **PWA**: `vite-plugin-pwa` in `vite.config.ts` precaches static assets; `navigateFallback: '/index.html'` lets deep links load the shell offline so the client router can run. The service worker is registered from `src/main.tsx`.
+- **Sign-out** clears namespaced `localStorage` keys via `clearLocalOfflineCache()` in `ConvexClientProvider`.
+- **Legacy IndexedDB**: `deleteLegacyOfflineIndexedDb()` removes the old Dexie database name on boot (`src/main.tsx`) so upgrades do not leave stale data.
 
 ### 5. Memory subsystem
 
@@ -88,17 +86,9 @@ The public API is in `convex/functions/memory.ts`, with internal helpers in `con
 
 ### App boot
 
-1. `index.html` loads the app document shell and mounts `src/main.tsx`.
-2. `src/routes/__root.tsx` wraps the routed app in:
-   - `ThemeProvider`
-   - `ConvexClientProvider`
-   - `OfflineProvider`
-3. `OfflineProvider`:
-   - tracks browser online/offline state
-   - registers the PWA service worker
-   - starts sync when the user is authenticated and online
-   - exposes sync status through context
-4. The route tree then renders either the chat shell, memory page, admin page, or auth screens.
+1. `index.html` loads the app document shell and mounts `src/main.tsx` (which registers the PWA service worker when supported).
+2. `src/routes/__root.tsx` wraps the routed app in providers including `ThemeProvider` and `ConvexClientProvider`.
+3. The route tree then renders either the chat shell, memory page, admin page, or auth screens.
 
 ### Authentication flow
 
@@ -125,21 +115,20 @@ The main chat shell is `src/routes/_layout.tsx`.
 
 It:
 
-- blocks access when there is no authenticated session and no trusted offline cache
-- loads models from the offline repository
-- keeps the current draft in Dexie
+- blocks access when there is no authenticated session and no trusted offline session snapshot in `localStorage`
+- loads models via `useModels()` (Convex + cached snapshot)
+- keeps the current draft in `localStorage` (per-thread keys in `useDraft`)
 - remembers the selected model in `localStorage`
 - calls `useSendMessage()` when the prompt is submitted
 
 ### Creating and sending a message
 
-`useSendMessage()` in `src/offline/repositories.ts` handles message submission:
+`useSendMessage()` in `src/hooks/use-chat-data.ts` handles message submission:
 
 1. If offline, it refuses to send.
 2. If there is no existing thread, it creates one with `api.agents.createChatThread`.
 3. It calls `api.agents.generateMessage`.
-4. It clears the saved draft.
-5. It triggers sync and thread hydration.
+4. It clears the saved draft in `localStorage`.
 
 ### Server-side generation
 
@@ -171,7 +160,7 @@ The thread itself is managed by `@convex-dev/agent`, but this project stores app
 - section assignment
 - pin state
 
-This metadata is also mirrored into the offline thread cache.
+Successful thread list fetches also persist this metadata into the `localStorage` thread snapshot for offline sidebar rendering.
 
 ### Message rendering
 
@@ -180,7 +169,7 @@ The chat page (`src/routes/_layout.$chatId.tsx`) reads:
 - thread data from `useThread(chatId)`
 - messages from `useMessages(chatId)`
 
-Both hooks read from Dexie and request hydration when online.
+Both hooks subscribe to Convex when online and fall back to the last `localStorage` snapshot when offline.
 
 `ChatMessageList` virtualizes message rendering with `@tanstack/react-virtual`.
 
@@ -192,89 +181,27 @@ Both hooks read from Dexie and request hydration when online.
 
 ## Offline Architecture
 
-### Why the app feels offline-first
-
-Most user-facing chat data comes from Dexie tables:
-
-- `session`
-- `threads`
-- `messages`
-- `models`
-- `settings`
-- `drafts`
-- `outbox`
-- `syncMeta`
-
-The chat UI does not rely on live Convex queries for normal thread/message rendering.
-
 ### Browser storage model
 
-The IndexedDB schema is defined in `src/offline/db.ts`.
+- **`localStorage`**, namespaced under `salemkode-chat:v1:` (`src/offline/local-cache.ts`):
+  - Session snapshot (trusted Convex user id + profile fields) for offline gatekeeping
+  - Per-user keys for threads list, models, projects, per-thread message JSON, and settings mirror
+- **Thread drafts** remain in `localStorage` with keys `chat-draft:<threadId>` (`useDraft` in `use-chat-data.ts`)
+- **Theme** uses `theme-preference` in `public/theme-init.js`
 
-Important records:
+There is **no IndexedDB** for app chat data; Workbox may still use the Cache API internally for precached static assets.
 
-- `session`: trusted offline session snapshot
-- `threads`: local thread index
-- `messages`: cached messages for hydrated threads
-- `models`: enabled models and favorite flags
-- `settings`: local copy of editable user settings
-- `drafts`: per-thread prompt drafts
-- `outbox`: queued offline mutations
-- `syncMeta`: version checkpoints for delta sync
+### PWA service worker
 
-### Bootstrapping offline data
+Generated by **`vite-plugin-pwa`** at build time from `vite.config.ts`:
 
-`OfflineProvider` calls `bootstrapOfflineData(convex)` on first trusted sync.
+- Precaches built JS/CSS/HTML, icons, fonts, etc.
+- Uses **`navigateFallback: '/index.html'`** so navigation requests while offline receive the SPA shell.
 
-This calls `api.offline.bootstrapOfflineSession`, which returns:
+### Limitations
 
-- current user snapshot
-- user settings
-- enabled models plus favorites
-- synced thread index
-- offline schema version
-- sync state metadata
-
-After the full bootstrap, the client hydrates the latest few threads' messages.
-
-### Delta sync
-
-After bootstrap, sync uses version checkpoints:
-
-- `pullThreadIndex` syncs changed thread metadata since the last thread checkpoint
-- `hydrateThreadMessages` syncs changed messages for a specific thread since that thread's message checkpoint
-
-On the server, `convex/offline.ts` populates and maintains the mirror tables:
-
-- `chatThreads`
-- `chatMessages`
-- `offlineSyncState`
-
-Helper logic lives in `convex/offlineHelpers.ts`.
-
-### Offline outbox
-
-The client can queue a limited set of mutations while offline:
-
-- settings updates
-- favorite model changes
-- thread pin changes
-- thread icon changes
-- thread deletion
-
-Queued operations are written into `outbox`, compacted by `dedupeKey`, and flushed through `api.offline.pushOfflineMutations` once connectivity returns.
-
-### Service worker
-
-The PWA service worker in `src/offline/sw.ts` caches:
-
-- app assets
-- fonts
-- images
-- storage assets
-- navigation requests
-
-It improves reload behavior and allows the app shell plus cached data to remain usable offline.
+- **Sending** messages and most mutations require connectivity; offline mode is **read-oriented** (last known snapshot).
+- Snapshots are updated when online data successfully loads; there is no multi-tab sync engine or mutation outbox.
 
 ## Memory Architecture
 
@@ -364,9 +291,6 @@ The most important Convex tables are:
 - `models`: admin-configured models connected to providers
 - `userFavoriteModels`: per-user favorite model list
 - `threadMetadata`: app-specific metadata for agent threads
-- `chatThreads`: offline mirror of thread index
-- `chatMessages`: offline mirror of message history
-- `offlineSyncState`: sync checkpoints and schema version
 - `userSettings`: editable display name/avatar/bio
 - `userMemories`, `threadMemories`, `projectMemories`: durable memory store
 - `projects`: project grouping for threads
@@ -386,10 +310,9 @@ Those are part of a file/chunk indexing direction and are not the primary chat m
 
 - `src/routes`: pages and route-level composition
 - `src/components`: shared UI and chat widgets
-- `src/offline`: Dexie schema, sync, service worker, and repository hooks
+- `src/offline`: `local-cache.ts` (browser snapshot persistence) and `schema.ts` (shared record types)
 - `convex/agents.ts`: AI execution, thread creation, pin/icon updates, metadata listing
 - `convex/chat.ts`: lower-level thread/message queries and deletion
-- `convex/offline.ts`: full sync, delta sync, and offline outbox replay
 - `convex/admin.ts`: admin API for providers and models
 - `convex/users.ts`: viewer/settings user API
 - `convex/functions/memory*.ts`: memory CRUD, search, extraction, and RAG internals
@@ -398,11 +321,11 @@ Those are part of a file/chunk indexing direction and are not the primary chat m
 
 These are important if you are researching or extending the project:
 
-- Chat rendering is based on the offline mirror, not direct live message subscriptions.
-- Sending messages currently requires connectivity. Offline compose is supported only through saved drafts, not queued chat sends.
-- The offline outbox currently covers settings, favorites, thread metadata changes, and thread deletion, but not new chat messages.
-- The prompt input includes attachment UI, but there is no backend attachment pipeline wired to chat generation yet.
-- The message components contain streaming-aware UI, but the current offline hydration path mainly persists completed snapshots.
+- Chat rendering uses live Convex subscriptions when online; `localStorage` holds the last snapshot for read-only offline use.
+- Sending messages requires connectivity; drafts persist in `localStorage` only.
+- Mutations (settings, favorites, pins, etc.) are disabled while offline in `use-chat-data` hooks.
+- The prompt input includes attachment UI; uploads require network.
+- The message list supports streaming; debounced writes persist stable snapshots to `localStorage` for offline fallback.
 - `vectorSearchChunks` in `convex/functions/memorySearch.ts` is currently stubbed and returns no vector results.
 - The memory file/chunk tables exist, but the active user-facing memory workflow is the user/thread/project memory system.
 - Some auth redirect code in the login/auth redirect components is commented out, so auth transitions are not fully polished.
@@ -415,15 +338,13 @@ For a normal online chat request, the end-to-end path is:
 2. `useSendMessage` ensures a thread exists
 3. `api.agents.generateMessage` schedules AI generation
 4. `internal.agents.streamMessage` streams the assistant response into the Convex agent thread
-5. Offline sync pulls thread/message updates into `chatThreads` and `chatMessages`
-6. The browser sync layer writes those records into Dexie
-7. `useMessages` reads the Dexie records
-8. `ChatMessageList` renders the hydrated message list
-9. Memory extraction runs asynchronously after the response completes
+5. `useMessages` / `useUIMessages` receives live updates from Convex
+6. A debounced writer mirrors the latest message list into `localStorage` for offline fallback
+7. `ChatMessageList` renders the message list
+8. Memory extraction runs asynchronously after the response completes
 
-That split is the main architectural pattern in this project:
+Summary:
 
 - Convex owns remote execution and persistence
-- offline mirror tables make remote state sync-friendly
-- Dexie is the browser-facing cache and read model
-- React renders from Dexie instead of directly from the server
+- The React client subscribes live when online
+- `localStorage` stores a **read-only** last snapshot for the same browser profile (not a full sync engine)

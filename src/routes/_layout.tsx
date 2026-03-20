@@ -139,8 +139,8 @@ function AuthenticatedChatLayout() {
           <Outlet />
 
           <div className="absolute bottom-0 left-0 right-0 z-20">
-            <div className="w-full max-w-3xl mx-auto px-2 sm:px-4">
-              <ChatComposer threadId={threadId} />
+            <div className="mx-auto w-full max-w-3xl px-2 sm:px-4">
+              <ChatComposer threadId={threadId} mobile={isMobile} />
             </div>
           </div>
         </SidebarInset>

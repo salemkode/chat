@@ -2,6 +2,9 @@ import { StartClient } from '@tanstack/react-start/client'
 import { StrictMode } from 'react'
 import { hydrateRoot } from 'react-dom/client'
 import { registerSW } from 'virtual:pwa-register'
+import { deleteLegacyOfflineIndexedDb } from '@/offline/local-cache'
+
+deleteLegacyOfflineIndexedDb()
 
 if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_REACT_SCAN === '1') {
   const { scan } = await import('react-scan')

@@ -73,6 +73,11 @@ function SidebarProvider({
   // We use openProp and setOpenProp for control from outside the component.
   const [_open, _setOpen] = React.useState(defaultOpen)
   const open = openProp ?? _open
+
+  React.useEffect(() => {
+    setOpenMobile(false)
+  }, [isMobile])
+
   const setOpen = React.useCallback(
     (value: boolean | ((value: boolean) => boolean)) => {
       const openState = typeof value === 'function' ? value(open) : value
@@ -182,8 +187,15 @@ function Sidebar({
 
   if (isMobile) {
     return (
-      <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
-      <SheetContent
+      <Sheet
+        modal
+        open={openMobile}
+        onOpenChange={(nextOpen) => {
+          setOpenMobile(nextOpen)
+        }}
+        {...props}
+      >
+        <SheetContent
           data-sidebar="sidebar"
           data-slot="sidebar"
           data-mobile="true"

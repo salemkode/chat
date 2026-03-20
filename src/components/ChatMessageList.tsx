@@ -12,7 +12,6 @@ import { buildPromptMessageIdsByIndex } from '@/lib/chat-generation'
 import { cn } from '@/lib/utils'
 import { MessageLoadingSkeleton } from './chat/MessageLoadingSkeleton'
 import { Message } from './Message'
-import { EmptyChatState } from './EmptyChatState'
 
 interface ChatMessageListProps {
   threadId: string
@@ -210,7 +209,17 @@ export function ChatMessageList({
   }
 
   if (messages.length === 0) {
-    return <EmptyChatState />
+    return (
+      <div
+        className={cn(
+          'flex-1 overflow-y-auto',
+          isMobile
+            ? 'pt-3 pb-[calc(var(--mobile-composer-height,11rem)+env(safe-area-inset-bottom)+12px)]'
+            : 'pt-4 pb-28 sm:pt-6 sm:pb-32',
+          className,
+        )}
+      />
+    )
   }
 
   return (

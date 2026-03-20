@@ -27,11 +27,7 @@ export default [
     languageOptions: {
       parser: tseslint.parser,
       parserOptions: {
-        project: [
-          './tsconfig.app.json',
-          './tsconfig.worker.json',
-          './convex/tsconfig.json',
-        ],
+        project: ['./tsconfig.app.json', './convex/tsconfig.json'],
         tsconfigRootDir: import.meta.dirname,
       },
     },

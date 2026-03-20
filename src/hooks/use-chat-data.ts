@@ -1,10 +1,16 @@
 import { useAuth } from '@clerk/tanstack-react-start'
 import { useUIMessages } from '@convex-dev/agent/react'
-import { useLiveQuery } from 'dexie-react-hooks'
 import { useMutation } from 'convex/react'
 import type { FunctionReturnType } from 'convex/server'
 import type { Id } from '../../convex/_generated/dataModel'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react'
 import { api } from '../../convex/_generated/api'
 import { useQuery } from '@/lib/convex-query-cache'
 import {
@@ -15,13 +21,29 @@ import {
 import { parseUploadResponse } from '@/lib/parsers'
 import { compareThreadsForSidebar } from '@/lib/project-sidebar'
 import { useOnlineStatus } from '@/hooks/use-online-status'
-import { offlineDb } from '@/offline/db'
 import type {
   OfflineModelRecord,
   OfflineProjectRecord,
   OfflineThreadRecord,
 } from '@/offline/schema'
-import { storeTrustedSession } from '@/offline/session'
+import {
+  getOfflineCacheVersion,
+  readMessagesCache,
+  readModelsCache,
+  readProjectsCache,
+  readSession,
+  readSettings,
+  readThreadsCache,
+  storeTrustedSession,
+  subscribeOfflineCache,
+  writeMessagesCache,
+  writeModelsCache,
+  writeProjectsCache,
+  writeSettingsForUser,
+  writeThreadsCache,
+} from '@/offline/local-cache'
+
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unnecessary-type-assertion -- convex-helpers cached useQuery / useUIMessages widen types vs strict ESLint */
 
 const DRAFT_PREFIX = 'chat-draft:'
 
@@ -54,6 +76,19 @@ type ProjectsRecord = ProjectRecord[]
 type ChatMessage = FunctionReturnType<
   typeof api.chat.listMessages
 >['page'][number]
+
+type LocalCachedMessageRow = {
+  id: string
+  role: 'user' | 'assistant'
+  text: string
+  parts: Array<Record<string, unknown>>
+  createdAt?: number
+  failureKind?: 'stopped' | 'error'
+  failureMode?: 'replace' | 'clarify'
+  failureNote?: string
+  status?: 'success' | 'streaming' | 'failed'
+}
+
 type CachedSettingsView = {
   displayName?: string
   image?: string
@@ -74,6 +109,23 @@ export interface ThreadSummary {
   createdAt: number
   updatedAt: number
   lastMessageAt: number
+}
+
+function useOfflineCacheVersion() {
+  return useSyncExternalStore(
+    subscribeOfflineCache,
+    getOfflineCacheVersion,
+    () => 0,
+  )
+}
+
+/** Convex user id for local cache keys (not Clerk `userId`). */
+function useConvexUserIdForCache() {
+  const cacheVersion = useOfflineCacheVersion()
+  const viewer = useQuery(api.users.viewer)
+  return useMemo(() => {
+    return viewer?._id ?? readSession()?.userId ?? undefined
+  }, [viewer?._id, cacheVersion])
 }
 
 function getDraftStorageKey(threadId: string) {
@@ -152,50 +204,31 @@ function toModelDocId(modelId: string): Id<'models'> {
   return modelId as Id<'models'>
 }
 
-async function cacheThreads(threads: ThreadsRecord) {
+function cacheThreadsToLocal(userId: string, threads: ThreadsRecord) {
   const normalizedThreads = threads.map(normalizeThread)
-
-  await offlineDb.transaction('rw', offlineDb.threads, async () => {
-    await offlineDb.threads.clear()
-    for (const thread of normalizedThreads) {
-      await offlineDb.threads.put(thread)
-    }
-  })
+  const summaries: ThreadSummary[] = normalizedThreads.map((t) => ({
+    ...t,
+    serverId: undefined,
+  }))
+  writeThreadsCache(userId, summaries)
 }
 
-async function cacheModels(data: ModelsWithProvidersRecord | undefined) {
-  if (!data) {
-    return
-  }
-
-  await offlineDb.transaction('rw', offlineDb.models, async () => {
-    await offlineDb.models.clear()
-    for (const model of data.models.map(normalizeModel)) {
-      await offlineDb.models.put(model)
-    }
-  })
+function cacheModelsToLocal(userId: string, data: ModelsWithProvidersRecord) {
+  writeModelsCache(userId, data.models.map(normalizeModel))
 }
 
-async function cacheProjects(projects: ProjectsRecord | undefined) {
-  if (!projects) {
-    return
-  }
-
-  await offlineDb.transaction('rw', offlineDb.projects, async () => {
-    await offlineDb.projects.clear()
-    for (const project of projects.map(normalizeProject)) {
-      await offlineDb.projects.put(project)
-    }
-  })
+function cacheProjectsToLocal(userId: string, projects: ProjectsRecord) {
+  writeProjectsCache(userId, projects.map(normalizeProject))
 }
 
-async function cacheSettings(settings: SettingsRecord | null | undefined) {
+function cacheSettingsToLocal(
+  userId: string,
+  settings: SettingsRecord | null | undefined,
+) {
   if (!settings) {
     return
   }
-
-  await offlineDb.settings.put({
-    id: 'current',
+  writeSettingsForUser(userId, {
     displayName: settings.displayName,
     image: settings.image,
     bio: settings.bio,
@@ -203,7 +236,7 @@ async function cacheSettings(settings: SettingsRecord | null | undefined) {
   })
 }
 
-async function cacheViewer(
+function cacheViewerToLocal(
   viewer: ViewerRecord,
   settings: SettingsRecord | null | undefined,
 ) {
@@ -211,7 +244,7 @@ async function cacheViewer(
     return
   }
 
-  await storeTrustedSession({
+  storeTrustedSession({
     userId: viewer._id,
     name: viewer.name,
     email: viewer.email,
@@ -221,10 +254,14 @@ async function cacheViewer(
     lastSyncedAt: Date.now(),
   })
 
-  await cacheSettings(settings || viewer.settings)
+  cacheSettingsToLocal(viewer._id, settings || viewer.settings)
 }
 
-async function cacheMessages(threadId: string, messages: ChatMessage[]) {
+function cacheMessagesToLocal(
+  userId: string,
+  threadId: string,
+  messages: ChatMessage[],
+) {
   const versionBase = Date.now()
   const normalizedMessages = messages.map((message, index) => ({
     id: message.id,
@@ -253,19 +290,15 @@ async function cacheMessages(threadId: string, messages: ChatMessage[]) {
           : 'success',
   }))
 
-  await offlineDb.transaction('rw', offlineDb.messages, async () => {
-    await offlineDb.messages.where('threadId').equals(threadId).delete()
-    if (normalizedMessages.length > 0) {
-      await offlineDb.messages.bulkPut(normalizedMessages)
-    }
-  })
+  writeMessagesCache(userId, threadId, normalizedMessages)
 }
 
 export function useCachedSessionStatus() {
   const { isLoaded, isSignedIn } = useAuth()
   const isAuthenticated = isSignedIn ?? false
   const { isOnline } = useOnlineStatus()
-  const session = useLiveQuery(() => offlineDb.session.get('current'), [], null)
+  const cacheVersion = useOfflineCacheVersion()
+  const session = useMemo(() => readSession(), [cacheVersion])
   const isOfflineSessionLoaded = session !== null
   const hasTrustedOfflineSession = Boolean(session?.trusted)
   const isLoading = !isLoaded || (!isOnline && !isOfflineSessionLoaded)
@@ -281,15 +314,16 @@ export function useCachedSessionStatus() {
 
 export function useViewer() {
   const viewer = useQuery(api.users.viewer)
-  const cachedSession = useLiveQuery(() => offlineDb.session.get('current'))
-  const cachedSettings = useLiveQuery(() => offlineDb.settings.get('current'))
+  const cacheVersion = useOfflineCacheVersion()
+  const cachedSession = useMemo(() => readSession(), [cacheVersion])
+  const cachedSettings = useMemo(() => readSettings(), [cacheVersion])
 
   useEffect(() => {
     if (!viewer) {
       return
     }
 
-    void cacheViewer(viewer, viewer.settings)
+    cacheViewerToLocal(viewer, viewer.settings)
   }, [viewer])
 
   return useMemo(() => {
@@ -327,20 +361,27 @@ export function useViewer() {
 }
 
 export function useThreads() {
+  const cacheUserId = useConvexUserIdForCache()
   const { isOnline } = useOnlineStatus()
+  const cacheVersion = useOfflineCacheVersion()
   const liveThreads = useQuery(api.agents.listThreadsWithMetadata) || []
-  const cachedThreads = useLiveQuery(async () => {
-    const threads = await offlineDb.threads.toArray()
-    return threads.sort(compareThreadsForSidebar)
-  }, [])
   const setThreadPinned = useMutation(api.agents.setThreadPinned)
   const deleteThreadMutation = useMutation(api.chat.deleteThread)
 
-  useEffect(() => {
-    if (liveThreads.length > 0) {
-      void cacheThreads(liveThreads)
+  const cachedThreads = useMemo(() => {
+    if (!cacheUserId) {
+      return [] as ThreadSummary[]
     }
-  }, [liveThreads])
+    const fromLs = readThreadsCache<ThreadSummary[]>(cacheUserId)
+    const list = Array.isArray(fromLs) ? fromLs : []
+    return [...list].sort(compareThreadsForSidebar)
+  }, [cacheUserId, cacheVersion])
+
+  useEffect(() => {
+    if (liveThreads.length > 0 && cacheUserId) {
+      cacheThreadsToLocal(cacheUserId, liveThreads)
+    }
+  }, [liveThreads, cacheUserId])
 
   const threads = useMemo<ThreadSummary[]>(() => {
     if (liveThreads.length > 0) {
@@ -353,7 +394,7 @@ export function useThreads() {
       })
     }
 
-    return (cachedThreads || []).map((thread) => ({
+    return cachedThreads.map((thread) => ({
       ...thread,
       serverId: undefined,
     }))
@@ -383,14 +424,23 @@ export function useThreads() {
 }
 
 export function useThread(threadId?: string) {
+  const cacheUserId = useConvexUserIdForCache()
+  const cacheVersion = useOfflineCacheVersion()
   const liveThread = useQuery(
     api.chat.getThread,
     threadId ? { threadId } : 'skip',
   )
-  const cachedThread = useLiveQuery(
-    () => (threadId ? offlineDb.threads.get(threadId) : undefined),
-    [threadId],
-  )
+
+  const cachedThread = useMemo(() => {
+    if (!threadId || !cacheUserId) {
+      return undefined
+    }
+    const list = readThreadsCache<ThreadSummary[]>(cacheUserId)
+    if (!Array.isArray(list)) {
+      return undefined
+    }
+    return list.find((t) => t.id === threadId)
+  }, [threadId, cacheUserId, cacheVersion])
 
   return useMemo(() => {
     if (liveThread) {
@@ -422,23 +472,28 @@ export function useThread(threadId?: string) {
 }
 
 export function useMessages(threadId?: string) {
+  const cacheUserId = useConvexUserIdForCache()
+  const cacheVersion = useOfflineCacheVersion()
   const queryArgs = threadId ? { threadId } : 'skip'
   const { results, status } = useUIMessages(api.chat.listMessages, queryArgs, {
     initialNumItems: 30,
     stream: true,
   })
-  const cachedMessages = useLiveQuery(async () => {
-    if (!threadId) {
-      return []
+
+  const cachedMessages = useMemo(() => {
+    if (!threadId || !cacheUserId) {
+      return [] as ChatMessage[]
     }
-
-    const messages = await offlineDb.messages
-      .where('threadId')
-      .equals(threadId)
-      .toArray()
-
-    return messages
-      .sort((left, right) => left.createdAt - right.createdAt)
+    const raw = readMessagesCache<LocalCachedMessageRow[]>(
+      cacheUserId,
+      threadId,
+    )
+    if (!Array.isArray(raw)) {
+      return [] as ChatMessage[]
+    }
+    return raw
+      .slice()
+      .sort((left, right) => (left.createdAt ?? 0) - (right.createdAt ?? 0))
       .map(
         (message) =>
           ({
@@ -457,7 +512,8 @@ export function useMessages(threadId?: string) {
                   : 'success',
           }) as ChatMessage,
       )
-  }, [threadId])
+  }, [threadId, cacheUserId, cacheVersion])
+
   const pendingCacheWriteRef = useRef<number | null>(null)
   const lastCachedSignatureRef = useRef('')
   const hasStreamingMessages = useMemo(
@@ -475,13 +531,17 @@ export function useMessages(threadId?: string) {
       return ''
     }
 
-    const lastMessage = results[results.length - 1]
+    const lastMessage = results[results.length - 1] as {
+      id?: string
+      status?: string
+      text?: string
+    }
     return [
       threadId,
       results.length,
       lastMessage?.id || '',
       lastMessage?.status || '',
-      lastMessage?.text.length || 0,
+      lastMessage?.text?.length || 0,
       hasStreamingMessages ? 1 : 0,
     ].join(':')
   }, [hasStreamingMessages, results, threadId])
@@ -504,7 +564,13 @@ export function useMessages(threadId?: string) {
   }, [threadId])
 
   useEffect(() => {
-    if (!threadId || !results || results.length === 0 || !cacheSignature) {
+    if (
+      !threadId ||
+      !cacheUserId ||
+      !results ||
+      results.length === 0 ||
+      !cacheSignature
+    ) {
       return
     }
 
@@ -516,17 +582,15 @@ export function useMessages(threadId?: string) {
       window.clearTimeout(pendingCacheWriteRef.current)
     }
 
-    // Streaming updates can happen multiple times per second; debounce disk writes.
     const writeDelayMs = hasStreamingMessages ? 1200 : 180
     pendingCacheWriteRef.current = window.setTimeout(() => {
       const snapshot = results
-      void cacheMessages(threadId, snapshot)
-        .then(() => {
-          lastCachedSignatureRef.current = cacheSignature
-        })
-        .catch(() => {
-          // Ignore caching failures; live data path remains authoritative.
-        })
+      try {
+        cacheMessagesToLocal(cacheUserId, threadId, snapshot)
+        lastCachedSignatureRef.current = cacheSignature
+      } catch {
+        // Ignore caching failures; live data path remains authoritative.
+      }
       pendingCacheWriteRef.current = null
     }, writeDelayMs)
 
@@ -536,7 +600,7 @@ export function useMessages(threadId?: string) {
         pendingCacheWriteRef.current = null
       }
     }
-  }, [cacheSignature, hasStreamingMessages, results, threadId])
+  }, [cacheSignature, cacheUserId, hasStreamingMessages, results, threadId])
 
   return {
     messages: results && results.length > 0 ? results : cachedMessages || [],
@@ -608,17 +672,25 @@ export function useGenerationState(messages: ChatMessage[]) {
 }
 
 export function useModels() {
+  const cacheUserId = useConvexUserIdForCache()
   const { isOnline } = useOnlineStatus()
+  const cacheVersion = useOfflineCacheVersion()
   const data = useQuery(api.admin.listModelsWithProviders)
-  const cachedModels = useLiveQuery(
-    () => offlineDb.models.orderBy('sortOrder').toArray(),
-    [],
-  )
   const setFavoriteModel = useMutation(api.admin.setFavoriteModel)
 
+  const cachedModels = useMemo(() => {
+    if (!cacheUserId) {
+      return [] as OfflineModelRecord[]
+    }
+    const fromLs = readModelsCache<OfflineModelRecord[]>(cacheUserId)
+    return Array.isArray(fromLs) ? fromLs : []
+  }, [cacheUserId, cacheVersion])
+
   useEffect(() => {
-    void cacheModels(data)
-  }, [data])
+    if (data?.models && cacheUserId) {
+      cacheModelsToLocal(cacheUserId, data)
+    }
+  }, [data, cacheUserId])
 
   const models = useMemo(
     () => (data?.models ? data.models.map(normalizeModel) : cachedModels || []),
@@ -639,7 +711,9 @@ export function useModels() {
 }
 
 export function useProjects() {
+  const cacheUserId = useConvexUserIdForCache()
   const { isOnline } = useOnlineStatus()
+  const cacheVersion = useOfflineCacheVersion()
   const projectsApi = (
     api as typeof api & {
       projects: {
@@ -654,10 +728,13 @@ export function useProjects() {
   ).projects
   const liveProjects = (useQuery(projectsApi.listProjects as never) ||
     []) as ProjectsRecord
-  const cachedProjects = useLiveQuery(
-    () => offlineDb.projects.orderBy('updatedAt').reverse().toArray(),
-    [],
-  )
+  const cachedProjects = useMemo(() => {
+    if (!cacheUserId) {
+      return [] as OfflineProjectRecord[]
+    }
+    const fromLs = readProjectsCache<OfflineProjectRecord[]>(cacheUserId)
+    return Array.isArray(fromLs) ? fromLs : []
+  }, [cacheUserId, cacheVersion])
   const createProjectMutation = useMutation(projectsApi.createProject as never)
   const updateProjectMutation = useMutation(projectsApi.updateProject as never)
   const deleteProjectMutation = useMutation(projectsApi.deleteProject as never)
@@ -669,8 +746,10 @@ export function useProjects() {
   )
 
   useEffect(() => {
-    void cacheProjects(liveProjects)
-  }, [liveProjects])
+    if (liveProjects.length > 0 && cacheUserId) {
+      cacheProjectsToLocal(cacheUserId, liveProjects)
+    }
+  }, [liveProjects, cacheUserId])
 
   const projects = useMemo(
     () => (liveProjects.length > 0 ? liveProjects : cachedProjects || []),
@@ -742,14 +821,19 @@ export function useProjects() {
 }
 
 export function useSettings() {
+  const cacheUserId = useConvexUserIdForCache()
   const { isOnline } = useOnlineStatus()
+  const cacheVersion = useOfflineCacheVersion()
   const liveSettings = useQuery(api.users.getSettings)
-  const cachedSettings = useLiveQuery(() => offlineDb.settings.get('current'))
   const updateSettingsMutation = useMutation(api.users.updateSettings)
 
+  const cachedSettings = useMemo(() => readSettings(), [cacheVersion])
+
   useEffect(() => {
-    void cacheSettings(liveSettings)
-  }, [liveSettings])
+    if (liveSettings && cacheUserId) {
+      cacheSettingsToLocal(cacheUserId, liveSettings)
+    }
+  }, [liveSettings, cacheUserId])
 
   const settings: SettingsRecord | CachedSettingsView | null =
     liveSettings ??

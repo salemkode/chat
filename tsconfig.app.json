@@ -9,7 +9,6 @@
     "eslint.config.js"
   ],
   "exclude": [
-    "src/offline/sw.ts",
     "src/routeTree.gen.ts",
     "convex/**",
     "scripts/**"

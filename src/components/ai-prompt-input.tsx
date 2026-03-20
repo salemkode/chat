@@ -330,9 +330,21 @@ export function AIPromptInput({
   }
 
   return (
-    <div className="pointer-events-auto w-full">
+    <div
+      className={cn(
+        'pointer-events-auto w-full',
+        mobile
+          ? 'bg-transparent px-1 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]'
+          : [
+              'border-t border-border/70 bg-linear-to-b from-background/30 to-background/90',
+              'pt-3 pb-[max(0.5rem,env(safe-area-inset-bottom))]',
+              'shadow-[0_-20px_40px_rgba(15,23,42,0.08)] backdrop-blur-[18px] [-webkit-backdrop-filter:blur(18px)]',
+              'dark:shadow-[0_-22px_48px_rgba(0,0,0,0.28)]',
+            ],
+      )}
+    >
       {submitError ? (
-        <div className="mb-2 flex justify-center">
+        <div className={cn('mb-2 flex justify-center', mobile && 'px-2')}>
           <div
             role="alert"
             aria-live="assertive"
@@ -368,7 +380,12 @@ export function AIPromptInput({
         }}
         className={cn(
           'pointer-events-auto relative flex w-full min-w-0 flex-col items-stretch text-secondary-foreground',
-          'rounded-t-xl border border-border bg-linear-to-b from-background/95 to-background/90 bg-muted/80 p-3 backdrop-blur-2xl sm:max-w-3xl sm:p-4',
+          mobile
+            ? cn(
+                'rounded-[1.625rem] border border-border/90 bg-card p-3.5 shadow-[0_4px_24px_rgba(15,23,42,0.1)]',
+                'dark:border-border/55 dark:bg-card/98 dark:shadow-[0_6px_28px_rgba(0,0,0,0.45)]',
+              )
+            : 'rounded-t-xl border border-border bg-linear-to-b from-background/95 to-background/90 bg-muted/80 p-3 backdrop-blur-2xl sm:max-w-3xl sm:p-4',
           isDragging && 'border-primary/60 bg-primary/5',
         )}
       >
@@ -479,7 +496,7 @@ export function AIPromptInput({
             disabled={disabled}
             className={cn(
               'w-full min-w-0 resize-none bg-transparent text-base leading-6 text-foreground outline-none placeholder:text-muted-foreground/60 disabled:opacity-50',
-             // mobile && 'min-h-[52px] text-[15px] leading-6',
+              mobile && 'min-h-[52px] text-[17px] leading-[1.35] placeholder:text-muted-foreground/55 sm:text-base',
             )}
             aria-label="Message input"
             autoComplete="off"
@@ -578,16 +595,14 @@ export function AIPromptInput({
               mobile && 'w-full flex-wrap items-stretch',
             )}
           >
-            {!mobile && (
-              <ModelSelector
-                selectedModel={selectedModel}
-                onModelChange={onModelChange}
-                className={cn(
-                  mobile &&
-                    'h-11 min-w-0 flex-1 justify-between rounded-full border border-border/70 bg-muted/40 px-3.5 text-sm',
-                )}
-              />
-            )}
+            <ModelSelector
+              selectedModel={selectedModel}
+              onModelChange={onModelChange}
+              className={cn(
+                mobile &&
+                  'min-w-0 flex-1 [&_button]:h-11 [&_button]:w-full [&_button]:justify-between [&_button]:gap-2 [&_button]:rounded-full [&_button]:border [&_button]:border-border/70 [&_button]:bg-background/90 [&_button]:px-3.5 [&_button]:text-sm [&_button]:shadow-sm',
+              )}
+            />
 
             <button
               type="button"

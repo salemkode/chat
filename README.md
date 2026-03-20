@@ -4,7 +4,7 @@ Salemkode Chat is a Convex-powered AI chat application with:
 
 - Clerk authentication
 - admin-managed model/provider configuration
-- a Dexie-based offline cache and sync layer
+- a small `localStorage` cache of last-fetched chat data for offline read-back (no IndexedDB)
 - a memory system for durable user, thread, and project context
 
 ## Main Docs
@@ -19,9 +19,8 @@ Salemkode Chat is a Convex-powered AI chat application with:
 - Convex
 - `@convex-dev/agent`
 - Clerk
-- Dexie
 - Tailwind CSS 4
-- Vite + PWA service worker
+- Vite + `vite-plugin-pwa` (Workbox precache, offline shell)
 
 ## Project Structure
 
