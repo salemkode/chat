@@ -27,6 +27,7 @@ export declare const api: {
       {
         capabilities?: Array<string>;
         contextWindow?: number;
+        defaultReasoningLevel?: "off" | "low" | "medium" | "high";
         description?: string;
         displayName: string;
         icon?: string;
@@ -48,7 +49,9 @@ export declare const api: {
           scope: "global" | "user";
           shards?: number;
         };
+        reasoningLevels?: Array<"low" | "medium" | "high">;
         sortOrder: number;
+        supportsReasoning?: boolean;
       },
       any
     >;
@@ -136,6 +139,12 @@ export declare const api: {
     generateUploadUrl: FunctionReference<"mutation", "public", {}, any>;
     getAdminSettings: FunctionReference<"query", "public", {}, any>;
     getDashboardData: FunctionReference<"query", "public", {}, any>;
+    getRoleContext: FunctionReference<
+      "query",
+      "public",
+      {},
+      { isAdminLike: boolean; role: "owner" | "admin" | "member" }
+    >;
     importDiscoveredModels: FunctionReference<
       "mutation",
       "public",
@@ -203,6 +212,7 @@ export declare const api: {
         _id: Id<"models">;
         capabilities?: Array<string>;
         contextWindow?: number;
+        defaultReasoningLevel?: "off" | "low" | "medium" | "high";
         description?: string;
         discoveredAt?: number;
         displayName: string;
@@ -226,7 +236,9 @@ export declare const api: {
           scope: "global" | "user";
           shards?: number;
         };
+        reasoningLevels?: Array<"low" | "medium" | "high">;
         sortOrder: number;
+        supportsReasoning?: boolean;
       }>
     >;
     listModelsWithProviders: FunctionReference<
@@ -239,6 +251,7 @@ export declare const api: {
           _id: Id<"models">;
           capabilities?: Array<string>;
           contextWindow?: number;
+          defaultReasoningLevel?: "off" | "low" | "medium" | "high";
           description?: string;
           discoveredAt?: number;
           displayName: string;
@@ -293,13 +306,16 @@ export declare const api: {
             scope: "global" | "user";
             shards?: number;
           };
+          reasoningLevels?: Array<"low" | "medium" | "high">;
           sortOrder: number;
+          supportsReasoning?: boolean;
         }>;
         models: Array<{
           _creationTime: number;
           _id: Id<"models">;
           capabilities?: Array<string>;
           contextWindow?: number;
+          defaultReasoningLevel?: "off" | "low" | "medium" | "high";
           description?: string;
           discoveredAt?: number;
           displayName: string;
@@ -354,7 +370,9 @@ export declare const api: {
             scope: "global" | "user";
             shards?: number;
           };
+          reasoningLevels?: Array<"low" | "medium" | "high">;
           sortOrder: number;
+          supportsReasoning?: boolean;
         }>;
         providers: Array<{
           _id: Id<"providers">;
@@ -412,6 +430,12 @@ export declare const api: {
       { appPlan: "free" | "pro"; userId: Id<"users"> },
       any
     >;
+    setUserRole: FunctionReference<
+      "mutation",
+      "public",
+      { role: "owner" | "admin" | "member"; userId: Id<"users"> },
+      any
+    >;
     toggleFavoriteModel: FunctionReference<
       "mutation",
       "public",
@@ -453,6 +477,7 @@ export declare const api: {
       {
         capabilities?: Array<string>;
         contextWindow?: number;
+        defaultReasoningLevel?: "off" | "low" | "medium" | "high";
         description?: string;
         displayName?: string;
         icon?: string;
@@ -475,7 +500,9 @@ export declare const api: {
           scope: "global" | "user";
           shards?: number;
         };
+        reasoningLevels?: Array<"low" | "medium" | "high">;
         sortOrder?: number;
+        supportsReasoning?: boolean;
       },
       any
     >;
@@ -574,6 +601,7 @@ export declare const api: {
         modelId: Id<"models">;
         projectId?: Id<"projects">;
         prompt: string;
+        reasoning?: { enabled: boolean; level?: "low" | "medium" | "high" };
         searchEnabled?: boolean;
         threadId: string;
       },
@@ -586,12 +614,14 @@ export declare const api: {
       Array<{
         _creationTime: number;
         _id: string;
+        lastMessageAt: number;
         metadata: null | {
           _creationTime: number;
           _id: Id<"threadMetadata">;
           emoji: string;
           icon?: string;
           lastLabelUpdateAt: number;
+          lastMessageAt?: number;
           projectId?: Id<"projects">;
           sectionId?: Id<"sections">;
           sortOrder: number;
@@ -610,6 +640,7 @@ export declare const api: {
         modelId: Id<"models">;
         projectId?: Id<"projects">;
         promptMessageId: string;
+        reasoning?: { enabled: boolean; level?: "low" | "medium" | "high" };
         searchEnabled?: boolean;
         threadId: string;
       },
@@ -620,6 +651,12 @@ export declare const api: {
       "public",
       { pinned: boolean; threadId: string },
       number
+    >;
+    stopGeneration: FunctionReference<
+      "mutation",
+      "public",
+      { promptMessageId?: string; threadId: string },
+      { order?: number; stopped: boolean }
     >;
     togglePinThread: FunctionReference<
       "mutation",
@@ -1322,6 +1359,8 @@ export declare const api: {
         bio?: string;
         displayName?: string;
         image?: string;
+        reasoningEnabled?: boolean;
+        reasoningLevel?: "low" | "medium" | "high";
         updatedAt: number;
         userId: Id<"users">;
       }
@@ -1329,7 +1368,13 @@ export declare const api: {
     updateSettings: FunctionReference<
       "mutation",
       "public",
-      { bio?: string; displayName?: string; image?: string },
+      {
+        bio?: string;
+        displayName?: string;
+        image?: string;
+        reasoningEnabled?: boolean;
+        reasoningLevel?: "low" | "medium" | "high";
+      },
       { success: boolean }
     >;
     viewer: FunctionReference<"query", "public", {}, any>;
@@ -1443,6 +1488,7 @@ export declare const internal: {
         promptMessageId?: string;
         providerDocId: Id<"providers">;
         providerName: string;
+        reasoning?: { enabled: boolean; level?: "low" | "medium" | "high" };
         searchEnabled?: boolean;
         threadId: string;
         userId: Id<"users">;

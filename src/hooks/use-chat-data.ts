@@ -1,5 +1,6 @@
 import { useAuth } from '@clerk/tanstack-react-start'
 import { useUIMessages } from '@convex-dev/agent/react'
+import type { UsePaginatedQueryResult } from 'convex/react'
 import { useMutation } from 'convex/react'
 import type { FunctionReturnType } from 'convex/server'
 import type { Id } from '../../convex/_generated/dataModel'
@@ -73,9 +74,17 @@ type ProjectRecord = {
   updatedAt: number
 }
 type ProjectsRecord = ProjectRecord[]
-type ChatMessage = FunctionReturnType<
+export type ChatMessage = FunctionReturnType<
   typeof api.chat.listMessages
 >['page'][number]
+
+export type UseMessagesResult = {
+  messages: ChatMessage[]
+  status: UsePaginatedQueryResult<ChatMessage>['status']
+  hasMore: boolean
+  isLoadingMore: boolean
+  loadOlderMessages: (numItems: number) => void
+}
 
 type LocalCachedMessageRow = {
   id: string
@@ -93,6 +102,8 @@ type CachedSettingsView = {
   displayName?: string
   image?: string
   bio?: string
+  reasoningEnabled?: boolean
+  reasoningLevel?: 'low' | 'medium' | 'high'
   updatedAt: number
 }
 
@@ -155,6 +166,12 @@ function writeDraft(threadId: string, value: string) {
 
 function normalizeThread(thread: ThreadRecord): OfflineThreadRecord {
   const project = (thread as ThreadWithProject).project
+  const lastMessageAt =
+    (
+      thread as ThreadRecord & {
+        lastMessageAt?: number
+      }
+    ).lastMessageAt ?? thread._creationTime
 
   return {
     id: thread._id,
@@ -166,8 +183,8 @@ function normalizeThread(thread: ThreadRecord): OfflineThreadRecord {
     sortOrder: thread.metadata?.sortOrder ?? 0,
     pinned: (thread.metadata?.sortOrder ?? 0) > 0,
     createdAt: thread._creationTime,
-    updatedAt: thread._creationTime,
-    lastMessageAt: thread._creationTime,
+    updatedAt: lastMessageAt,
+    lastMessageAt,
     version: thread._creationTime,
   }
 }
@@ -179,6 +196,19 @@ function normalizeModel(model: ModelRecord): OfflineModelRecord {
     displayName: model.displayName,
     description: model.description,
     capabilities: model.capabilities,
+    supportsReasoning:
+      typeof model.supportsReasoning === 'boolean'
+        ? model.supportsReasoning
+        : undefined,
+    reasoningLevels: model.reasoningLevels as
+      | Array<'low' | 'medium' | 'high'>
+      | undefined,
+    defaultReasoningLevel: model.defaultReasoningLevel as
+      | 'off'
+      | 'low'
+      | 'medium'
+      | 'high'
+      | undefined,
     sortOrder: model.sortOrder,
     isFavorite: model.isFavorite,
     isFree: model.isFree,
@@ -232,6 +262,12 @@ function cacheSettingsToLocal(
     displayName: settings.displayName,
     image: settings.image,
     bio: settings.bio,
+    reasoningEnabled: settings.reasoningEnabled,
+    reasoningLevel: settings.reasoningLevel as
+      | 'low'
+      | 'medium'
+      | 'high'
+      | undefined,
     updatedAt: settings.updatedAt,
   })
 }
@@ -347,11 +383,13 @@ export function useViewer() {
       name: cachedSettings?.displayName || cachedSession.name,
       email: cachedSession.email,
       image: cachedSettings?.image || cachedSession.image,
-      settings: cachedSettings
+          settings: cachedSettings
         ? {
             displayName: cachedSettings.displayName,
             image: cachedSettings.image,
             bio: cachedSettings.bio,
+            reasoningEnabled: cachedSettings.reasoningEnabled,
+            reasoningLevel: cachedSettings.reasoningLevel,
             updatedAt: cachedSettings.updatedAt,
           }
         : null,
@@ -367,6 +405,9 @@ export function useThreads() {
   const liveThreads = useQuery(api.agents.listThreadsWithMetadata) || []
   const setThreadPinned = useMutation(api.agents.setThreadPinned)
   const deleteThreadMutation = useMutation(api.chat.deleteThread)
+  const [optimisticPinnedById, setOptimisticPinnedById] = useState<
+    Record<string, boolean>
+  >({})
 
   const cachedThreads = useMemo(() => {
     if (!cacheUserId) {
@@ -384,30 +425,99 @@ export function useThreads() {
   }, [liveThreads, cacheUserId])
 
   const threads = useMemo<ThreadSummary[]>(() => {
-    if (liveThreads.length > 0) {
-      return liveThreads.map((thread: ThreadRecord) => {
-        const normalized = normalizeThread(thread)
+    const normalized = (
+      liveThreads.length > 0 ? liveThreads : cachedThreads
+    ).map((thread: ThreadRecord | ThreadSummary) => {
+      if ('_id' in thread) {
+        const normalizedThread = normalizeThread(thread)
         return {
-          ...normalized,
+          ...normalizedThread,
           serverId: thread._id,
         }
-      })
+      }
+
+      return {
+        ...thread,
+        updatedAt: thread.lastMessageAt,
+        serverId: undefined,
+      }
+    })
+
+    const optimistic = normalized.map((thread) => {
+      const optimisticPinned =
+        optimisticPinnedById[thread.serverId || thread.id] ??
+        optimisticPinnedById[thread.id]
+
+      if (optimisticPinned === undefined) {
+        return thread
+      }
+
+      return {
+        ...thread,
+        pinned: optimisticPinned,
+        sortOrder: optimisticPinned ? 1 : 0,
+      }
+    })
+
+    return optimistic.sort(compareThreadsForSidebar)
+  }, [cachedThreads, liveThreads, optimisticPinnedById])
+
+  useEffect(() => {
+    if (liveThreads.length === 0) {
+      return
     }
 
-    return cachedThreads.map((thread) => ({
-      ...thread,
-      serverId: undefined,
-    }))
-  }, [cachedThreads, liveThreads])
+    setOptimisticPinnedById((current) => {
+      let changed = false
+      const next = { ...current }
+
+      for (const thread of liveThreads) {
+        const optimisticPinned = next[thread._id]
+        if (optimisticPinned === undefined) {
+          continue
+        }
+
+        const serverPinned = (thread.metadata?.sortOrder ?? 0) > 0
+        if (optimisticPinned === serverPinned) {
+          delete next[thread._id]
+          changed = true
+        }
+      }
+
+      return changed ? next : current
+    })
+  }, [liveThreads])
 
   const setPinned = useCallback(
     async (threadId: string, pinned: boolean) => {
       if (!isOnline) {
         return
       }
-      await setThreadPinned({ threadId, pinned })
+      const previousPinned = threads.find(
+        (thread) => thread.serverId === threadId || thread.id === threadId,
+      )?.pinned
+
+      setOptimisticPinnedById((current) => ({
+        ...current,
+        [threadId]: pinned,
+      }))
+
+      try {
+        await setThreadPinned({ threadId, pinned })
+      } catch (error) {
+        setOptimisticPinnedById((current) => {
+          const next = { ...current }
+          if (previousPinned === undefined) {
+            delete next[threadId]
+          } else {
+            next[threadId] = previousPinned
+          }
+          return next
+        })
+        throw error
+      }
     },
-    [isOnline, setThreadPinned],
+    [isOnline, setThreadPinned, threads],
   )
 
   const deleteThread = useCallback(
@@ -471,14 +581,25 @@ export function useThread(threadId?: string) {
   }, [cachedThread, liveThread])
 }
 
-export function useMessages(threadId?: string) {
+export function useMessages(threadId?: string): UseMessagesResult {
   const cacheUserId = useConvexUserIdForCache()
   const cacheVersion = useOfflineCacheVersion()
+  const [streamEnabled, setStreamEnabled] = useState(Boolean(threadId))
+  const stableSignatureRef = useRef('')
+  const stableSnapshotCountRef = useRef(0)
   const queryArgs = threadId ? { threadId } : 'skip'
-  const { results, status } = useUIMessages(api.chat.listMessages, queryArgs, {
-    initialNumItems: 30,
-    stream: true,
-  })
+  const {
+    results,
+    status,
+    loadMore,
+  }: UsePaginatedQueryResult<ChatMessage> = useUIMessages(
+    api.chat.listMessages,
+    queryArgs,
+    {
+      initialNumItems: 30,
+      stream: streamEnabled,
+    },
+  )
 
   const cachedMessages = useMemo(() => {
     if (!threadId || !cacheUserId) {
@@ -556,12 +677,60 @@ export function useMessages(threadId?: string) {
 
   useEffect(() => {
     lastCachedSignatureRef.current = ''
+    stableSignatureRef.current = ''
+    stableSnapshotCountRef.current = 0
+    setStreamEnabled(Boolean(threadId))
 
     if (pendingCacheWriteRef.current !== null) {
       window.clearTimeout(pendingCacheWriteRef.current)
       pendingCacheWriteRef.current = null
     }
   }, [threadId])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+    const handleResume = (event: Event) => {
+      const customEvent = event as CustomEvent<{ threadId?: string }>
+      if (!threadId || !customEvent.detail?.threadId) {
+        return
+      }
+      if (customEvent.detail.threadId === threadId) {
+        stableSignatureRef.current = ''
+        stableSnapshotCountRef.current = 0
+        setStreamEnabled(true)
+      }
+    }
+    window.addEventListener('chat-stream:resume', handleResume)
+    return () => window.removeEventListener('chat-stream:resume', handleResume)
+  }, [threadId])
+
+  useEffect(() => {
+    if (!threadId || !cacheSignature) {
+      return
+    }
+
+    if (hasStreamingMessages) {
+      stableSignatureRef.current = cacheSignature
+      stableSnapshotCountRef.current = 0
+      if (!streamEnabled) {
+        setStreamEnabled(true)
+      }
+      return
+    }
+
+    if (stableSignatureRef.current === cacheSignature) {
+      stableSnapshotCountRef.current += 1
+      if (stableSnapshotCountRef.current >= 1 && streamEnabled) {
+        setStreamEnabled(false)
+      }
+      return
+    }
+
+    stableSignatureRef.current = cacheSignature
+    stableSnapshotCountRef.current = 0
+  }, [cacheSignature, hasStreamingMessages, streamEnabled, threadId])
 
   useEffect(() => {
     if (
@@ -605,6 +774,9 @@ export function useMessages(threadId?: string) {
   return {
     messages: results && results.length > 0 ? results : cachedMessages || [],
     status,
+    hasMore: status === 'CanLoadMore' || status === 'LoadingMore',
+    isLoadingMore: status === 'LoadingMore',
+    loadOlderMessages: loadMore,
   }
 }
 
@@ -842,12 +1014,20 @@ export function useSettings() {
           displayName: cachedSettings.displayName,
           image: cachedSettings.image,
           bio: cachedSettings.bio,
+          reasoningEnabled: cachedSettings.reasoningEnabled,
+          reasoningLevel: cachedSettings.reasoningLevel,
           updatedAt: cachedSettings.updatedAt,
         }
       : null)
 
   const updateSettings = useCallback(
-    async (values: { displayName?: string; image?: string; bio?: string }) => {
+    async (values: {
+      displayName?: string
+      image?: string
+      bio?: string
+      reasoningEnabled?: boolean
+      reasoningLevel?: 'low' | 'medium' | 'high'
+    }) => {
       if (!isOnline) {
         return
       }
@@ -857,6 +1037,16 @@ export function useSettings() {
   )
 
   return { settings, updateSettings }
+}
+
+export function useRoleContext() {
+  const roleContext = useQuery(api.admin.getRoleContext)
+  return (
+    roleContext ?? {
+      role: 'member' as const,
+      isAdminLike: false,
+    }
+  )
 }
 
 export function useDraft(threadId: string) {
@@ -929,6 +1119,17 @@ export function useSendMessage() {
     [generateAttachmentUploadUrl],
   )
 
+  const resumeMessageStreaming = useCallback((threadId?: string) => {
+    if (!threadId || typeof window === 'undefined') {
+      return
+    }
+    window.dispatchEvent(
+      new CustomEvent('chat-stream:resume', {
+        detail: { threadId },
+      }),
+    )
+  }, [])
+
   const send = useCallback(
     async ({
       text,
@@ -936,6 +1137,7 @@ export function useSendMessage() {
       modelDocId,
       projectId,
       searchEnabled,
+      reasoning,
       attachments,
     }: {
       text: string
@@ -943,6 +1145,7 @@ export function useSendMessage() {
       modelDocId?: Id<'models'>
       projectId?: Id<'projects'>
       searchEnabled?: boolean
+      reasoning?: { enabled: boolean; level?: 'low' | 'medium' | 'high' }
       attachments?: File[]
     }) => {
       if (!isOnline) {
@@ -964,6 +1167,7 @@ export function useSendMessage() {
       if (!resolvedThreadId) {
         throw new Error('Failed to create a chat thread')
       }
+      resumeMessageStreaming(resolvedThreadId)
 
       const uploadedAttachments =
         attachments && attachments.length > 0
@@ -976,6 +1180,7 @@ export function useSendMessage() {
         modelId: modelDocId,
         projectId,
         searchEnabled: searchEnabled ?? false,
+        reasoning,
         attachments: uploadedAttachments,
       } as never)
 
@@ -984,7 +1189,7 @@ export function useSendMessage() {
 
       return { threadId: resolvedThreadId, disabledReason: null }
     },
-    [createThread, isOnline, sendMessage, uploadAttachments],
+    [createThread, isOnline, resumeMessageStreaming, sendMessage, uploadAttachments],
   )
 
   return {
@@ -1005,13 +1210,14 @@ export function useSendMessage() {
           threadId,
           promptMessageId,
         } as never)) as { stopped?: boolean } | null
+        resumeMessageStreaming(threadId)
 
         return {
           disabledReason: null,
           stopped: Boolean(result?.stopped),
         }
       },
-      [isOnline, stopGeneration],
+      [isOnline, resumeMessageStreaming, stopGeneration],
     ),
     regenerate: useCallback(
       async ({
@@ -1020,12 +1226,14 @@ export function useSendMessage() {
         modelDocId,
         projectId,
         searchEnabled,
+        reasoning,
       }: {
         threadId: string
         promptMessageId: string
         modelDocId?: Id<'models'>
         projectId?: Id<'projects'>
         searchEnabled?: boolean
+        reasoning?: { enabled: boolean; level?: 'low' | 'medium' | 'high' }
       }) => {
         if (!isOnline) {
           return { disabledReason: 'offline' as const }
@@ -1041,11 +1249,13 @@ export function useSendMessage() {
           modelId: modelDocId,
           projectId,
           searchEnabled: searchEnabled ?? false,
+          reasoning,
         } as never)
+        resumeMessageStreaming(threadId)
 
         return { disabledReason: null }
       },
-      [isOnline, regenerateMessage],
+      [isOnline, regenerateMessage, resumeMessageStreaming],
     ),
     disabledReason: isOnline ? null : 'offline',
   }

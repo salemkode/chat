@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 
 /** Cap how often we follow a streaming tail — each scroll forces virtualizer + layout work. */
 const STREAM_AUTO_SCROLL_MIN_INTERVAL_MS = 100
@@ -6,8 +6,7 @@ import {
   type VirtualItem,
   useVirtualizer,
 } from '@tanstack/react-virtual'
-import type { FunctionReturnType } from 'convex/server'
-import { api } from 'convex/_generated/api'
+import type { ChatMessage } from '@/hooks/use-chat-data'
 import { buildPromptMessageIdsByIndex } from '@/lib/chat-generation'
 import { cn } from '@/lib/utils'
 import { MessageLoadingSkeleton } from './chat/MessageLoadingSkeleton'
@@ -15,8 +14,11 @@ import { Message } from './Message'
 
 interface ChatMessageListProps {
   threadId: string
-  messages: FunctionReturnType<typeof api.chat.listMessages>['page']
+  messages: ChatMessage[]
   isLoading?: boolean
+  isLoadingOlder?: boolean
+  hasOlderMessages?: boolean
+  onLoadOlder?: (numItems: number) => void
   className?: string
   activeAssistantMessageId?: string
   stalledAssistantMessageId?: string
@@ -26,6 +28,9 @@ export function ChatMessageList({
   threadId,
   messages,
   isLoading = false,
+  isLoadingOlder = false,
+  hasOlderMessages = false,
+  onLoadOlder,
   className,
   activeAssistantMessageId,
   stalledAssistantMessageId,
@@ -33,6 +38,11 @@ export function ChatMessageList({
   const isMobile = false
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const shouldAutoScrollRef = useRef(true)
+  const didInitialBottomAnchorRef = useRef(false)
+  const pendingPrependAdjustmentRef = useRef<{
+    previousHeight: number
+    previousTop: number
+  } | null>(null)
   const messageHeightCacheRef = useRef(new Map<string, number>())
   const lastStreamAutoScrollAtRef = useRef(0)
   const streamAutoScrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
@@ -90,6 +100,9 @@ export function ChatMessageList({
 
   useEffect(() => {
     messageHeightCacheRef.current.clear()
+    didInitialBottomAnchorRef.current = false
+    pendingPrependAdjustmentRef.current = null
+    shouldAutoScrollRef.current = true
     lastStreamAutoScrollAtRef.current = 0
     if (streamAutoScrollTimeoutRef.current !== null) {
       clearTimeout(streamAutoScrollTimeoutRef.current)
@@ -111,7 +124,20 @@ export function ChatMessageList({
     const scrollElement = scrollContainerRef.current
     if (!scrollElement) return
     shouldAutoScrollRef.current = isScrollContainerNearBottom(scrollElement)
-  }, [])
+
+    if (
+      onLoadOlder &&
+      hasOlderMessages &&
+      !isLoadingOlder &&
+      scrollElement.scrollTop <= LOAD_OLDER_THRESHOLD_PX
+    ) {
+      pendingPrependAdjustmentRef.current = {
+        previousHeight: scrollElement.scrollHeight,
+        previousTop: scrollElement.scrollTop,
+      }
+      onLoadOlder(30)
+    }
+  }, [hasOlderMessages, isLoadingOlder, onLoadOlder])
 
   const scrollToLatestMessage = useCallback(
     (behavior: 'auto' | 'smooth' = 'auto') => {
@@ -156,8 +182,38 @@ export function ChatMessageList({
 
   const lastMessage = messages[messages.length - 1]
 
+  useLayoutEffect(() => {
+    const scrollElement = scrollContainerRef.current
+    if (!scrollElement || messages.length === 0) {
+      return
+    }
+
+    if (!didInitialBottomAnchorRef.current) {
+      didInitialBottomAnchorRef.current = true
+      rowVirtualizer.scrollToIndex(messages.length - 1, {
+        align: 'end',
+        behavior: 'auto',
+      })
+      return
+    }
+
+    const pendingAdjustment = pendingPrependAdjustmentRef.current
+    if (!pendingAdjustment) {
+      return
+    }
+
+    const nextHeight = scrollElement.scrollHeight
+    scrollElement.scrollTop =
+      pendingAdjustment.previousTop + (nextHeight - pendingAdjustment.previousHeight)
+    pendingPrependAdjustmentRef.current = null
+  }, [messages.length, rowVirtualizer])
+
   useEffect(() => {
-    if (messages.length === 0 || !shouldAutoScrollRef.current) {
+    if (
+      messages.length === 0 ||
+      !shouldAutoScrollRef.current ||
+      !didInitialBottomAnchorRef.current
+    ) {
       return
     }
 
@@ -175,7 +231,7 @@ export function ChatMessageList({
     }
 
     const frame = window.requestAnimationFrame(() => {
-      scrollToLatestMessage('smooth')
+      scrollToLatestMessage('auto')
     })
 
     return () => {
@@ -238,6 +294,13 @@ export function ChatMessageList({
         className={cn('relative mx-auto w-full max-w-3xl px-3')}
         style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
       >
+        {hasOlderMessages ? (
+          <div className="sticky top-0 z-10 flex justify-center pb-3">
+            <div className="rounded-full border border-border/70 bg-background/90 px-3 py-1 text-xs text-muted-foreground shadow-sm backdrop-blur">
+              {isLoadingOlder ? 'Loading older messages...' : 'Scroll up to load older messages'}
+            </div>
+          </div>
+        ) : null}
         {rowVirtualizer.getVirtualItems().map((virtualRow: VirtualItem) => {
           const msg = messages[virtualRow.index]
           if (!msg) return null
@@ -274,6 +337,7 @@ export function ChatMessageList({
 }
 
 const AUTO_SCROLL_BOTTOM_THRESHOLD_PX = 120
+const LOAD_OLDER_THRESHOLD_PX = 160
 
 function isScrollContainerNearBottom(element: HTMLDivElement): boolean {
   return (

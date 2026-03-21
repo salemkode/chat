@@ -23,6 +23,25 @@ const modalitiesValidator = v.object({
   output: v.array(v.string()),
 })
 
+const reasoningLevelValidator = v.union(
+  v.literal('low'),
+  v.literal('medium'),
+  v.literal('high'),
+)
+
+const modelReasoningDefaultValidator = v.union(
+  v.literal('off'),
+  v.literal('low'),
+  v.literal('medium'),
+  v.literal('high'),
+)
+
+const userRoleValidator = v.union(
+  v.literal('owner'),
+  v.literal('admin'),
+  v.literal('member'),
+)
+
 export default defineSchema({
   users: defineTable({
     tokenIdentifier: v.optional(v.string()),
@@ -115,6 +134,9 @@ export default defineSchema({
     iconId: v.optional(v.id('_storage')), // Uploaded image ID
     // Model capabilities/tags
     capabilities: v.optional(v.array(v.string())), // e.g., ["reasoning", "vision", "code"]
+    supportsReasoning: v.optional(v.boolean()),
+    reasoningLevels: v.optional(v.array(reasoningLevelValidator)),
+    defaultReasoningLevel: v.optional(modelReasoningDefaultValidator),
     ownedBy: v.optional(v.string()),
     contextWindow: v.optional(v.number()),
     maxOutputTokens: v.optional(v.number()),
@@ -145,6 +167,13 @@ export default defineSchema({
   // Admin users (simple approach)
   admins: defineTable({
     userId: v.id('users'),
+  }).index('by_userId', ['userId']),
+
+  userRoles: defineTable({
+    userId: v.id('users'),
+    role: userRoleValidator,
+    grantedBy: v.optional(v.id('users')),
+    updatedAt: v.number(),
   }).index('by_userId', ['userId']),
 
   adminSettings: defineTable({
@@ -187,6 +216,7 @@ export default defineSchema({
     emoji: v.string(),
     icon: v.optional(v.string()), // Lucide icon name
     lastLabelUpdateAt: v.number(),
+    lastMessageAt: v.optional(v.number()),
     sectionId: v.optional(v.id('sections')),
     projectId: v.optional(v.id('projects')),
     userId: v.id('users'),
@@ -196,7 +226,12 @@ export default defineSchema({
     .index('by_sectionId', ['sectionId'])
     .index('by_projectId', ['projectId'])
     .index('by_threadId', ['threadId'])
-    .index('by_userId_sortOrder', ['userId', 'sortOrder']),
+    .index('by_userId_sortOrder', ['userId', 'sortOrder'])
+    .index('by_userId_sortOrder_lastMessageAt', [
+      'userId',
+      'sortOrder',
+      'lastMessageAt',
+    ]),
 
   // Public share snapshots for chat transcripts
   chatShares: defineTable({
@@ -398,6 +433,8 @@ export default defineSchema({
     displayName: v.optional(v.string()),
     image: v.optional(v.string()),
     bio: v.optional(v.string()),
+    reasoningEnabled: v.optional(v.boolean()),
+    reasoningLevel: v.optional(reasoningLevelValidator),
     updatedAt: v.number(),
   }).index('by_user', ['userId']),
 })

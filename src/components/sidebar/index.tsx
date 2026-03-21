@@ -283,10 +283,11 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
                       </SidebarMenuItem>
 
                       {expanded && projectThreads.length > 0 ? (
-                        <div className="ml-7 space-y-1">
-                          {projectThreads.map((thread) => (
+                        <AnimatedThreadList
+                          className="ml-7"
+                          threads={projectThreads}
+                          renderThread={(thread) => (
                             <ThreadRow
-                              key={thread.id}
                               thread={thread}
                               isActive={selectedThreadId === thread.id}
                               onOpen={() =>
@@ -310,8 +311,8 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
                                   : undefined
                               }
                             />
-                          ))}
-                        </div>
+                          )}
+                        />
                       ) : null}
                     </React.Fragment>
                   )
@@ -325,22 +326,24 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
           <SidebarGroupLabel>Unfiled</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-1">
-              {unfiledThreads.map((thread) => (
-                <ThreadRow
-                  key={thread.id}
-                  thread={thread}
-                  isActive={selectedThreadId === thread.id}
-                  onOpen={() =>
-                    navigate({
-                      to: '/$chatId',
-                      params: { chatId: thread.id },
-                    })
-                  }
-                  onTogglePinned={() =>
-                    void handlePinThread(thread.id, !thread.pinned)
-                  }
-                />
-              ))}
+              <AnimatedThreadList
+                threads={unfiledThreads}
+                renderThread={(thread) => (
+                  <ThreadRow
+                    thread={thread}
+                    isActive={selectedThreadId === thread.id}
+                    onOpen={() =>
+                      navigate({
+                        to: '/$chatId',
+                        params: { chatId: thread.id },
+                      })
+                    }
+                    onTogglePinned={() =>
+                      void handlePinThread(thread.id, !thread.pinned)
+                    }
+                  />
+                )}
+              />
               {unfiledThreads.length === 0 ? (
                 <div className="rounded-md border border-dashed px-3 py-4 text-sm text-muted-foreground">
                   No unfiled chats.
@@ -683,4 +686,97 @@ function ThreadRow({
       </SidebarMenuButton>
     </SidebarMenuItem>
   )
+}
+
+function AnimatedThreadList<TThread extends BaseAnimatedThread>({
+  threads,
+  renderThread,
+  className,
+}: {
+  threads: TThread[]
+  renderThread: (thread: TThread) => React.ReactNode
+  className?: string
+}) {
+  const rowRefs = React.useRef(new Map<string, HTMLDivElement>())
+  const previousRects = React.useRef(new Map<string, DOMRect>())
+  const threadIds = React.useMemo(() => threads.map((thread) => thread.id), [threads])
+
+  React.useLayoutEffect(() => {
+    const currentRects = new Map<string, DOMRect>()
+    const activeIds = new Set(threadIds)
+
+    for (const threadId of threadIds) {
+      const node = rowRefs.current.get(threadId)
+      if (!node) continue
+      currentRects.set(threadId, node.getBoundingClientRect())
+    }
+
+    for (const [threadId, node] of rowRefs.current.entries()) {
+      if (!activeIds.has(threadId)) {
+        rowRefs.current.delete(threadId)
+        continue
+      }
+
+      const currentRect = currentRects.get(threadId)
+      if (!currentRect) continue
+
+      const previousRect = previousRects.current.get(threadId)
+      if (!previousRect) {
+        node.animate(
+          [
+            { opacity: 0, transform: 'translateY(-8px) scale(0.985)' },
+            { opacity: 1, transform: 'translateY(0) scale(1)' },
+          ],
+          {
+            duration: 180,
+            easing: 'cubic-bezier(.16,1,.3,1)',
+          },
+        )
+        continue
+      }
+
+      const deltaY = previousRect.top - currentRect.top
+      if (Math.abs(deltaY) < 1) continue
+
+      node.animate(
+        [
+          { transform: `translateY(${deltaY}px)` },
+          { transform: 'translateY(0px)' },
+        ],
+        {
+          duration: 220,
+          easing: 'cubic-bezier(.2,0,0,1)',
+        },
+      )
+    }
+
+    previousRects.current = currentRects
+  }, [threadIds])
+
+  return (
+    <div className={cn('space-y-1', className)}>
+      {threads.map((thread) => (
+        <div
+          key={thread.id}
+          ref={(node) => {
+            if (node) {
+              rowRefs.current.set(thread.id, node)
+              return
+            }
+            rowRefs.current.delete(thread.id)
+          }}
+          className="will-change-transform"
+        >
+          {renderThread(thread)}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+type BaseAnimatedThread = {
+  id: string
+  title?: string
+  emoji: string
+  pinned: boolean
 }

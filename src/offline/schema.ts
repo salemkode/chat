@@ -47,6 +47,9 @@ export interface OfflineModelRecord {
   displayName: string
   description?: string
   capabilities?: string[]
+  supportsReasoning?: boolean
+  reasoningLevels?: Array<'low' | 'medium' | 'high'>
+  defaultReasoningLevel?: 'off' | 'low' | 'medium' | 'high'
   sortOrder: number
   isFavorite: boolean
   isFree?: boolean
@@ -78,6 +81,8 @@ export interface OfflineSettingsRecord {
   displayName?: string
   image?: string
   bio?: string
+  reasoningEnabled?: boolean
+  reasoningLevel?: 'low' | 'medium' | 'high'
   updatedAt: number
 }
 

@@ -10,7 +10,6 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type CSSProperties,
 } from 'react'
@@ -40,6 +39,7 @@ import {
   useMessages,
   useModels,
   useProjects,
+  useSettings,
   useSendMessage,
   useThread,
 } from '@/hooks/use-chat-data'
@@ -90,35 +90,7 @@ function AuthenticatedChatLayout() {
     },
   })
   const threadId = params?.chatId
-  const composerTrayRef = useRef<HTMLDivElement>(null)
-  const [mobileComposerHeight, setMobileComposerHeight] = useState(176)
-
-  useEffect(() => {
-    if (!isMobile) {
-      return
-    }
-
-    const element = composerTrayRef.current
-    if (!element) {
-      return
-    }
-
-    const updateHeight = () => {
-      setMobileComposerHeight(Math.ceil(element.getBoundingClientRect().height))
-    }
-
-    updateHeight()
-
-    const observer = new ResizeObserver(() => {
-      updateHeight()
-    })
-
-    observer.observe(element)
-
-    return () => {
-      observer.disconnect()
-    }
-  }, [isMobile, threadId])
+  const [mobileComposerHeight] = useState(176)
 
   return (
     <SidebarProvider className="h-screen">
@@ -126,7 +98,7 @@ function AuthenticatedChatLayout() {
 
       <ChatModelProvider>
         <SidebarInset
-          className="relative"
+          className="relative min-h-0"
           style={
             isMobile
               ? ({
@@ -136,9 +108,11 @@ function AuthenticatedChatLayout() {
               : undefined
           }
         >
-          <Outlet />
+          <div className="min-h-0 flex-1">
+            <Outlet />
+          </div>
 
-          <div className="absolute bottom-0 left-0 right-0 z-20">
+          <div className="shrink-0">
             <div className="mx-auto w-full max-w-3xl px-2 sm:px-4">
               <ChatComposer threadId={threadId} mobile={isMobile} />
             </div>
@@ -158,6 +132,7 @@ function ChatComposer({
 }) {
   const navigate = useNavigate()
   const { models } = useModels()
+  const { settings } = useSettings()
   const { projects } = useProjects()
   const { send, stop, disabledReason } = useSendMessage()
   const thread = useThread(threadId)
@@ -189,6 +164,18 @@ function ChatComposer({
       )?.id,
     [models, selectedModelId],
   )
+  const selectedModel = useMemo(
+    () =>
+      models.find(
+        (model: {
+          modelId: string
+          supportsReasoning?: boolean
+          reasoningLevels?: Array<'low' | 'medium' | 'high'>
+          defaultReasoningLevel?: 'off' | 'low' | 'medium' | 'high'
+        }) => model.modelId === selectedModelId,
+      ),
+    [models, selectedModelId],
+  )
 
   const sendNow = useCallback(
     async (input: QueuedMessage) => {
@@ -198,6 +185,7 @@ function ChatComposer({
         modelDocId: toModelDocId(input.modelDocId),
         projectId: input.projectId as Id<'projects'> | undefined,
         searchEnabled: input.searchEnabled,
+        reasoning: input.reasoning,
         attachments: input.attachments,
       })
 
@@ -276,13 +264,19 @@ function ChatComposer({
 
   async function handleSendMessage(
     text: string,
-    opts: { searchEnabled: boolean; projectId?: string; attachments: File[] },
+    opts: {
+      searchEnabled: boolean
+      projectId?: string
+      attachments: File[]
+      reasoning: { enabled: boolean; level?: 'low' | 'medium' | 'high' }
+    },
   ) {
     const payload: QueuedMessage = {
       text,
       modelDocId: selectedModelDocId,
       projectId: opts.projectId,
       searchEnabled: opts.searchEnabled,
+      reasoning: opts.reasoning,
       attachments: opts.attachments,
     }
 
@@ -356,6 +350,14 @@ function ChatComposer({
           // Errors are shown through the composer error state on direct sends.
         })
       }}
+      reasoningSupported={Boolean(selectedModel?.supportsReasoning)}
+      reasoningLevels={selectedModel?.reasoningLevels}
+      defaultReasoningLevel={selectedModel?.defaultReasoningLevel}
+      userReasoningEnabled={Boolean(settings?.reasoningEnabled)}
+      userReasoningLevel={
+        (settings?.reasoningLevel as 'low' | 'medium' | 'high' | undefined) ??
+        'medium'
+      }
     />
   )
 }

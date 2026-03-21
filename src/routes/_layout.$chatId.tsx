@@ -39,7 +39,8 @@ function AuthenticatedChatPage() {
   const { chatId } = Route.useParams()
   const thread = useThread(chatId)
   const { removeThreadFromProject } = useProjects()
-  const { messages, status } = useMessages(chatId)
+  const { messages, status, hasMore, isLoadingMore, loadOlderMessages } =
+    useMessages(chatId)
   const { activeGeneration, isStalled } = useGenerationState(messages || [])
   const threadTitle = thread?.title || 'New Chat'
 
@@ -71,6 +72,9 @@ function AuthenticatedChatPage() {
         threadId={chatId}
         messages={messages || []}
         isLoading={status === 'LoadingFirstPage'}
+        isLoadingOlder={isLoadingMore}
+        hasOlderMessages={hasMore}
+        onLoadOlder={loadOlderMessages}
         activeAssistantMessageId={activeGeneration?.message.id}
         stalledAssistantMessageId={
           isStalled ? activeGeneration?.message.id : undefined

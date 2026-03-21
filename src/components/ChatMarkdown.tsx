@@ -15,9 +15,9 @@ import type { Components } from 'react-markdown'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import {
-  codeToHtml,
   type BundledLanguage,
   type BundledTheme,
+  createHighlighter,
 } from 'shiki/bundle/web'
 import { useTheme } from '@/components/theme-provider'
 import { fnv1a32 } from '@/lib/fnv1a32'
@@ -39,11 +39,20 @@ const highlightedCodeCache = new LRUCache<string>(
   MAX_HIGHLIGHT_CACHE_ENTRIES,
   MAX_HIGHLIGHT_CACHE_MEMORY_BYTES,
 )
+type ShikiHighlighter = Awaited<ReturnType<typeof createHighlighter>>
+const highlighterPromiseCache = new Map<string, Promise<ShikiHighlighter>>()
 
-function extractFenceLanguage(className: string | undefined): string {
+function extractFenceLanguage(
+  className: string | undefined,
+): { language: string; label: string } {
   const match = className?.match(CODE_FENCE_LANGUAGE_REGEX)
   const raw = match?.[1] ?? 'text'
-  return raw === 'gitignore' ? 'ini' : raw
+  // Shiki doesn't bundle gitignore grammar; ini is a close fallback.
+  if (raw === 'gitignore') {
+    return { language: 'ini', label: 'gitignore' }
+  }
+
+  return { language: raw, label: raw }
 }
 
 function nodeToPlainText(node: ReactNode): string {
@@ -89,24 +98,23 @@ function estimateHighlightedSize(html: string, code: string): number {
   return Math.max(html.length * 2, code.length * 3)
 }
 
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
+function getHighlighterPromise(language: string): Promise<ShikiHighlighter> {
+  const cached = highlighterPromiseCache.get(language)
+  if (cached) return cached
 
-async function highlightToHtml(
-  code: string,
-  lang: string,
-  theme: BundledTheme,
-): Promise<string> {
-  try {
-    return await codeToHtml(code, { lang: lang as BundledLanguage, theme })
-  } catch {
-    return `<pre class="chat-markdown-fallback-pre" tabindex="0"><code>${escapeHtml(code)}</code></pre>`
-  }
+  const promise = createHighlighter({
+    themes: ['github-dark', 'github-light'],
+    langs: [language as BundledLanguage],
+  }).catch((err) => {
+    highlighterPromiseCache.delete(language)
+    if (language === 'text') {
+      throw err
+    }
+    return getHighlighterPromise('text')
+  })
+
+  highlighterPromiseCache.set(language, promise)
+  return promise
 }
 
 class CodeHighlightErrorBoundary extends React.Component<
@@ -130,7 +138,15 @@ class CodeHighlightErrorBoundary extends React.Component<
   }
 }
 
-function MarkdownCodeBlock({ code, children }: { code: string; children: ReactNode }) {
+function MarkdownCodeBlock({
+  code,
+  children,
+  languageLabel,
+}: {
+  code: string
+  children: ReactNode
+  languageLabel: string
+}) {
   const [copied, setCopied] = useState(false)
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const handleCopy = useCallback(() => {
@@ -163,17 +179,20 @@ function MarkdownCodeBlock({ code, children }: { code: string; children: ReactNo
   )
 
   return (
-    <div className="not-prose relative my-3 overflow-hidden rounded-xl border border-border/60 bg-sidebar/85 shadow-sm">
+    <div className="chat-markdown-codeblock not-prose relative my-3 overflow-hidden rounded-xl border border-border/60 bg-sidebar/85 shadow-sm">
+      <span className="pointer-events-none absolute top-2 left-3 z-10 inline-flex h-6 items-center rounded-md border border-border/60 bg-background/85 px-2 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+        {languageLabel}
+      </span>
       <button
         type="button"
-        className="absolute top-2 right-2 z-10 inline-flex size-8 items-center justify-center rounded-md border border-border/60 bg-background/90 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        className="chat-markdown-copy-button absolute top-2 right-2 z-10 inline-flex size-8 items-center justify-center rounded-md border border-border/60 bg-background/90 text-muted-foreground opacity-0 transition-colors hover:bg-muted hover:text-foreground"
         onClick={handleCopy}
         title={copied ? 'Copied' : 'Copy code'}
         aria-label={copied ? 'Copied' : 'Copy code'}
       >
         {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
       </button>
-      <div className="overflow-x-auto pt-10 pb-4 [&_.shiki]:bg-transparent! [&_pre]:m-0! [&_pre]:bg-transparent! [&_pre]:p-4! [&_pre]:text-[13px]">
+      <div className="overflow-x-auto pt-10 pb-4 [&_.shiki]:bg-transparent! [&_pre]:m-0! [&_pre]:bg-transparent! [&_pre]:px-4! [&_pre]:py-0! [&_pre]:text-[13px]">
         {children}
       </div>
     </div>
@@ -181,34 +200,42 @@ function MarkdownCodeBlock({ code, children }: { code: string; children: ReactNo
 }
 
 function SuspenseShikiCodeBlock({
-  className,
+  language,
   code,
   themeName,
   isStreaming,
 }: {
-  className: string | undefined
+  language: string
   code: string
   themeName: BundledTheme
   isStreaming: boolean
 }) {
-  const language = extractFenceLanguage(className)
   const cacheKey = createHighlightCacheKey(code, language, themeName)
   const cachedHighlightedHtml = !isStreaming ? highlightedCodeCache.get(cacheKey) : null
 
   if (cachedHighlightedHtml != null) {
     return (
       <div
-        className="[&_.shiki]:bg-transparent! [&_pre]:m-0! [&_pre]:bg-transparent! [&_pre]:p-0!"
+        className="chat-markdown-shiki [&_.shiki]:bg-transparent! [&_pre]:m-0! [&_pre]:bg-transparent! [&_pre]:p-0!"
         dangerouslySetInnerHTML={{ __html: cachedHighlightedHtml }}
       />
     )
   }
 
-  const highlightPromise = useMemo(
-    () => highlightToHtml(code, language, themeName),
-    [code, language, themeName],
-  )
-  const highlightedHtml = use(highlightPromise)
+  const highlighter = use(getHighlighterPromise(language))
+  const highlightedHtml = useMemo(() => {
+    try {
+      return highlighter.codeToHtml(code, {
+        lang: language as BundledLanguage,
+        theme: themeName,
+      })
+    } catch {
+      return highlighter.codeToHtml(code, {
+        lang: 'text' as BundledLanguage,
+        theme: themeName,
+      })
+    }
+  }, [code, highlighter, language, themeName])
 
   useEffect(() => {
     if (!isStreaming) {
@@ -222,7 +249,7 @@ function SuspenseShikiCodeBlock({
 
   return (
     <div
-      className="[&_.shiki]:bg-transparent! [&_pre]:m-0! [&_pre]:bg-transparent! [&_pre]:p-0!"
+      className="chat-markdown-shiki [&_.shiki]:bg-transparent! [&_pre]:m-0! [&_pre]:bg-transparent! [&_pre]:p-0!"
       dangerouslySetInnerHTML={{ __html: highlightedHtml }}
     />
   )
@@ -261,15 +288,19 @@ export const ChatMarkdown = React.memo(function ChatMarkdown({
         if (!codeBlock) {
           return <pre {...props}>{children}</pre>
         }
+        const fenceLanguage = extractFenceLanguage(codeBlock.className)
 
         return (
-          <MarkdownCodeBlock code={codeBlock.code}>
+          <MarkdownCodeBlock
+            code={codeBlock.code}
+            languageLabel={fenceLanguage.label}
+          >
             <CodeHighlightErrorBoundary
               fallback={<pre {...props}>{children}</pre>}
             >
               <Suspense fallback={<pre {...props}>{children}</pre>}>
                 <SuspenseShikiCodeBlock
-                  className={codeBlock.className}
+                  language={fenceLanguage.language}
                   code={codeBlock.code}
                   themeName={shikiTheme}
                   isStreaming={isStreaming}
@@ -294,6 +325,12 @@ export const ChatMarkdown = React.memo(function ChatMarkdown({
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
         {text}
       </ReactMarkdown>
+      <style>{`
+        .chat-markdown-codeblock:hover .chat-markdown-copy-button,
+        .chat-markdown-codeblock:focus-within .chat-markdown-copy-button {
+          opacity: 1;
+        }
+      `}</style>
     </div>
   )
 })

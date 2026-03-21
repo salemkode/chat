@@ -385,6 +385,7 @@ export type DataModel = {
     document: {
       capabilities?: Array<string>;
       contextWindow?: number;
+      defaultReasoningLevel?: "off" | "low" | "medium" | "high";
       description?: string;
       discoveredAt?: number;
       displayName: string;
@@ -408,7 +409,9 @@ export type DataModel = {
         scope: "global" | "user";
         shards?: number;
       };
+      reasoningLevels?: Array<"low" | "medium" | "high">;
       sortOrder: number;
+      supportsReasoning?: boolean;
       _id: Id<"models">;
       _creationTime: number;
     };
@@ -417,6 +420,7 @@ export type DataModel = {
       | "_id"
       | "capabilities"
       | "contextWindow"
+      | "defaultReasoningLevel"
       | "description"
       | "discoveredAt"
       | "displayName"
@@ -441,7 +445,9 @@ export type DataModel = {
       | "rateLimit.rate"
       | "rateLimit.scope"
       | "rateLimit.shards"
-      | "sortOrder";
+      | "reasoningLevels"
+      | "sortOrder"
+      | "supportsReasoning";
     indexes: {
       by_id: ["_id"];
       by_creation_time: ["_creationTime"];
@@ -739,6 +745,7 @@ export type DataModel = {
       emoji: string;
       icon?: string;
       lastLabelUpdateAt: number;
+      lastMessageAt?: number;
       projectId?: Id<"projects">;
       sectionId?: Id<"sections">;
       sortOrder: number;
@@ -753,6 +760,7 @@ export type DataModel = {
       | "emoji"
       | "icon"
       | "lastLabelUpdateAt"
+      | "lastMessageAt"
       | "projectId"
       | "sectionId"
       | "sortOrder"
@@ -766,6 +774,12 @@ export type DataModel = {
       by_threadId: ["threadId", "_creationTime"];
       by_userId: ["userId", "_creationTime"];
       by_userId_sortOrder: ["userId", "sortOrder", "_creationTime"];
+      by_userId_sortOrder_lastMessageAt: [
+        "userId",
+        "sortOrder",
+        "lastMessageAt",
+        "_creationTime",
+      ];
     };
     searchIndexes: {};
     vectorIndexes: {};
@@ -832,6 +846,30 @@ export type DataModel = {
     searchIndexes: {};
     vectorIndexes: {};
   };
+  userRoles: {
+    document: {
+      grantedBy?: Id<"users">;
+      role: "owner" | "admin" | "member";
+      updatedAt: number;
+      userId: Id<"users">;
+      _id: Id<"userRoles">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "grantedBy"
+      | "role"
+      | "updatedAt"
+      | "userId";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_userId: ["userId", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
   users: {
     document: {
       appPlan?: "free" | "pro";
@@ -876,6 +914,8 @@ export type DataModel = {
       bio?: string;
       displayName?: string;
       image?: string;
+      reasoningEnabled?: boolean;
+      reasoningLevel?: "low" | "medium" | "high";
       updatedAt: number;
       userId: Id<"users">;
       _id: Id<"userSettings">;
@@ -887,6 +927,8 @@ export type DataModel = {
       | "bio"
       | "displayName"
       | "image"
+      | "reasoningEnabled"
+      | "reasoningLevel"
       | "updatedAt"
       | "userId";
     indexes: {

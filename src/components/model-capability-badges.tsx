@@ -22,7 +22,11 @@ export function ModelCapabilityBadges({
   return (
     <div className={cn('flex flex-wrap items-center gap-1', className)}>
       {shown.map((raw, index) => {
-        const { label, className: tone } = resolveCapabilityPresentation(raw)
+        const presentation = resolveCapabilityPresentation(raw)
+        if (!presentation) {
+          return null
+        }
+        const { label, className: tone } = presentation
         return (
           <span
             key={`${raw}-${index}`}

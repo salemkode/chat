@@ -222,6 +222,9 @@ interface ModelFormData {
   iconType?: IconType
   iconId?: string
   capabilitiesText: string
+  supportsReasoning: boolean
+  reasoningLevels: Array<'low' | 'medium' | 'high'>
+  defaultReasoningLevel: 'off' | 'low' | 'medium' | 'high'
   ownedBy: string
   contextWindow: string
   maxOutputTokens: string
@@ -317,6 +320,9 @@ function createModelForm(providerId = '', sortOrder = 0): ModelFormData {
     iconType: 'lucide',
     iconId: undefined,
     capabilitiesText: '',
+    supportsReasoning: false,
+    reasoningLevels: ['low', 'medium', 'high'],
+    defaultReasoningLevel: 'off',
     ownedBy: '',
     contextWindow: '',
     maxOutputTokens: '',
@@ -774,6 +780,17 @@ function AdminPage() {
         iconType: model.iconType as IconType,
         iconId: model.iconId,
         capabilitiesText: model.capabilities?.join(', ') ?? '',
+        supportsReasoning: Boolean(model.supportsReasoning),
+        reasoningLevels:
+          (model.reasoningLevels as Array<'low' | 'medium' | 'high'> | undefined) ??
+          ['low', 'medium', 'high'],
+        defaultReasoningLevel:
+          (model.defaultReasoningLevel as
+            | 'off'
+            | 'low'
+            | 'medium'
+            | 'high'
+            | undefined) ?? 'off',
         ownedBy: model.ownedBy ?? '',
         contextWindow: model.contextWindow ? String(model.contextWindow) : '',
         maxOutputTokens: model.maxOutputTokens
@@ -831,6 +848,16 @@ function AdminPage() {
         ? String(discoveredModel.maxOutputTokens)
         : '',
       capabilitiesText,
+      supportsReasoning: capabilitiesText
+        .split(',')
+        .map((value) => value.trim().toLowerCase())
+        .includes('reasoning'),
+      defaultReasoningLevel: capabilitiesText
+        .split(',')
+        .map((value) => value.trim().toLowerCase())
+        .includes('reasoning')
+        ? 'medium'
+        : 'off',
     }))
   }
 
@@ -975,6 +1002,13 @@ function AdminPage() {
           ? (modelForm.iconId as Id<'_storage'> | undefined)
           : undefined,
       capabilities: capabilities.length > 0 ? capabilities : undefined,
+      supportsReasoning: modelForm.supportsReasoning,
+      reasoningLevels: modelForm.supportsReasoning
+        ? modelForm.reasoningLevels
+        : undefined,
+      defaultReasoningLevel: modelForm.supportsReasoning
+        ? modelForm.defaultReasoningLevel
+        : 'off',
       ownedBy: modelForm.ownedBy.trim() || undefined,
       contextWindow: modelForm.contextWindow
         ? Number(modelForm.contextWindow)
@@ -1876,6 +1910,52 @@ function AdminPage() {
                                 }
                                 placeholder="openai"
                               />
+                            </div>
+
+                            <div className="grid gap-2">
+                              <Label>Supports reasoning</Label>
+                              <Switch
+                                checked={modelForm.supportsReasoning}
+                                onCheckedChange={(checked) =>
+                                  setModelForm((current) => ({
+                                    ...current,
+                                    supportsReasoning: checked,
+                                    defaultReasoningLevel: checked
+                                      ? current.defaultReasoningLevel === 'off'
+                                        ? 'medium'
+                                        : current.defaultReasoningLevel
+                                      : 'off',
+                                  }))
+                                }
+                              />
+                            </div>
+
+                            <div className="grid gap-2">
+                              <Label>Default reasoning level</Label>
+                              <Select
+                                value={modelForm.defaultReasoningLevel}
+                                onValueChange={(value) =>
+                                  setModelForm((current) => ({
+                                    ...current,
+                                    defaultReasoningLevel: value as
+                                      | 'off'
+                                      | 'low'
+                                      | 'medium'
+                                      | 'high',
+                                  }))
+                                }
+                                disabled={!modelForm.supportsReasoning}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="off">Off</SelectItem>
+                                  <SelectItem value="low">Low</SelectItem>
+                                  <SelectItem value="medium">Medium</SelectItem>
+                                  <SelectItem value="high">High</SelectItem>
+                                </SelectContent>
+                              </Select>
                             </div>
 
                             <div className="flex items-center gap-6 pt-6 md:col-span-2">

@@ -10,6 +10,12 @@ import {
 import { UserJSON } from "@clerk/backend";
 import { DEFAULT_APP_PLAN } from './lib/appPlan'
 
+const reasoningLevelValidator = v.union(
+  v.literal('low'),
+  v.literal('medium'),
+  v.literal('high'),
+)
+
 const userSettingsValidator = v.object({
   _id: v.id('userSettings'),
   _creationTime: v.number(),
@@ -17,6 +23,8 @@ const userSettingsValidator = v.object({
   displayName: v.optional(v.string()),
   image: v.optional(v.string()),
   bio: v.optional(v.string()),
+  reasoningEnabled: v.optional(v.boolean()),
+  reasoningLevel: v.optional(reasoningLevelValidator),
   updatedAt: v.number(),
 })
 
@@ -112,6 +120,8 @@ export const updateSettings = mutation({
     displayName: v.optional(v.string()),
     image: v.optional(v.string()),
     bio: v.optional(v.string()),
+    reasoningEnabled: v.optional(v.boolean()),
+    reasoningLevel: v.optional(reasoningLevelValidator),
   },
   returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
@@ -134,6 +144,12 @@ export const updateSettings = mutation({
         }),
         ...(args.image !== undefined && { image: args.image }),
         ...(args.bio !== undefined && { bio: args.bio }),
+        ...(args.reasoningEnabled !== undefined && {
+          reasoningEnabled: args.reasoningEnabled,
+        }),
+        ...(args.reasoningLevel !== undefined && {
+          reasoningLevel: args.reasoningLevel,
+        }),
         updatedAt: now,
       })
     } else {
@@ -142,6 +158,8 @@ export const updateSettings = mutation({
         displayName: args.displayName,
         image: args.image,
         bio: args.bio,
+        reasoningEnabled: args.reasoningEnabled,
+        reasoningLevel: args.reasoningLevel,
         updatedAt: now,
       })
     }

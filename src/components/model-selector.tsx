@@ -1,6 +1,6 @@
 'use client'
 
-import { forwardRef, useMemo, useState } from 'react'
+import { forwardRef, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown, Search, Sparkles, Star } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useModels } from '@/hooks/use-chat-data'
@@ -10,7 +10,11 @@ import {
   modelSelectorIconTileClass,
   modelSelectorOptionRowClass,
 } from '@/lib/model-selector-ui'
-import { AdaptiveDialog } from '@/components/ui/adaptive-dialog'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import type { OfflineModelRecord } from '@/offline/schema'
 
 type ModelSelectorPanelProps = {
@@ -92,17 +96,18 @@ export function ModelSelector({
 
   return (
     <div className={className}>
-      <ModelSelectorTrigger onClick={() => setOpen(true)}>
-        {triggerInner}
-      </ModelSelectorTrigger>
-      <AdaptiveDialog
-        open={open}
-        onOpenChange={setOpen}
-        title="Choose a model"
-        description="Search providers and pick an AI model for this chat."
-      >
-        {panel}
-      </AdaptiveDialog>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <ModelSelectorTrigger>{triggerInner}</ModelSelectorTrigger>
+        </PopoverTrigger>
+        <PopoverContent
+          className="h-[min(520px,75vh)] w-[min(92vw,420px)] max-w-[420px] overflow-hidden p-0"
+          side="top"
+          align="start"
+        >
+          {panel}
+        </PopoverContent>
+      </Popover>
     </div>
   )
 }
@@ -114,6 +119,8 @@ export function ModelSelectorPanel({
 }: ModelSelectorPanelProps) {
   const { models, setFavorite } = useModels()
   const [searchQuery, setSearchQuery] = useState('')
+  const rowRefs = useRef(new Map<string, HTMLDivElement>())
+  const previousRects = useRef(new Map<string, DOMRect>())
 
   const filteredModels = useMemo(() => {
     if (!searchQuery.trim()) return models
@@ -127,7 +134,7 @@ export function ModelSelectorPanel({
     )
   }, [models, searchQuery])
 
-  const groupedModels = useMemo(() => {
+  const groupedModels = useMemo<Array<[string, OfflineModelRecord[]]>>(() => {
     const groups = new Map<string, OfflineModelRecord[]>()
     for (const model of filteredModels) {
       const providerName = model.provider?.name || 'Other providers'
@@ -136,8 +143,76 @@ export function ModelSelectorPanel({
       groups.set(providerName, group)
     }
 
-    return [...groups.entries()]
+    return [...groups.entries()].map(([providerName, providerModels]) => {
+      const sortedModels = [...providerModels].sort((a, b) => {
+        if (a.isFavorite !== b.isFavorite) {
+          return a.isFavorite ? -1 : 1
+        }
+        return a.displayName.localeCompare(b.displayName)
+      })
+      return [providerName, sortedModels]
+    })
   }, [filteredModels])
+
+  const modelIds = useMemo(
+    () =>
+      groupedModels.flatMap(([, providerModels]) =>
+        providerModels.map((model) => model.id),
+      ),
+    [groupedModels],
+  )
+
+  useLayoutEffect(() => {
+    const currentRects = new Map<string, DOMRect>()
+    const activeIds = new Set(modelIds)
+
+    for (const modelId of modelIds) {
+      const node = rowRefs.current.get(modelId)
+      if (!node) continue
+      currentRects.set(modelId, node.getBoundingClientRect())
+    }
+
+    for (const [modelId, node] of rowRefs.current.entries()) {
+      if (!activeIds.has(modelId)) {
+        rowRefs.current.delete(modelId)
+        continue
+      }
+
+      const currentRect = currentRects.get(modelId)
+      if (!currentRect) continue
+
+      const previousRect = previousRects.current.get(modelId)
+      if (!previousRect) {
+        node.animate(
+          [
+            { opacity: 0, transform: 'translateY(-8px) scale(0.985)' },
+            { opacity: 1, transform: 'translateY(0) scale(1)' },
+          ],
+          {
+            duration: 180,
+            easing: 'cubic-bezier(.16,1,.3,1)',
+          },
+        )
+        continue
+      }
+
+      const deltaY = previousRect.top - currentRect.top
+      if (Math.abs(deltaY) < 1) continue
+
+      node.animate(
+        [
+          { transform: `translateY(${deltaY}px)` },
+          { transform: 'translateY(0px)' },
+        ],
+        {
+          duration: 220,
+          easing: 'cubic-bezier(.2,0,0,1)',
+        },
+      )
+    }
+
+    previousRects.current = currentRects
+  }, [modelIds])
 
   return (
     <div className={cn('flex min-h-0 flex-col', className)}>
@@ -167,72 +242,77 @@ export function ModelSelectorPanel({
                 return (
                   <div
                     key={model.id}
-                    className={modelSelectorOptionRowClass(isSelected)}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => onSelectModel?.(model.modelId)}
-                      className="flex min-w-0 flex-1 items-start gap-3 text-left"
-                    >
-                      <div className={modelSelectorIconTileClass()}>
-                        <EntityIcon
-                          icon={model.icon || model.provider?.icon}
-                          iconType={(model.iconType || model.provider?.iconType) as
-                            | 'emoji'
-                            | 'lucide'
-                            | 'upload'
-                            | undefined}
-                          iconUrl={model.iconUrl || model.provider?.iconUrl}
-                          className="size-4"
-                        />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-medium">{model.displayName}</span>
-                          {model.isFree ? (
-                            <span className="rounded-full bg-emerald-500/12 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
-                              Free
-                            </span>
-                          ) : null}
-                          {isSelected ? (
-                            <Sparkles className="size-4 shrink-0 text-primary" />
-                          ) : null}
-                        </div>
-                        <div className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground">
-                          {model.modelId}
-                        </div>
-                        {model.description ? (
-                          <p className="mt-1 line-clamp-2 text-xs leading-snug text-muted-foreground">
-                            {model.description}
-                          </p>
-                        ) : null}
-                        <ModelCapabilityBadges
-                          capabilities={model.capabilities}
-                          className="mt-1.5"
-                        />
-                      </div>
-                    </button>
-
-                    <button
-                      type="button"
-                      className={cn(
-                        'shrink-0 rounded-lg p-1.5 transition-colors',
-                        model.isFavorite
-                          ? 'text-amber-500'
-                          : 'text-muted-foreground hover:text-foreground',
-                      )}
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        void setFavorite(model.id, !model.isFavorite)
-                      }}
-                      aria-label={
-                        model.isFavorite ? 'Remove favorite' : 'Add favorite'
+                    ref={(node) => {
+                      if (node) {
+                        rowRefs.current.set(model.id, node)
+                        return
                       }
-                    >
-                      <Star
-                        className={cn('size-4', model.isFavorite && 'fill-current')}
-                      />
-                    </button>
+                      rowRefs.current.delete(model.id)
+                    }}
+                    className="will-change-transform"
+                  >
+                    <div className={modelSelectorOptionRowClass(isSelected)}>
+                      <button
+                        type="button"
+                        onClick={() => onSelectModel?.(model.modelId)}
+                        className="flex min-w-0 flex-1 items-start gap-3 text-left"
+                      >
+                        <div className={modelSelectorIconTileClass()}>
+                          <EntityIcon
+                            icon={model.icon || model.provider?.icon}
+                            iconType={(model.iconType ||
+                              model.provider?.iconType) as
+                              | 'emoji'
+                              | 'lucide'
+                              | 'upload'
+                              | undefined}
+                            iconUrl={model.iconUrl || model.provider?.iconUrl}
+                            className="size-4"
+                          />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-medium">{model.displayName}</span>
+                            {model.isFree ? (
+                              <span className="rounded-full bg-emerald-500/12 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
+                                Free
+                              </span>
+                            ) : null}
+                            {isSelected ? (
+                              <Sparkles className="size-4 shrink-0 text-primary" />
+                            ) : null}
+                          </div>
+                          <div className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground">
+                            {model.modelId}
+                          </div>
+                          <ModelCapabilityBadges
+                            capabilities={model.capabilities}
+                            className="mt-1.5"
+                          />
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        className={cn(
+                          'shrink-0 rounded-lg p-1.5 transition-colors',
+                          model.isFavorite
+                            ? 'text-amber-500'
+                            : 'text-muted-foreground hover:text-foreground',
+                        )}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          void setFavorite(model.id, !model.isFavorite)
+                        }}
+                        aria-label={
+                          model.isFavorite ? 'Remove favorite' : 'Add favorite'
+                        }
+                      >
+                        <Star
+                          className={cn('size-4', model.isFavorite && 'fill-current')}
+                        />
+                      </button>
+                    </div>
                   </div>
                 )
               })}

@@ -1,12 +1,28 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from '@tanstack/react-router'
+import {
+  Brain,
+  Camera,
+  Database,
+  Loader2,
+  Monitor,
+  Moon,
+  Palette,
+  Settings,
+  Sun,
+  User,
+  UserCircle,
+  Wrench,
+  X,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import { AdaptiveDialog } from '@/components/ui/adaptive-dialog'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Switch } from '@/components/ui/switch'
 import {
   Select,
   SelectContent,
@@ -14,47 +30,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Camera,
-  User,
-  Loader2,
-  X,
-  Settings,
-  Bell,
-  Palette,
-  Moon,
-  Monitor,
-  Sun,
-  Grid3X3,
-  Database,
-  Shield,
-  Users,
-  UserCircle,
-} from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { useOnlineStatus } from '@/hooks/use-online-status'
+import { Switch } from '@/components/ui/switch'
 import { useTheme } from '@/components/theme-provider'
-import { useSettings, useViewer } from '@/hooks/use-chat-data'
-import { readFileReaderResultAsString } from '@/lib/parsers'
+import { useOnlineStatus } from '@/hooks/use-online-status'
+import { useRoleContext, useSettings, useViewer } from '@/hooks/use-chat-data'
 import { normalizeHexColor, type ThemeMode } from '@/lib/theme'
+import { readFileReaderResultAsString } from '@/lib/parsers'
+import { cn } from '@/lib/utils'
 
 interface SettingsDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
-type SettingsTab =
-  | 'general'
-  | 'notifications'
-  | 'theme'
-  | 'apps'
-  | 'data'
-  | 'security'
-  | 'parental'
-  | 'account'
+type SettingsTab = 'general' | 'theme' | 'model' | 'data' | 'account' | 'admin'
 
-interface SettingsItemProps {
+type SettingsItemProps = {
   label: string
   description?: string
   children: React.ReactNode
@@ -62,14 +53,14 @@ interface SettingsItemProps {
 
 function SettingsItem({ label, description, children }: SettingsItemProps) {
   return (
-    <div className="flex items-center justify-between py-4 border-b border-border/50 last:border-0">
+    <div className="flex items-center justify-between border-b border-border/50 py-4 last:border-0">
       <div className="flex-1 pr-4">
         <h3 className="text-sm font-medium text-foreground">{label}</h3>
-        {description && (
-          <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
-        )}
+        {description ? (
+          <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+        ) : null}
       </div>
-      <div className="flex-shrink-0">{children}</div>
+      <div className="shrink-0">{children}</div>
     </div>
   )
 }
@@ -77,18 +68,19 @@ function SettingsItem({ label, description, children }: SettingsItemProps) {
 export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const user = useViewer()
   const { settings, updateSettings } = useSettings()
+  const { isAdminLike } = useRoleContext()
   const { isOnline } = useOnlineStatus()
   const { theme, setTheme, primaryColor, setPrimaryColor } = useTheme()
+  const navigate = useNavigate()
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
   const [displayName, setDisplayName] = useState('')
   const [bio, setBio] = useState('')
   const [image, setImage] = useState<string | null>(null)
   const [primaryColorInput, setPrimaryColorInput] = useState(primaryColor)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isSavingAccount, setIsSavingAccount] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Initialize form values when settings load
   useEffect(() => {
     if (settings || user) {
       setDisplayName(settings?.displayName || user?.name || '')
@@ -101,68 +93,20 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     setPrimaryColorInput(primaryColor)
   }, [primaryColor])
 
-  const handleImageClick = () => {
-    fileInputRef.current?.click()
-  }
-
-  const handleFileChange = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0]
-      if (!file) return
-
-      // Convert to base64
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        const base64 = readFileReaderResultAsString(reader.result)
-        setImage(base64)
-      }
-      reader.readAsDataURL(file)
-    },
-    [],
+  const tabs = useMemo(
+    () =>
+      [
+        { id: 'general', label: 'General', icon: Settings },
+        { id: 'theme', label: 'Theme', icon: Palette },
+        { id: 'model', label: 'Model features', icon: Brain },
+        { id: 'data', label: 'Data controls', icon: Database },
+        { id: 'account', label: 'Account', icon: UserCircle },
+        ...(isAdminLike
+          ? [{ id: 'admin' as const, label: 'Admin', icon: Wrench }]
+          : []),
+      ] satisfies Array<{ id: SettingsTab; label: string; icon: LucideIcon }>,
+    [isAdminLike],
   )
-
-  const handleSave = async () => {
-    setIsLoading(true)
-    try {
-      await updateSettings({
-        displayName: displayName || undefined,
-        bio: bio || undefined,
-        image: image || undefined,
-      })
-      onOpenChange(false)
-    } catch (error) {
-      console.error('Failed to save settings:', error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2)
-  }
-
-  const displayNameValue = displayName || user?.name || ''
-  const emailValue = user?.email || ''
-
-  const tabs = [
-    { id: 'general', label: 'General', icon: Settings },
-    { id: 'notifications', label: 'Notifications', icon: Bell },
-    {
-      id: 'theme',
-      label: 'Theme',
-      icon: Palette,
-    },
-    { id: 'apps', label: 'Apps', icon: Grid3X3 },
-    { id: 'data', label: 'Data controls', icon: Database },
-    { id: 'security', label: 'Security', icon: Shield },
-    { id: 'parental', label: 'Parental controls', icon: Users },
-    { id: 'account', label: 'Account', icon: UserCircle },
-  ] satisfies Array<{ id: SettingsTab; label: string; icon: LucideIcon }>
 
   const themeOptions = [
     {
@@ -207,396 +151,349 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     '#db2777',
   ]
 
+  const displayNameValue = displayName || user?.name || ''
+  const emailValue = user?.email || ''
+
+  const getInitials = (name: string) =>
+    name
+      .split(' ')
+      .map((part) => part[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2)
+
+  const handleFileChange = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0]
+      if (!file) {
+        return
+      }
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        const base64 = readFileReaderResultAsString(reader.result)
+        setImage(base64)
+      }
+      reader.readAsDataURL(file)
+    },
+    [],
+  )
+
+  const handleSaveAccount = useCallback(async () => {
+    setIsSavingAccount(true)
+    try {
+      await updateSettings({
+        displayName: displayName || undefined,
+        bio: bio || undefined,
+        image: image || undefined,
+      })
+      onOpenChange(false)
+    } catch (error) {
+      console.error('Failed to save settings:', error)
+    } finally {
+      setIsSavingAccount(false)
+    }
+  }, [bio, displayName, image, onOpenChange, updateSettings])
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[800px] h-[600px] p-0 overflow-hidden gap-0 bg-background border border-border">
-        <DialogTitle className="sr-only">Settings</DialogTitle>
-
-        <div className="flex h-full">
-          {/* Sidebar */}
-          <div className="w-[220px] bg-muted/30 border-r border-border flex flex-col">
-            <div className="p-4">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="rounded-full"
-                onClick={() => onOpenChange(false)}
-              >
-                <X className="size-4" />
-              </Button>
-            </div>
-
-            <nav className="flex-1 px-2 pb-4 space-y-0.5">
-              {tabs.map((tab) => {
-                const Icon = tab.icon
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={cn(
-                      'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                      activeTab === tab.id
-                        ? 'bg-muted text-foreground'
-                        : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
-                    )}
-                  >
-                    <Icon className="size-4" />
-                    {tab.label}
-                  </button>
-                )
-              })}
-            </nav>
+    <AdaptiveDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Settings"
+      description="Account, data, theme, and model preferences"
+      contentClassName="h-[min(600px,85dvh)] w-[min(800px,calc(100vw-2rem))] sm:max-w-[min(800px,calc(100vw-2rem))]"
+    >
+      <div className="flex h-full">
+        <div className="flex w-[220px] flex-col border-r border-border bg-muted/30">
+          <div className="p-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-full"
+              onClick={() => onOpenChange(false)}
+            >
+              <X className="size-4" />
+            </Button>
           </div>
 
-          {/* Content */}
-          <div className="flex-1 flex flex-col bg-background">
-            <div className="flex-1 overflow-y-auto p-8">
-              {/* General Tab */}
-              {activeTab === 'general' && (
-                <div className="space-y-6">
-                  <h2 className="text-lg font-semibold">General</h2>
+          <nav className="flex-1 space-y-0.5 px-2 pb-4">
+            {tabs.map((tab) => {
+              const Icon = tab.icon
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={cn(
+                    'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                    activeTab === tab.id
+                      ? 'bg-muted text-foreground'
+                      : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
+                  )}
+                >
+                  <Icon className="size-4" />
+                  {tab.label}
+                </button>
+              )
+            })}
+          </nav>
+        </div>
 
-                  <SettingsItem label="Language">
-                    <Select defaultValue="auto">
-                      <SelectTrigger className="w-[140px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="auto">Auto-detect</SelectItem>
-                        <SelectItem value="en">English</SelectItem>
-                        <SelectItem value="ar">Arabic</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </SettingsItem>
+        <div className="flex flex-1 flex-col bg-background">
+          <div className="flex-1 overflow-y-auto p-8">
+            {activeTab === 'general' ? (
+              <div className="space-y-6">
+                <h2 className="text-lg font-semibold">General</h2>
+                <SettingsItem label="Language">
+                  <Select defaultValue="auto">
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">Auto-detect</SelectItem>
+                      <SelectItem value="en">English</SelectItem>
+                      <SelectItem value="ar">Arabic</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </SettingsItem>
+              </div>
+            ) : null}
 
-                  <SettingsItem
-                    label="Spoken language"
-                    description="For best results, select the language you mainly speak. If it's not listed, it may still be supported via auto-detection."
-                  >
-                    <Select defaultValue="ar">
-                      <SelectTrigger className="w-[140px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ar">Arabic</SelectItem>
-                        <SelectItem value="en">English</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </SettingsItem>
-
-                  <SettingsItem label="Voice">
-                    <div className="flex items-center gap-3">
-                      <Button variant="outline" size="sm" className="gap-2">
-                        <div className="size-4 rounded-full bg-foreground/10 flex items-center justify-center">
-                          <div className="size-0 border-l-[6px] border-l-foreground border-y-[4px] border-y-transparent ml-0.5" />
-                        </div>
-                        Play
-                      </Button>
-                      <Select defaultValue="breeze">
-                        <SelectTrigger className="w-[120px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="breeze">Breeze</SelectItem>
-                          <SelectItem value="cove">Cove</SelectItem>
-                          <SelectItem value="ember">Ember</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </SettingsItem>
-
-                  <SettingsItem
-                    label="Separate Voice"
-                    description="Keep ChatGPT Voice in a separate full screen, without real time transcripts and visuals."
-                  >
-                    <Switch />
-                  </SettingsItem>
-                </div>
-              )}
-
-              {activeTab === 'theme' && (
-                <div className="space-y-6">
-                  <div className="space-y-1">
-                    <h2 className="text-lg font-semibold">Theme</h2>
-                    <p className="text-sm text-muted-foreground">
-                      Theme preferences are stored locally on this device only.
-                    </p>
-                  </div>
-
-                  <div
-                    className="grid gap-3 md:grid-cols-3"
-                    style={
-                      {
-                        '--primary-color-preview': primaryColor,
-                      } as React.CSSProperties
-                    }
-                  >
-                    {themeOptions.map((option) => {
-                      const Icon = option.icon
-                      const isSelected = theme === option.id
-
-                      return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          onClick={() => setTheme(option.id)}
-                          className={cn(
-                            'rounded-2xl border p-4 text-left transition-colors',
-                            isSelected
-                              ? 'border-primary bg-primary/5'
-                              : 'border-border hover:border-primary/40 hover:bg-muted/40',
-                          )}
-                        >
-                          <div
-                            className={cn(
-                              'mb-4 h-24 rounded-xl border',
-                              option.previewClassName,
-                            )}
-                          />
-                          <div className="flex items-center gap-2 text-sm font-medium">
-                            <Icon className="size-4" />
-                            {option.label}
-                          </div>
-                          <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                            {option.description}
-                          </p>
-                        </button>
-                      )
-                    })}
-                  </div>
-
-                  <SettingsItem
-                    label="Primary color"
-                    description="Used for buttons, active states, highlights, and sidebar accents."
-                  >
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="color"
-                        value={primaryColor}
-                        onChange={(event) => setPrimaryColor(event.target.value)}
-                        className="h-10 w-14 cursor-pointer rounded-md border border-input bg-background p-1"
-                        aria-label="Theme primary color"
-                      />
-                      <Input
-                        value={primaryColorInput}
-                        onChange={(event) => {
-                          const nextValue = event.target.value
-                          setPrimaryColorInput(nextValue)
-
-                          if (/^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(nextValue)) {
-                            setPrimaryColor(
-                              normalizeHexColor(nextValue, primaryColor),
-                            )
-                          }
-                        }}
-                        onBlur={() => {
-                          const normalized = normalizeHexColor(
-                            primaryColorInput,
-                            primaryColor,
-                          )
-                          setPrimaryColor(normalized)
-                          setPrimaryColorInput(normalized)
-                        }}
-                        className="w-[120px] font-mono uppercase"
-                      />
-                    </div>
-                  </SettingsItem>
-
-                  <div className="space-y-3">
-                    <Label className="text-sm font-medium">Preset colors</Label>
-                    <div className="flex flex-wrap gap-2">
-                      {presetColors.map((color) => (
-                        <button
-                          key={color}
-                          type="button"
-                          onClick={() => setPrimaryColor(color)}
-                          className={cn(
-                            'size-9 rounded-full border-2 transition-transform hover:scale-105',
-                            primaryColor === color
-                              ? 'border-foreground'
-                              : 'border-border',
-                          )}
-                          style={{ backgroundColor: color }}
-                          aria-label={`Use ${color} as the primary color`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Account Tab */}
-              {activeTab === 'account' && (
-                <div className="space-y-6">
-                  <h2 className="text-lg font-semibold">Account</h2>
-
-                  {/* Profile Image Section */}
-                  <div className="flex items-center gap-6 py-4 border-b border-border/50">
-                    <div
-                      className="relative group cursor-pointer"
-                      onClick={handleImageClick}
-                    >
-                      <Avatar className="size-20 ring-4 ring-background shadow-lg">
-                        <AvatarImage
-                          src={image || user?.image || undefined}
-                          alt={displayNameValue}
-                          className="object-cover"
-                        />
-                        <AvatarFallback className="bg-primary text-primary-foreground text-xl font-medium">
-                          {displayNameValue ? (
-                            getInitials(displayNameValue)
-                          ) : (
-                            <User className="size-8" />
-                          )}
-                        </AvatarFallback>
-                      </Avatar>
-
-                      {/* Overlay */}
-                      <div
+            {activeTab === 'theme' ? (
+              <div className="space-y-6">
+                <h2 className="text-lg font-semibold">Theme</h2>
+                <div
+                  className="grid gap-3 md:grid-cols-3"
+                  style={{ '--primary-color-preview': primaryColor } as React.CSSProperties}
+                >
+                  {themeOptions.map((option) => {
+                    const Icon = option.icon
+                    const isSelected = theme === option.id
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setTheme(option.id)}
                         className={cn(
-                          'absolute inset-0 rounded-full bg-black/40 flex items-center justify-center',
-                          'opacity-0 group-hover:opacity-100 transition-opacity duration-200',
+                          'rounded-2xl border p-4 text-left transition-colors',
+                          isSelected
+                            ? 'border-primary bg-primary/5'
+                            : 'border-border hover:border-primary/40 hover:bg-muted/40',
                         )}
                       >
-                        <Camera className="size-5 text-white" />
-                      </div>
+                        <div className={cn('mb-4 h-24 rounded-xl border', option.previewClassName)} />
+                        <div className="flex items-center gap-2 text-sm font-medium">
+                          <Icon className="size-4" />
+                          {option.label}
+                        </div>
+                        <p className="mt-2 text-xs leading-5 text-muted-foreground">{option.description}</p>
+                      </button>
+                    )
+                  })}
+                </div>
 
-                      {/* Edit badge */}
-                      <div className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full p-1 shadow-md">
-                        <Camera className="size-3" />
-                      </div>
-                    </div>
-
-                    <div>
-                      <h3 className="font-medium">Profile Picture</h3>
-                      <p className="text-sm text-muted-foreground mt-0.5">
-                        Click to upload a new photo
-                      </p>
-                    </div>
-
+                <SettingsItem label="Primary color">
+                  <div className="flex items-center gap-3">
                     <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleFileChange}
+                      type="color"
+                      value={primaryColor}
+                      onChange={(event) => setPrimaryColor(event.target.value)}
+                      className="h-10 w-14 cursor-pointer rounded-md border border-input bg-background p-1"
+                      aria-label="Theme primary color"
+                    />
+                    <Input
+                      value={primaryColorInput}
+                      onChange={(event) => {
+                        const nextValue = event.target.value
+                        setPrimaryColorInput(nextValue)
+                        if (/^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(nextValue)) {
+                          setPrimaryColor(normalizeHexColor(nextValue, primaryColor))
+                        }
+                      }}
+                      onBlur={() => {
+                        const normalized = normalizeHexColor(primaryColorInput, primaryColor)
+                        setPrimaryColor(normalized)
+                        setPrimaryColorInput(normalized)
+                      }}
+                      className="w-[120px] font-mono uppercase"
                     />
                   </div>
+                </SettingsItem>
 
-                  {/* Form Fields */}
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="displayName">Display Name</Label>
-                      <Input
-                        id="displayName"
-                        value={displayNameValue}
-                        onChange={(e) => setDisplayName(e.target.value)}
-                        placeholder="Enter your display name"
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Preset colors</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {presetColors.map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        onClick={() => setPrimaryColor(color)}
+                        className={cn(
+                          'size-9 rounded-full border-2 transition-transform hover:scale-105',
+                          primaryColor === color ? 'border-foreground' : 'border-border',
+                        )}
+                        style={{ backgroundColor: color }}
+                        aria-label={`Use ${color} as the primary color`}
                       />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={emailValue}
-                        disabled
-                        className="bg-muted"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Email cannot be changed
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="bio">Bio</Label>
-                      <Input
-                        id="bio"
-                        value={bio}
-                        onChange={(e) => setBio(e.target.value)}
-                        placeholder="Tell us a little about yourself"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="pt-4">
-                    <h3 className="font-medium mb-2">Account Information</h3>
-                    <div className="p-4 rounded-lg bg-muted/50 space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">
-                          Member since
-                        </span>
-                        <span>
-                          {user?.createdAt
-                            ? new Date(user.createdAt).toLocaleDateString()
-                            : 'N/A'}
-                        </span>
-                      </div>
-                    </div>
+                    ))}
                   </div>
                 </div>
-              )}
-
-              {activeTab === 'data' && (
-                <div className="space-y-6">
-                  <h2 className="text-lg font-semibold">Data controls</h2>
-
-                  <SettingsItem
-                    label="Live query cache"
-                    description={
-                      'Convex query subscriptions stay warm during navigation so recent data reloads faster without a local sync database.'
-                    }
-                  >
-                    <span className="text-sm font-medium">Enabled</span>
-                  </SettingsItem>
-
-                  <SettingsItem
-                    label="Connection"
-                    description="Live chat updates still require an active network connection."
-                  >
-                    <span className="text-sm">{isOnline ? 'Online' : 'Offline'}</span>
-                  </SettingsItem>
-                </div>
-              )}
-
-              {/* Other tabs placeholder */}
-              {activeTab !== 'general' &&
-                activeTab !== 'theme' &&
-                activeTab !== 'account' &&
-                activeTab !== 'data' && (
-                  <div className="space-y-6">
-                    <h2 className="text-lg font-semibold">
-                      {tabs.find((t) => t.id === activeTab)?.label}
-                    </h2>
-                    <p className="text-muted-foreground">
-                      Settings for{' '}
-                      {tabs
-                        .find((t) => t.id === activeTab)
-                        ?.label.toLowerCase()}{' '}
-                      will be available soon.
-                    </p>
-                  </div>
-                )}
-            </div>
-
-            {/* Footer */}
-            {activeTab === 'account' && (
-              <div className="flex justify-end gap-3 px-8 py-4 border-t border-border bg-muted/30">
-                <Button variant="outline" onClick={() => onOpenChange(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleSave} disabled={isLoading || !isOnline}>
-                  {isLoading && (
-                    <Loader2 className="mr-2 size-4 animate-spin" />
-                  )}
-                  Save Changes
-                </Button>
               </div>
-            )}
+            ) : null}
+
+            {activeTab === 'model' ? (
+              <div className="space-y-6">
+                <h2 className="text-lg font-semibold">Model features</h2>
+                <SettingsItem
+                  label="Reasoning mode"
+                  description="Enable deeper reasoning controls for supported models."
+                >
+                  <Switch
+                    checked={Boolean(settings?.reasoningEnabled)}
+                    onCheckedChange={(value) => {
+                      void updateSettings({ reasoningEnabled: value })
+                    }}
+                    disabled={!isOnline}
+                  />
+                </SettingsItem>
+                <SettingsItem
+                  label="Reasoning level"
+                  description="Default level for models that support reasoning."
+                >
+                  <Select
+                    value={
+                      (settings?.reasoningLevel as 'low' | 'medium' | 'high' | undefined) ??
+                      'medium'
+                    }
+                    onValueChange={(value) => {
+                      void updateSettings({
+                        reasoningLevel: value as 'low' | 'medium' | 'high',
+                      })
+                    }}
+                    disabled={!isOnline}
+                  >
+                    <SelectTrigger className="w-[160px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </SettingsItem>
+              </div>
+            ) : null}
+
+            {activeTab === 'data' ? (
+              <div className="space-y-6">
+                <h2 className="text-lg font-semibold">Data controls</h2>
+                <SettingsItem
+                  label="Live query cache"
+                  description="Convex subscriptions stay warm during navigation to reduce reload latency."
+                >
+                  <span className="text-sm font-medium">Enabled</span>
+                </SettingsItem>
+                <SettingsItem label="Connection" description="Live updates require network connectivity.">
+                  <span className="text-sm">{isOnline ? 'Online' : 'Offline'}</span>
+                </SettingsItem>
+              </div>
+            ) : null}
+
+            {activeTab === 'account' ? (
+              <div className="space-y-6">
+                <h2 className="text-lg font-semibold">Account</h2>
+                <div className="flex items-center gap-6 border-b border-border/50 py-4">
+                  <div className="group relative cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                    <Avatar className="size-20 ring-4 ring-background shadow-lg">
+                      <AvatarImage src={image || user?.image || undefined} alt={displayNameValue} className="object-cover" />
+                      <AvatarFallback className="bg-primary text-xl font-medium text-primary-foreground">
+                        {displayNameValue ? getInitials(displayNameValue) : <User className="size-8" />}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div
+                      className={cn(
+                        'absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 transition-opacity duration-200',
+                        'group-hover:opacity-100',
+                      )}
+                    >
+                      <Camera className="size-5 text-white" />
+                    </div>
+                    <div className="absolute -right-1 -bottom-1 rounded-full bg-primary p-1 text-primary-foreground shadow-md">
+                      <Camera className="size-3" />
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="font-medium">Profile picture</h3>
+                    <p className="mt-0.5 text-sm text-muted-foreground">Click to upload a new photo</p>
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="displayName">Display name</Label>
+                    <Input
+                      id="displayName"
+                      value={displayNameValue}
+                      onChange={(event) => setDisplayName(event.target.value)}
+                      placeholder="Enter your display name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input id="email" type="email" value={emailValue} disabled className="bg-muted" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="bio">Bio</Label>
+                    <Input
+                      id="bio"
+                      value={bio}
+                      onChange={(event) => setBio(event.target.value)}
+                      placeholder="Tell us a little about yourself"
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {activeTab === 'admin' && isAdminLike ? (
+              <div className="space-y-6">
+                <h2 className="text-lg font-semibold">Admin</h2>
+                <SettingsItem
+                  label="Open admin dashboard"
+                  description="Manage providers, models, collections, plans, and usage."
+                >
+                  <Button
+                    onClick={() => {
+                      onOpenChange(false)
+                      void navigate({ to: '/admin' })
+                    }}
+                  >
+                    Go to Admin
+                  </Button>
+                </SettingsItem>
+              </div>
+            ) : null}
           </div>
+
+          {activeTab === 'account' ? (
+            <div className="flex justify-end gap-3 border-t border-border bg-muted/30 px-8 py-4">
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button onClick={() => void handleSaveAccount()} disabled={isSavingAccount || !isOnline}>
+                {isSavingAccount ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
+                Save changes
+              </Button>
+            </div>
+          ) : null}
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </AdaptiveDialog>
   )
 }

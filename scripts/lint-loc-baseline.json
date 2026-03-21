@@ -1,0 +1,13 @@
+[
+  "convex/agents.ts",
+  "convex/admin.ts",
+  "convex/functions/memoryInternal.ts",
+  "convex/functions/memory.ts",
+  "src/routes/admin.tsx",
+  "src/routes/memory.tsx",
+  "src/hooks/use-chat-data.ts",
+  "src/components/admin/admin-tabs-section.tsx",
+  "src/components/ai-prompt-input.tsx",
+  "src/components/sidebar/index.tsx",
+  "src/components/ui/sidebar.tsx"
+]

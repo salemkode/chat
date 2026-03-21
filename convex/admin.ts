@@ -34,6 +34,25 @@ import {
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
+const reasoningLevelValidator = v.union(
+  v.literal('low'),
+  v.literal('medium'),
+  v.literal('high'),
+)
+
+const modelReasoningDefaultValidator = v.union(
+  v.literal('off'),
+  v.literal('low'),
+  v.literal('medium'),
+  v.literal('high'),
+)
+
+const userRoleValidator = v.union(
+  v.literal('owner'),
+  v.literal('admin'),
+  v.literal('member'),
+)
+
 const adminSettingsValidator = v.object({
   _id: v.optional(v.id('adminSettings')),
   key: v.string(),
@@ -107,6 +126,9 @@ const modelBaseValidator = v.object({
   iconType: v.optional(iconTypeValidator),
   iconId: v.optional(v.id('_storage')),
   capabilities: v.optional(v.array(v.string())),
+  supportsReasoning: v.optional(v.boolean()),
+  reasoningLevels: v.optional(v.array(reasoningLevelValidator)),
+  defaultReasoningLevel: v.optional(modelReasoningDefaultValidator),
   ownedBy: v.optional(v.string()),
   contextWindow: v.optional(v.number()),
   maxOutputTokens: v.optional(v.number()),
@@ -130,6 +152,9 @@ const modelWithProviderValidator = v.object({
   iconType: v.optional(iconTypeValidator),
   iconId: v.optional(v.id('_storage')),
   capabilities: v.optional(v.array(v.string())),
+  supportsReasoning: v.optional(v.boolean()),
+  reasoningLevels: v.optional(v.array(reasoningLevelValidator)),
+  defaultReasoningLevel: v.optional(modelReasoningDefaultValidator),
   ownedBy: v.optional(v.string()),
   contextWindow: v.optional(v.number()),
   maxOutputTokens: v.optional(v.number()),
@@ -185,6 +210,9 @@ const dashboardModelValidator = v.object({
   iconType: v.optional(iconTypeValidator),
   iconId: v.optional(v.id('_storage')),
   capabilities: v.optional(v.array(v.string())),
+  supportsReasoning: v.optional(v.boolean()),
+  reasoningLevels: v.optional(v.array(reasoningLevelValidator)),
+  defaultReasoningLevel: v.optional(modelReasoningDefaultValidator),
   ownedBy: v.optional(v.string()),
   contextWindow: v.optional(v.number()),
   maxOutputTokens: v.optional(v.number()),
@@ -228,6 +256,49 @@ const dashboardModelCollectionValidator = v.object({
   models: v.array(collectionModelSummaryValidator),
 })
 
+async function hasAdminAccess(
+  ctx: MutationCtx | QueryCtx,
+  userId: Id<'users'>,
+) {
+  const [roleRecord, legacyAdmin] = await Promise.all([
+    ctx.db
+      .query('userRoles')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .first(),
+    ctx.db
+      .query('admins')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .first(),
+  ])
+  const role = roleRecord?.role ?? (legacyAdmin ? 'admin' : 'member')
+  return role === 'owner' || role === 'admin'
+}
+
+async function getRoleContextForUser(
+  ctx: MutationCtx | QueryCtx,
+  userId: Id<'users'> | null,
+) {
+  if (!userId) {
+    return { role: 'member' as const, isAdminLike: false }
+  }
+
+  const [roleRecord, legacyAdmin] = await Promise.all([
+    ctx.db
+      .query('userRoles')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .first(),
+    ctx.db
+      .query('admins')
+      .withIndex('by_userId', (q) => q.eq('userId', userId))
+      .first(),
+  ])
+  const role = roleRecord?.role ?? (legacyAdmin ? 'admin' : 'member')
+  return {
+    role,
+    isAdminLike: role === 'owner' || role === 'admin',
+  }
+}
+
 async function requireAdmin(ctx: MutationCtx | QueryCtx) {
   const userId = await getAuthUserId(ctx)
   if (!userId) {
@@ -237,12 +308,8 @@ async function requireAdmin(ctx: MutationCtx | QueryCtx) {
     })
   }
 
-  const admin = await ctx.db
-    .query('admins')
-    .withIndex('by_userId', (q) => q.eq('userId', userId))
-    .first()
-
-  if (!admin) {
+  const isAdminLike = await hasAdminAccess(ctx, userId)
+  if (!isAdminLike) {
     throw new ConvexError({
       code: 'FORBIDDEN',
       message: 'Admin access required to perform this action',
@@ -303,19 +370,25 @@ export const getAdminContext = internalQuery({
   args: {},
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx)
-    if (!userId) {
-      return { userId: null, isAdmin: false }
-    }
-
-    const admin = await ctx.db
-      .query('admins')
-      .withIndex('by_userId', (q) => q.eq('userId', userId))
-      .first()
+    const roleContext = await getRoleContextForUser(ctx, userId)
 
     return {
-      userId,
-      isAdmin: Boolean(admin),
+      userId: userId ?? null,
+      role: roleContext.role,
+      isAdmin: roleContext.isAdminLike,
     }
+  },
+})
+
+export const getRoleContext = query({
+  args: {},
+  returns: v.object({
+    role: userRoleValidator,
+    isAdminLike: v.boolean(),
+  }),
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx)
+    return await getRoleContextForUser(ctx, userId)
   },
 })
 
@@ -324,12 +397,9 @@ export const generateUploadUrl = mutation({
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) return ''
-    const admin = await ctx.db
-      .query('admins')
-      .withIndex('by_userId', (q) => q.eq('userId', userId))
-      .first()
+    const isAdminLike = await hasAdminAccess(ctx, userId)
 
-    if (!admin) return ''
+    if (!isAdminLike) return ''
 
     return await ctx.storage.generateUploadUrl()
   },
@@ -344,12 +414,8 @@ export const isAdmin = query({
       return false
     }
 
-    const admin = await ctx.db
-      .query('admins')
-      .withIndex('by_userId', (q) => q.eq('userId', userId))
-      .first()
-
-    return Boolean(admin)
+    const isAdminLike = await hasAdminAccess(ctx, userId)
+    return isAdminLike
   },
 })
 
@@ -365,12 +431,9 @@ export const getAdminSettings = query({
         defaultRateLimit: undefined,
         updatedAt: 0,
       }
-    const admin = await ctx.db
-      .query('admins')
-      .withIndex('by_userId', (q) => q.eq('userId', userId))
-      .first()
+    const isAdminLike = await hasAdminAccess(ctx, userId)
 
-    if (!admin)
+    if (!isAdminLike)
       return {
         _id: undefined,
         key: 'global',
@@ -391,12 +454,9 @@ export const updateAdminSettings = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) return null
-    const admin = await ctx.db
-      .query('admins')
-      .withIndex('by_userId', (q) => q.eq('userId', userId))
-      .first()
+    const isAdminLike = await hasAdminAccess(ctx, userId)
 
-    if (!admin) return null
+    if (!isAdminLike) return null
 
     const existing = await ctx.db
       .query('adminSettings')
@@ -427,11 +487,8 @@ export const searchUsersForAdmin = query({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) return []
-    const admin = await ctx.db
-      .query('admins')
-      .withIndex('by_userId', (q) => q.eq('userId', userId))
-      .first()
-    if (!admin) return []
+    const isAdminLike = await hasAdminAccess(ctx, userId)
+    if (!isAdminLike) return []
 
     const needle = args.query.trim().toLowerCase()
     if (needle.length < 2) {
@@ -504,11 +561,8 @@ export const setUserAppPlan = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) return null
-    const admin = await ctx.db
-      .query('admins')
-      .withIndex('by_userId', (q) => q.eq('userId', userId))
-      .first()
-    if (!admin) return null
+    const isAdminLike = await hasAdminAccess(ctx, userId)
+    if (!isAdminLike) return null
 
     const user = await ctx.db.get(args.userId)
     if (!user) {
@@ -534,12 +588,9 @@ export const listAllProviders = query({
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) return []
-    const admin = await ctx.db
-      .query('admins')
-      .withIndex('by_userId', (q) => q.eq('userId', userId))
-      .first()
+    const isAdminLike = await hasAdminAccess(ctx, userId)
 
-    if (!admin) return []
+    if (!isAdminLike) return []
 
     const providers = await ctx.db.query('providers').collect()
     return await Promise.all(
@@ -560,12 +611,9 @@ export const listAllModels = query({
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) return []
-    const admin = await ctx.db
-      .query('admins')
-      .withIndex('by_userId', (q) => q.eq('userId', userId))
-      .first()
+    const isAdminLike = await hasAdminAccess(ctx, userId)
 
-    if (!admin) return []
+    if (!isAdminLike) return []
 
     const [models, providers] = await Promise.all([
       ctx.db.query('models').collect(),
@@ -824,12 +872,9 @@ export const addProvider = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) return null
-    const admin = await ctx.db
-      .query('admins')
-      .withIndex('by_userId', (q) => q.eq('userId', userId))
-      .first()
+    const isAdminLike = await hasAdminAccess(ctx, userId)
 
-    if (!admin) return null
+    if (!isAdminLike) return null
 
     return await ctx.db.insert('providers', {
       ...args,
@@ -859,12 +904,9 @@ export const updateProvider = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) return
-    const admin = await ctx.db
-      .query('admins')
-      .withIndex('by_userId', (q) => q.eq('userId', userId))
-      .first()
+    const isAdminLike = await hasAdminAccess(ctx, userId)
 
-    if (!admin) return
+    if (!isAdminLike) return
 
     const { id, ...updates } = args
     await ctx.db.patch(id, cleanUpdates(updates))
@@ -880,12 +922,9 @@ export const toggleProviderEnabled = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) return
-    const admin = await ctx.db
-      .query('admins')
-      .withIndex('by_userId', (q) => q.eq('userId', userId))
-      .first()
+    const isAdminLike = await hasAdminAccess(ctx, userId)
 
-    if (!admin) return
+    if (!isAdminLike) return
 
     await ctx.db.patch(args.id, { isEnabled: args.isEnabled })
     return
@@ -897,12 +936,9 @@ export const deleteProvider = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) return
-    const admin = await ctx.db
-      .query('admins')
-      .withIndex('by_userId', (q) => q.eq('userId', userId))
-      .first()
+    const isAdminLike = await hasAdminAccess(ctx, userId)
 
-    if (!admin) return
+    if (!isAdminLike) return
 
     const models = await ctx.db
       .query('models')
@@ -931,6 +967,9 @@ export const addModel = mutation({
     iconType: v.optional(iconTypeValidator),
     iconId: v.optional(v.id('_storage')),
     capabilities: v.optional(v.array(v.string())),
+    supportsReasoning: v.optional(v.boolean()),
+    reasoningLevels: v.optional(v.array(reasoningLevelValidator)),
+    defaultReasoningLevel: v.optional(modelReasoningDefaultValidator),
     ownedBy: v.optional(v.string()),
     contextWindow: v.optional(v.number()),
     maxOutputTokens: v.optional(v.number()),
@@ -940,12 +979,9 @@ export const addModel = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) return null
-    const admin = await ctx.db
-      .query('admins')
-      .withIndex('by_userId', (q) => q.eq('userId', userId))
-      .first()
+    const isAdminLike = await hasAdminAccess(ctx, userId)
 
-    if (!admin) return null
+    if (!isAdminLike) return null
 
     return await ctx.db.insert('models', args)
   },
@@ -965,6 +1001,9 @@ export const updateModel = mutation({
     iconType: v.optional(iconTypeValidator),
     iconId: v.optional(v.id('_storage')),
     capabilities: v.optional(v.array(v.string())),
+    supportsReasoning: v.optional(v.boolean()),
+    reasoningLevels: v.optional(v.array(reasoningLevelValidator)),
+    defaultReasoningLevel: v.optional(modelReasoningDefaultValidator),
     ownedBy: v.optional(v.string()),
     contextWindow: v.optional(v.number()),
     maxOutputTokens: v.optional(v.number()),
@@ -974,12 +1013,9 @@ export const updateModel = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) return
-    const admin = await ctx.db
-      .query('admins')
-      .withIndex('by_userId', (q) => q.eq('userId', userId))
-      .first()
+    const isAdminLike = await hasAdminAccess(ctx, userId)
 
-    if (!admin) return
+    if (!isAdminLike) return
 
     const { id, ...updates } = args
     await ctx.db.patch(id, cleanUpdates(updates))
@@ -995,12 +1031,9 @@ export const toggleModelEnabled = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) return
-    const admin = await ctx.db
-      .query('admins')
-      .withIndex('by_userId', (q) => q.eq('userId', userId))
-      .first()
+    const isAdminLike = await hasAdminAccess(ctx, userId)
 
-    if (!admin) return
+    if (!isAdminLike) return
 
     await ctx.db.patch(args.id, { isEnabled: args.isEnabled })
     return
@@ -1012,12 +1045,9 @@ export const deleteModel = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) return
-    const admin = await ctx.db
-      .query('admins')
-      .withIndex('by_userId', (q) => q.eq('userId', userId))
-      .first()
+    const isAdminLike = await hasAdminAccess(ctx, userId)
 
-    if (!admin) return
+    if (!isAdminLike) return
 
     const [collections, favorites] = await Promise.all([
       ctx.db.query('modelCollections').collect(),
@@ -1054,12 +1084,9 @@ export const addModelCollection = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) return null
-    const admin = await ctx.db
-      .query('admins')
-      .withIndex('by_userId', (q) => q.eq('userId', userId))
-      .first()
+    const isAdminLike = await hasAdminAccess(ctx, userId)
 
-    if (!admin) return null
+    if (!isAdminLike) return null
 
     const modelIds = await normalizeCollectionModelIds(ctx, args.modelIds)
 
@@ -1081,12 +1108,9 @@ export const updateModelCollection = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) return
-    const admin = await ctx.db
-      .query('admins')
-      .withIndex('by_userId', (q) => q.eq('userId', userId))
-      .first()
+    const isAdminLike = await hasAdminAccess(ctx, userId)
 
-    if (!admin) return
+    if (!isAdminLike) return
 
     const { id, modelIds, ...updates } = args
     await ctx.db.patch(id, {
@@ -1104,12 +1128,9 @@ export const deleteModelCollection = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) return
-    const admin = await ctx.db
-      .query('admins')
-      .withIndex('by_userId', (q) => q.eq('userId', userId))
-      .first()
+    const isAdminLike = await hasAdminAccess(ctx, userId)
 
-    if (!admin) return
+    if (!isAdminLike) return
 
     await ctx.db.delete(args.id)
     return
@@ -1125,12 +1146,9 @@ export const importDiscoveredModels = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) return { inserted: 0, updated: 0 }
-    const admin = await ctx.db
-      .query('admins')
-      .withIndex('by_userId', (q) => q.eq('userId', userId))
-      .first()
+    const isAdminLike = await hasAdminAccess(ctx, userId)
 
-    if (!admin) return { inserted: 0, updated: 0 }
+    if (!isAdminLike) return { inserted: 0, updated: 0 }
 
     const existingModels = await ctx.db
       .query('models')
@@ -1306,12 +1324,9 @@ export const getDashboardData = query({
         users: [],
       }
     }
-    const admin = await ctx.db
-      .query('admins')
-      .withIndex('by_userId', (q) => q.eq('userId', userId))
-      .first()
+    const isAdminLike = await hasAdminAccess(ctx, userId)
 
-    if (!admin) {
+    if (!isAdminLike) {
       return {
         settings: {
           _id: undefined,
@@ -1623,12 +1638,9 @@ export const seedModels = mutation({
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) return ''
-    const admin = await ctx.db
-      .query('admins')
-      .withIndex('by_userId', (q) => q.eq('userId', userId))
-      .first()
+    const isAdminLike = await hasAdminAccess(ctx, userId)
 
-    if (!admin) return ''
+    if (!isAdminLike) return ''
 
     const existing = await ctx.db.query('models').first()
     if (existing) {
@@ -1700,12 +1712,9 @@ export const makeAdmin = mutation({
     if (existingAdmin) {
       const userId = await getAuthUserId(ctx)
       if (!userId) return ''
-      const admin = await ctx.db
-        .query('admins')
-        .withIndex('by_userId', (q) => q.eq('userId', userId))
-        .first()
+      const isAdminLike = await hasAdminAccess(ctx, userId)
 
-      if (!admin) return ''
+      if (!isAdminLike) return ''
     }
 
     const existing = await ctx.db
@@ -1718,6 +1727,52 @@ export const makeAdmin = mutation({
     }
 
     await ctx.db.insert('admins', { userId: args.userId })
+    const existingRole = await ctx.db
+      .query('userRoles')
+      .withIndex('by_userId', (q) => q.eq('userId', args.userId))
+      .first()
+    if (existingRole) {
+      await ctx.db.patch(existingRole._id, {
+        role: 'admin',
+        updatedAt: Date.now(),
+      })
+    } else {
+      await ctx.db.insert('userRoles', {
+        userId: args.userId,
+        role: 'admin',
+        updatedAt: Date.now(),
+      })
+    }
     return 'Admin added successfully'
+  },
+})
+
+export const setUserRole = mutation({
+  args: {
+    userId: v.id('users'),
+    role: userRoleValidator,
+  },
+  handler: async (ctx, args) => {
+    const actorId = await requireAdmin(ctx)
+    const existing = await ctx.db
+      .query('userRoles')
+      .withIndex('by_userId', (q) => q.eq('userId', args.userId))
+      .first()
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        role: args.role,
+        grantedBy: actorId,
+        updatedAt: Date.now(),
+      })
+      return existing._id
+    }
+
+    return await ctx.db.insert('userRoles', {
+      userId: args.userId,
+      role: args.role,
+      grantedBy: actorId,
+      updatedAt: Date.now(),
+    })
   },
 })

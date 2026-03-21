@@ -79,6 +79,15 @@ const SUPPORTED_CHAT_ATTACHMENT_TYPES = ['application/pdf'] as const
 export const GENERATION_STOPPED_BY_USER = 'GENERATION_STOPPED_BY_USER'
 const GENERATION_FAILED_FALLBACK_MESSAGE = 'The model could not complete this response.'
 const GENERATION_REPLACED_BY_RESEND = 'Regenerating response.'
+const reasoningLevelValidator = v.union(
+  v.literal('low'),
+  v.literal('medium'),
+  v.literal('high'),
+)
+const reasoningConfigValidator = v.object({
+  enabled: v.boolean(),
+  level: v.optional(reasoningLevelValidator),
+})
 
 const chatAttachmentValidator = v.object({
   storageId: v.id('_storage'),
@@ -428,6 +437,7 @@ const threadPresentationValidator = v.union(
 const threadListItemValidator = v.object({
   _id: v.string(),
   _creationTime: v.number(),
+  lastMessageAt: v.number(),
   title: v.optional(v.string()),
   userId: v.optional(v.string()),
   metadata: v.union(v.null(), threadMetadataValidator),
@@ -542,6 +552,7 @@ export const applyThreadMetadataUpdate = internalMutation({
         emoji: nextEmoji || '💬',
         icon: nextIcon,
         lastLabelUpdateAt: now,
+        lastMessageAt: thread?._creationTime ?? now,
         userId: ownerUserId,
         sortOrder: 0,
       })
@@ -575,6 +586,77 @@ type RateLimitPolicy = {
 type LinkedProject = {
   _id: Id<'projects'>
   name: string
+}
+
+type ReasoningLevel = 'low' | 'medium' | 'high'
+type ResolvedReasoning = {
+  enabled: boolean
+  level: 'off' | ReasoningLevel
+}
+
+function supportsReasoningForModel(model: {
+  supportsReasoning?: boolean
+  capabilities?: string[]
+}) {
+  if (model.supportsReasoning === true) {
+    return true
+  }
+  return Boolean(
+    model.capabilities?.some(
+      (capability) => capability.trim().toLowerCase() === 'reasoning',
+    ),
+  )
+}
+
+function resolveReasoningConfigForModel(
+  model: {
+    supportsReasoning?: boolean
+    capabilities?: string[]
+    reasoningLevels?: ReasoningLevel[]
+    defaultReasoningLevel?: 'off' | ReasoningLevel
+  },
+  input?: {
+    enabled: boolean
+    level?: ReasoningLevel
+  },
+): ResolvedReasoning {
+  if (!supportsReasoningForModel(model)) {
+    return {
+      enabled: false,
+      level: 'off',
+    }
+  }
+
+  const supportedLevels =
+    model.reasoningLevels && model.reasoningLevels.length > 0
+      ? model.reasoningLevels
+      : (['low', 'medium', 'high'] as const)
+  const defaultLevel = model.defaultReasoningLevel ?? 'medium'
+  const requestedLevel =
+    input?.enabled === false ? 'off' : (input?.level ?? defaultLevel)
+
+  if (requestedLevel === 'off') {
+    return {
+      enabled: false,
+      level: 'off',
+    }
+  }
+
+  if (supportedLevels.includes(requestedLevel as ReasoningLevel)) {
+    return {
+      enabled: true,
+      level: requestedLevel as ReasoningLevel,
+    }
+  }
+
+  const fallbackLevel = supportedLevels.includes('medium')
+    ? 'medium'
+    : supportedLevels[0]
+
+  return {
+    enabled: true,
+    level: fallbackLevel ?? 'low',
+  }
 }
 
 async function enforceRateLimit(
@@ -740,6 +822,42 @@ async function resolveGenerationDependencies(
   }
 }
 
+async function resolveRequestReasoning(
+  ctx: MutationCtx,
+  args: {
+    userId: Id<'users'>
+    model: {
+      supportsReasoning?: boolean
+      capabilities?: string[]
+      reasoningLevels?: ReasoningLevel[]
+      defaultReasoningLevel?: 'off' | ReasoningLevel
+    }
+    reasoning?: {
+      enabled: boolean
+      level?: ReasoningLevel
+    }
+  },
+) {
+  const userSettings = await ctx.db
+    .query('userSettings')
+    .withIndex('by_user', (q) => q.eq('userId', args.userId))
+    .first()
+  const userDefault =
+    userSettings?.reasoningEnabled === true
+      ? {
+          enabled: true,
+          level: userSettings.reasoningLevel ?? 'medium',
+        }
+      : {
+          enabled: false,
+        }
+
+  return resolveReasoningConfigForModel(
+    args.model,
+    args.reasoning ?? userDefault,
+  )
+}
+
 async function deleteResponseStepsForPrompt(
   ctx: MutationCtx,
   args: {
@@ -869,6 +987,7 @@ export const streamMessage = internalAction({
     threadId: v.string(),
     projectId: v.optional(v.id('projects')),
     searchEnabled: v.optional(v.boolean()),
+    reasoning: v.optional(reasoningConfigValidator),
     customUrl: v.optional(v.string()),
     apiKey: v.optional(v.string()),
     userId: v.id('users'),
@@ -1151,6 +1270,10 @@ export const streamMessage = internalAction({
             'When you use web info, cite sources as markdown links using the returned URLs.',
           ].join('\n')
         : undefined
+      const reasoningSystem =
+        args.reasoning?.enabled && args.reasoning.level
+          ? `Reasoning mode is enabled for this request at "${args.reasoning.level}" level.`
+          : 'Reasoning mode is disabled for this request.'
 
       const memorySystem = [
         'Memory tools are enabled for this message.',
@@ -1189,6 +1312,7 @@ export const streamMessage = internalAction({
       const system = [
         automaticMemoryContext.text,
         searchSystem,
+        reasoningSystem,
         memorySystem,
         threadMetadataSystem,
       ]
@@ -1263,6 +1387,7 @@ export const generateMessage = mutation({
     modelId: v.id('models'),
     projectId: v.optional(v.id('projects')),
     searchEnabled: v.optional(v.boolean()),
+    reasoning: v.optional(reasoningConfigValidator),
     attachments: v.optional(v.array(chatAttachmentValidator)),
   },
   handler: async (ctx, args) => {
@@ -1270,6 +1395,12 @@ export const generateMessage = mutation({
     if (!result) return null
 
     const { userId, model, provider, resolvedProjectId } = result
+    const resolvedReasoning = await resolveRequestReasoning(ctx, {
+      userId,
+      model,
+      reasoning: args.reasoning,
+    })
+    const now = Date.now()
 
     let promptMessageId: string | undefined
 
@@ -1319,6 +1450,15 @@ export const generateMessage = mutation({
       promptMessageId = saved.messageId
     }
 
+    const metadata = await ctx.db
+      .query('threadMetadata')
+      .withIndex('by_threadId', (q) => q.eq('threadId', args.threadId))
+      .first()
+
+    if (metadata) {
+      await ctx.db.patch(metadata._id, { lastMessageAt: now })
+    }
+
     // Use the agent to stream the response
     await ctx.scheduler.runAfter(0, internal.agents.streamMessage, {
       agent: provider.providerType,
@@ -1328,6 +1468,14 @@ export const generateMessage = mutation({
       threadId: args.threadId,
       projectId: resolvedProjectId,
       searchEnabled: args.searchEnabled ?? false,
+      reasoning: resolvedReasoning.enabled
+        ? {
+            enabled: true,
+            level: resolvedReasoning.level === 'off' ? undefined : resolvedReasoning.level,
+          }
+        : {
+            enabled: false,
+          },
       apiKey: provider.apiKey,
       customUrl: provider.baseURL,
       userId,
@@ -1348,11 +1496,18 @@ export const regenerateMessage = mutation({
     modelId: v.id('models'),
     projectId: v.optional(v.id('projects')),
     searchEnabled: v.optional(v.boolean()),
+    reasoning: v.optional(reasoningConfigValidator),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
     const { userId, model, provider, resolvedProjectId } =
       await resolveGenerationDependencies(ctx, args)
+    const resolvedReasoning = await resolveRequestReasoning(ctx, {
+      userId,
+      model,
+      reasoning: args.reasoning,
+    })
+    const now = Date.now()
 
     const [promptMessage] = await ctx.runQuery(
       components.agent.messages.getMessagesByIds,
@@ -1386,6 +1541,15 @@ export const regenerateMessage = mutation({
       promptStepOrder: promptMessage.stepOrder,
     })
 
+    const metadata = await ctx.db
+      .query('threadMetadata')
+      .withIndex('by_threadId', (q) => q.eq('threadId', args.threadId))
+      .first()
+
+    if (metadata) {
+      await ctx.db.patch(metadata._id, { lastMessageAt: now })
+    }
+
     await ctx.scheduler.runAfter(0, internal.agents.streamMessage, {
       agent: provider.providerType,
       modelId: model.modelId,
@@ -1394,6 +1558,14 @@ export const regenerateMessage = mutation({
       threadId: args.threadId,
       projectId: resolvedProjectId,
       searchEnabled: args.searchEnabled ?? false,
+      reasoning: resolvedReasoning.enabled
+        ? {
+            enabled: true,
+            level: resolvedReasoning.level === 'off' ? undefined : resolvedReasoning.level,
+          }
+        : {
+            enabled: false,
+          },
       apiKey: provider.apiKey,
       customUrl: provider.baseURL,
       userId,
@@ -1489,6 +1661,7 @@ export const createChatThread = mutation({
       threadId,
       emoji,
       lastLabelUpdateAt: Date.now(),
+      lastMessageAt: Date.now(),
       sectionId: args.sectionId,
       projectId: args.projectId,
       userId,
@@ -1675,19 +1848,23 @@ export const listThreadsWithMetadata = query({
     const userId = await getAuthUserId(ctx)
     if (!userId) return []
 
-    const threads = await ctx.runQuery(
-      components.agent.threads.listThreadsByUserId,
-      {
+    const [threads, metadata] = await Promise.all([
+      ctx.runQuery(components.agent.threads.listThreadsByUserId, {
         userId,
         paginationOpts: { numItems: 100, cursor: null },
-      },
+      }),
+      ctx.db
+        .query('threadMetadata')
+        .withIndex('by_userId_sortOrder_lastMessageAt', (q) =>
+          q.eq('userId', userId),
+        )
+        .order('desc')
+        .collect(),
+    ])
+
+    const threadsById = new Map(
+      threads.page.map((thread) => [thread._id, thread]),
     )
-
-    const metadata = await ctx.db
-      .query('threadMetadata')
-      .withIndex('by_userId_sortOrder', (q) => q.eq('userId', userId))
-      .collect()
-
     const metadataByThreadId = new Map(
       metadata.map((item) => [item.threadId, item]),
     )
@@ -1711,38 +1888,52 @@ export const listThreadsWithMetadata = query({
         .map((project) => [project._id.toString(), project]),
     )
 
-    return threads.page
-      .map((thread) => {
-        const itemMetadata = metadataByThreadId.get(thread._id) ?? null
-        const project = itemMetadata?.projectId
-          ? projectMap.get(itemMetadata.projectId.toString())
-          : null
+    const orderedResults: Array<Infer<typeof threadListItemValidator>> = []
 
-        return {
-          _id: thread._id,
-          _creationTime: thread._creationTime,
-          title: thread.title,
-          userId: thread.userId,
-          metadata: itemMetadata,
-          project:
-            project && project.userId === userId
-              ? {
-                  id: project._id.toString(),
-                  name: project.name,
-                  description: project.description,
-                }
-              : null,
-        }
+    for (const itemMetadata of metadata) {
+      const thread = threadsById.get(itemMetadata.threadId)
+      if (!thread) {
+        continue
+      }
+
+      const project = itemMetadata.projectId
+        ? projectMap.get(itemMetadata.projectId.toString())
+        : null
+
+      orderedResults.push({
+        _id: thread._id,
+        _creationTime: thread._creationTime,
+        lastMessageAt: itemMetadata.lastMessageAt ?? thread._creationTime,
+        title: thread.title,
+        userId: thread.userId,
+        metadata: itemMetadata,
+        project:
+          project && project.userId === userId
+            ? {
+                id: project._id.toString(),
+                name: project.name,
+                description: project.description,
+              }
+            : null,
       })
-      .sort((left, right) => {
-        const leftSortOrder = left.metadata?.sortOrder ?? 0
-        const rightSortOrder = right.metadata?.sortOrder ?? 0
+    }
 
-        if (rightSortOrder !== leftSortOrder) {
-          return rightSortOrder - leftSortOrder
-        }
+    for (const thread of threads.page) {
+      if (metadataByThreadId.has(thread._id)) {
+        continue
+      }
 
-        return right._creationTime - left._creationTime
+      orderedResults.push({
+        _id: thread._id,
+        _creationTime: thread._creationTime,
+        lastMessageAt: thread._creationTime,
+        title: thread.title,
+        userId: thread.userId,
+        metadata: null,
+        project: null,
       })
+    }
+
+    return orderedResults
   },
 })
