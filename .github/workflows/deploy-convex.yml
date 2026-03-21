@@ -1,23 +1,22 @@
-name: Deploy Convex Schema to Production
+name: Full Deployment
 
 on:
   push:
     branches:
       - master
-    paths:
-      - 'convex/**'
-      - 'package.json'
-      - 'bun.lock'
-      - 'tsconfig*.json'
 
 jobs:
-  deploy:
-    name: Deploy to Production
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -27,8 +26,7 @@ jobs:
       - name: Install dependencies
         run: bun install
 
-      - name: Deploy Convex functions to production
-        run: npx convex deploy --yes
+      - name: Deploy Convex backend
         env:
-          CONVEX_DEPLOYMENT: ${{ secrets.CONVEX_DEPLOYMENT_URL }}
-          CONVEX_ADMIN_KEY: ${{ secrets.CONVEX_ADMIN_KEY }}
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+        run: bunx convex deploy

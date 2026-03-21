@@ -1,7 +1,4 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
-
-/** Cap how often we follow a streaming tail — each scroll forces virtualizer + layout work. */
-const STREAM_AUTO_SCROLL_MIN_INTERVAL_MS = 100
 import {
   type VirtualItem,
   useVirtualizer,
@@ -11,6 +8,9 @@ import { buildPromptMessageIdsByIndex } from '@/lib/chat-generation'
 import { cn } from '@/lib/utils'
 import { MessageLoadingSkeleton } from './chat/MessageLoadingSkeleton'
 import { Message } from './Message'
+
+/** Cap how often we follow a streaming tail — each scroll forces virtualizer + layout work. */
+const STREAM_AUTO_SCROLL_MIN_INTERVAL_MS = 100
 
 interface ChatMessageListProps {
   threadId: string

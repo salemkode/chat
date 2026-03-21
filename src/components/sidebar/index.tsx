@@ -4,23 +4,16 @@ import * as React from 'react'
 import { useClerk, useUser } from '@clerk/tanstack-react-start'
 import { useNavigate } from '@tanstack/react-router'
 import {
-  CircleDollarSign,
   ChevronDown,
   ChevronRight,
   Database,
   Folder,
   FolderOpen,
-  GraduationCap,
-  Lightbulb,
   LogIn,
   LogOut,
-  NotebookPen,
-  Plane,
-  Pin,
   Plus,
   Settings,
   User,
-  X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { groupThreadsByProject } from '@/lib/project-sidebar'
@@ -38,7 +31,6 @@ import {
   SidebarSeparator,
 } from '@/components/ui/sidebar'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import {
   Tooltip,
   TooltipContent,
@@ -47,67 +39,22 @@ import {
 } from '@/components/ui/tooltip'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { SettingsDialog } from '@/components/settings-dialog'
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
 import { useOnlineStatus } from '@/hooks/use-online-status'
 import { useProjects, useThreads, useViewer } from '@/hooks/use-chat-data'
 import { writePendingNewChatProjectId } from '@/lib/project-selection'
-import { Textarea } from '@/components/ui/textarea'
 import { SidebarSearchDialog } from '@/components/sidebar/SidebarSearchDialog'
+import { AnimatedThreadList, ThreadRow } from '@/components/sidebar/thread-list'
+import {
+  ProjectCreateDialog,
+  ProjectDraftState,
+  RemoveFromProjectDialog,
+  RemoveFromProjectState,
+} from '@/components/sidebar/project-dialogs'
 
 interface AppSidebarProps {
   selectedThreadId?: string | null
   className?: string
 }
-
-type ProjectDraftState = {
-  name: string
-  description: string
-}
-
-type RemoveFromProjectState = {
-  projectName: string
-  threadId: string
-  threadTitle: string
-}
-
-const PROJECT_TEMPLATE_OPTIONS = [
-  {
-    label: 'Investing',
-    icon: CircleDollarSign,
-    className: 'text-emerald-300',
-  },
-  {
-    label: 'Homework',
-    icon: GraduationCap,
-    className: 'text-sky-300',
-  },
-  {
-    label: 'Writing',
-    icon: NotebookPen,
-    className: 'text-violet-300',
-  },
-  {
-    label: 'Travel',
-    icon: Plane,
-    className: 'text-amber-300',
-  },
-] as const
 
 export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
   const navigate = useNavigate()
@@ -439,163 +386,28 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
 
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
 
-      <Dialog
+      <ProjectCreateDialog
         open={projectDialog !== null}
+        isOnline={isOnline}
+        draft={projectDialog}
         onOpenChange={(open) => {
           if (!open) {
             setProjectDialog(null)
           }
         }}
-      >
-        <DialogContent
-          showCloseButton={false}
-          className="max-w-[34rem] gap-0 overflow-hidden rounded-[1.75rem] border border-border bg-card p-0 text-card-foreground shadow-[0_24px_80px_color-mix(in_srgb,var(--foreground)_18%,transparent)]"
-        >
-          <DialogHeader className="border-b border-border bg-muted/20 px-6 py-5 text-left">
-            <div className="flex items-start justify-between gap-4">
-              <div className="space-y-1">
-                <DialogTitle className="text-[1.45rem] font-semibold tracking-tight text-foreground">
-                  Create project
-                </DialogTitle>
-                <p className="text-sm text-muted-foreground">
-                  Group related chats, files, and instructions in one place.
-                </p>
-              </div>
-              <DialogClose asChild>
-                <button
-                  type="button"
-                  className="inline-flex size-9 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                  aria-label="Close project dialog"
-                >
-                  <X className="size-4" />
-                </button>
-              </DialogClose>
-            </div>
-          </DialogHeader>
-          <div className="space-y-5 px-6 py-5">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">
-                Project name
-              </label>
-              <div className="relative">
-                <Folder className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={projectDialog?.name || ''}
-                  onChange={(event) =>
-                    setProjectDialog((current) =>
-                      current
-                        ? {
-                            ...current,
-                            name: event.target.value,
-                          }
-                        : current,
-                    )
-                  }
-                  placeholder="Copenhagen Trip"
-                  className="h-11 rounded-2xl border-border bg-background pl-10"
-                />
-              </div>
-            </div>
+        onDraftChange={setProjectDialog}
+        onSave={() => void handleSaveProject()}
+      />
 
-            {projectDialog ? (
-              <div className="flex flex-wrap gap-2">
-                {PROJECT_TEMPLATE_OPTIONS.map((option) => {
-                  const Icon = option.icon
-
-                  return (
-                    <button
-                      key={option.label}
-                      type="button"
-                      className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/40 px-4 py-2 text-sm text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                      onClick={() =>
-                        setProjectDialog((current) =>
-                          current
-                            ? {
-                                ...current,
-                                name: current.name || option.label,
-                              }
-                            : current,
-                        )
-                      }
-                    >
-                      <Icon className={cn('size-4', option.className)} />
-                      {option.label}
-                    </button>
-                  )
-                })}
-              </div>
-            ) : null}
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">
-                Description
-              </label>
-              <Textarea
-                value={projectDialog?.description || ''}
-                onChange={(event) =>
-                  setProjectDialog((current) =>
-                    current
-                      ? {
-                          ...current,
-                          description: event.target.value,
-                        }
-                      : current,
-                  )
-                }
-                placeholder="Add context, instructions, or what this project is for."
-                className="min-h-24 rounded-2xl border-border bg-background"
-              />
-            </div>
-
-            <div className="flex items-start gap-3 rounded-2xl border border-primary/15 bg-primary/5 px-4 py-3 text-sm text-muted-foreground">
-              <div className="mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                <Lightbulb className="size-4 text-primary" />
-              </div>
-              <p className="leading-6">
-                Projects keep chats, files, and custom instructions in one place
-                so long-running work stays organized.
-              </p>
-            </div>
-          </div>
-          <div className="flex justify-end border-t border-border bg-muted/20 px-6 py-4">
-            <Button
-              disabled={!isOnline || !projectDialog?.name.trim()}
-              onClick={() => void handleSaveProject()}
-              className="h-11 rounded-full px-5 text-sm font-semibold"
-            >
-              Create project
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <AlertDialog
-        open={removeFromProjectDialog !== null}
+      <RemoveFromProjectDialog
+        state={removeFromProjectDialog}
         onOpenChange={(open) => {
           if (!open) {
             setRemoveFromProjectDialog(null)
           }
         }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove chat from project?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {removeFromProjectDialog
-                ? `"${removeFromProjectDialog.threadTitle}" will be removed from "${removeFromProjectDialog.projectName}", but the chat will still be kept.`
-                : 'The chat will be removed from this project, but it will still be kept.'}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => void handleConfirmRemoveFromProject()}
-            >
-              Remove
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        onConfirm={() => void handleConfirmRemoveFromProject()}
+      />
     </Sidebar>
   )
 }
@@ -623,160 +435,4 @@ function IconActionButton({
       {icon}
     </button>
   )
-}
-
-function ThreadRow({
-  thread,
-  isActive,
-  onOpen,
-  onTogglePinned,
-  onRemoveFromProject,
-}: {
-  thread: {
-    id: string
-    title?: string
-    emoji: string
-    pinned: boolean
-  }
-  isActive?: boolean
-  onOpen: () => void
-  onTogglePinned: () => void
-  onRemoveFromProject?: () => void
-}) {
-  return (
-    <SidebarMenuItem className="group/thread">
-      <SidebarMenuButton
-        asChild
-        isActive={isActive}
-        className={cn(
-          'w-full justify-between pr-1',
-          isActive && 'bg-sidebar-accent text-sidebar-accent-foreground',
-        )}
-      >
-        <div>
-          <button
-            type="button"
-            className="flex min-w-0 flex-1 items-center gap-2 text-left"
-            onClick={onOpen}
-          >
-            <span className="shrink-0">{thread.emoji}</span>
-            <span className="truncate text-sm">
-              {thread.title || 'Untitled chat'}
-            </span>
-          </button>
-          <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover/thread:opacity-100">
-            <IconActionButton
-              label={thread.pinned ? 'Unpin chat' : 'Pin chat'}
-              onClick={onTogglePinned}
-              icon={
-                <Pin
-                  className={cn('size-3.5', thread.pinned && 'fill-current')}
-                />
-              }
-            />
-            {onRemoveFromProject ? (
-              <IconActionButton
-                label="Remove from project"
-                onClick={onRemoveFromProject}
-                icon={<X className="size-3.5" />}
-              />
-            ) : null}
-          </div>
-        </div>
-      </SidebarMenuButton>
-    </SidebarMenuItem>
-  )
-}
-
-function AnimatedThreadList<TThread extends BaseAnimatedThread>({
-  threads,
-  renderThread,
-  className,
-}: {
-  threads: TThread[]
-  renderThread: (thread: TThread) => React.ReactNode
-  className?: string
-}) {
-  const rowRefs = React.useRef(new Map<string, HTMLDivElement>())
-  const previousRects = React.useRef(new Map<string, DOMRect>())
-  const threadIds = React.useMemo(() => threads.map((thread) => thread.id), [threads])
-
-  React.useLayoutEffect(() => {
-    const currentRects = new Map<string, DOMRect>()
-    const activeIds = new Set(threadIds)
-
-    for (const threadId of threadIds) {
-      const node = rowRefs.current.get(threadId)
-      if (!node) continue
-      currentRects.set(threadId, node.getBoundingClientRect())
-    }
-
-    for (const [threadId, node] of rowRefs.current.entries()) {
-      if (!activeIds.has(threadId)) {
-        rowRefs.current.delete(threadId)
-        continue
-      }
-
-      const currentRect = currentRects.get(threadId)
-      if (!currentRect) continue
-
-      const previousRect = previousRects.current.get(threadId)
-      if (!previousRect) {
-        node.animate(
-          [
-            { opacity: 0, transform: 'translateY(-8px) scale(0.985)' },
-            { opacity: 1, transform: 'translateY(0) scale(1)' },
-          ],
-          {
-            duration: 180,
-            easing: 'cubic-bezier(.16,1,.3,1)',
-          },
-        )
-        continue
-      }
-
-      const deltaY = previousRect.top - currentRect.top
-      if (Math.abs(deltaY) < 1) continue
-
-      node.animate(
-        [
-          { transform: `translateY(${deltaY}px)` },
-          { transform: 'translateY(0px)' },
-        ],
-        {
-          duration: 220,
-          easing: 'cubic-bezier(.2,0,0,1)',
-        },
-      )
-    }
-
-    previousRects.current = currentRects
-  }, [threadIds])
-
-  return (
-    <div className={cn('space-y-1', className)}>
-      {threads.map((thread) => (
-        <div
-          key={thread.id}
-          ref={(node) => {
-            if (node) {
-              rowRefs.current.set(thread.id, node)
-              return
-            }
-            rowRefs.current.delete(thread.id)
-          }}
-          className="will-change-transform"
-        >
-          {renderThread(thread)}
-        </div>
-      ))}
-    </div>
-  )
-}
-
-type BaseAnimatedThread = {
-  id: string
-  title?: string
-  emoji: string
-  pinned: boolean
 }
