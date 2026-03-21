@@ -44,6 +44,20 @@ export function formatModelModalities(modalities?: {
   return values.length > 0 ? values.join(', ') : 'n/a'
 }
 
+export function getCapabilitiesTextFromModalities(modalities?: {
+  input?: string[]
+  output?: string[]
+}) {
+  const capabilities = [
+    ...(modalities?.input ?? []),
+    ...(modalities?.output ?? []),
+  ]
+    .map((value) => value.trim().toLowerCase())
+    .filter((value) => value.length > 0 && value !== 'text')
+
+  return [...new Set(capabilities)].join(', ')
+}
+
 export function getProviderName(
   providers: DashboardData['providers'] | undefined,
   providerId: string,

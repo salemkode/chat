@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access -- Convex hooks */
+import { useAction, useMutation } from 'convex/react'
 import {
   CreditCard,
   Eye,
@@ -7,6 +9,15 @@ import {
   Settings2,
   WandSparkles,
 } from 'lucide-react'
+import { useCallback, useReducer } from 'react'
+import { toast } from 'sonner'
+import { api } from '@/../convex/_generated/api'
+import { useAdminDiscovery } from '@/components/admin/admin-discovery-context'
+import {
+  initialSettingsState,
+  mergeReducer,
+  type SettingsState,
+} from '@/components/admin/admin-form-state'
 import { EntityIcon } from '@/components/admin/entity-icon'
 import {
   formatCompactNumber,
@@ -60,88 +71,118 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { AppPlan } from '../../../shared/admin-types'
 
 interface AdminTabsSectionProps {
-  providers: AdminProvider[]
-  models: AdminModel[]
-  collections: AdminModelCollection[]
-  users: DashboardData['users']
-  discoveringProviderId?: string
-  discoveryResult: ProviderCatalogResult | null
-  activeDiscoveryProviderId?: string
-  existingDiscoveredModelIds: Set<string>
-  selectedDiscoveryModelIds: string[]
-  selectedDiscoveredCount: number
-  isImportingDiscovery: boolean
-  onInspectProvider: (provider: AdminProvider) => void | Promise<void>
-  onToggleProviderEnabled: (input: {
-    id: AdminProvider['_id']
-    isEnabled: boolean
-  }) => void | Promise<void>
-  onDeleteProvider: (providerId: AdminProvider['_id']) => void | Promise<void>
-  onOpenProviderDialog: (provider: AdminProvider) => void
-  onImportDiscovery: () => void | Promise<void>
-  onSelectAllDiscoveredModels: () => void
-  onClearDiscoveredModelSelection: () => void
-  onToggleDiscoveryModelSelection: (modelId: string) => void
-  onToggleModelEnabled: (input: {
-    id: AdminModel['_id']
-    isEnabled: boolean
-  }) => void | Promise<void>
-  onOpenModelDialog: (model: AdminModel) => void
-  onDeleteModel: (modelId: AdminModel['_id']) => void | Promise<void>
-  onOpenCollectionDialog: (collection: AdminModelCollection) => void
-  onDeleteCollection: (
-    collectionId: AdminModelCollection['_id'],
-  ) => void | Promise<void>
-  billing: DashboardData['billing'] | undefined
-  appPlan: AppPlan
-  onAppPlanChange: (value: AppPlan | undefined) => void
-  globalRateLimit: RateLimitPolicy | undefined
-  onGlobalRateLimitChange: (value: RateLimitPolicy | undefined) => void
-  onSaveSettings: () => void | Promise<void>
-  isSavingSettings: boolean
-  onStartCheckout: () => void | Promise<void>
-  onOpenBillingPortal: () => void | Promise<void>
-  isStartingCheckout: boolean
-  isOpeningBillingPortal: boolean
+  dashboard: DashboardData
+  onOpenProviderDialog: (provider?: AdminProvider) => void
+  onOpenModelDialog: (model?: AdminModel) => void
+  onOpenCollectionDialog: (collection?: AdminModelCollection) => void
 }
 
 export function AdminTabsSection({
-  providers,
-  models,
-  collections,
-  users,
-  discoveringProviderId,
-  discoveryResult,
-  activeDiscoveryProviderId,
-  existingDiscoveredModelIds,
-  selectedDiscoveryModelIds,
-  selectedDiscoveredCount,
-  isImportingDiscovery,
-  onInspectProvider,
-  onToggleProviderEnabled,
-  onDeleteProvider,
+  dashboard,
   onOpenProviderDialog,
-  onImportDiscovery,
-  onSelectAllDiscoveredModels,
-  onClearDiscoveredModelSelection,
-  onToggleDiscoveryModelSelection,
-  onToggleModelEnabled,
   onOpenModelDialog,
-  onDeleteModel,
   onOpenCollectionDialog,
-  onDeleteCollection,
-  billing,
-  appPlan,
-  onAppPlanChange,
-  globalRateLimit,
-  onGlobalRateLimitChange,
-  onSaveSettings,
-  isSavingSettings,
-  onStartCheckout,
-  onOpenBillingPortal,
-  isStartingCheckout,
-  isOpeningBillingPortal,
 }: AdminTabsSectionProps) {
+  const discovery = useAdminDiscovery()
+
+  const deleteProvider = useMutation(api.admin.deleteProvider)
+  const toggleProviderEnabled = useMutation(api.admin.toggleProviderEnabled)
+  const toggleModelEnabled = useMutation(api.admin.toggleModelEnabled)
+  const deleteModel = useMutation(api.admin.deleteModel)
+  const deleteModelCollection = useMutation(api.admin.deleteModelCollection)
+
+  const [settingsState, updateSettings] = useReducer(
+    mergeReducer<SettingsState>,
+    initialSettingsState,
+  )
+  const updateAdminSettings = useMutation(api.admin.updateAdminSettings)
+  const createProSubscriptionCheckout = useAction(
+    api.stripe.createProSubscriptionCheckout,
+  )
+  const createBillingPortalSession = useAction(
+    api.stripe.createBillingPortalSession,
+  )
+
+  const providers = dashboard.providers
+  const models = dashboard.models
+  const collections = dashboard.collections
+  const users = dashboard.users
+  const billing = dashboard.billing
+
+  const appPlan =
+    settingsState.appPlanDraft ?? dashboard.settings.appPlan ?? 'free'
+  const globalRateLimit =
+    settingsState.globalRateLimitDraft ??
+    dashboard.settings.defaultRateLimit ??
+    undefined
+
+  const setAppPlan = (value: AppPlan | undefined) =>
+    updateSettings({ appPlanDraft: value })
+  const setGlobalRateLimit = (value: RateLimitPolicy | undefined) =>
+    updateSettings({ globalRateLimitDraft: value })
+
+  const handleSaveSettings = useCallback(() => {
+    updateSettings({ isSavingSettings: true })
+    return updateAdminSettings({
+      appPlan,
+      defaultRateLimit: globalRateLimit?.enabled ? globalRateLimit : undefined,
+    })
+      .then(() => {
+        toast.success('Admin settings updated')
+      })
+      .catch((error) => {
+        toast.error(
+          error instanceof Error ? error.message : 'Failed to save settings',
+        )
+      })
+      .finally(() => {
+        updateSettings({ isSavingSettings: false })
+      })
+  }, [appPlan, globalRateLimit, updateAdminSettings])
+
+  const handleStartCheckout = useCallback(() => {
+    updateSettings({ isStartingCheckout: true })
+    return createProSubscriptionCheckout({
+      origin: window.location.origin,
+    })
+      .then((result) => {
+        if (!result.url) {
+          throw new Error('Stripe checkout did not return a redirect URL')
+        }
+        window.location.assign(result.url)
+      })
+      .catch((error) => {
+        toast.error(
+          error instanceof Error ? error.message : 'Failed to start checkout',
+        )
+      })
+      .finally(() => {
+        updateSettings({ isStartingCheckout: false })
+      })
+  }, [createProSubscriptionCheckout])
+
+  const handleOpenBillingPortal = useCallback(() => {
+    updateSettings({ isOpeningBillingPortal: true })
+    return createBillingPortalSession({
+      origin: window.location.origin,
+    })
+      .then((result) => {
+        window.location.assign(result.url)
+      })
+      .catch((error) => {
+        toast.error(
+          error instanceof Error ? error.message : 'Failed to open billing',
+        )
+      })
+      .finally(() => {
+        updateSettings({ isOpeningBillingPortal: false })
+      })
+  }, [createBillingPortalSession])
+
+  const isSavingSettings = settingsState.isSavingSettings
+  const isStartingCheckout = settingsState.isStartingCheckout
+  const isOpeningBillingPortal = settingsState.isOpeningBillingPortal
+
   return (
     <Tabs defaultValue="providers" className="grid gap-4">
       <TabsList className="grid w-full grid-cols-5 lg:w-[640px]">
@@ -199,7 +240,7 @@ export function AdminTabsSection({
                         <Switch
                           checked={provider.isEnabled}
                           onCheckedChange={(checked) =>
-                            void onToggleProviderEnabled({
+                            void toggleProviderEnabled({
                               id: provider._id,
                               isEnabled: checked,
                             })
@@ -243,10 +284,10 @@ export function AdminTabsSection({
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => void onInspectProvider(provider)}
-                          disabled={discoveringProviderId === provider._id}
+                          onClick={() => void discovery.inspectSavedProvider(provider)}
+                          disabled={discovery.discoveringProviderId === provider._id}
                         >
-                          {discoveringProviderId === provider._id ? (
+                          {discovery.discoveringProviderId === provider._id ? (
                             <Loader2 className="mr-2 size-4 animate-spin" />
                           ) : (
                             <WandSparkles className="mr-2 size-4" />
@@ -264,7 +305,7 @@ export function AdminTabsSection({
                           variant="ghost"
                           size="sm"
                           className="text-destructive"
-                          onClick={() => void onDeleteProvider(provider._id)}
+                          onClick={() => void deleteProvider({ id: provider._id })}
                         >
                           Delete
                         </Button>
@@ -277,31 +318,31 @@ export function AdminTabsSection({
           </CardContent>
         </Card>
 
-        {discoveryResult ? (
+        {discovery.discoveryResult ? (
           <Card className="border-border bg-card shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
             <CardHeader>
               <CardTitle>Provider inspection result</CardTitle>
               <CardDescription>
-                {discoveryResult.source.endpoint ||
-                  discoveryResult.source.baseURL ||
+                {discovery.discoveryResult.source.endpoint ||
+                  discovery.discoveryResult.source.baseURL ||
                   'Provider discovery'}
               </CardDescription>
               <CardAction>
-                {activeDiscoveryProviderId ? (
+                {discovery.activeDiscoveryProviderId ? (
                   <Button
-                    onClick={() => void onImportDiscovery()}
+                    onClick={() => void discovery.importSelectedModels()}
                     disabled={
-                      !discoveryResult.ok ||
-                      isImportingDiscovery ||
-                      selectedDiscoveredCount === 0
+                      !discovery.discoveryResult.ok ||
+                      discovery.isImportingDiscovery ||
+                      discovery.selectedDiscoveredCount === 0
                     }
                   >
-                    {isImportingDiscovery ? (
+                    {discovery.isImportingDiscovery ? (
                       <Loader2 className="mr-2 size-4 animate-spin" />
                     ) : (
                       <Plus className="mr-2 size-4" />
                     )}
-                    Import {selectedDiscoveredCount} selected
+                    Import {discovery.selectedDiscoveredCount} selected
                   </Button>
                 ) : (
                   <Badge variant="secondary">Save provider to import</Badge>
@@ -310,28 +351,28 @@ export function AdminTabsSection({
             </CardHeader>
             <CardContent className="grid gap-4">
               <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                <Badge variant={discoveryResult.ok ? 'default' : 'destructive'}>
-                  {discoveryResult.ok
+                <Badge variant={discovery.discoveryResult.ok ? 'default' : 'destructive'}>
+                  {discovery.discoveryResult.ok
                     ? 'Discovery succeeded'
                     : 'Discovery failed'}
                 </Badge>
                 <Badge variant="secondary">
-                  {discoveryResult.providerType}
+                  {discovery.discoveryResult.providerType}
                 </Badge>
                 <Badge variant="secondary">
-                  {discoveryResult.modelCount} models
+                  {discovery.discoveryResult.modelCount} models
                 </Badge>
-                {discoveryResult.ok ? (
+                {discovery.discoveryResult.ok ? (
                   <Badge variant="secondary">
-                    {selectedDiscoveredCount} selected
+                    {discovery.selectedDiscoveredCount} selected
                   </Badge>
                 ) : null}
                 <Badge variant="secondary">
-                  {discoveryResult.source.discoveryMode}
+                  {discovery.discoveryResult.source.discoveryMode}
                 </Badge>
               </div>
 
-              {discoveryResult.ok ? (
+              {discovery.discoveryResult.ok ? (
                 <div className="grid gap-4">
                   <div className="flex flex-col gap-3 rounded-xl border border-border bg-muted/20 p-4 md:flex-row md:items-center md:justify-between">
                     <div className="space-y-1">
@@ -348,16 +389,16 @@ export function AdminTabsSection({
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={onSelectAllDiscoveredModels}
-                        disabled={discoveryResult.models.length === 0}
+                        onClick={discovery.selectAllDiscoveredModels}
+                        disabled={discovery.discoveryResult.models.length === 0}
                       >
                         Select all
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={onClearDiscoveredModelSelection}
-                        disabled={selectedDiscoveryModelIds.length === 0}
+                        onClick={discovery.clearDiscoveredModelSelection}
+                        disabled={discovery.selectedDiscoveryModelIds.length === 0}
                       >
                         Clear
                       </Button>
@@ -369,17 +410,17 @@ export function AdminTabsSection({
                       <CommandInput placeholder="Search inspected models" />
                       <CommandList className="max-h-[420px]">
                         <CommandGroup
-                          heading={`Discovered models (${discoveryResult.modelCount})`}
+                          heading={`Discovered models (${discovery.discoveryResult.modelCount})`}
                         >
-                          {discoveryResult.models.map(
+                          {discovery.discoveryResult.models.map(
                             (
                               model: ProviderCatalogResult['models'][number],
                             ) => {
                               const isSelected =
-                                selectedDiscoveryModelIds.includes(
+                                discovery.selectedDiscoveryModelIds.includes(
                                   model.modelId,
                                 )
-                              const isImported = existingDiscoveredModelIds.has(
+                              const isImported = discovery.existingDiscoveredModelIds.has(
                                 model.modelId,
                               )
 
@@ -388,7 +429,7 @@ export function AdminTabsSection({
                                   key={model.modelId}
                                   value={`${model.displayName} ${model.modelId} ${model.ownedBy ?? ''} ${formatModelModalities(model.modalities)}`}
                                   onSelect={() =>
-                                    onToggleDiscoveryModelSelection(
+                                    discovery.toggleDiscoveryModelSelection(
                                       model.modelId,
                                     )
                                   }
@@ -454,19 +495,19 @@ export function AdminTabsSection({
                   </div>
 
                   <div className="flex justify-end">
-                    {activeDiscoveryProviderId ? (
+                    {discovery.activeDiscoveryProviderId ? (
                       <Button
-                        onClick={() => void onImportDiscovery()}
+                        onClick={() => void discovery.importSelectedModels()}
                         disabled={
-                          isImportingDiscovery || selectedDiscoveredCount === 0
+                          discovery.isImportingDiscovery || discovery.selectedDiscoveredCount === 0
                         }
                       >
-                        {isImportingDiscovery ? (
+                        {discovery.isImportingDiscovery ? (
                           <Loader2 className="mr-2 size-4 animate-spin" />
                         ) : (
                           <Plus className="mr-2 size-4" />
                         )}
-                        Save selected models ({selectedDiscoveredCount})
+                        Save selected models ({discovery.selectedDiscoveredCount})
                       </Button>
                     ) : (
                       <Badge variant="secondary">Save provider to import</Badge>
@@ -529,7 +570,7 @@ export function AdminTabsSection({
                         <Switch
                           checked={model.isEnabled}
                           onCheckedChange={(checked) =>
-                            void onToggleModelEnabled({
+                            void toggleModelEnabled({
                               id: model._id,
                               isEnabled: checked,
                             })
@@ -573,7 +614,7 @@ export function AdminTabsSection({
                           variant="ghost"
                           size="sm"
                           className="text-destructive"
-                          onClick={() => void onDeleteModel(model._id)}
+                          onClick={() => void deleteModel({ id: model._id })}
                         >
                           Delete
                         </Button>
@@ -678,7 +719,7 @@ export function AdminTabsSection({
                               size="sm"
                               className="text-destructive"
                               onClick={() =>
-                                void onDeleteCollection(collection._id)
+                                void deleteModelCollection({ id: collection._id })
                               }
                             >
                               Delete
@@ -855,14 +896,14 @@ export function AdminTabsSection({
                 <Button
                   type="button"
                   variant={appPlan === 'free' ? 'default' : 'outline'}
-                  onClick={() => onAppPlanChange('free')}
+                  onClick={() => setAppPlan('free')}
                 >
                   Free
                 </Button>
                 <Button
                   type="button"
                   variant={appPlan === 'pro' ? 'default' : 'outline'}
-                  onClick={() => onAppPlanChange('pro')}
+                  onClick={() => setAppPlan('pro')}
                 >
                   Pro
                 </Button>
@@ -881,7 +922,7 @@ export function AdminTabsSection({
               <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
-                  onClick={() => void onStartCheckout()}
+                  onClick={() => void handleStartCheckout()}
                   disabled={
                     isStartingCheckout ||
                     !billing?.priceConfigured ||
@@ -898,7 +939,7 @@ export function AdminTabsSection({
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => void onOpenBillingPortal()}
+                  onClick={() => void handleOpenBillingPortal()}
                   disabled={
                     isOpeningBillingPortal || !billing?.hasActiveSubscription
                   }
@@ -933,11 +974,11 @@ export function AdminTabsSection({
               label="Default rate limit"
               description="Use this to throttle all model usage, especially custom providers."
               value={globalRateLimit}
-              onChange={onGlobalRateLimitChange}
+              onChange={setGlobalRateLimit}
             />
             <div className="flex justify-end">
               <Button
-                onClick={() => void onSaveSettings()}
+                onClick={() => void handleSaveSettings()}
                 disabled={isSavingSettings}
               >
                 {isSavingSettings ? (
