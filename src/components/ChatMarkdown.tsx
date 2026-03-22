@@ -259,6 +259,40 @@ function resolveShikiTheme(resolved: 'light' | 'dark'): BundledTheme {
   return resolved === 'dark' ? 'github-dark' : 'github-light'
 }
 
+/**
+ * Prevent accidental indented "filename labels" from becoming one-line code blocks.
+ * Markdown interprets 4+ leading spaces as an indented code block.
+ */
+function normalizeAccidentalIndentedFilenameLabels(markdown: string) {
+  const lines = markdown.split('\n')
+  let inFence = false
+
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i]
+    const trimmed = line.trimStart()
+    if (trimmed.startsWith('```') || trimmed.startsWith('~~~')) {
+      inFence = !inFence
+      continue
+    }
+    if (inFence) {
+      continue
+    }
+    if (!/^\s{4,}/.test(line)) {
+      continue
+    }
+    if (!/^['"`]?[A-Za-z0-9_./-]+['"`]?:\s*$/.test(trimmed)) {
+      continue
+    }
+
+    const nextLine = lines[i + 1]?.trimStart()
+    if (nextLine?.startsWith('```') || nextLine?.startsWith('~~~')) {
+      lines[i] = trimmed
+    }
+  }
+
+  return lines.join('\n')
+}
+
 export const ChatMarkdown = React.memo(function ChatMarkdown({
   text,
   isStreaming = false,
@@ -266,6 +300,10 @@ export const ChatMarkdown = React.memo(function ChatMarkdown({
 }: ChatMarkdownProps) {
   const { resolvedTheme } = useTheme()
   const shikiTheme = resolveShikiTheme(resolvedTheme)
+  const normalizedText = useMemo(
+    () => normalizeAccidentalIndentedFilenameLabels(text),
+    [text],
+  )
 
   const markdownComponents = useMemo<Components>(
     () => ({
@@ -323,7 +361,7 @@ export const ChatMarkdown = React.memo(function ChatMarkdown({
       )}
     >
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-        {text}
+        {normalizedText}
       </ReactMarkdown>
       <style>{`
         .chat-markdown-codeblock:hover .chat-markdown-copy-button,
