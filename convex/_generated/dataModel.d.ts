@@ -381,6 +381,53 @@ export type DataModel = {
     searchIndexes: {};
     vectorIndexes: {};
   };
+  modelRoutingPolicies: {
+    document: {
+      allowedModelIds?: Array<Id<"models">>;
+      contextWeight?: number;
+      costWeight?: number;
+      fallbackModelIds?: Array<Id<"models">>;
+      isEnabled: boolean;
+      maxCostPerRequest?: number;
+      maxLatencyMs?: number;
+      minQualityScore?: number;
+      qualityWeight?: number;
+      riskWeight?: number;
+      speedWeight?: number;
+      taskType?: "chat" | "coding" | "analysis" | "rewrite" | "qa";
+      tier: "free" | "pro" | "advanced" | "light" | "medium";
+      toolWeight?: number;
+      updatedAt: number;
+      _id: Id<"modelRoutingPolicies">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "allowedModelIds"
+      | "contextWeight"
+      | "costWeight"
+      | "fallbackModelIds"
+      | "isEnabled"
+      | "maxCostPerRequest"
+      | "maxLatencyMs"
+      | "minQualityScore"
+      | "qualityWeight"
+      | "riskWeight"
+      | "speedWeight"
+      | "taskType"
+      | "tier"
+      | "toolWeight"
+      | "updatedAt";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_tier: ["tier", "_creationTime"];
+      by_tier_taskType: ["tier", "taskType", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
   models: {
     document: {
       capabilities?: Array<string>;
@@ -457,19 +504,76 @@ export type DataModel = {
     searchIndexes: {};
     vectorIndexes: {};
   };
+  modelSelectionProfiles: {
+    document: {
+      benchmarkScores?: Record<string, number>;
+      capabilities?: Array<string>;
+      contextWindow?: number;
+      historicalSuccessRate?: number;
+      isExternal?: boolean;
+      latencyStats?: { p50Ms: number; p95Ms: number };
+      maxOutputTokens?: number;
+      modelId: Id<"models">;
+      pricing?: { currency?: string; inputPer1M: number; outputPer1M: number };
+      providerId: Id<"providers">;
+      riskScore?: number;
+      tierAllowed: Array<"free" | "pro" | "advanced" | "light" | "medium">;
+      toolCallReliability?: number;
+      updatedAt: number;
+      _id: Id<"modelSelectionProfiles">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "benchmarkScores"
+      | `benchmarkScores.${string}`
+      | "capabilities"
+      | "contextWindow"
+      | "historicalSuccessRate"
+      | "isExternal"
+      | "latencyStats"
+      | "latencyStats.p50Ms"
+      | "latencyStats.p95Ms"
+      | "maxOutputTokens"
+      | "modelId"
+      | "pricing"
+      | "pricing.currency"
+      | "pricing.inputPer1M"
+      | "pricing.outputPer1M"
+      | "providerId"
+      | "riskScore"
+      | "tierAllowed"
+      | "toolCallReliability"
+      | "updatedAt";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_modelId: ["modelId", "_creationTime"];
+      by_providerId: ["providerId", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
   modelUsageEvents: {
     document: {
       completionTokens: number;
       createdAt: number;
+      escalationDepth?: number;
+      estimatedCost?: number;
+      latencyMs?: number;
       modelId: Id<"models">;
       modelName: string;
       promptTokens: number;
       providerId: Id<"providers">;
       providerName: string;
       providerType: string;
+      routerDecisionId?: string;
       threadId: string;
+      tier?: "free" | "pro" | "advanced" | "light" | "medium";
       totalTokens: number;
       userId: Id<"users">;
+      validationPassed?: boolean;
       _id: Id<"modelUsageEvents">;
       _creationTime: number;
     };
@@ -478,15 +582,21 @@ export type DataModel = {
       | "_id"
       | "completionTokens"
       | "createdAt"
+      | "escalationDepth"
+      | "estimatedCost"
+      | "latencyMs"
       | "modelId"
       | "modelName"
       | "promptTokens"
       | "providerId"
       | "providerName"
       | "providerType"
+      | "routerDecisionId"
       | "threadId"
+      | "tier"
       | "totalTokens"
-      | "userId";
+      | "userId"
+      | "validationPassed";
     indexes: {
       by_id: ["_id"];
       by_creation_time: ["_creationTime"];
@@ -667,6 +777,97 @@ export type DataModel = {
     searchIndexes: {};
     vectorIndexes: {};
   };
+  routerEvents: {
+    document: {
+      actualCost?: number;
+      candidateModelIds: Array<Id<"models">>;
+      completionTokens?: number;
+      complexityScore: number;
+      createdAt: number;
+      decisionId: string;
+      estimatedCost?: number;
+      estimatedInputTokens: number;
+      estimatedOutputTokens: number;
+      fallbackModelIds: Array<Id<"models">>;
+      fallbackUsed?: boolean;
+      finalModelId?: Id<"models">;
+      finalSuccess?: boolean;
+      latencyMs?: number;
+      maxCostConstraint?: number;
+      maxLatencyConstraint?: number;
+      promptTokens?: number;
+      requiresReasoning: boolean;
+      requiresTools: boolean;
+      scoreBreakdown: {
+        contextFit: number;
+        costFit: number;
+        qualityFit: number;
+        riskPenalty: number;
+        speedFit: number;
+        toolFit: number;
+        totalScore: number;
+      };
+      selectedModelId: Id<"models">;
+      selectedProviderId: Id<"providers">;
+      taskType: "chat" | "coding" | "analysis" | "rewrite" | "qa";
+      threadId?: string;
+      tier: "free" | "pro" | "advanced" | "light" | "medium";
+      totalTokens?: number;
+      updatedAt: number;
+      userId?: Id<"users">;
+      validationPassed?: boolean;
+      _id: Id<"routerEvents">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "actualCost"
+      | "candidateModelIds"
+      | "completionTokens"
+      | "complexityScore"
+      | "createdAt"
+      | "decisionId"
+      | "estimatedCost"
+      | "estimatedInputTokens"
+      | "estimatedOutputTokens"
+      | "fallbackModelIds"
+      | "fallbackUsed"
+      | "finalModelId"
+      | "finalSuccess"
+      | "latencyMs"
+      | "maxCostConstraint"
+      | "maxLatencyConstraint"
+      | "promptTokens"
+      | "requiresReasoning"
+      | "requiresTools"
+      | "scoreBreakdown"
+      | "scoreBreakdown.contextFit"
+      | "scoreBreakdown.costFit"
+      | "scoreBreakdown.qualityFit"
+      | "scoreBreakdown.riskPenalty"
+      | "scoreBreakdown.speedFit"
+      | "scoreBreakdown.toolFit"
+      | "scoreBreakdown.totalScore"
+      | "selectedModelId"
+      | "selectedProviderId"
+      | "taskType"
+      | "threadId"
+      | "tier"
+      | "totalTokens"
+      | "updatedAt"
+      | "userId"
+      | "validationPassed";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_createdAt: ["createdAt", "_creationTime"];
+      by_decisionId: ["decisionId", "_creationTime"];
+      by_tier_createdAt: ["tier", "createdAt", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
   sections: {
     document: {
       emoji: string;
@@ -780,6 +981,53 @@ export type DataModel = {
         "lastMessageAt",
         "_creationTime",
       ];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
+  trainingExamples: {
+    document: {
+      costLabel?: number;
+      createdAt: number;
+      latencyLabel?: number;
+      metadata?: Record<string, string>;
+      promptHash: string;
+      promptPreview?: string;
+      qualityLabel?: number;
+      source: "benchmark" | "production" | "synthetic";
+      split?: "train" | "validation" | "test";
+      successLabel?: boolean;
+      targetModelId?: Id<"models">;
+      targetResponse?: string;
+      taskType: "chat" | "coding" | "analysis" | "rewrite" | "qa";
+      tier?: "free" | "pro" | "advanced" | "light" | "medium";
+      _id: Id<"trainingExamples">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "costLabel"
+      | "createdAt"
+      | "latencyLabel"
+      | "metadata"
+      | `metadata.${string}`
+      | "promptHash"
+      | "promptPreview"
+      | "qualityLabel"
+      | "source"
+      | "split"
+      | "successLabel"
+      | "targetModelId"
+      | "targetResponse"
+      | "taskType"
+      | "tier";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_createdAt: ["createdAt", "_creationTime"];
+      by_source: ["source", "_creationTime"];
+      by_taskType: ["taskType", "_creationTime"];
     };
     searchIndexes: {};
     vectorIndexes: {};

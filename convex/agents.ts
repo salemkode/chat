@@ -1279,8 +1279,12 @@ export const streamMessage = internalAction({
         'Memory tools are enabled for this message.',
         'Use `memory_search` before claiming you remember something, and before updating or deleting memory.',
         'Use `memory_add` only for durable facts, preferences, instructions, or project knowledge that should persist beyond this message.',
+        'For most user messages, proactively extract and store multiple compact memory facts when appropriate (often 3-4 facts from one message).',
+        'When the user shares a CV/resume/profile, treat it as high-value memory input: store all durable details in compact atomic facts before answering.',
+        'Split long user inputs into the smallest useful stable facts (for example role, company, timeframe, skill, preference) and store each fact separately.',
         'Do not save transient status, temporary plans, or one-off facts.',
         'Use `memory_update` and `memory_delete` only after you have the correct `memoryId`, usually from `memory_search`.',
+        'Prefer saving memory first, then answer using both stored memory and the current user message.',
         'Thread scope means the current conversation only.',
         linkedProject
           ? `Project scope is limited to the project linked to this thread: ${linkedProject.name} (${linkedProject._id}).`
@@ -1444,6 +1448,22 @@ export const generateMessage = mutation({
         },
         metadata: {
           fileIds: registeredAttachments.map((attachment) => attachment.fileId),
+        },
+      })
+
+      promptMessageId = saved.messageId
+    } else {
+      const trimmedPrompt = args.prompt.trim()
+      if (!trimmedPrompt) {
+        return null
+      }
+
+      const saved = await saveMessage(ctx, components.agent, {
+        threadId: args.threadId,
+        userId,
+        message: {
+          role: 'user',
+          content: [{ type: 'text', text: trimmedPrompt }],
         },
       })
 

@@ -81,7 +81,7 @@ export const viewer = query({
     if (userId === null) {
       return null
     }
-    const user = await ctx.db.get('users', userId)
+    const user = await ctx.db.get(userId)
     if (!user) return null
 
     // Get user settings

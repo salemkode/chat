@@ -1,350 +1,313 @@
-# Salemkode Chat Architecture
+# Chat Monorepo Architecture
 
 ## Purpose
 
-This document describes the current implementation of the project as it exists in the repository today. It focuses on the runtime architecture, main data flows, and the responsibilities of each major subsystem.
+This document describes the current repository architecture for the `chat` monorepo. It covers the main runtime systems, ownership boundaries, shared data flow, and the conventions already visible in code.
 
-## What This App Is
+## System Summary
 
-Salemkode Chat is a web chat application built around:
+This repository is a pnpm workspace orchestrated by Turbo. The product is split into:
 
-- A React client rendered with TanStack Router
-- Clerk authentication in the browser
-- Convex as the backend, database, mutations/actions layer, and AI orchestration layer
-- `@convex-dev/agent` for threaded AI conversations
-- A **browser localStorage cache** of the last successfully loaded threads, messages, models, projects, and settings (keyed by Convex `users` id) so the UI can fall back when the device is offline
-- `ConvexQueryCacheProvider` from `convex-helpers` for in-session query subscription reuse (see [Query Caching](https://github.com/get-convex/convex-helpers/blob/main/packages/convex-helpers/README.md#query-caching))
-- A separate memory subsystem that stores durable user, thread, and project memories with embeddings via `@convex-dev/rag`
+- `apps/mobile`: Expo + React Native mobile client
+- `apps/web`: TanStack Start web client
+- `packages/shared`: cross-platform hooks and domain helpers
+- `convex`: backend schema, queries, mutations, actions, and AI orchestration
 
-At a high level, the app is **Convex-first for live data**, with **localStorage + PWA shell** improving resilience when disconnected.
+There are also non-primary directories that should be treated as supporting or legacy until explicitly adopted:
 
-## High-Level System Layout
+- `apps/JSWithNativeSignInQuickstart`: Clerk sample app, not part of the main product architecture
+- `ls/`: separate Expo app outside the workspace package groups
+- build artifacts such as `.output/`, `dist/`, `apps/mobile/dist/`
 
-### 1. Frontend application
+## Topology
 
-The frontend lives under `src/` and is responsible for:
+```text
+clients
+  mobile (Expo Router) ─┐
+  web (TanStack Start) ─┼─> Convex backend + database + AI orchestration
+  shared package ───────┘
 
-- Routing and app shell composition
-- Rendering chat threads, messages, memory screens, and admin screens
-- Persisting a minimal offline snapshot to `localStorage` (`src/offline/local-cache.ts`) and theme preferences (`public/theme-init.js`)
-- Triggering Convex mutations/actions for chat, sync, admin, and memory operations
+Convex
+  schema.ts
+  chat / agents / messages / projects / model selection / admin / memory
 
-Main frontend entrypoints:
+local persistence
+  mobile: SQLite + local cache + optimistic send store
+  web: localStorage + offline cache + Convex query cache
+```
 
-- `index.html`: browser document shell and app mount point
-- `src/main.tsx`: client bootstrap
-- `src/routes/__root.tsx`: top-level providers
-- `src/router.tsx`: TanStack Router setup
-- `src/routes/_layout.tsx`: authenticated/offline-aware app shell
-- `src/routes/_layout.index.tsx`: empty/new chat view
-- `src/routes/_layout.$chatId.tsx`: thread view
-- `src/routes/memory.tsx`: memory management UI
-- `src/routes/admin.tsx`: admin UI for providers/models
+## Workspace Layout
 
-### 2. Auth and data access
+### Root
 
-The app uses:
+- `package.json`: workspace commands
+- `pnpm-workspace.yaml`: workspace package globs
+- `turbo.json`: task graph for build, dev, typecheck, lint, and test
+- `tsconfig*.json`: shared TypeScript base config
 
-- Clerk in the browser for sign-in/sign-up
-- `ConvexProviderWithClerk` to attach Clerk auth to Convex requests
-- `getAuthUserId` on the backend to resolve or create the local `users` record
+### Applications
 
-Important detail: the backend does not treat Clerk as the app's user database. Instead, Clerk identity is mapped into the Convex `users` table on demand.
+- `apps/mobile`: primary native app
+- `apps/web`: primary web app
+- `apps/JSWithNativeSignInQuickstart`: reference or leftover sample app, not a production boundary
 
-### 3. AI chat execution
+### Shared Package
 
-AI generation runs in Convex:
+- `packages/shared/src/hooks`: reusable environment-agnostic hooks
+- `packages/shared/src/logic`: shared domain helpers like project mention parsing and thread grouping
 
-- The client requests message generation through `api.agents.generateMessage`
-- The backend resolves the selected model and provider from Convex tables
-- Convex schedules `internal.agents.streamMessage`
-- `streamMessage` builds the provider client, creates an `Agent`, and streams output into the thread managed by `@convex-dev/agent`
+### Backend
 
-Optional web search is injected as a tool through `exaWebSearchTool` when enabled in the prompt input.
+- `convex/schema.ts`: source of truth for persisted data model
+- `convex/*.ts`: product domains exposed to clients
+- `convex/functions/*`: deeper memory and admin internals
+- `convex/lib/*`: backend helpers for auth, providers, billing, rate limits, tools, validators
 
-### 4. Offline and PWA
+## Runtime Architecture
 
-- **Live data** comes from Convex (`useQuery` via `convex-helpers/react/cache` in `src/lib/convex-query-cache.ts`).
-- When the network drops, **hooks in `src/hooks/use-chat-data.ts`** prefer live results when present; otherwise they read the last snapshot from `localStorage` (threads, messages per thread, models, projects, session, settings).
-- **PWA**: `vite-plugin-pwa` in `vite.config.ts` precaches static assets; `navigateFallback: '/index.html'` lets deep links load the shell offline so the client router can run. The service worker is registered from `src/main.tsx`.
-- **Sign-out** clears namespaced `localStorage` keys via `clearLocalOfflineCache()` in `ConvexClientProvider`.
-- **Legacy IndexedDB**: `deleteLegacyOfflineIndexedDb()` removes the old Dexie database name on boot (`src/main.tsx`) so upgrades do not leave stale data.
+### 1. Mobile App
 
-### 5. Memory subsystem
+The mobile app uses Expo Router for navigation and keeps route files thin.
 
-The memory subsystem is separate from the normal chat thread/message storage. It supports:
+Entry and shell:
 
-- User-level memories
-- Thread-level memories
-- Project-level memories
-- Semantic search with embeddings via `@convex-dev/rag`
-- Automatic extraction of durable memories from completed threads
+- `apps/mobile/app/_layout.tsx`: global bootstrap, fonts, splash screen, root providers
+- `apps/mobile/src/providers/AppProviders.tsx`: Clerk + Convex + safe area providers
+- `apps/mobile/app/(app)/_layout.tsx`: authenticated drawer shell
 
-The public API is in `convex/functions/memory.ts`, with internal helpers in `convex/functions/memoryInternal.ts`, `memoryShared.ts`, `memoryRag.ts`, and `memoryExtraction.ts`.
+Chat architecture follows the repo rule set:
 
-## Runtime Flow
+- route files compose chat using reusable components instead of owning the whole screen
+- model dialog modules live in `apps/mobile/src/components/dialog`
+- message presentation is shared through `apps/mobile/src/components/chat/MessageRow.tsx`
 
-### App boot
+Current chat composition:
 
-1. `index.html` loads the app document shell and mounts `src/main.tsx` (which registers the PWA service worker when supported).
-2. `src/routes/__root.tsx` wraps the routed app in providers including `ThemeProvider` and `ConvexClientProvider`.
-3. The route tree then renders either the chat shell, memory page, admin page, or auth screens.
+- `apps/mobile/app/(app)/chats.tsx`: new chat route
+- `apps/mobile/app/(app)/chat/[id].tsx`: existing thread route
+- both routes render `apps/mobile/src/components/chat/ChatPage.tsx`
+- `ChatPage` composes `ChatHeader`, `MessageList`, `ChatComposer`, `OfflineBanner`, and `ModelPickerDialog`
+- `useChatConversation.ts` assembles UI state, draft state, model state, project selection, send/retry logic, and inline error feedback
 
-### Authentication flow
+Mobile data and offline layer:
 
-### Browser side
+- `apps/mobile/src/mobile-data/*`: Convex-facing hooks for threads, messages, models, drafts, projects, and sending
+- `apps/mobile/src/offline/*`: SQLite-backed cache and offline record types
+- `apps/mobile/src/store/chat-optimistic-send.ts`: local optimistic send state and retry recovery
 
-- `ConvexClientProvider` creates a `ConvexReactClient`
-- It wraps the app with `ClerkProvider`
-- It then wraps Convex with `ConvexProviderWithClerk`
+Important mobile rule already implemented:
 
-### Backend side
+- optimistic updates are attached to Convex mutations with `.withOptimisticUpdate(...)`
+- optimistic behavior is not added to actions
+- failures surface as inline non-blocking UI errors through composer state
 
-- Convex functions call `getAuthUserId(ctx)`
-- `getAuthUserId` reads the Clerk identity
-- It finds or creates a `users` row
-- It also updates changed profile fields such as name, email, image, and phone
+### 2. Web App
 
-This means most backend functions can work with a stable Convex `userId` even though authentication is delegated to Clerk.
+The web app uses TanStack Start with client-side routing and Convex for live data.
 
-### Chat flow
+Entry and shell:
 
-### UI shell
+- `apps/web/src/main.tsx`: client bootstrap
+- `apps/web/src/router.tsx`: router creation and root Convex provider wiring
+- `apps/web/src/routes/__root.tsx`: HTML shell, Clerk provider, theme provider, Convex client provider
+- `apps/web/src/components/ConvexClientProvider.tsx`: auth-aware Convex client setup plus query cache provider
 
-The main chat shell is `src/routes/_layout.tsx`.
+Web feature areas:
 
-It:
+- `apps/web/src/routes/*`: route handlers for chat, auth, admin, share, signup, memory demo
+- `apps/web/src/components/*`: chat UI, sidebar, prompt input, auth redirect, settings, markdown, model UI
+- `apps/web/src/hooks/chat-data/*`: thread/message send flow, optimistic message list updates, local draft support
+- `apps/web/src/offline/*`: localStorage-backed offline snapshots
 
-- blocks access when there is no authenticated session and no trusted offline session snapshot in `localStorage`
-- loads models via `useModels()` (Convex + cached snapshot)
-- keeps the current draft in `localStorage` (per-thread keys in `useDraft`)
-- remembers the selected model in `localStorage`
-- calls `useSendMessage()` when the prompt is submitted
+The web app is currently the richer admin surface:
 
-### Creating and sending a message
+- provider and model management
+- memory and share routes
+- broader desktop-oriented UI primitives under `apps/web/src/components/ui`
 
-`useSendMessage()` in `src/hooks/use-chat-data.ts` handles message submission:
+### 3. Shared Package
 
-1. If offline, it refuses to send.
-2. If there is no existing thread, it creates one with `api.agents.createChatThread`.
-3. It calls `api.agents.generateMessage`.
-4. It clears the saved draft in `localStorage`.
+`packages/shared` is intentionally small and contains code that should remain free of platform UI assumptions.
 
-### Server-side generation
+Current responsibilities:
 
-`convex/agents.ts` is the core AI orchestration module.
+- reusable hooks such as `use-online-status`
+- thread grouping logic
+- project mention parsing used by mobile chat composer
+- shared admin types
 
-`generateMessage`:
+This package should continue to hold pure logic and cross-platform primitives, not app-specific screen composition.
 
-1. verifies the user
-2. loads the selected model from `models`
-3. loads the model's provider from `providers`
-4. schedules `internal.agents.streamMessage`
+### 4. Convex Backend
 
-`streamMessage`:
+Convex is the central system of record. It owns:
 
-1. builds a language model instance based on `providerType`
-2. creates an `Agent`
-3. optionally attaches the Exa web search tool
-4. streams the assistant response into the agent thread
-5. schedules post-processing with `memoryExtraction.extractMemoriesFromThread`
+- authentication mapping from Clerk identities to app users
+- database schema
+- chat thread and message operations
+- AI model/provider configuration
+- memory extraction and retrieval
+- billing and admin helpers
 
-The supported provider types are admin-configured and include OpenRouter, OpenAI, Anthropic, Google, Azure, Groq, DeepSeek, xAI, and several OpenAI-compatible providers.
+Primary modules:
 
-### Thread metadata
+- `convex/schema.ts`: tables for users, providers, models, routing policy, projects, shares, and related records
+- `convex/agents.ts`: chat thread creation, generation, regeneration, upload URL creation, streaming lifecycle
+- `convex/chat.ts`: chat queries such as message listing
+- `convex/messages.ts`: message-oriented operations
+- `convex/projects.ts`: project data and project-thread relationships
+- `convex/modelSelection.ts`: model selection and routing
+- `convex/admin.ts`: admin operations
+- `convex/shares.ts`: shared-chat capabilities
+- `convex/functions/memory*.ts`: durable memory, extraction, search, and sync pipeline
 
-The thread itself is managed by `@convex-dev/agent`, but this project stores app-specific metadata in `threadMetadata`, including:
+### 5. Authentication
 
-- emoji
-- icon
-- section assignment
-- pin state
+Both clients authenticate with Clerk and then pass auth into Convex.
 
-Successful thread list fetches also persist this metadata into the `localStorage` thread snapshot for offline sidebar rendering.
+Mobile:
 
-### Message rendering
+- `@clerk/expo`
+- `ConvexProviderWithClerk`
 
-The chat page (`src/routes/_layout.$chatId.tsx`) reads:
+Web:
 
-- thread data from `useThread(chatId)`
-- messages from `useMessages(chatId)`
+- `@clerk/tanstack-react-start`
+- custom auth token wiring inside `ConvexClientProvider.tsx`
 
-Both hooks subscribe to Convex when online and fall back to the last `localStorage` snapshot when offline.
+Backend:
 
-`ChatMessageList` virtualizes message rendering with `@tanstack/react-virtual`.
+- Convex resolves the authenticated identity into the local `users` table
+- product data is keyed to Convex user IDs, not directly to Clerk records
 
-`Message` renders:
+## Chat Flow
 
-- user bubbles
-- assistant markdown output
-- reasoning blocks when a reasoning part is present
+### Mobile
 
-## Offline Architecture
+1. User lands in `chats.tsx` for a new conversation or `chat/[id].tsx` for an existing one.
+2. Route renders `ChatPage`.
+3. `useChatConversation` combines thread state, draft state, selected model, project mention, attachments, and online status.
+4. `MessageList` reads merged live, cached, and optimistic messages.
+5. `ChatComposer` submits through `useSendMessage`.
+6. `useSendMessage` optionally creates a thread, uploads attachments, and calls Convex generation mutations.
+7. Optimistic UI is inserted locally for thread and message rows.
+8. If a mutation fails, the optimistic state rolls back and composer-level inline error text is shown.
 
-### Browser storage model
+### Web
 
-- **`localStorage`**, namespaced under `salemkode-chat:v1:` (`src/offline/local-cache.ts`):
-  - Session snapshot (trusted Convex user id + profile fields) for offline gatekeeping
-  - Per-user keys for threads list, models, projects, per-thread message JSON, and settings mirror
-- **Thread drafts** remain in `localStorage` with keys `chat-draft:<threadId>` (`useDraft` in `use-chat-data.ts`)
-- **Theme** uses `theme-preference` in `public/theme-init.js`
+1. Route loads chat shell and current thread from TanStack Router.
+2. Data hooks subscribe to Convex queries.
+3. `useSendMessage` in `apps/web/src/hooks/chat-data/send.ts` creates a thread if needed, uploads files, and calls generation mutations.
+4. Optimistic assistant and user message placeholders are inserted with local query store updates.
+5. Successful data is mirrored into offline browser storage for read-back.
 
-There is **no IndexedDB** for app chat data; Workbox may still use the Cache API internally for precached static assets.
+## Offline Model
 
-### PWA service worker
+### Mobile
 
-Generated by **`vite-plugin-pwa`** at build time from `vite.config.ts`:
+Mobile has a stronger local-first layer than web.
 
-- Precaches built JS/CSS/HTML, icons, fonts, etc.
-- Uses **`navigateFallback: '/index.html'`** so navigation requests while offline receive the SPA shell.
+- message and thread snapshots are cached in `apps/mobile/src/offline/cache.ts`
+- storage is backed by SQLite under `apps/mobile/src/offline/db.ts`
+- drafts are persisted separately
+- local thread IDs support optimistic sends before a server thread exists
+- `chat-optimistic-send` store merges pending and failed sends into the rendered message list
 
-### Limitations
+This gives the mobile client:
 
-- **Sending** messages and most mutations require connectivity; offline mode is **read-oriented** (last known snapshot).
-- Snapshots are updated when online data successfully loads; there is no multi-tab sync engine or mutation outbox.
+- offline readback of cached threads/messages
+- temporary local conversation continuity before server thread resolution
+- inline retry recovery for failed sends
 
-## Memory Architecture
+### Web
 
-### Memory scopes
+Web offline support is lighter and browser-oriented.
 
-The memory system stores three kinds of durable facts:
+- local snapshots live in `apps/web/src/offline/local-cache.ts`
+- drafts are kept in local storage helpers
+- `ConvexQueryCacheProvider` keeps query subscriptions warm during navigation
+- offline mode is mainly for last-known-state readback, not queued mutations
 
-- `userMemories`: facts/preferences that should follow the user everywhere
-- `threadMemories`: context specific to a single conversation
-- `projectMemories`: facts shared by a group of threads/projects
+## AI and Model Routing
 
-Projects are stored in the `projects` table and can reference multiple thread IDs.
+The system is provider-driven rather than hardcoding a single LLM backend.
 
-### Memory API
-
-`convex/functions/memory.ts` exposes the main public operations:
-
-- create user/thread/project memory
-- list memories
-- update memory
-- delete memory
-- create/list projects
-- attach a thread to a project
-- semantic memory search
-
-The `/memory` route uses those APIs directly.
-
-### Embeddings and semantic search
-
-`convex/functions/memoryRag.ts` configures a `RAG` instance with:
-
-- OpenRouter embeddings
-- `openai/text-embedding-3-small`
-- filter fields for `userId`, `threadId`, and `projectId`
-
-Each memory record is stored both:
-
-- as a normal Convex document
-- as an indexed RAG entry keyed by `memory:<scope>:<id>`
-
-Search works by:
-
-1. querying the RAG namespace for the user
-2. applying scope-aware filters
-3. resolving matching memory documents by ID
-4. returning ranked hits to the UI
-
-### Automatic memory extraction
-
-After each generated response, `streamMessage` schedules `extractMemoriesFromThread`.
-
-That action:
-
-1. loads new successful messages from the agent thread
-2. builds a transcript from unprocessed messages only
-3. asks a model to extract stable memories
-4. writes accepted memories into user/thread/project scope
-5. updates `memoryExtractionState` with progress and errors
-
-The extractor is intentionally conservative and skips short or obviously temporary facts.
-
-## Admin Architecture
-
-The admin area is available at `/admin` and is online-only.
-
-It manages two related tables:
+Configuration lives in Convex tables:
 
 - `providers`
 - `models`
+- `modelSelectionProfiles`
+- `modelRoutingPolicies`
+- related collections and admin metadata
 
-The admin flow supports:
+Generation path:
 
-- provider CRUD
-- model CRUD
-- enabling/disabling providers and models
-- ordering providers/models
-- uploading icons through Convex storage
+1. client selects or resolves a model
+2. Convex loads the model and provider configuration
+3. backend creates the language model client for the provider
+4. message generation is streamed into the chat thread
+5. post-processing may trigger memory extraction or related bookkeeping
 
-Regular users do not choose raw providers directly. They pick from enabled models, and each model references a provider.
+This design lets admin configuration change model availability without redeploying clients.
 
-## Core Data Model
+## Memory Subsystem
 
-The most important Convex tables are:
+The memory subsystem is a separate domain layered on top of the main chat product.
 
-- `users`: local user records resolved from Clerk identities
-- `providers`: admin-configured LLM providers and API credentials
-- `models`: admin-configured models connected to providers
-- `userFavoriteModels`: per-user favorite model list
-- `threadMetadata`: app-specific metadata for agent threads
-- `userSettings`: editable display name/avatar/bio
-- `userMemories`, `threadMemories`, `projectMemories`: durable memory store
-- `projects`: project grouping for threads
-- `memoryExtractionState`: per-thread extraction progress
+It supports:
 
-There are also older or separate memory-file tables:
+- user memories
+- thread memories
+- project memories
+- semantic search and extraction
 
-- `memoryFiles`
-- `memoryChunks`
-- `memoryEmbeddingCache`
-- `memoryMeta`
-- `memorySyncState`
+Main files:
 
-Those are part of a file/chunk indexing direction and are not the primary chat memory path used by the current `/memory` UI.
+- `convex/functions/memory.ts`
+- `convex/functions/memoryInternal.ts`
+- `convex/functions/memorySearch.ts`
+- `convex/functions/memoryExtraction.ts`
+- `convex/functions/memoryRag.ts`
 
-## Important Directories
+Operationally:
 
-- `src/routes`: pages and route-level composition
-- `src/components`: shared UI and chat widgets
-- `src/offline`: `local-cache.ts` (browser snapshot persistence) and `schema.ts` (shared record types)
-- `convex/agents.ts`: AI execution, thread creation, pin/icon updates, metadata listing
-- `convex/chat.ts`: lower-level thread/message queries and deletion
-- `convex/admin.ts`: admin API for providers and models
-- `convex/users.ts`: viewer/settings user API
-- `convex/functions/memory*.ts`: memory CRUD, search, extraction, and RAG internals
+- generated conversations can be mined for durable facts
+- those facts are stored and later retrieved for context enrichment
+- memory concerns are kept outside the core chat UI composition layer
 
-## Current Implementation Notes
+## Design Rules Already Present
 
-These are important if you are researching or extending the project:
+These are the main architectural rules reflected in the current mobile code and should remain the default for future work:
 
-- Chat rendering uses live Convex subscriptions when online; `localStorage` holds the last snapshot for read-only offline use.
-- Sending messages requires connectivity; drafts persist in `localStorage` only.
-- Mutations (settings, favorites, pins, etc.) are disabled while offline in `use-chat-data` hooks.
-- The prompt input includes attachment UI; uploads require network.
-- The message list supports streaming; debounced writes persist stable snapshots to `localStorage` for offline fallback.
-- `vectorSearchChunks` in `convex/functions/memorySearch.ts` is currently stubbed and returns no vector results.
-- The memory file/chunk tables exist, but the active user-facing memory workflow is the user/thread/project memory system.
-- Some auth redirect code in the login/auth redirect components is commented out, so auth transitions are not fully polished.
+- keep mobile chat UI in reusable components under `apps/mobile/src/components/chat`
+- keep model dialogs under `apps/mobile/src/components/dialog`
+- keep route files thin and compositional
+- share message row layout across chat modes
+- use Convex optimistic updates only on mutations
+- show inline, non-blocking failure feedback when optimistic mobile sends fail
+- keep shared package code platform-agnostic
+- keep Convex as the source of truth for persisted product state
 
-## Request Lifecycle Summary
+## Current Gaps and Cleanup Opportunities
 
-For a normal online chat request, the end-to-end path is:
+The repository is functional, but the architecture is carrying some extra weight:
 
-1. User types into `AIPromptInput`
-2. `useSendMessage` ensures a thread exists
-3. `api.agents.generateMessage` schedules AI generation
-4. `internal.agents.streamMessage` streams the assistant response into the Convex agent thread
-5. `useMessages` / `useUIMessages` receives live updates from Convex
-6. A debounced writer mirrors the latest message list into `localStorage` for offline fallback
-7. `ChatMessageList` renders the message list
-8. Memory extraction runs asynchronously after the response completes
+- `README.md` still describes the repo as a single web app and should stay aligned with the monorepo structure
+- `apps/JSWithNativeSignInQuickstart` appears to be a sample app and should either be documented as reference-only or removed
+- `ls/` is a separate Expo project outside the workspace package globs and should be either promoted intentionally or moved out
+- checked-in build artifacts (`dist`, `.output`, `apps/mobile/dist`) blur the source architecture and should be treated as generated output
 
-Summary:
+## Recommended Ownership Boundaries
 
-- Convex owns remote execution and persistence
-- The React client subscribes live when online
-- `localStorage` stores a **read-only** last snapshot for the same browser profile (not a full sync engine)
+Use these boundaries for ongoing work:
+
+- mobile UI composition: `apps/mobile/src/components/**`
+- mobile route orchestration: `apps/mobile/app/**`
+- mobile data hooks and offline behavior: `apps/mobile/src/mobile-data/**`, `apps/mobile/src/offline/**`, `apps/mobile/src/store/**`
+- web route and UI logic: `apps/web/src/routes/**`, `apps/web/src/components/**`, `apps/web/src/hooks/**`
+- shared pure logic: `packages/shared/src/**`
+- backend and data model: `convex/**`
+
+## Short Version
+
+This repo is a multi-client chat platform with Convex at the center. Mobile and web are separate frontends with different offline strategies, shared code is intentionally narrow, and the mobile chat stack already follows a reusable component architecture that should be preserved as the baseline for future changes.

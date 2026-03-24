@@ -1,0 +1,11 @@
+**/node_modules/**
+**/dist/**
+**/build/**
+**/.turbo/**
+**/.expo/**
+**/.netlify/**
+**/.output/**
+**/coverage/**
+**/ios/**
+**/android/**
+convex/_generated/**

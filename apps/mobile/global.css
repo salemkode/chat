@@ -1,0 +1,55 @@
+@import 'tailwindcss';
+@import 'uniwind';
+
+@layer theme {
+  :root {
+    @variant light {
+      --color-background: #ffffff;
+      --color-foreground: #111827;
+      --color-foreground-secondary: #6b7280;
+      --color-muted: #9ca3af;
+      --color-card: #f9fafb;
+      --color-elevated: #f3f4f6;
+      --color-border: #e5e7eb;
+      --color-border-subtle: #f3f4f6;
+      --color-primary: #2563eb;
+      --color-primary-foreground: #ffffff;
+      --color-danger: #dc2626;
+      --color-danger-surface: #fef2f2;
+      --color-user-bubble: #111827;
+      --color-user-bubble-text: #ffffff;
+      --color-assistant-surface: #f3f4f6;
+      --color-overlay: rgba(0, 0, 0, 0.45);
+      --color-send-disabled: #9ca3af;
+      --color-icon-disabled: #d1d5db;
+    }
+
+    @variant dark {
+      --color-background: #000000;
+      --color-foreground: #f5f5f5;
+      --color-foreground-secondary: #9a9ca3;
+      --color-muted: #6b7280;
+      --color-card: #1c1d22;
+      --color-elevated: #22232a;
+      --color-border: #2f3138;
+      --color-border-subtle: #1a1b1f;
+      --color-primary: #4a9cff;
+      --color-primary-foreground: #000000;
+      --color-danger: #eaa3af;
+      --color-danger-surface: #2a1b1f;
+      --color-user-bubble: #2f3138;
+      --color-user-bubble-text: #f5f5f5;
+      --color-assistant-surface: #1c1d22;
+      --color-overlay: rgba(0, 0, 0, 0.6);
+      --color-send-disabled: #4a4c52;
+      --color-icon-disabled: #5b5d63;
+    }
+  }
+}
+
+@theme {
+  --font-sans: 'Inter_400Regular';
+  --font-sans-medium: 'Inter_500Medium';
+  --font-sans-semibold: 'Inter_600SemiBold';
+  --font-sans-bold: 'Inter_700Bold';
+}

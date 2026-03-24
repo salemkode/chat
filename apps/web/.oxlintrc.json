@@ -1,0 +1,12 @@
+{
+  "extends": "../../.oxlintrc.json",
+  "env": {
+    "browser": true
+  },
+  "experimentalTailwindcss": {
+    "stylesheet": "./src/styles.css",
+    "attributes": ["class", "className"],
+    "functions": ["clsx", "cn"],
+    "preserveWhitespace": true
+  }
+}

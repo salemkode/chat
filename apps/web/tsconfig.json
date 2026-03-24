@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "types": ["vite/client", "vite-plugin-pwa/client"],
+    "paths": {
+      "@/*": ["./src/*"],
+      "@convex/*": ["../../convex/*"]
+    }
+  },
+  "files": [],
+  "references": [{ "path": "../../convex/tsconfig.json" }]
+}

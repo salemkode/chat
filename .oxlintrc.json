@@ -1,0 +1,25 @@
+{
+  "plugins": [],
+  "jsPlugins": [],
+  "categories": {
+    "correctness": "warn",
+    "suspicious": "warn",
+    "perf": "off",
+    "style": "off",
+    "pedantic": "off",
+    "restriction": "off"
+  },
+  "ignorePatterns": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/.turbo/**",
+    "**/.expo/**",
+    "**/.netlify/**",
+    "**/.output/**",
+    "**/coverage/**",
+    "**/ios/**",
+    "**/android/**",
+    "convex/_generated/**"
+  ]
+}

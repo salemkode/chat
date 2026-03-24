@@ -6,7 +6,7 @@ export const getUserMemoryById = internalQuery({
     id: v.id('userMemories'),
   },
   handler: async (ctx, args) => {
-    return await ctx.db.get('userMemories', args.id)
+    return await ctx.db.get(args.id)
   },
 })
 
@@ -15,7 +15,7 @@ export const getThreadMemoryById = internalQuery({
     id: v.id('threadMemories'),
   },
   handler: async (ctx, args) => {
-    return await ctx.db.get('threadMemories', args.id)
+    return await ctx.db.get(args.id)
   },
 })
 
@@ -24,6 +24,6 @@ export const getProjectMemoryById = internalQuery({
     id: v.id('projectMemories'),
   },
   handler: async (ctx, args) => {
-    return await ctx.db.get('projectMemories', args.id)
+    return await ctx.db.get(args.id)
   },
 })

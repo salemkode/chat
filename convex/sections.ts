@@ -54,7 +54,7 @@ export const updateSection = mutation({
       return
     }
 
-    const section = await ctx.db.get('sections', args.id)
+    const section = await ctx.db.get(args.id)
     if (!section || section.userId !== userId) {
       return
     }
@@ -64,7 +64,7 @@ export const updateSection = mutation({
       Object.entries(updates).filter(([_, v]) => v !== undefined),
     )
 
-    await ctx.db.patch('sections', id, cleanUpdates)
+    await ctx.db.patch(id, cleanUpdates)
     return
   },
 })
@@ -78,12 +78,12 @@ export const deleteSection = mutation({
       return
     }
 
-    const section = await ctx.db.get('sections', args.id)
+    const section = await ctx.db.get(args.id)
     if (!section || section.userId !== userId) {
       return
     }
 
-    await ctx.db.delete('sections', args.id)
+    await ctx.db.delete(args.id)
     return
   },
 })
@@ -97,12 +97,12 @@ export const toggleSection = mutation({
       return
     }
 
-    const section = await ctx.db.get('sections', args.id)
+    const section = await ctx.db.get(args.id)
     if (!section || section.userId !== userId) {
       return
     }
 
-    await ctx.db.patch('sections', args.id, { isExpanded: !section.isExpanded })
+    await ctx.db.patch(args.id, { isExpanded: !section.isExpanded })
     return
   },
 })

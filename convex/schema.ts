@@ -36,6 +36,23 @@ const modelReasoningDefaultValidator = v.union(
   v.literal('high'),
 )
 
+const modelSelectionTierValidator = v.union(
+  v.literal('free'),
+  v.literal('pro'),
+  v.literal('advanced'),
+  // Backward compatibility for previously planned tier names.
+  v.literal('light'),
+  v.literal('medium'),
+)
+
+const modelSelectionTaskTypeValidator = v.union(
+  v.literal('chat'),
+  v.literal('coding'),
+  v.literal('analysis'),
+  v.literal('rewrite'),
+  v.literal('qa'),
+)
+
 const userRoleValidator = v.union(
   v.literal('owner'),
   v.literal('admin'),
@@ -148,6 +165,56 @@ export default defineSchema({
     .index('by_enabled', ['isEnabled'])
     .index('by_providerId', ['providerId']),
 
+  modelSelectionProfiles: defineTable({
+    modelId: v.id('models'),
+    providerId: v.id('providers'),
+    tierAllowed: v.array(modelSelectionTierValidator),
+    pricing: v.optional(
+      v.object({
+        inputPer1M: v.number(),
+        outputPer1M: v.number(),
+        currency: v.optional(v.string()),
+      }),
+    ),
+    latencyStats: v.optional(
+      v.object({
+        p50Ms: v.number(),
+        p95Ms: v.number(),
+      }),
+    ),
+    contextWindow: v.optional(v.number()),
+    maxOutputTokens: v.optional(v.number()),
+    capabilities: v.optional(v.array(v.string())),
+    toolCallReliability: v.optional(v.number()),
+    benchmarkScores: v.optional(v.record(v.string(), v.number())),
+    historicalSuccessRate: v.optional(v.number()),
+    riskScore: v.optional(v.number()),
+    isExternal: v.optional(v.boolean()),
+    updatedAt: v.number(),
+  })
+    .index('by_modelId', ['modelId'])
+    .index('by_providerId', ['providerId']),
+
+  modelRoutingPolicies: defineTable({
+    tier: modelSelectionTierValidator,
+    taskType: v.optional(modelSelectionTaskTypeValidator),
+    isEnabled: v.boolean(),
+    maxCostPerRequest: v.optional(v.number()),
+    maxLatencyMs: v.optional(v.number()),
+    minQualityScore: v.optional(v.number()),
+    qualityWeight: v.optional(v.number()),
+    costWeight: v.optional(v.number()),
+    speedWeight: v.optional(v.number()),
+    toolWeight: v.optional(v.number()),
+    contextWeight: v.optional(v.number()),
+    riskWeight: v.optional(v.number()),
+    allowedModelIds: v.optional(v.array(v.id('models'))),
+    fallbackModelIds: v.optional(v.array(v.id('models'))),
+    updatedAt: v.number(),
+  })
+    .index('by_tier', ['tier'])
+    .index('by_tier_taskType', ['tier', 'taskType']),
+
   modelCollections: defineTable({
     name: v.string(),
     description: v.optional(v.string()),
@@ -194,12 +261,87 @@ export default defineSchema({
     promptTokens: v.number(),
     completionTokens: v.number(),
     totalTokens: v.number(),
+    tier: v.optional(modelSelectionTierValidator),
+    routerDecisionId: v.optional(v.string()),
+    escalationDepth: v.optional(v.number()),
+    validationPassed: v.optional(v.boolean()),
+    estimatedCost: v.optional(v.number()),
+    latencyMs: v.optional(v.number()),
     createdAt: v.number(),
   })
     .index('by_createdAt', ['createdAt'])
     .index('by_model_createdAt', ['modelId', 'createdAt'])
     .index('by_provider_createdAt', ['providerId', 'createdAt'])
     .index('by_user_createdAt', ['userId', 'createdAt']),
+
+  routerEvents: defineTable({
+    decisionId: v.string(),
+    userId: v.optional(v.id('users')),
+    threadId: v.optional(v.string()),
+    tier: modelSelectionTierValidator,
+    taskType: modelSelectionTaskTypeValidator,
+    complexityScore: v.number(),
+    requiresTools: v.boolean(),
+    requiresReasoning: v.boolean(),
+    selectedModelId: v.id('models'),
+    selectedProviderId: v.id('providers'),
+    candidateModelIds: v.array(v.id('models')),
+    fallbackModelIds: v.array(v.id('models')),
+    estimatedInputTokens: v.number(),
+    estimatedOutputTokens: v.number(),
+    estimatedCost: v.optional(v.number()),
+    maxCostConstraint: v.optional(v.number()),
+    maxLatencyConstraint: v.optional(v.number()),
+    scoreBreakdown: v.object({
+      qualityFit: v.number(),
+      costFit: v.number(),
+      speedFit: v.number(),
+      toolFit: v.number(),
+      contextFit: v.number(),
+      riskPenalty: v.number(),
+      totalScore: v.number(),
+    }),
+    fallbackUsed: v.optional(v.boolean()),
+    finalModelId: v.optional(v.id('models')),
+    finalSuccess: v.optional(v.boolean()),
+    validationPassed: v.optional(v.boolean()),
+    latencyMs: v.optional(v.number()),
+    actualCost: v.optional(v.number()),
+    promptTokens: v.optional(v.number()),
+    completionTokens: v.optional(v.number()),
+    totalTokens: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index('by_decisionId', ['decisionId'])
+    .index('by_createdAt', ['createdAt'])
+    .index('by_tier_createdAt', ['tier', 'createdAt']),
+
+  trainingExamples: defineTable({
+    source: v.union(
+      v.literal('benchmark'),
+      v.literal('production'),
+      v.literal('synthetic'),
+    ),
+    taskType: modelSelectionTaskTypeValidator,
+    tier: v.optional(modelSelectionTierValidator),
+    promptHash: v.string(),
+    promptPreview: v.optional(v.string()),
+    targetModelId: v.optional(v.id('models')),
+    targetResponse: v.optional(v.string()),
+    qualityLabel: v.optional(v.number()),
+    costLabel: v.optional(v.number()),
+    latencyLabel: v.optional(v.number()),
+    successLabel: v.optional(v.boolean()),
+    split: v.optional(
+      v.union(v.literal('train'), v.literal('validation'), v.literal('test')),
+    ),
+    metadata: v.optional(v.record(v.string(), v.string())),
+    createdAt: v.number(),
+  })
+    .index('by_source', ['source'])
+    .index('by_taskType', ['taskType'])
+    .index('by_createdAt', ['createdAt']),
 
   // Chat sections (folders) for organizing threads
   sections: defineTable({

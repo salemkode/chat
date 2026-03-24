@@ -1190,6 +1190,169 @@ export declare const api: {
       any
     >;
   };
+  modelSelection: {
+    ingestTrainingExamples: FunctionReference<
+      "mutation",
+      "public",
+      {
+        examples: Array<{
+          costLabel?: number;
+          latencyLabel?: number;
+          metadata?: Record<string, string>;
+          promptHash: string;
+          promptPreview?: string;
+          qualityLabel?: number;
+          source: "benchmark" | "production" | "synthetic";
+          split?: "train" | "validation" | "test";
+          successLabel?: boolean;
+          targetModelId?: Id<"models">;
+          targetResponse?: string;
+          taskType: "chat" | "coding" | "analysis" | "rewrite" | "qa";
+          tier?: "free" | "pro" | "advanced" | "light" | "medium";
+        }>;
+      },
+      { inserted: number }
+    >;
+    listRoutingPolicies: FunctionReference<
+      "query",
+      "public",
+      { tier?: "free" | "pro" | "advanced" | "light" | "medium" },
+      any
+    >;
+    reportOutcome: FunctionReference<
+      "mutation",
+      "public",
+      {
+        actualCost?: number;
+        completionTokens?: number;
+        costLabel?: number;
+        decisionId: string;
+        fallbackUsed: boolean;
+        finalModelId?: Id<"models">;
+        finalSuccess: boolean;
+        latencyLabel?: number;
+        latencyMs?: number;
+        promptHash?: string;
+        promptPreview?: string;
+        promptTokens?: number;
+        qualityLabel?: number;
+        totalTokens?: number;
+        validationPassed?: boolean;
+      },
+      { ok: boolean }
+    >;
+    selectModel: FunctionReference<
+      "mutation",
+      "public",
+      {
+        constraints?: {
+          hardCostLimit?: boolean;
+          hardLatencyLimit?: boolean;
+          maxCost?: number;
+          maxLatencyMs?: number;
+        };
+        requestContext?: {
+          attachmentTypes?: Array<string>;
+          complexityScore?: number;
+          estimatedInputTokens?: number;
+          estimatedOutputTokens?: number;
+          needsLongContext?: boolean;
+          prompt?: string;
+          promptChars?: number;
+          requiresReasoning?: boolean;
+          requiresTools?: boolean;
+          taskType?: "chat" | "coding" | "analysis" | "rewrite" | "qa";
+          toolTypes?: Array<string>;
+        };
+        requiresReasoning?: {
+          enabled: boolean;
+          level?: "low" | "medium" | "high";
+        };
+        requiresTools?: { enabled: boolean; toolTypes?: Array<string> };
+        threadId?: string;
+        tier: "free" | "pro" | "advanced" | "light" | "medium";
+        userId?: Id<"users">;
+      },
+      {
+        complexityScore: number;
+        consideredModels: Array<{
+          modelDocId: Id<"models">;
+          modelName: string;
+          score: number;
+        }>;
+        decisionId: string;
+        estimatedCost: number | null;
+        fallbackChain: Array<{
+          modelDocId: Id<"models">;
+          modelName: string;
+          providerName: string;
+        }>;
+        scoreBreakdown: {
+          contextFit: number;
+          costFit: number;
+          qualityFit: number;
+          riskPenalty: number;
+          speedFit: number;
+          toolFit: number;
+          totalScore: number;
+        };
+        selectedModel: {
+          modelDocId: Id<"models">;
+          modelId: string;
+          modelName: string;
+          providerDocId: Id<"providers">;
+          providerName: string;
+          providerType: string;
+        };
+        taskType: "chat" | "coding" | "analysis" | "rewrite" | "qa";
+      }
+    >;
+    upsertModelSelectionProfile: FunctionReference<
+      "mutation",
+      "public",
+      {
+        benchmarkScores?: Record<string, number>;
+        capabilities?: Array<string>;
+        contextWindow?: number;
+        historicalSuccessRate?: number;
+        isExternal?: boolean;
+        latencyStats?: { p50Ms: number; p95Ms: number };
+        maxOutputTokens?: number;
+        modelId: Id<"models">;
+        pricing?: {
+          currency?: string;
+          inputPer1M: number;
+          outputPer1M: number;
+        };
+        riskScore?: number;
+        tierAllowed: Array<"free" | "pro" | "advanced" | "light" | "medium">;
+        toolCallReliability?: number;
+      },
+      Id<"modelSelectionProfiles">
+    >;
+    upsertRoutingPolicy: FunctionReference<
+      "mutation",
+      "public",
+      {
+        allowedModelIds?: Array<Id<"models">>;
+        contextWeight?: number;
+        costWeight?: number;
+        fallbackModelIds?: Array<Id<"models">>;
+        id?: Id<"modelRoutingPolicies">;
+        isEnabled: boolean;
+        maxCostPerRequest?: number;
+        maxLatencyMs?: number;
+        minQualityScore?: number;
+        qualityWeight?: number;
+        riskWeight?: number;
+        speedWeight?: number;
+        taskType?: "chat" | "coding" | "analysis" | "rewrite" | "qa";
+        tier: "free" | "pro" | "advanced" | "light" | "medium";
+        toolWeight?: number;
+      },
+      Id<"modelRoutingPolicies">
+    >;
+  };
   projects: {
     assignThreadToProject: FunctionReference<
       "mutation",

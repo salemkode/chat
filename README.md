@@ -1,10 +1,12 @@
 # Salemkode Chat
 
-Salemkode Chat is a Convex-powered AI chat application with:
+Salemkode Chat is a pnpm + Turbo monorepo for a Convex-powered AI chat product with:
 
 - Clerk authentication
+- Expo mobile app
+- TanStack Start web app
 - admin-managed model/provider configuration
-- a small `localStorage` cache of last-fetched chat data for offline read-back (no IndexedDB)
+- platform-specific offline read-back layers
 - a memory system for durable user, thread, and project context
 
 ## Main Docs
@@ -24,30 +26,39 @@ Salemkode Chat is a Convex-powered AI chat application with:
 
 ## Project Structure
 
-- `src/`: frontend routes, components, and offline client logic
+- `apps/mobile`: Expo Router mobile client
+- `apps/web`: TanStack Start web client
+- `packages/shared`: shared hooks and domain logic
 - `convex/`: backend schema, mutations, actions, and AI orchestration
 - `docs/`: project documentation
-- `public/`: static assets and manifest files
 
 ## Running Locally
 
-This repo uses Bun as the package manager.
+This repo uses pnpm as the package manager.
 
 ```bash
-bun install
-bun run dev
+pnpm install
+pnpm run dev
+```
+
+Mobile:
+
+```bash
+pnpm run mobile:dev
+pnpm run ios
+pnpm run android
 ```
 
 Useful commands:
 
 ```bash
-bun run build
-bun run test
-bun run lint
-bun run dev:scan
+pnpm run build
+pnpm run test
+pnpm run lint
+pnpm run dev:scan
 ```
 
-`bun run dev:scan` enables `react-scan` locally so you can inspect unnecessary renders and hot paths without changing app code.
+`pnpm run dev:scan` enables `react-scan` locally so you can inspect unnecessary renders and hot paths without changing app code.
 
 ## Environment Notes
 
