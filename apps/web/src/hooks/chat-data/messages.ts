@@ -8,6 +8,7 @@ import {
   isGenerationStalled,
 } from '@/lib/chat-generation'
 import { CHAT_STREAM_RESUME_EVENT } from '@/lib/chat-events'
+import { usePendingSends } from '@/hooks/chat-data/pending-sends'
 import { sortChatMessages } from '@/hooks/chat-data/message-order'
 import { readMessagesCache } from '@/offline/local-cache'
 import {
@@ -30,6 +31,8 @@ export type UseMessagesResult = {
 export function useMessages(threadId?: string): UseMessagesResult {
   const cacheUserId = useConvexUserIdForCache()
   const cacheVersion = useOfflineCacheVersion()
+  const threadKey = threadId ?? 'new'
+  const { selectPendingMessages } = usePendingSends()
   const [streamEnabled, setStreamEnabled] = useState(Boolean(threadId))
   const stableSignatureRef = useRef('')
   const stableSnapshotCountRef = useRef(0)
@@ -225,13 +228,21 @@ export function useMessages(threadId?: string): UseMessagesResult {
 
   const resolvedMessages =
     liveMessages.length > 0 ? liveMessages : orderedCachedMessages
+  const pendingMessages = useMemo(
+    () => sortChatMessages(selectPendingMessages(threadKey, liveMessages)),
+    [liveMessages, selectPendingMessages, threadKey],
+  )
+  const mergedMessages = useMemo(
+    () => sortChatMessages([...resolvedMessages, ...pendingMessages]),
+    [pendingMessages, resolvedMessages],
+  )
 
   return {
-    messages: resolvedMessages,
+    messages: mergedMessages,
     status,
     hasMore: status === 'CanLoadMore' || status === 'LoadingMore',
     isLoadingMore: status === 'LoadingMore',
-    hasRenderableMessages: resolvedMessages.length > 0,
+    hasRenderableMessages: mergedMessages.length > 0,
     loadOlderMessages: loadMore,
   }
 }

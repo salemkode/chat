@@ -3,7 +3,7 @@ import {
   ReasoningContent,
   ReasoningTrigger,
 } from '@/components/ui/reasoning'
-import { Sparkles } from 'lucide-react'
+import { Sparkles } from '@/lib/icons'
 import { MarkdownContent } from './MarkdownContent'
 import { useSmoothText } from '@convex-dev/agent/react'
 

@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { XIcon } from 'lucide-react'
+import { XIcon } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { useResponsiveOverlayMode } from '@/hooks/use-responsive-overlay-mode'
 import {
@@ -59,12 +59,13 @@ function useResponsivePopupContext() {
   return context
 }
 
-type ResponsiveModalSize = 'default' | 'medium' | 'large'
+export type ResponsiveModalSize = 'small' | 'page' | 'wide'
 
 const modalSizeClasses: Record<ResponsiveModalSize, string> = {
-  default: 'sm:max-w-[42rem]',
-  medium: 'sm:max-w-[48rem]',
-  large: 'sm:max-w-[64rem]',
+  small: 'md:w-[32rem]',
+  page: 'md:w-[45rem]',
+  /** Two-column shells (e.g. settings): ~900px on desktop, capped to viewport. */
+  wide: 'md:w-[min(56.25rem,calc(100vw-2rem))]',
 }
 
 function ResponsiveModal({
@@ -98,7 +99,7 @@ function ResponsiveModalContent({
   className,
   children,
   showCloseButton = true,
-  size = 'default',
+  size = 'small',
   ...props
 }: Omit<React.ComponentProps<typeof DialogContent>, 'showCloseButton'> & {
   showCloseButton?: boolean
@@ -132,7 +133,7 @@ function ResponsiveModalContent({
     <DialogContent
       showCloseButton={showCloseButton}
       className={cn(
-        'w-full max-w-[calc(100%-2rem)] rounded-2xl border-[--overlay-border-strong] bg-popover text-popover-foreground',
+        'w-full max-w-[calc(100%-2rem)] rounded-[var(--overlay-radius-desktop)] border-[--overlay-border-strong] bg-popover text-popover-foreground',
         modalSizeClasses[size],
         className,
       )}
@@ -150,7 +151,7 @@ function ResponsiveModalHeader({
   return (
     <div
       className={cn(
-        'flex items-center justify-between gap-3 border-b border-border/80 px-5 py-4',
+        'flex items-center justify-between gap-3 border-b border-border/80 px-5 py-4 md:px-6',
         className,
       )}
       {...props}
@@ -162,7 +163,7 @@ function ResponsiveModalBody({
   className,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('min-h-0 flex-1 overflow-y-auto px-5 py-4', className)} {...props} />
+  return <div className={cn('min-h-0 flex-1 overflow-y-auto px-5 py-4 md:px-6', className)} {...props} />
 }
 
 function ResponsiveModalFooter({
@@ -172,7 +173,7 @@ function ResponsiveModalFooter({
   return (
     <div
       className={cn(
-        'mt-auto border-t border-border/80 px-5 py-4',
+        'mt-auto border-t border-border/80 px-5 py-4 md:px-6',
         className,
       )}
       {...props}
@@ -276,7 +277,7 @@ function ResponsivePopupTrigger({
 function ResponsivePopupContent({
   className,
   children,
-  size = 'default',
+  size = 'small',
   align = 'start',
   side = 'bottom',
   sideOffset = 8,
@@ -306,12 +307,7 @@ function ResponsivePopupContent({
     )
   }
 
-  const widthClass =
-    size === 'large'
-      ? 'w-[28rem]'
-      : size === 'medium'
-        ? 'w-[24rem]'
-        : 'w-[20rem]'
+  const widthClass = size === 'page' ? 'w-[28rem]' : 'w-[20rem]'
 
   return (
     <PopoverContent

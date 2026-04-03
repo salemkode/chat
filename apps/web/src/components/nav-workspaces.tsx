@@ -1,4 +1,4 @@
-import { ChevronRight, MoreHorizontal, Plus } from 'lucide-react'
+import { ChevronRight, MoreHorizontal, Plus } from '@/lib/icons'
 
 import {
   Collapsible,

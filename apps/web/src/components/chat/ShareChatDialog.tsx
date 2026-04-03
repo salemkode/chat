@@ -1,6 +1,6 @@
 import { useMutation } from 'convex/react'
 import { api } from '@convex/_generated/api'
-import { Check, Copy, ExternalLink, Loader2, Share2 } from 'lucide-react'
+import { Check, Copy, ExternalLink, Loader2, Share2 } from '@/lib/icons'
 import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DialogHeader } from '@/components/ui/dialog'
@@ -90,7 +90,7 @@ export function ShareChatDialog({
         <span>Share</span>
       </Button>
 
-      <ResponsiveModalContent size="medium" className="sm:max-w-xl">
+      <ResponsiveModalContent size="small">
         <DialogHeader>
           <ResponsiveModalTitle>Share chat</ResponsiveModalTitle>
           <ResponsiveModalDescription>

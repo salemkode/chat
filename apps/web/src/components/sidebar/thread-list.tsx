@@ -1,7 +1,8 @@
 'use client'
 
 import * as React from 'react'
-import { Pin, X } from 'lucide-react'
+import { Pin, X } from '@/lib/icons'
+import { Button } from '@/components/ui/button'
 import { SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar'
 import { cn } from '@/lib/utils'
 
@@ -22,9 +23,11 @@ function IconActionButton({
   onClick: () => void
 }) {
   return (
-    <button
+    <Button
       type="button"
-      className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
+      variant="ghost"
+      size="icon-sm"
+      className="text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
       aria-label={label}
       onClick={(event) => {
         event.preventDefault()
@@ -33,7 +36,7 @@ function IconActionButton({
       }}
     >
       {icon}
-    </button>
+    </Button>
   )
 }
 
@@ -61,16 +64,17 @@ export function ThreadRow({
         )}
       >
         <div>
-          <button
+          <Button
             type="button"
-            className="flex min-w-0 flex-1 items-center gap-2 text-left"
+            variant="ghost"
+            className="flex h-auto min-w-0 flex-1 justify-start gap-2 text-left"
             onClick={onOpen}
           >
             <span className="shrink-0">{thread.emoji}</span>
             <span className="truncate text-sm">
               {thread.title || 'Untitled chat'}
             </span>
-          </button>
+          </Button>
           <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover/thread:opacity-100">
             <IconActionButton
               label={thread.pinned ? 'Unpin chat' : 'Pin chat'}

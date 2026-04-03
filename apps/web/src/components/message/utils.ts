@@ -64,6 +64,8 @@ export function areMessagePropsEqual(
     previousMessage.role !== nextMessage.role ||
     previousMessage.status !== nextMessage.status ||
     previousMessage.text !== nextMessage.text ||
+    previousMessage.localOnly !== nextMessage.localOnly ||
+    previousMessage.clientSendId !== nextMessage.clientSendId ||
     previousMessage.failureKind !== nextMessage.failureKind ||
     previousMessage.failureMode !== nextMessage.failureMode ||
     previousMessage.failureNote !== nextMessage.failureNote

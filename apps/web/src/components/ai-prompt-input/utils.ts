@@ -9,6 +9,54 @@ export type ComposerReasoning = {
   level?: 'low' | 'medium' | 'high'
 }
 
+export type TextAttachment = {
+  id: string
+  text: string
+  label: string
+}
+
+const TEXT_ATTACHMENT_CHAR_THRESHOLD = 500
+const TEXT_ATTACHMENT_LINE_THRESHOLD = 10
+
+export function shouldConvertToTextAttachment(text: string): boolean {
+  if (text.length >= TEXT_ATTACHMENT_CHAR_THRESHOLD) return true
+  const lineCount = text.split('\n').length
+  return lineCount >= TEXT_ATTACHMENT_LINE_THRESHOLD
+}
+
+let textAttachmentCounter = 0
+
+export function createTextAttachment(text: string): TextAttachment {
+  textAttachmentCounter += 1
+  const lineCount = text.split('\n').length
+  const label =
+    lineCount > 1
+      ? `Pasted text (${lineCount} lines)`
+      : `Pasted text (${formatBytes(new Blob([text]).size)})`
+  return {
+    id: `text-${Date.now()}-${textAttachmentCounter}`,
+    text,
+    label,
+  }
+}
+
+export function getTextAttachmentPreview(text: string, maxLines = 3): string {
+  const lines = text.split('\n')
+  const preview = lines.slice(0, maxLines).join('\n')
+  return lines.length > maxLines ? `${preview}…` : preview
+}
+
+export function combineTextAttachmentsWithPrompt(
+  prompt: string,
+  textAttachments: TextAttachment[],
+): string {
+  if (textAttachments.length === 0) return prompt
+  const blocks = textAttachments.map((att) => att.text)
+  const combined = blocks.join('\n\n')
+  if (!prompt.trim()) return combined
+  return `${combined}\n\n${prompt}`
+}
+
 export function formatAttachmentMeta(file: File) {
   return `${getAttachmentLabel(file.type)} • ${formatBytes(file.size)}`
 }

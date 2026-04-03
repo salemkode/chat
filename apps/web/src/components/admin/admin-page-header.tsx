@@ -1,4 +1,4 @@
-import { ArrowLeft, RefreshCcw, Shield } from 'lucide-react'
+import { ArrowLeft, RefreshCcw, Shield } from '@/lib/icons'
 import type { AdminCollectionDialogProps } from '@/components/admin/admin-collection-dialog'
 import { AdminCollectionDialog } from '@/components/admin/admin-collection-dialog'
 import type { AdminModelDialogProps } from '@/components/admin/admin-model-dialog'

@@ -1,5 +1,4 @@
 import { defineConfig } from 'vite'
-import { devtools } from '@tanstack/devtools-vite'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import netlify from '@netlify/vite-plugin-tanstack-start'
 import viteReact from '@vitejs/plugin-react'
@@ -7,13 +6,6 @@ import { VitePWA } from 'vite-plugin-pwa'
 import { fileURLToPath, URL } from 'node:url'
 
 import tailwindcss from '@tailwindcss/vite'
-
-const tanstackEventBusEnabled = process.env.TANSTACK_DEVTOOLS_EVENT_BUS === '1'
-const tanstackViteDevtoolsEnabled = process.env.TANSTACK_VITE_DEVTOOLS === '1'
-const tanstackEventBusPort = Number.parseInt(
-  process.env.TANSTACK_DEVTOOLS_EVENT_BUS_PORT ?? '42069',
-  10,
-)
 
 const config = defineConfig({
   optimizeDeps: {
@@ -38,19 +30,10 @@ const config = defineConfig({
     },
   },
   plugins: [
-    ...(tanstackViteDevtoolsEnabled
-      ? [
-          devtools({
-            eventBusConfig: {
-              enabled: tanstackEventBusEnabled,
-              port: Number.isFinite(tanstackEventBusPort)
-                ? tanstackEventBusPort
-                : 42069,
-            },
-          }),
-        ]
-      : []),
     tanstackStart({
+      spa: {
+        enabled: true,
+      },
       srcDirectory: 'src',
       router: {
         routesDirectory: './routes',

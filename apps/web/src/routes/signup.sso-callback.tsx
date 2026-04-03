@@ -6,7 +6,7 @@ import {
 } from '@clerk/tanstack-react-start'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useEffect } from 'react'
-import { Loader2 } from 'lucide-react'
+import { Loader2 } from '@/lib/icons'
 
 export const Route = createFileRoute('/signup/sso-callback')({
   ssr: false,

@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button'
-import { Send, Paperclip, Smile } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Send, Paperclip, Smile } from '@/lib/icons'
 import { useState } from 'react'
 
 interface ChatInputProps {
@@ -33,7 +34,7 @@ export function ChatInput({ onSendMessage, hasActiveThread }: ChatInputProps) {
     <div className="p-4 border-t border-border bg-background">
       <div className="max-w-4xl mx-auto">
         <form onSubmit={handleSubmit} className="relative">
-          <input
+          <Input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}

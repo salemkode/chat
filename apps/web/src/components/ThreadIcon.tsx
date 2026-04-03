@@ -1,6 +1,6 @@
 'use client'
 
-import { MessageCircle } from 'lucide-react'
+import { MessageCircle } from '@/lib/icons'
 import { getLucideIcon } from '@/lib/lucide'
 
 interface ThreadIconProps {

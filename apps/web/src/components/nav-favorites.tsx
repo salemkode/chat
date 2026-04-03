@@ -6,13 +6,14 @@ import {
   MoreHorizontal,
   StarOff,
   Trash2,
-} from 'lucide-react'
+} from '@/lib/icons'
 
 import {
   ResponsivePopup,
   ResponsivePopupContent,
   ResponsivePopupTrigger,
 } from '@/components/ui/responsive-overlay'
+import { Button } from '@/components/ui/button'
 import {
   SidebarGroup,
   SidebarGroupLabel,
@@ -51,24 +52,24 @@ export function NavFavorites({
                 </SidebarMenuAction>
               </ResponsivePopupTrigger>
               <ResponsivePopupContent className="w-56 rounded-lg" side="right" align="start">
-                <button className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent">
+                <Button type="button" variant="ghost" className="flex h-auto w-full justify-start gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent">
                   <StarOff className="text-muted-foreground" />
                   <span>Remove from Favorites</span>
-                </button>
+                </Button>
                 <div className="bg-border my-1 h-px" />
-                <button className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent">
+                <Button type="button" variant="ghost" className="flex h-auto w-full justify-start gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent">
                   <Link className="text-muted-foreground" />
                   <span>Copy Link</span>
-                </button>
-                <button className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent">
+                </Button>
+                <Button type="button" variant="ghost" className="flex h-auto w-full justify-start gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent">
                   <ArrowUpRight className="text-muted-foreground" />
                   <span>Open in New Tab</span>
-                </button>
+                </Button>
                 <div className="bg-border my-1 h-px" />
-                <button className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent">
+                <Button type="button" variant="ghost" className="flex h-auto w-full justify-start gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent">
                   <Trash2 className="text-muted-foreground" />
                   <span>Delete</span>
-                </button>
+                </Button>
               </ResponsivePopupContent>
             </ResponsivePopup>
           </SidebarMenuItem>

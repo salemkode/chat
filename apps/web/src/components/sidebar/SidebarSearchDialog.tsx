@@ -4,7 +4,7 @@ import * as React from 'react'
 import { useAction } from 'convex/react'
 import type { FunctionReturnType } from 'convex/server'
 import { useNavigate } from '@tanstack/react-router'
-import { Loader2, Search, X } from 'lucide-react'
+import { Loader2, Search, X } from '@/lib/icons'
 import { api } from '@convex/_generated/api'
 import { Button } from '@/components/ui/button'
 import {
@@ -134,9 +134,9 @@ export function SidebarSearchDialog({ isOnline }: { isOnline: boolean }) {
 
       <ResponsiveModal open={open} onOpenChange={handleOpenChange}>
         <ResponsiveModalContent
-          size="large"
+          size="small"
           showCloseButton={false}
-          className="max-w-[46rem] gap-0 overflow-hidden rounded-[1.6rem] border border-white/8 bg-[#1f1f1f] p-0 text-white"
+          className="gap-0 overflow-hidden rounded-[1.6rem] border border-white/8 bg-[#1f1f1f] p-0 text-white"
         >
           <div className="sr-only">
             <ResponsiveModalTitle>Search chats</ResponsiveModalTitle>
@@ -160,13 +160,15 @@ export function SidebarSearchDialog({ isOnline }: { isOnline: boolean }) {
                 />
               </div>
               <ResponsiveModalClose asChild>
-                <button
+                <Button
                   type="button"
-                  className="inline-flex size-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+                  variant="outline"
+                  size="icon"
+                  className="rounded-full border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
                   aria-label="Close search"
                 >
                   <X className="size-4" />
-                </button>
+                </Button>
               </ResponsiveModalClose>
             </div>
           </div>
@@ -196,10 +198,11 @@ export function SidebarSearchDialog({ isOnline }: { isOnline: boolean }) {
             ) : (
               <div className="divide-y divide-white/6">
                 {searchState.results.map((result) => (
-                  <button
+                  <Button
                     key={result.messageId}
                     type="button"
-                    className="flex w-full items-start gap-3 px-5 py-4 text-left transition-colors hover:bg-white/5"
+                    variant="ghost"
+                    className="flex h-auto w-full justify-start gap-3 px-5 py-4 text-left transition-colors hover:bg-white/5"
                     onClick={() => {
                       handleOpenChange(false)
                       void navigate({
@@ -226,7 +229,7 @@ export function SidebarSearchDialog({ isOnline }: { isOnline: boolean }) {
                         {result.snippet}
                       </p>
                     </div>
-                  </button>
+                  </Button>
                 ))}
               </div>
             )}

@@ -1,11 +1,13 @@
 import { useSmoothText } from '@convex-dev/agent/react'
+import { getQuranAyahCardFromParts } from '@chat/shared/quran-ayah'
 import type { FunctionReturnType } from 'convex/server'
 import { api } from '@convex/_generated/api'
-import { AlertCircle } from 'lucide-react'
-import { memo, useMemo } from 'react'
+import { AlertCircle, FileText, ChevronDown, ChevronUp } from '@/lib/icons'
+import { memo, useMemo, useState } from 'react'
 import { useIsMobile } from '@chat/shared/hooks/use-mobile'
 import { getMessageFailurePresentation } from '@/lib/chat-generation'
 import { cn } from '@/lib/utils'
+import { QuranAyahCard } from './chat/QuranAyahCard'
 import { MessageActivityTimeline } from './chat/MessageActivityTimeline'
 import { ChatMarkdown } from './ChatMarkdown'
 import { CopyButton } from './CopyButton'
@@ -65,9 +67,14 @@ export const Message = memo(function Message({
     () => getMessageFileParts(message.parts),
     [message.parts],
   )
+  const ayahCard = useMemo(
+    () => getQuranAyahCardFromParts(message.parts),
+    [message.parts],
+  )
   const shouldShowResponsePlaceholder =
     !isFailedAssistant &&
     (message.status === 'streaming' || message.status === 'pending') &&
+    !ayahCard &&
     !visibleText.trim()
 
   if (message.role === 'assistant') {
@@ -116,14 +123,20 @@ export const Message = memo(function Message({
         ) : (
           <div
             dir="auto"
-            className={cn('px-1 py-1', isMobile && 'px-0.5 py-1.5')}
+            className={cn(
+              'space-y-3 px-1 py-1',
+              isMobile && 'space-y-3.5 px-0.5 py-1.5',
+            )}
           >
-            <ChatMarkdown
-              text={visibleText}
-              isStreaming={
-                message.status === 'streaming' || message.status === 'pending'
-              }
-            />
+            {ayahCard ? <QuranAyahCard ayah={ayahCard} /> : null}
+            {visibleText.trim() ? (
+              <ChatMarkdown
+                text={visibleText}
+                isStreaming={
+                  message.status === 'streaming' || message.status === 'pending'
+                }
+              />
+            ) : null}
           </div>
         )}
         {shouldShowFailureClarification ? (
@@ -148,51 +161,129 @@ export const Message = memo(function Message({
           </div>
         ) : null}
 
-        <div
-          className={cn(
-            'mt-3 flex items-center gap-2 border-t border-border/50 pt-2 sm:mt-4 sm:gap-3 sm:pt-3',
-            isMobile && 'mt-4 gap-3 border-border/35 pt-3',
-          )}
-        >
+        {!message.localOnly ? (
+          <div
+            className={cn(
+              'mt-3 flex items-center gap-2 border-t border-border/50 pt-2 sm:mt-4 sm:gap-3 sm:pt-3',
+              isMobile && 'mt-4 gap-3 border-border/35 pt-3',
+            )}
+          >
+            <CopyButton text={message.text} />
+            {isActiveGeneration ? (
+              <StopButton
+                threadId={threadId}
+                promptMessageId={promptMessageId}
+              />
+            ) : null}
+            {shouldShowResend ? (
+              <ResendButton
+                threadId={threadId}
+                promptMessageId={promptMessageId}
+                forceStopFirst={isStalled}
+              />
+            ) : null}
+            {!shouldShowResend ? (
+              <RepeatButton
+                threadId={threadId}
+                promptMessageId={promptMessageId}
+                disabled={disableRepeat}
+              />
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    )
+  }
+
+  const isLongUserMessage = visibleText.length >= 500 || visibleText.split('\n').length >= 10
+
+  return (
+    <div className="mx-auto flex w-full max-w-3xl flex-col items-end">
+      <div
+        className={cn(
+          'max-w-[85%] space-y-3 rounded-tl-xl rounded-tr-xl rounded-bl-xl bg-secondary px-3 py-2 text-secondary-foreground sm:max-w-[75%] sm:px-4 sm:py-2.5',
+          isMobile && 'max-w-[90%] rounded-[1.35rem] bg-secondary/92 px-3.5 py-3',
+        )}
+      >
+        {fileParts.length > 0 ? <MessageAttachments files={fileParts} /> : null}
+        {visibleText.trim() ? (
+          isLongUserMessage ? (
+            <CollapsibleUserText text={visibleText} />
+          ) : (
+            <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+              {visibleText}
+            </p>
+          )
+        ) : null}
+      </div>
+      {visibleText.trim() ? (
+        <div className="mt-2 flex items-center justify-end">
           <CopyButton text={message.text} />
-          {isActiveGeneration ? (
-            <StopButton threadId={threadId} promptMessageId={promptMessageId} />
-          ) : null}
-          {shouldShowResend ? (
-            <ResendButton
-              threadId={threadId}
-              promptMessageId={promptMessageId}
-              forceStopFirst={isStalled}
-            />
-          ) : null}
-          {!shouldShowResend ? (
-            <RepeatButton
-              threadId={threadId}
-              promptMessageId={promptMessageId}
-              disabled={disableRepeat}
-            />
-          ) : null}
         </div>
+      ) : null}
+    </div>
+  )
+}, areMessagePropsEqual)
+
+const COLLAPSED_LINE_LIMIT = 4
+
+function CollapsibleUserText({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false)
+  const lines = text.split('\n')
+  const lineCount = lines.length
+  const charCount = text.length
+  const preview = lines.slice(0, COLLAPSED_LINE_LIMIT).join('\n')
+
+  if (!expanded) {
+    return (
+      <div className="space-y-2">
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          className="flex w-full items-center gap-2.5 rounded-xl border border-border/50 bg-background/40 px-3 py-2 text-left transition-colors hover:bg-background/60"
+        >
+          <FileText className="size-4 shrink-0 text-muted-foreground" />
+          <div className="min-w-0 flex-1">
+            <div className="text-xs font-medium text-foreground/80">
+              Pasted text
+            </div>
+            <div className="mt-0.5 text-[11px] text-muted-foreground">
+              {charCount.toLocaleString()} chars · {lineCount}{' '}
+              {lineCount === 1 ? 'line' : 'lines'}
+            </div>
+          </div>
+          <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
+        </button>
+        <pre className="line-clamp-4 whitespace-pre-wrap break-words text-sm leading-relaxed text-secondary-foreground/70">
+          {preview}
+          {lines.length > COLLAPSED_LINE_LIMIT ? '…' : ''}
+        </pre>
       </div>
     )
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl justify-end">
-      <div
-        className={cn(
-          'max-w-[85%] space-y-3 rounded-tl-xl rounded-tr-xl rounded-bl-xl bg-secondary px-3 py-2 text-secondary-foreground shadow-sm sm:max-w-[75%] sm:px-4 sm:py-2.5',
-          isMobile &&
-            'max-w-[90%] rounded-[1.35rem] bg-secondary/92 px-3.5 py-3 shadow-[0_10px_24px_rgba(15,23,42,0.08)]',
-        )}
+    <div className="space-y-2">
+      <button
+        type="button"
+        onClick={() => setExpanded(false)}
+        className="flex w-full items-center gap-2.5 rounded-xl border border-border/50 bg-background/40 px-3 py-2 text-left transition-colors hover:bg-background/60"
       >
-        {fileParts.length > 0 ? <MessageAttachments files={fileParts} /> : null}
-        {visibleText.trim() ? (
-          <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
-            {visibleText}
-          </p>
-        ) : null}
-      </div>
+        <FileText className="size-4 shrink-0 text-muted-foreground" />
+        <div className="min-w-0 flex-1">
+          <div className="text-xs font-medium text-foreground/80">
+            Pasted text
+          </div>
+          <div className="mt-0.5 text-[11px] text-muted-foreground">
+            {charCount.toLocaleString()} chars · {lineCount}{' '}
+            {lineCount === 1 ? 'line' : 'lines'}
+          </div>
+        </div>
+        <ChevronUp className="size-3.5 shrink-0 text-muted-foreground" />
+      </button>
+      <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+        {text}
+      </p>
     </div>
   )
-}, areMessagePropsEqual)
+}

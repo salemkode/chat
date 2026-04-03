@@ -9,4 +9,4 @@ export type AdminProvider = DashboardData['providers'][number]
 export type AdminModel = DashboardData['models'][number]
 export type AdminModelCollection = DashboardData['collections'][number]
 
-export type IconType = 'emoji' | 'lucide' | 'upload' | undefined
+export type IconType = 'emoji' | 'lucide' | 'phosphor' | 'upload' | undefined

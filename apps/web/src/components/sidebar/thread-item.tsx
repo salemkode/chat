@@ -2,7 +2,9 @@
 
 import { memo } from 'react'
 import { Link } from '@tanstack/react-router'
-import { Pin, X } from 'lucide-react'
+import { Pin, X } from '@/lib/icons'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import {
   Tooltip,
@@ -57,10 +59,15 @@ export const ThreadItem = memo(function ThreadItem({
               aria-current={isActive ? 'page' : undefined}
             >
               <div className="relative flex w-full items-center">
-                <button data-state="closed" className="w-full" tabIndex={-1}>
+                <Button
+                  data-state="closed"
+                  variant="ghost"
+                  className="h-auto w-full justify-start p-0 hover:bg-transparent"
+                  tabIndex={-1}
+                >
                   <div className="relative overflow-visible w-full">
                     <div className="relative w-full cursor-pointer transition-[filter] duration-500 ease-snappy">
-                      <input
+                      <Input
                         aria-label="Thread title"
                         aria-describedby="thread-title-hint"
                         aria-readonly="true"
@@ -81,7 +88,7 @@ export const ThreadItem = memo(function ThreadItem({
                       />
                     </div>
                   </div>
-                </button>
+                </Button>
 
                 {/* Action buttons - appear on hover */}
                 <div
@@ -104,7 +111,10 @@ export const ThreadItem = memo(function ThreadItem({
                   {/* Pin button */}
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <button
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
                         className="rounded-md p-1.5 hover:bg-muted/40 transition-colors"
                         tabIndex={-1}
                         onClick={(e) => {
@@ -115,7 +125,7 @@ export const ThreadItem = memo(function ThreadItem({
                         aria-label="Pin Thread"
                       >
                         <Pin className="size-4" aria-hidden="true" />
-                      </button>
+                      </Button>
                     </TooltipTrigger>
                     <TooltipContent side="top">
                       <p>Pin Thread</p>
@@ -125,7 +135,10 @@ export const ThreadItem = memo(function ThreadItem({
                   {/* Delete button */}
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <button
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
                         className="rounded-md p-1.5 hover:bg-destructive/50 hover:text-destructive-foreground transition-colors"
                         tabIndex={-1}
                         onClick={(e) => {
@@ -136,7 +149,7 @@ export const ThreadItem = memo(function ThreadItem({
                         aria-label="Delete thread"
                       >
                         <X className="size-4" aria-hidden="true" />
-                      </button>
+                      </Button>
                     </TooltipTrigger>
                     <TooltipContent side="top">
                       <p>Delete thread</p>

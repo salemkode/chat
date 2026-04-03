@@ -1,10 +1,17 @@
 import type { Id } from '@convex/_generated/dataModel'
-import { ExternalLink, FileText, RefreshCw, RotateCcw, Square } from 'lucide-react'
+import {
+  ExternalLink,
+  FileText,
+  RefreshCw,
+  RotateCcw,
+  Square,
+} from '@/lib/icons'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useChatModel } from '@/components/chat-model-context'
 import { useModels, useSendMessage } from '@/hooks/use-chat-data'
 import { cn } from '@/lib/utils'
 import { ModelSelectorPanel } from '@/components/model-selector'
+import { Button } from '@/components/ui/button'
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
 import type { MessageFilePart } from '@/components/message/utils'
 
@@ -153,8 +160,10 @@ export function RepeatButton({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverAnchor asChild>
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon-sm"
           disabled={!canRepeat || disabledReason !== null}
           className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
           aria-label={
@@ -208,23 +217,21 @@ export function RepeatButton({
           <RefreshCw
             className={isRepeating ? 'h-4 w-4 animate-spin' : 'h-4 w-4'}
           />
-        </button>
+        </Button>
       </PopoverAnchor>
 
       <PopoverContent
-        className="w-[360px] overflow-hidden p-0"
+        className="w-[min(100vw-1rem,20rem)] overflow-hidden p-0"
         side="top"
         align="start"
         onMouseEnter={clearCloseTimer}
         onMouseLeave={scheduleClose}
       >
         <div className="border-b border-border px-3 py-2.5">
-          <div className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            Repeat with
-          </div>
-          <div className="mt-1 text-sm text-foreground">
-            {currentModel?.displayName || 'Select a model'}
-          </div>
+          <p className="text-sm font-medium">Repeat with model</p>
+          <p className="text-xs text-muted-foreground">
+            Current: {currentModel?.displayName ?? '—'}
+          </p>
         </div>
         <ModelSelectorPanel
           selectedModel={selectedModelId}
@@ -249,8 +256,10 @@ export function StopButton({
   const [isStopping, setIsStopping] = useState(false)
 
   return (
-    <button
+    <Button
       type="button"
+      variant="ghost"
+      size="icon-sm"
       disabled={!promptMessageId || disabledReason !== null || isStopping}
       className="inline-flex items-center gap-1.5 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
       aria-label="Stop generation"
@@ -269,7 +278,7 @@ export function StopButton({
       }}
     >
       <Square className={cn('h-4 w-4', isStopping && 'animate-pulse')} />
-    </button>
+    </Button>
   )
 }
 
@@ -296,8 +305,10 @@ export function ResendButton({
   )
 
   return (
-    <button
+    <Button
       type="button"
+      variant="ghost"
+      size="icon-sm"
       disabled={
         !promptMessageId ||
         !selectedModelDocId ||
@@ -328,6 +339,6 @@ export function ResendButton({
       }}
     >
       <RotateCcw className={cn('h-4 w-4', isResending && 'animate-spin')} />
-    </button>
+    </Button>
   )
 }

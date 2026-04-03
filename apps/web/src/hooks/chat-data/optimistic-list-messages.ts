@@ -12,6 +12,10 @@ function optimisticUserMessage(
   threadId: string,
   prompt: string,
   now: number,
+  attachments?: Array<{
+    filename?: string
+    mediaType?: string
+  }>,
 ): ListMessagesPageItem {
   const order = now
   return {
@@ -23,7 +27,14 @@ function optimisticUserMessage(
     stepOrder: 0,
     status: 'success',
     _creationTime: now,
-    parts: [{ type: 'text', text: prompt, state: 'done' }],
+    parts: [
+      { type: 'text', text: prompt, state: 'done' },
+      ...(attachments ?? []).map((attachment) => ({
+        type: 'file',
+        filename: attachment.filename,
+        mediaType: attachment.mediaType,
+      })),
+    ],
   } as ListMessagesPageItem
 }
 
@@ -71,10 +82,14 @@ export function applyOptimisticGenerateMessage(
   localStore: OptimisticLocalStore,
   threadId: string,
   prompt: string,
+  attachments?: Array<{
+    filename?: string
+    mediaType?: string
+  }>,
 ) {
   const now = Date.now()
   const assistant = optimisticAssistantMessage(threadId, now)
-  const user = optimisticUserMessage(threadId, prompt, now)
+  const user = optimisticUserMessage(threadId, prompt, now, attachments)
   const sortKeyFromItem = (el: ListMessagesPageItem): Value | Value[] => [
     el.order,
     el.stepOrder,

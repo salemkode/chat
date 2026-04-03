@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access -- models list matches AdminModel[] at runtime */
 import { useMutation } from 'convex/react'
 import type { Doc } from '@convex/_generated/dataModel'
-import { Plus } from 'lucide-react'
+import { Plus } from '@/lib/icons'
 import { useCallback, useId, useReducer } from 'react'
 import { toast } from 'sonner'
 import { api } from '@convex/_generated/api'
@@ -81,7 +81,7 @@ export function AdminCollectionDialog({
         Add collection
       </Button>
       <ResponsiveModal open={open} onOpenChange={onOpenChange}>
-      <ResponsiveModalContent size="large" className="max-h-[90vh] max-w-3xl overflow-hidden">
+      <ResponsiveModalContent size="page" className="max-h-[90vh] overflow-hidden">
         <DialogHeader>
           <ResponsiveModalTitle>
             {editingCollection ? 'Edit collection' : 'Add collection'}

@@ -1,8 +1,11 @@
 'use client'
 
-import { ArrowUp, FileText, Folder, Globe, Paperclip, X } from 'lucide-react'
+import { ArrowUp, FileText, Folder, Globe, Paperclip, X, ChevronDown, ChevronUp } from '@/lib/icons'
 import { ModelSelector } from '@/components/model-selector'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -12,7 +15,12 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
-import { formatAttachmentMeta } from './utils'
+import { useState } from 'react'
+import {
+  formatAttachmentMeta,
+  getTextAttachmentPreview,
+  type TextAttachment,
+} from './utils'
 
 export type PendingAttachment = {
   id: string
@@ -43,14 +51,16 @@ export function SelectedProjectBadge({
     >
       <Folder className="size-3" />
       <span className="max-w-52 truncate">{selectedProject.name}</span>
-      <button
+      <Button
         type="button"
+        variant="plain"
+        size="none"
         onClick={onClear}
         className="inline-flex size-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         aria-label="Clear selected project"
       >
         <X className="size-3" />
-      </button>
+      </Button>
     </Badge>
   )
 }
@@ -102,16 +112,121 @@ export function AttachmentGrid({
               {formatAttachmentMeta(attachment.file)}
             </div>
           </div>
-          <button
+          <Button
             type="button"
+            variant="plain"
+            size="none"
             onClick={() => onRemove(attachment.id)}
             className="inline-flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             aria-label={`Remove ${attachment.file.name}`}
           >
             <X className="size-3.5" />
-          </button>
+          </Button>
         </div>
       ))}
+    </div>
+  )
+}
+
+export function TextAttachmentGrid({
+  textAttachments,
+  mobile,
+  onRemove,
+}: {
+  textAttachments: TextAttachment[]
+  mobile: boolean
+  onRemove: (id: string) => void
+}) {
+  if (textAttachments.length === 0) return null
+
+  return (
+    <div className={cn('flex w-full flex-col gap-2', mobile && 'gap-2.5')}>
+      {textAttachments.map((att) => (
+        <TextAttachmentCard
+          key={att.id}
+          attachment={att}
+          mobile={mobile}
+          onRemove={() => onRemove(att.id)}
+        />
+      ))}
+    </div>
+  )
+}
+
+function TextAttachmentCard({
+  attachment,
+  mobile,
+  onRemove,
+}: {
+  attachment: TextAttachment
+  mobile: boolean
+  onRemove: () => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const preview = getTextAttachmentPreview(attachment.text, 3)
+  const charCount = attachment.text.length
+  const lineCount = attachment.text.split('\n').length
+
+  return (
+    <div
+      className={cn(
+        'group flex min-w-0 flex-col rounded-2xl border border-border/70 bg-background/75',
+        mobile && 'rounded-[1.15rem] bg-muted/30',
+      )}
+    >
+      <div className="flex min-w-0 items-center gap-3 p-2.5">
+        <div className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+          <FileText className="size-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-medium text-foreground">
+            {attachment.label}
+          </div>
+          <div className="mt-0.5 text-xs text-muted-foreground">
+            {charCount.toLocaleString()} chars · {lineCount.toLocaleString()}{' '}
+            {lineCount === 1 ? 'line' : 'lines'}
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          <Button
+            type="button"
+            variant="plain"
+            size="none"
+            onClick={() => setExpanded((v) => !v)}
+            className="inline-flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            aria-label={expanded ? 'Collapse' : 'Expand'}
+          >
+            {expanded ? (
+              <ChevronUp className="size-3.5" />
+            ) : (
+              <ChevronDown className="size-3.5" />
+            )}
+          </Button>
+          <Button
+            type="button"
+            variant="plain"
+            size="none"
+            onClick={onRemove}
+            className="inline-flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            aria-label="Remove pasted text"
+          >
+            <X className="size-3.5" />
+          </Button>
+        </div>
+      </div>
+      {!expanded ? (
+        <div className="border-t border-border/50 px-3 pb-2.5 pt-2">
+          <pre className="line-clamp-3 whitespace-pre-wrap break-words text-xs leading-relaxed text-muted-foreground">
+            {preview}
+          </pre>
+        </div>
+      ) : (
+        <div className="max-h-60 overflow-y-auto border-t border-border/50 px-3 pb-2.5 pt-2">
+          <pre className="whitespace-pre-wrap break-words text-xs leading-relaxed text-foreground/80">
+            {attachment.text}
+          </pre>
+        </div>
+      )}
     </div>
   )
 }
@@ -142,9 +257,11 @@ export function ProjectMentionPopup({
             const isHighlighted = index === highlightedProjectIndex
 
             return (
-              <button
+              <Button
                 type="button"
                 key={project.id}
+                variant="plain"
+                size="none"
                 className={cn(
                   'flex w-full items-start gap-3 rounded-xl px-3 py-2 text-left transition-colors',
                   isHighlighted
@@ -174,7 +291,7 @@ export function ProjectMentionPopup({
                     </div>
                   ) : null}
                 </div>
-              </button>
+              </Button>
             )
           })
         ) : (
@@ -192,6 +309,7 @@ export function ComposerActionRow({
   isSubmitting,
   value,
   attachments,
+  textAttachments = [],
   mobile,
   selectedModel,
   onModelChange,
@@ -210,6 +328,7 @@ export function ComposerActionRow({
   isSubmitting: boolean
   value: string
   attachments: PendingAttachment[]
+  textAttachments?: TextAttachment[]
   mobile: boolean
   selectedModel?: string
   onModelChange?: (modelId: string) => void
@@ -224,6 +343,8 @@ export function ComposerActionRow({
   defaultReasoningLevel: 'off' | 'low' | 'medium' | 'high'
   onAttach: (files: FileList | null) => void
 }) {
+  const hasContent =
+    value.trim() || attachments.length > 0 || textAttachments.length > 0
   return (
     <div
       className={cn(
@@ -231,27 +352,26 @@ export function ComposerActionRow({
         mobile ? 'mt-1 flex-row-reverse gap-3' : 'mt-2 flex-row-reverse',
       )}
     >
-      <button
+      <Button
         type="submit"
-        disabled={
-          disabled || isSubmitting || (!value.trim() && attachments.length === 0)
-        }
+        size={mobile ? 'icon-lg' : 'icon'}
+        disabled={disabled || isSubmitting || !hasContent}
         aria-label={
           isSubmitting
             ? 'Sending message'
-            : value.trim() || attachments.length > 0
+            : hasContent
               ? 'Send message'
               : 'Message requires text or a supported file'
         }
         className={cn(
           'inline-flex items-center justify-center bg-primary font-semibold text-primary-foreground transition-colors hover:bg-primary/90 active:bg-primary disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-primary disabled:active:bg-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
           mobile
-            ? 'h-[52px] min-w-[52px] rounded-[1.1rem] px-4 shadow-sm'
-            : 'h-12 min-w-12 rounded-xl px-3',
+            ? 'h-[52px] min-w-[52px] rounded-full px-4 shadow-sm'
+            : 'h-12 min-w-12 rounded-full px-3',
         )}
       >
         <ArrowUp className="size-5" aria-hidden="true" />
-      </button>
+      </Button>
 
       <div
         className={cn(
@@ -263,27 +383,28 @@ export function ComposerActionRow({
           selectedModel={selectedModel}
           onModelChange={onModelChange}
           className={cn(
-            mobile &&
-              'min-w-0 flex-1 [&_button]:h-11 [&_button]:w-full [&_button]:justify-between [&_button]:gap-2 [&_button]:rounded-full [&_button]:border [&_button]:border-border/70 [&_button]:bg-background/90 [&_button]:px-3.5 [&_button]:text-sm [&_button]:shadow-sm',
+            mobile && 'min-w-0 flex-1 [&_button]:h-11 [&_button]:w-full',
           )}
         />
 
-        <button
+        <Button
           type="button"
+          variant="plain"
+          size="none"
           onClick={onToggleSearch}
           aria-label={searchEnabled ? 'Disable search' : 'Enable search'}
           className={cn(
             'inline-flex items-center justify-center text-xs font-medium transition-colors hover:bg-muted/60 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
             mobile
               ? 'h-11 rounded-full border border-border/70 px-3.5'
-              : 'h-8 rounded-lg px-2.5',
+              : 'h-8 rounded-full px-2.5',
             searchEnabled
               ? 'bg-muted/60 text-foreground'
               : 'text-muted-foreground hover:text-foreground',
           )}
         >
           <Globe className="size-4" />
-        </button>
+        </Button>
 
         {reasoningSupported ? (
           <div
@@ -304,17 +425,17 @@ export function ComposerActionRow({
                   onReasoningLevel(value as 'low' | 'medium' | 'high')
                 }
               >
-                <SelectTrigger className="h-7 w-[92px] border-0 bg-transparent px-2 text-xs shadow-none">
+                <SelectTrigger className="h-7 w-[92px] rounded-full border-0 bg-transparent px-2 text-xs shadow-none">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="rounded-4xl">
                   {(reasoningLevels && reasoningLevels.length > 0
                     ? reasoningLevels
                     : defaultReasoningLevel !== 'off'
                       ? [defaultReasoningLevel as 'low' | 'medium' | 'high']
                       : ['low', 'medium', 'high']
                   ).map((level) => (
-                    <SelectItem key={level} value={level}>
+                    <SelectItem key={level} value={level} className="rounded-full">
                       {level}
                     </SelectItem>
                   ))}
@@ -324,16 +445,19 @@ export function ComposerActionRow({
           </div>
         ) : null}
 
-        <label
+        <Label
+          htmlFor="composer-attachment-input"
           className={cn(
             'inline-flex cursor-pointer items-center text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
             mobile
               ? 'h-11 rounded-full border border-border/70 px-3.5'
-              : 'h-8 rounded-lg px-2.5',
+              : 'h-8 rounded-full px-2.5',
           )}
           aria-label="Attach a file"
         >
-          <input
+          {/* Native file inputs are required for the browser file picker. */}
+          <Input
+            id="composer-attachment-input"
             multiple
             accept="image/*,application/pdf"
             className="sr-only"
@@ -344,7 +468,7 @@ export function ComposerActionRow({
             }}
           />
           <Paperclip className="size-4" aria-hidden="true" />
-        </label>
+        </Label>
       </div>
     </div>
   )

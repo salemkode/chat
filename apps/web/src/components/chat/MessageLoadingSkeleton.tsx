@@ -1,4 +1,4 @@
-import { Check, Circle, LoaderCircle } from 'lucide-react'
+import { Check, Circle, LoaderCircle } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 
 export function MessageLoadingSkeleton() {

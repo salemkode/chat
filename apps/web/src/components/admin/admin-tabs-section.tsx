@@ -8,7 +8,7 @@ import {
   Plus,
   Settings2,
   WandSparkles,
-} from 'lucide-react'
+} from '@/lib/icons'
 import { useCallback, useReducer } from 'react'
 import { toast } from 'sonner'
 import { api } from '@convex/_generated/api'

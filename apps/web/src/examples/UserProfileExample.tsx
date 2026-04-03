@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useConvexAuth } from 'convex/react'
 import { api } from '@convex/_generated/api'
 import { useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
 
 export function UserProfileExample() {
   const { isAuthenticated } = useConvexAuth()
@@ -72,15 +74,15 @@ export function UserProfileExample() {
               />
             )}
             <div>
-              <label className="text-sm font-medium text-gray-500">Name</label>
+              <Label className="text-sm font-medium text-gray-500">Name</Label>
               <p className="text-lg">{profile.name || 'Not set'}</p>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-500">Email</label>
+              <Label className="text-sm font-medium text-gray-500">Email</Label>
               <p className="text-lg">{profile.email || 'Not set'}</p>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-500">Phone</label>
+              <Label className="text-sm font-medium text-gray-500">Phone</Label>
               <p className="text-lg">{profile.phone || 'Not set'}</p>
             </div>
             <div className="bg-gray-50 rounded p-3 text-sm">
@@ -102,20 +104,20 @@ export function UserProfileExample() {
 
         {/* Action Buttons */}
         <div className="flex gap-3">
-          <button
+          <Button
             onClick={handleStore}
             disabled={isStoring}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {isStoring ? 'Storing...' : 'Store Profile'}
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={handleGetOrCreate}
             disabled={isStoring}
             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             Get or Create Profile
-          </button>
+          </Button>
         </div>
 
         {/* Debug Info */}
@@ -149,5 +151,5 @@ export function UserProfileExample() {
 
 // Import this from your Clerk integration
 function SignInButton({ mode: _mode }: { mode?: 'modal' | 'redirect' }) {
-  return <button>Sign In (Clerk)</button>
+  return <Button type="button">Sign In (Clerk)</Button>
 }

@@ -6,6 +6,7 @@ import {
   ResponsiveModalContent,
   ResponsiveModalDescription,
   ResponsiveModalTitle,
+  type ResponsiveModalSize,
 } from '@/components/ui/responsive-overlay'
 
 export type AdaptiveDialogProps = {
@@ -17,6 +18,9 @@ export type AdaptiveDialogProps = {
   children: React.ReactNode
   /** Applied to both desktop dialog and mobile sheet inner surfaces. */
   contentClassName?: string
+  showCloseButton?: boolean
+  /** Desktop width tier; matches {@link ResponsiveModalContent}. Default `small`. */
+  size?: ResponsiveModalSize
 }
 
 /**
@@ -30,15 +34,16 @@ export function AdaptiveDialog({
   description,
   children,
   contentClassName,
+  showCloseButton = true,
+  size = 'small',
 }: AdaptiveDialogProps) {
   return (
     <ResponsiveModal open={open} onOpenChange={onOpenChange}>
       <ResponsiveModalContent
-        showCloseButton
-        size="medium"
+        showCloseButton={showCloseButton}
+        size={size}
         className={cn(
-          'flex min-h-0 max-h-[min(520px,var(--overlay-sheet-max-height))] flex-col gap-0 overflow-hidden',
-          'w-[min(400px,calc(100vw-2rem))] sm:max-w-[min(400px,calc(100vw-2rem))]',
+          'flex min-h-0 max-h-[var(--overlay-sheet-max-height)] flex-col gap-0 overflow-hidden',
           contentClassName,
         )}
       >

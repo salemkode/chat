@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Paperclip, Globe, ArrowUp } from 'lucide-react'
+import { Paperclip, Globe, ArrowUp } from '@/lib/icons'
 import { Button } from '@/components/ui/button'
 import { ContextPopover } from './ContextPopover'
 import { AgentModeSelector } from './AgentModeSelector'

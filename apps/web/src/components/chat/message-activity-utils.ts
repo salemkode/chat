@@ -11,7 +11,7 @@ import {
   TriangleAlert,
   Wrench,
   type LucideIcon,
-} from 'lucide-react'
+} from '@/lib/icons'
 import { cn } from '@/lib/utils'
 
 type ChatMessage = FunctionReturnType<
@@ -27,6 +27,7 @@ export type ReasoningStep = {
   title: string
   status: ActivityStatus
   body: string
+  count: number
   redacted?: boolean
 }
 
@@ -43,6 +44,7 @@ export type ToolStep = {
   title: string
   status: ActivityStatus
   toolName: string
+  count: number
   sources?: SearchSource[]
 }
 
@@ -54,6 +56,9 @@ export function buildActivitySteps(
 ) {
   const steps: ActivityStep[] = []
   const toolSteps = new Map<string, ToolStep>()
+  const toolStepKeysByCallId = new Map<string, string>()
+  const countedToolCallIds = new Set<string>()
+  let reasoningStep: ReasoningStep | null = null
 
   const safeParts = Array.isArray(parts) ? parts : []
 
@@ -62,70 +67,130 @@ export function buildActivitySteps(
     const partType = getPartType(part)
 
     if (partType === 'reasoning') {
-      steps.push({
-        id: `reasoning-${index}`,
-        kind: 'reasoning',
-        title: 'Reasoning',
-        status: messageStatus === 'streaming' ? 'running' : 'complete',
-        body: getString(part['text']) || '',
-      })
+      const reasoningText = getString(part['text']) || ''
+      const reasoningStatus =
+        messageStatus === 'streaming' ? 'running' : 'complete'
+
+      if (!reasoningStep) {
+        reasoningStep = {
+          id: 'reasoning',
+          kind: 'reasoning',
+          title: 'Reasoning',
+          status: reasoningStatus,
+          body: reasoningText,
+          count: 1,
+        }
+        steps.push(reasoningStep)
+      } else {
+        reasoningStep.status = mergeActivityStatus(
+          reasoningStep.status,
+          reasoningStatus,
+        )
+        reasoningStep.body = reasoningStep.redacted
+          ? reasoningText || reasoningStep.body
+          : appendReasoningText(reasoningStep.body, reasoningText)
+        reasoningStep.count += 1
+        reasoningStep.redacted = false
+      }
       continue
     }
 
     if (partType === 'redacted-reasoning') {
-      steps.push({
-        id: `reasoning-${index}`,
-        kind: 'reasoning',
-        title: 'Reasoning',
-        status: messageStatus === 'streaming' ? 'running' : 'complete',
-        body: 'This provider returned a redacted reasoning trace.',
-        redacted: true,
-      })
+      const reasoningStatus =
+        messageStatus === 'streaming' ? 'running' : 'complete'
+
+      if (!reasoningStep) {
+        reasoningStep = {
+          id: 'reasoning',
+          kind: 'reasoning',
+          title: 'Reasoning',
+          status: reasoningStatus,
+          body: 'This provider returned a redacted reasoning trace.',
+          count: 1,
+          redacted: true,
+        }
+        steps.push(reasoningStep)
+      } else {
+        reasoningStep.status = mergeActivityStatus(
+          reasoningStep.status,
+          reasoningStatus,
+        )
+        reasoningStep.count += 1
+      }
       continue
     }
 
     if (isToolCallLikePart(partType)) {
       const toolCallId = getString(part['toolCallId']) || `tool-${index}`
       const toolName = getToolName(part, partType)
+      const stepKey = `tool:${toolName}`
+      const existingStep = toolSteps.get(stepKey)
+
+      toolStepKeysByCallId.set(toolCallId, stepKey)
+
+      if (existingStep) {
+        existingStep.status = mergeActivityStatus(
+          existingStep.status,
+          getToolCallStatus(part, messageStatus),
+        )
+        if (!countedToolCallIds.has(toolCallId)) {
+          existingStep.count += 1
+          countedToolCallIds.add(toolCallId)
+        }
+        continue
+      }
+
       const step: ToolStep = {
-        id: toolCallId,
+        id: stepKey,
         kind: 'tool',
         title: getToolDisplayTitle(toolName),
         status: getToolCallStatus(part, messageStatus),
         toolName,
+        count: 1,
         sources: isSearchTool(toolName) ? [] : undefined,
       }
 
-      toolSteps.set(toolCallId, step)
+      countedToolCallIds.add(toolCallId)
+      toolSteps.set(stepKey, step)
       steps.push(step)
       continue
     }
 
     if (partType === 'tool-result') {
       const toolCallId = getString(part['toolCallId']) || `tool-result-${index}`
-      const existing = toolSteps.get(toolCallId)
+      const toolName = getString(part['toolName']) || 'tool'
+      const stepKey =
+        toolStepKeysByCallId.get(toolCallId) || `tool:${toolName}`
+      const existing = toolSteps.get(stepKey)
 
       if (existing) {
-        existing.status = getBoolean(part['isError']) ? 'error' : 'complete'
+        existing.status = mergeActivityStatus(
+          existing.status,
+          getBoolean(part['isError']) ? 'error' : 'complete',
+        )
         if (isSearchTool(existing.toolName)) {
-          existing.sources = extractSearchSources(part['result'])
+          existing.sources = mergeSearchSources(
+            existing.sources,
+            extractSearchSources(part['result']),
+          )
         }
         continue
       }
 
-      const toolName = getString(part['toolName']) || 'tool'
       const step: ToolStep = {
-        id: toolCallId,
+        id: stepKey,
         kind: 'tool',
         title: getToolDisplayTitle(toolName),
         status: getBoolean(part['isError']) ? 'error' : 'complete',
         toolName,
+        count: 1,
         sources: isSearchTool(toolName)
           ? extractSearchSources(part['result'])
           : undefined,
       }
 
-      toolSteps.set(toolCallId, step)
+      toolStepKeysByCallId.set(toolCallId, stepKey)
+      toolSteps.set(stepKey, step)
       steps.push(step)
     }
   }
@@ -216,19 +281,46 @@ export function getStepIconClassName(
 }
 
 export function isSearchTool(toolName: string) {
-  return toolName === 'exa_web_search' || toolName === 'web_search'
+  return (
+    toolName === 'exa_web_search' ||
+    toolName === 'web_search' ||
+    toolName === 'quran_docs_search' ||
+    toolName === 'quran_source_lookup'
+  )
 }
 
-export function getSearchEmptyState(status: ActivityStatus) {
+export function getSearchEmptyState(
+  toolName: string,
+  status: ActivityStatus,
+) {
+  const subject =
+    toolName === 'quran_docs_search'
+      ? 'Quran docs'
+      : toolName === 'quran_source_lookup'
+        ? 'Quran sources'
+        : 'the web for sources'
+
   if (status === 'running' || status === 'pending') {
-    return 'Searching the web for sources...'
+    return `Searching ${subject}...`
   }
 
   if (status === 'error') {
-    return 'Search failed before any sources were returned.'
+    return `Search failed before any ${
+      toolName === 'quran_docs_search'
+        ? 'Quran docs'
+        : toolName === 'quran_source_lookup'
+          ? 'Quran sources'
+          : 'sources'
+    } were returned.`
   }
 
-  return 'No sources were returned for this search.'
+  return `No ${
+    toolName === 'quran_docs_search'
+      ? 'Quran docs'
+      : toolName === 'quran_source_lookup'
+        ? 'Quran sources'
+        : 'sources'
+  } were returned for this search.`
 }
 
 function getPartType(part: Record<string, unknown>) {
@@ -300,7 +392,46 @@ function getToolCallStatus(
     : 'pending'
 }
 
+function mergeActivityStatus(
+  current: ActivityStatus,
+  next: ActivityStatus,
+): ActivityStatus {
+  if (next === 'pending' && current === 'running') {
+    return current
+  }
+
+  return next
+}
+
+function appendReasoningText(current: string, next: string) {
+  if (!next) {
+    return current
+  }
+
+  if (!current) {
+    return next
+  }
+
+  if (current === next || current.includes(next)) {
+    return current
+  }
+
+  if (next.includes(current)) {
+    return next
+  }
+
+  return `${current}\n\n${next}`
+}
+
 function getToolDisplayTitle(toolName: string) {
+  if (toolName === 'quran_docs_search') {
+    return 'Quran Docs'
+  }
+
+  if (toolName === 'quran_source_lookup') {
+    return 'Quran Source'
+  }
+
   if (isSearchTool(toolName)) {
     return 'Search'
   }
@@ -378,6 +509,25 @@ function extractSearchSources(result: unknown): SearchSource[] {
       ]
     })
     .slice(0, 8)
+}
+
+function mergeSearchSources(
+  current: SearchSource[] | undefined,
+  next: SearchSource[],
+): SearchSource[] {
+  const merged = [...(current ?? [])]
+  const seenUrls = new Set(merged.map((source) => source.url))
+
+  for (const source of next) {
+    if (seenUrls.has(source.url)) {
+      continue
+    }
+
+    seenUrls.add(source.url)
+    merged.push(source)
+  }
+
+  return merged.slice(0, 8)
 }
 
 function getDomainLabel(url: string) {

@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router'
 
 import { useState } from 'react'
-import { Home, Menu, MessageSquare, X } from 'lucide-react'
+import { Home, Menu, MessageSquare, X } from '@/lib/icons'
 
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false)

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access -- Convex mutation payloads */
 import { useMutation } from 'convex/react'
 import type { Doc, Id } from '@convex/_generated/dataModel'
-import { Loader2, Plus, WandSparkles } from 'lucide-react'
+import { Loader2, Plus, WandSparkles } from '@/lib/icons'
 import { useCallback, useId, useReducer } from 'react'
 import { toast } from 'sonner'
 import { api } from '@convex/_generated/api'
@@ -98,7 +98,7 @@ export function AdminProviderDialog({ state, actions }: AdminProviderDialogProps
         Add provider
       </Button>
       <ResponsiveModal open={open} onOpenChange={onOpenChange}>
-      <ResponsiveModalContent size="large" className="max-h-[90vh] max-w-5xl overflow-hidden">
+      <ResponsiveModalContent size="page" className="max-h-[90vh] overflow-hidden">
         <DialogHeader>
           <ResponsiveModalTitle>
             {editingProvider ? 'Edit provider' : 'Add provider'}

@@ -1,6 +1,6 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { formatDistanceToNow } from 'date-fns'
-import { Loader2, MessageSquareText, MoveRight } from 'lucide-react'
+import { Loader2, MessageSquareText, MoveRight } from '@/lib/icons'
 import { useEffect } from 'react'
 import { api } from '@convex/_generated/api'
 import { SharedChatSidebar } from '@/components/chat/SharedChatSidebar'

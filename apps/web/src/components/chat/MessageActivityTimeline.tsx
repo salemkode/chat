@@ -110,6 +110,7 @@ function ActivityStepRow({
       >
         <Icon className={getStepIconClassName(step, showActiveLoading)} />
         <span className="truncate font-medium">{step.title}</span>
+        <ActivityCount count={step.count} />
       </ChainOfThoughtItem>
     </ChainOfThoughtStep>
   )
@@ -143,6 +144,7 @@ function SearchToolRow({
         className="py-1 font-medium"
       >
         <span className="truncate">{step.title}</span>
+        <ActivityCount count={step.count} />
       </ChainOfThoughtTrigger>
       <ChainOfThoughtContent className="pt-2">
         <div className="px-0.5 py-1">
@@ -160,7 +162,7 @@ function SearchToolRow({
             </div>
           ) : (
             <p className="text-sm leading-6 text-muted-foreground">
-              {getSearchEmptyState(step.status)}
+              {getSearchEmptyState(step.toolName, step.status)}
             </p>
           )}
         </div>
@@ -199,6 +201,7 @@ function ReasoningRow({
         className="py-1 font-medium"
       >
         {step.title}
+        <ActivityCount count={step.count} />
       </ChainOfThoughtTrigger>
       <ChainOfThoughtContent className="pt-2">
         <div className="px-0.5 py-1">
@@ -219,5 +222,17 @@ function ReasoningRow({
         </div>
       </ChainOfThoughtContent>
     </ChainOfThoughtStep>
+  )
+}
+
+function ActivityCount({ count }: { count: number }) {
+  if (count < 2) {
+    return null
+  }
+
+  return (
+    <span className="ml-2 inline-flex rounded-full border border-border/60 px-1.5 py-0.5 text-[11px] leading-none text-muted-foreground">
+      {count}x
+    </span>
   )
 }

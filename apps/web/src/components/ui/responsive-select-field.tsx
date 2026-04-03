@@ -1,6 +1,6 @@
 'use client'
 
-import { Check, ChevronDown } from 'lucide-react'
+import { Check, ChevronDown } from '@/lib/icons'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import {
@@ -79,7 +79,7 @@ export function ResponsiveSelectField({
           <ChevronDown className="size-4 opacity-50" />
         </button>
       </ResponsiveModalTrigger>
-      <ResponsiveModalContent size="default" className="p-0">
+      <ResponsiveModalContent size="small" className="p-0">
         <ResponsiveModalHeader>
           <ResponsiveModalTitle>{title}</ResponsiveModalTitle>
         </ResponsiveModalHeader>

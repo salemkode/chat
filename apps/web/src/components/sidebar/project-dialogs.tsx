@@ -1,9 +1,10 @@
 'use client'
 
-import { CircleDollarSign, Folder, GraduationCap, Lightbulb, NotebookPen, Plane, X } from 'lucide-react'
+import { CircleDollarSign, Folder, GraduationCap, Lightbulb, NotebookPen, Plane, X } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import {
   DialogHeader,
@@ -79,9 +80,9 @@ export function ProjectCreateDialog({
   return (
     <ResponsiveModal open={open} onOpenChange={onOpenChange}>
       <ResponsiveModalContent
-        size="medium"
+        size="page"
         showCloseButton={false}
-        className="max-w-[34rem] gap-0 overflow-hidden rounded-[1.75rem] border border-border bg-card p-0 text-card-foreground"
+        className="gap-0 overflow-hidden rounded-[1.75rem] border border-border bg-card p-0 text-card-foreground"
       >
         <DialogHeader className="border-b border-border bg-muted/20 px-6 py-5 text-left">
           <div className="flex items-start justify-between gap-4">
@@ -94,19 +95,21 @@ export function ProjectCreateDialog({
               </p>
             </div>
             <ResponsiveModalClose asChild>
-              <button
+              <Button
                 type="button"
-                className="inline-flex size-9 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                variant="outline"
+                size="icon"
+                className="rounded-full"
                 aria-label="Close project dialog"
               >
                 <X className="size-4" />
-              </button>
+              </Button>
             </ResponsiveModalClose>
           </div>
         </DialogHeader>
         <div className="space-y-5 px-6 py-5">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Project name</label>
+            <Label className="text-sm font-medium text-foreground">Project name</Label>
             <div className="relative">
               <Folder className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -133,9 +136,10 @@ export function ProjectCreateDialog({
                 const Icon = option.icon
 
                 return (
-                  <button
+                  <Button
                     key={option.label}
                     type="button"
+                    variant="outline"
                     className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/40 px-4 py-2 text-sm text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
                     onClick={() =>
                       onDraftChange((current) =>
@@ -150,14 +154,14 @@ export function ProjectCreateDialog({
                   >
                     <Icon className={cn('size-4', option.className)} />
                     {option.label}
-                  </button>
+                  </Button>
                 )
               })}
             </div>
           ) : null}
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Description</label>
+            <Label className="text-sm font-medium text-foreground">Description</Label>
             <Textarea
               value={draft?.description || ''}
               onChange={(event) =>

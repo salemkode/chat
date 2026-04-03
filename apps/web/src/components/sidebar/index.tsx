@@ -6,7 +6,6 @@ import { useNavigate } from '@tanstack/react-router'
 import {
   ChevronDown,
   ChevronRight,
-  Database,
   Folder,
   FolderOpen,
   LogIn,
@@ -14,7 +13,7 @@ import {
   Plus,
   Settings,
   User,
-} from 'lucide-react'
+} from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { groupThreadsByProject } from '@/lib/project-sidebar'
 import {
@@ -50,6 +49,7 @@ import {
   RemoveFromProjectDialog,
   RemoveFromProjectState,
 } from '@/components/sidebar/project-dialogs'
+import { consumeSettingsTabIntent, type SettingsTab } from '@/lib/settings-navigation'
 
 interface AppSidebarProps {
   selectedThreadId?: string | null
@@ -59,6 +59,7 @@ interface AppSidebarProps {
 export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
   const navigate = useNavigate()
   const [settingsOpen, setSettingsOpen] = React.useState(false)
+  const [settingsTab, setSettingsTab] = React.useState<SettingsTab>('general')
   const [projectDialog, setProjectDialog] =
     React.useState<ProjectDraftState | null>(null)
   const [removeFromProjectDialog, setRemoveFromProjectDialog] =
@@ -73,6 +74,16 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
   const { user: clerkUser } = useUser()
   const { signOut } = useClerk()
   const { isOnline } = useOnlineStatus()
+
+  React.useEffect(() => {
+    const requestedTab = consumeSettingsTabIntent()
+    if (!requestedTab) {
+      return
+    }
+
+    setSettingsTab(requestedTab)
+    setSettingsOpen(true)
+  }, [])
 
   const { projectThreads: threadsByProjectId, unfiledThreads } = React.useMemo(
     () => groupThreadsByProject(threads),
@@ -161,14 +172,6 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
           >
             <Folder className="mr-2 h-4 w-4" />
             New Project
-          </Button>
-          <Button
-            variant="outline"
-            className="justify-start"
-            disabled={!isOnline}
-            onClick={() => navigate({ to: '/memory' })}
-          >
-            <Database className="h-4 w-4" />
           </Button>
         </div>
 
@@ -316,7 +319,10 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
                       'select-none transition-colors hover:bg-sidebar-accent',
                       '[&_svg]:size-4',
                     )}
-                    onClick={() => setSettingsOpen(true)}
+                    onClick={() => {
+                      setSettingsTab('general')
+                      setSettingsOpen(true)
+                    }}
                   >
                     <Avatar className="size-8 shrink-0">
                       <AvatarImage
@@ -384,7 +390,11 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
         )}
       </SidebarFooter>
 
-      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <SettingsDialog
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        initialTab={settingsTab}
+      />
 
       <ProjectCreateDialog
         open={projectDialog !== null}

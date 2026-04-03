@@ -1,14 +1,18 @@
 'use client'
 
-import { forwardRef, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, Search, Sparkles, Star } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Check, ChevronDown, Search, Star } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { useModels } from '@/hooks/use-chat-data'
 import { EntityIcon } from '@/components/admin/entity-icon'
 import { ModelCapabilityBadges } from '@/components/model-capability-badges'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
-  modelSelectorIconTileClass,
-  modelSelectorOptionRowClass,
+  modelFilterPillClass,
+  modelIconTileClass,
+  modelRowClass,
+  modelSectionLabelClass,
 } from '@/lib/model-selector-ui'
 import {
   ResponsivePopup,
@@ -23,27 +27,7 @@ type ModelSelectorPanelProps = {
   className?: string
 }
 
-const ModelSelectorTrigger = forwardRef<
-  HTMLButtonElement,
-  React.ComponentProps<'button'>
->(function ModelSelectorTrigger(
-  { className, type: _type, ...props },
-  ref,
-) {
-  return (
-    <button
-      ref={ref}
-      type="button"
-      className={cn(
-        'flex items-center gap-2 rounded-xl border border-transparent px-2.5 py-1.5 text-sm transition-colors',
-        'hover:border-border/60 hover:bg-muted/50',
-        'text-muted-foreground hover:text-foreground',
-        className,
-      )}
-      {...props}
-    />
-  )
-})
+const ModelSelectorTrigger = Button
 
 export function ModelSelector({
   selectedModel,
@@ -60,53 +44,52 @@ export function ModelSelector({
     (model: OfflineModelRecord) => model.modelId === selectedModel,
   )
 
-  const triggerInner = (
-    <>
-      {currentModel ? (
-        <EntityIcon
-          icon={currentModel.icon || currentModel.provider?.icon}
-          iconType={(currentModel.iconType || currentModel.provider?.iconType) as
-            | 'emoji'
-            | 'lucide'
-            | 'upload'
-            | undefined}
-          iconUrl={currentModel.iconUrl || currentModel.provider?.iconUrl}
-          className="size-4"
-        />
-      ) : (
-        <Sparkles className="size-4" />
-      )}
-      <span className="max-w-[200px] truncate font-medium">
-        {currentModel?.displayName || 'Select model'}
-      </span>
-      <ChevronDown className="size-4 shrink-0 text-muted-foreground/60" />
-    </>
-  )
-
-  const panel = (
-    <ModelSelectorPanel
-      selectedModel={selectedModel}
-      onSelectModel={(modelId) => {
-        onModelChange?.(modelId)
-        setOpen(false)
-      }}
-      className="min-h-0 flex-1"
-    />
-  )
-
   return (
     <div className={className}>
       <ResponsivePopup open={open} onOpenChange={setOpen}>
         <ResponsivePopupTrigger asChild>
-          <ModelSelectorTrigger>{triggerInner}</ModelSelectorTrigger>
+          <ModelSelectorTrigger
+            type="button"
+            variant="outline"
+            className="h-9 max-w-full justify-start gap-2 rounded-full px-2.5 font-normal"
+          >
+            {currentModel ? (
+              <EntityIcon
+                icon={currentModel.icon || currentModel.provider?.icon}
+                iconType={(currentModel.iconType || currentModel.provider?.iconType) as
+                  | 'emoji'
+                  | 'lucide'
+                  | 'phosphor'
+                  | 'upload'
+                  | undefined}
+                iconUrl={currentModel.iconUrl || currentModel.provider?.iconUrl}
+                className="size-4 shrink-0"
+              />
+            ) : null}
+            <span className="min-w-0 flex-1 truncate text-left text-sm">
+              {currentModel?.displayName || 'Model'}
+            </span>
+            <ChevronDown className="size-4 shrink-0 opacity-50" />
+          </ModelSelectorTrigger>
         </ResponsivePopupTrigger>
         <ResponsivePopupContent
-          size="medium"
-          className="h-[min(520px,75vh)] w-[min(92vw,420px)] max-w-[420px] overflow-hidden p-0"
-          side="top"
+          size="page"
           align="start"
+          className="flex h-[min(420px,70dvh)] w-[min(100vw-1rem,22rem)] max-h-[70dvh] flex-col overflow-hidden rounded-4xl p-0 sm:w-96"
+          side="top"
+          sideOffset={8}
         >
-          {panel}
+          <div className="border-b border-border px-3 py-2.5">
+            <p className="text-sm font-medium">Models</p>
+          </div>
+          <ModelSelectorPanel
+            selectedModel={selectedModel}
+            onSelectModel={(modelId) => {
+              onModelChange?.(modelId)
+              setOpen(false)
+            }}
+            className="min-h-0 flex-1"
+          />
         </ResponsivePopupContent>
       </ResponsivePopup>
     </div>
@@ -120,10 +103,9 @@ export function ModelSelectorPanel({
 }: ModelSelectorPanelProps) {
   const { models, setFavorite } = useModels()
   const [searchQuery, setSearchQuery] = useState('')
-  const rowRefs = useRef(new Map<string, HTMLDivElement>())
-  const previousRects = useRef(new Map<string, DOMRect>())
+  const [filterTab, setFilterTab] = useState<'all' | 'favorites'>('all')
 
-  const filteredModels = useMemo(() => {
+  const searchFiltered = useMemo(() => {
     if (!searchQuery.trim()) return models
     const query = searchQuery.toLowerCase()
     return models.filter(
@@ -131,14 +113,22 @@ export function ModelSelectorPanel({
         model.displayName.toLowerCase().includes(query) ||
         model.modelId.toLowerCase().includes(query) ||
         model.description?.toLowerCase().includes(query) ||
+        model.provider?.name?.toLowerCase().includes(query) ||
         model.capabilities?.some((c) => c.toLowerCase().includes(query)),
     )
   }, [models, searchQuery])
 
+  const filteredModels = useMemo(() => {
+    if (filterTab === 'favorites') {
+      return searchFiltered.filter((m: OfflineModelRecord) => m.isFavorite)
+    }
+    return searchFiltered
+  }, [filterTab, searchFiltered])
+
   const groupedModels = useMemo<Array<[string, OfflineModelRecord[]]>>(() => {
     const groups = new Map<string, OfflineModelRecord[]>()
     for (const model of filteredModels) {
-      const providerName = model.provider?.name || 'Other providers'
+      const providerName = model.provider?.name || 'Other'
       const group = groups.get(providerName) ?? []
       group.push(model)
       groups.set(providerName, group)
@@ -155,116 +145,69 @@ export function ModelSelectorPanel({
     })
   }, [filteredModels])
 
-  const modelIds = useMemo(
-    () =>
-      groupedModels.flatMap(([, providerModels]) =>
-        providerModels.map((model) => model.id),
-      ),
-    [groupedModels],
-  )
-
-  useLayoutEffect(() => {
-    const currentRects = new Map<string, DOMRect>()
-    const activeIds = new Set(modelIds)
-
-    for (const modelId of modelIds) {
-      const node = rowRefs.current.get(modelId)
-      if (!node) continue
-      currentRects.set(modelId, node.getBoundingClientRect())
-    }
-
-    for (const [modelId, node] of rowRefs.current.entries()) {
-      if (!activeIds.has(modelId)) {
-        rowRefs.current.delete(modelId)
-        continue
-      }
-
-      const currentRect = currentRects.get(modelId)
-      if (!currentRect) continue
-
-      const previousRect = previousRects.current.get(modelId)
-      if (!previousRect) {
-        node.animate(
-          [
-            { opacity: 0, transform: 'translateY(-8px) scale(0.985)' },
-            { opacity: 1, transform: 'translateY(0) scale(1)' },
-          ],
-          {
-            duration: 180,
-            easing: 'cubic-bezier(.16,1,.3,1)',
-          },
-        )
-        continue
-      }
-
-      const deltaY = previousRect.top - currentRect.top
-      if (Math.abs(deltaY) < 1) continue
-
-      node.animate(
-        [
-          { transform: `translateY(${deltaY}px)` },
-          { transform: 'translateY(0px)' },
-        ],
-        {
-          duration: 220,
-          easing: 'cubic-bezier(.2,0,0,1)',
-        },
-      )
-    }
-
-    previousRects.current = currentRects
-  }, [modelIds])
+  const empty =
+    groupedModels.length === 0 ||
+    groupedModels.every(([, list]) => list.length === 0)
 
   return (
     <div className={cn('flex min-h-0 flex-col', className)}>
-      <div className="shrink-0 border-b border-border/80 p-3">
+      <div className="shrink-0 space-y-2 border-b border-border px-3 py-2">
         <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="search"
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
-            className="w-full rounded-xl border border-border/60 bg-muted/40 py-2 pr-4 pl-9 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/25"
-            placeholder="Search models or capabilities"
+            className="h-9 rounded-full border-0 bg-muted/50 pl-8 text-sm focus-visible:ring-1"
+            placeholder="Search…"
           />
+        </div>
+        <div className="flex gap-1.5">
+          <button
+            type="button"
+            className={modelFilterPillClass(filterTab === 'all')}
+            onClick={() => setFilterTab('all')}
+          >
+            All
+          </button>
+          <button
+            type="button"
+            className={modelFilterPillClass(filterTab === 'favorites')}
+            onClick={() => setFilterTab('favorites')}
+          >
+            Favorites
+          </button>
         </div>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
-        {groupedModels.map(([providerName, providerModels]) => (
-          <div key={providerName} className="mb-3 last:mb-0">
-            <div className="px-2 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              {providerName}
-            </div>
-            <div className="space-y-1.5">
-              {providerModels.map((model: OfflineModelRecord) => {
-                const isSelected = model.modelId === selectedModel
-
-                return (
-                  <div
-                    key={model.id}
-                    ref={(node) => {
-                      if (node) {
-                        rowRefs.current.set(model.id, node)
-                        return
-                      }
-                      rowRefs.current.delete(model.id)
-                    }}
-                    className="will-change-transform"
-                  >
-                    <div className={modelSelectorOptionRowClass(isSelected)}>
-                      <button
+        {empty ? (
+          <p className="px-2 py-8 text-center text-sm text-muted-foreground">
+            {filterTab === 'favorites' ? 'No favorites match.' : 'No models match.'}
+          </p>
+        ) : (
+          groupedModels.map(([providerName, providerModels]) => (
+            <div key={providerName} className="mb-4 last:mb-0">
+              <div className={modelSectionLabelClass()}>{providerName}</div>
+              <div className="space-y-0.5">
+                {providerModels.map((model: OfflineModelRecord) => {
+                  const isSelected = model.modelId === selectedModel
+                  return (
+                    <div key={model.id} className={modelRowClass(isSelected)}>
+                      <Button
                         type="button"
+                        variant="plain"
+                        size="none"
                         onClick={() => onSelectModel?.(model.modelId)}
-                        className="flex min-w-0 flex-1 items-start gap-3 text-left"
+                        className="flex min-w-0 flex-1 items-start gap-2 rounded-full px-1 py-0.5 text-left hover:bg-transparent"
                       >
-                        <div className={modelSelectorIconTileClass()}>
+                        <div className={modelIconTileClass(isSelected)}>
                           <EntityIcon
                             icon={model.icon || model.provider?.icon}
-                            iconType={(model.iconType ||
-                              model.provider?.iconType) as
+                            iconType={(model.iconType || model.provider?.iconType) as
                               | 'emoji'
                               | 'lucide'
+                              | 'phosphor'
                               | 'upload'
                               | undefined}
                             iconUrl={model.iconUrl || model.provider?.iconUrl}
@@ -272,54 +215,48 @@ export function ModelSelectorPanel({
                           />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="font-medium">{model.displayName}</span>
-                            {model.isFree ? (
-                              <span className="rounded-full bg-emerald-500/12 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
-                                Free
-                              </span>
-                            ) : null}
+                          <div className="flex items-center gap-1.5">
+                            <span className="truncate text-sm font-medium">
+                              {model.displayName}
+                            </span>
                             {isSelected ? (
-                              <Sparkles className="size-4 shrink-0 text-primary" />
+                              <Check className="size-3.5 shrink-0 text-primary" />
                             ) : null}
                           </div>
-                          <div className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground">
+                          <p className="truncate font-mono text-[10px] text-muted-foreground">
                             {model.modelId}
-                          </div>
+                          </p>
                           <ModelCapabilityBadges
                             capabilities={model.capabilities}
-                            className="mt-1.5"
+                            className="mt-1"
                           />
                         </div>
-                      </button>
-
-                      <button
+                      </Button>
+                      <Button
                         type="button"
+                        variant="plain"
+                        size="none"
                         className={cn(
-                          'shrink-0 rounded-lg p-1.5 transition-colors',
-                          model.isFavorite
-                            ? 'text-amber-500'
-                            : 'text-muted-foreground hover:text-foreground',
+                          'shrink-0 text-muted-foreground',
+                          model.isFavorite && 'text-amber-600 dark:text-amber-400',
                         )}
                         onClick={(event) => {
                           event.stopPropagation()
                           void setFavorite(model.id, !model.isFavorite)
                         }}
-                        aria-label={
-                          model.isFavorite ? 'Remove favorite' : 'Add favorite'
-                        }
+                        aria-label={model.isFavorite ? 'Remove favorite' : 'Favorite'}
                       >
                         <Star
-                          className={cn('size-4', model.isFavorite && 'fill-current')}
+                          className={cn('size-3.5', model.isFavorite && 'fill-current')}
                         />
-                      </button>
+                      </Button>
                     </div>
-                  </div>
-                )
-              })}
+                  )
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   )

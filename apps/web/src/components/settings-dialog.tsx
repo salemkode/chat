@@ -16,17 +16,19 @@ import {
   UserCircle,
   Wrench,
   X,
-} from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
+} from '@/lib/icons'
+import type { LucideIcon } from '@/lib/icons'
 import { AdaptiveDialog } from '@/components/ui/adaptive-dialog'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { MemorySettingsPanel } from '@/components/settings/memory-settings-panel'
 import { useTheme } from '@/components/theme-provider'
 import { useOnlineStatus } from '@chat/shared/hooks/use-online-status'
 import { useRoleContext, useSettings, useViewer } from '@/hooks/use-chat-data'
+import type { SettingsTab } from '@/lib/settings-navigation'
 import { normalizeHexColor, type ThemeMode } from '@/lib/theme'
 import { readFileReaderResultAsString } from '@/lib/parsers'
 import { cn } from '@/lib/utils'
@@ -35,9 +37,8 @@ import { ResponsiveSelectField } from '@/components/ui/responsive-select-field'
 interface SettingsDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  initialTab?: SettingsTab
 }
-
-type SettingsTab = 'general' | 'theme' | 'model' | 'data' | 'account' | 'admin'
 
 type SettingsItemProps = {
   label: string
@@ -47,19 +48,23 @@ type SettingsItemProps = {
 
 function SettingsItem({ label, description, children }: SettingsItemProps) {
   return (
-    <div className="flex items-center justify-between border-b border-border/50 py-4 last:border-0">
-      <div className="flex-1 pr-4">
+    <div className="flex flex-col gap-3 rounded-lg border border-border bg-card px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+      <div className="min-w-0 flex-1 pr-0 sm:pr-6">
         <h3 className="text-sm font-medium text-foreground">{label}</h3>
         {description ? (
-          <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p>
         ) : null}
       </div>
-      <div className="shrink-0">{children}</div>
+      <div className="w-full shrink-0 sm:w-auto">{children}</div>
     </div>
   )
 }
 
-export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
+export function SettingsDialog({
+  open,
+  onOpenChange,
+  initialTab = 'general',
+}: SettingsDialogProps) {
   const user = useViewer()
   const { settings, updateSettings } = useSettings()
   const { isAdminLike } = useRoleContext()
@@ -67,7 +72,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const { theme, setTheme, primaryColor, setPrimaryColor } = useTheme()
   const navigate = useNavigate()
 
-  const [activeTab, setActiveTab] = useState<SettingsTab>('general')
+  const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab)
   const [language, setLanguage] = useState('auto')
   const [displayName, setDisplayName] = useState('')
   const [bio, setBio] = useState('')
@@ -88,12 +93,19 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     setPrimaryColorInput(primaryColor)
   }, [primaryColor])
 
+  useEffect(() => {
+    if (open) {
+      setActiveTab(initialTab)
+    }
+  }, [initialTab, open])
+
   const tabs = useMemo(
     () =>
       [
         { id: 'general', label: 'General', icon: Settings },
         { id: 'theme', label: 'Theme', icon: Palette },
-        { id: 'model', label: 'Model features', icon: Brain },
+        { id: 'model', label: 'Models & reasoning', icon: Brain },
+        { id: 'memory', label: 'Memory', icon: Database },
         { id: 'data', label: 'Data controls', icon: Database },
         { id: 'account', label: 'Account', icon: UserCircle },
         ...(isAdminLike
@@ -148,6 +160,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
   const displayNameValue = displayName || user?.name || ''
   const emailValue = user?.email || ''
+  const activePanel = tabs.find((tab) => tab.id === activeTab)
 
   const getInitials = (name: string) =>
     name
@@ -195,48 +208,52 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       onOpenChange={onOpenChange}
       title="Settings"
       description="Account, data, theme, and model preferences"
-      contentClassName="h-[min(600px,85dvh)] w-[min(800px,calc(100vw-2rem))] sm:max-w-[min(800px,calc(100vw-2rem))]"
+      size="wide"
+      showCloseButton={false}
+      contentClassName={cn(
+        'h-[min(680px,90dvh)] max-h-[min(680px,90dvh)] max-w-none gap-0 overflow-hidden p-0',
+        'rounded-[1.75rem] border border-border bg-card text-card-foreground',
+      )}
     >
-      <div className="flex h-full">
-        <div className="flex w-[220px] flex-col border-r border-border bg-muted/30">
-          <div className="p-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="rounded-full"
-              onClick={() => onOpenChange(false)}
-            >
+      <div className="flex h-full min-h-0 flex-col overflow-hidden sm:flex-row">
+        <aside className="flex w-full shrink-0 flex-col border-b border-border bg-muted/20 sm:w-56 sm:border-r sm:border-b-0">
+          <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-5 sm:px-6">
+            <p className="text-sm font-semibold leading-none">Settings</p>
+            <Button variant="ghost" size="icon" className="size-8" onClick={() => onOpenChange(false)}>
               <X className="size-4" />
             </Button>
           </div>
 
-          <nav className="flex-1 space-y-0.5 px-2 pb-4">
+          <nav className="flex flex-col gap-0.5 p-2 sm:flex-1 sm:overflow-y-auto">
             {tabs.map((tab) => {
               const Icon = tab.icon
+              const active = activeTab === tab.id
               return (
-                <button
+                <Button
                   key={tab.id}
+                  type="button"
+                  variant={active ? 'secondary' : 'ghost'}
                   onClick={() => setActiveTab(tab.id)}
-                  className={cn(
-                    'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
-                    activeTab === tab.id
-                      ? 'bg-muted text-foreground'
-                      : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
-                  )}
+                  className="h-9 w-full justify-start gap-2 rounded-md px-2 font-normal"
                 >
-                  <Icon className="size-4" />
-                  {tab.label}
-                </button>
+                  <Icon className="size-4 shrink-0 opacity-70" />
+                  <span className="min-w-0 truncate">{tab.label}</span>
+                </Button>
               )
             })}
           </nav>
-        </div>
+        </aside>
 
-        <div className="flex flex-1 flex-col bg-background">
-          <div className="flex-1 overflow-y-auto p-8">
+        <section className="flex min-h-0 flex-1 flex-col bg-background">
+          <div className="flex h-14 shrink-0 items-center border-b border-border px-5 sm:px-6">
+            <h2 className="text-sm font-semibold leading-none">
+              {activePanel?.label ?? 'Settings'}
+            </h2>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-6 py-6 sm:px-8 sm:py-7">
             {activeTab === 'general' ? (
-              <div className="space-y-6">
-                <h2 className="text-lg font-semibold">General</h2>
+              <div className="space-y-3">
                 <SettingsItem label="Language">
                   <ResponsiveSelectField
                     value={language}
@@ -255,39 +272,51 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
             {activeTab === 'theme' ? (
               <div className="space-y-6">
-                <h2 className="text-lg font-semibold">Theme</h2>
-                <div
-                  className="grid gap-3 md:grid-cols-3"
-                  style={{ '--primary-color-preview': primaryColor } as React.CSSProperties}
-                >
-                  {themeOptions.map((option) => {
-                    const Icon = option.icon
-                    const isSelected = theme === option.id
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setTheme(option.id)}
-                        className={cn(
-                          'rounded-2xl border p-4 text-left transition-colors',
-                          isSelected
-                            ? 'border-primary bg-primary/5'
-                            : 'border-border hover:border-primary/40 hover:bg-muted/40',
-                        )}
-                      >
-                        <div className={cn('mb-4 h-24 rounded-xl border', option.previewClassName)} />
-                        <div className="flex items-center gap-2 text-sm font-medium">
-                          <Icon className="size-4" />
-                          {option.label}
-                        </div>
-                        <p className="mt-2 text-xs leading-5 text-muted-foreground">{option.description}</p>
-                      </button>
-                    )
-                  })}
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Appearance</p>
+                  <div
+                    className="grid gap-3 sm:grid-cols-3"
+                    style={{ '--primary-color-preview': primaryColor } as React.CSSProperties}
+                  >
+                    {themeOptions.map((option) => {
+                      const Icon = option.icon
+                      const isSelected = theme === option.id
+                      return (
+                        <Button
+                          key={option.id}
+                          type="button"
+                          variant="outline"
+                          onClick={() => setTheme(option.id)}
+                          className={cn(
+                            'h-auto w-full min-w-0 flex-col items-stretch gap-2 whitespace-normal rounded-lg border p-3 text-left font-normal',
+                            isSelected && 'border-primary ring-1 ring-primary',
+                          )}
+                        >
+                          <div
+                            className={cn(
+                              'h-16 w-full shrink-0 rounded-md border',
+                              option.previewClassName,
+                            )}
+                          />
+                          <div className="flex min-w-0 items-center gap-2 text-sm font-medium">
+                            <Icon className="size-4 shrink-0" />
+                            <span className="min-w-0 text-left">{option.label}</span>
+                          </div>
+                          <p className="min-w-0 text-left text-xs leading-snug text-muted-foreground">
+                            {option.description}
+                          </p>
+                        </Button>
+                      )
+                    })}
+                  </div>
                 </div>
 
-                <SettingsItem label="Primary color">
+                <SettingsItem
+                  label="Primary color"
+                  description="Use a custom accent color for buttons, highlights, and selections."
+                >
                   <div className="flex items-center gap-3">
+                    {/* Native color inputs are required for the browser color picker. */}
                     <input
                       type="color"
                       value={primaryColor}
@@ -314,17 +343,19 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                   </div>
                 </SettingsItem>
 
-                <div className="space-y-3">
-                  <Label className="text-sm font-medium">Preset colors</Label>
-                  <div className="flex flex-wrap gap-2">
+                <div className="rounded-lg border border-border bg-card px-4 py-4">
+                  <Label className="text-sm font-medium">Presets</Label>
+                  <div className="mt-3 flex flex-wrap gap-2">
                     {presetColors.map((color) => (
-                      <button
+                      <Button
                         key={color}
                         type="button"
+                        variant="outline"
+                        size="icon"
                         onClick={() => setPrimaryColor(color)}
                         className={cn(
-                          'size-9 rounded-full border-2 transition-transform hover:scale-105',
-                          primaryColor === color ? 'border-foreground' : 'border-border',
+                          'size-9 rounded-full border-2 p-0',
+                          primaryColor === color ? 'border-foreground' : 'border-transparent',
                         )}
                         style={{ backgroundColor: color }}
                         aria-label={`Use ${color} as the primary color`}
@@ -336,11 +367,10 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             ) : null}
 
             {activeTab === 'model' ? (
-              <div className="space-y-6">
-                <h2 className="text-lg font-semibold">Model features</h2>
+              <div className="space-y-3">
                 <SettingsItem
-                  label="Reasoning mode"
-                  description="Enable deeper reasoning controls for supported models."
+                  label="Reasoning"
+                  description="Extra step-by-step reasoning when the model supports it. Uses more time per reply when on."
                 >
                   <Switch
                     checked={Boolean(settings?.reasoningEnabled)}
@@ -351,8 +381,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                   />
                 </SettingsItem>
                 <SettingsItem
-                  label="Reasoning level"
-                  description="Default level for models that support reasoning."
+                  label="Reasoning depth"
+                  description="Default when reasoning is enabled."
                 >
                   <ResponsiveSelectField
                     value={
@@ -365,8 +395,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                       })
                     }}
                     disabled={!isOnline}
-                    title="Reasoning level"
-                    className="w-[160px]"
+                    title="Depth"
+                    className="w-[140px]"
                     options={[
                       { value: 'low', label: 'Low' },
                       { value: 'medium', label: 'Medium' },
@@ -377,9 +407,10 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               </div>
             ) : null}
 
+            {activeTab === 'memory' ? <MemorySettingsPanel /> : null}
+
             {activeTab === 'data' ? (
-              <div className="space-y-6">
-                <h2 className="text-lg font-semibold">Data controls</h2>
+              <div className="space-y-3">
                 <SettingsItem
                   label="Live query cache"
                   description="Convex subscriptions stay warm during navigation to reduce reload latency."
@@ -394,10 +425,14 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
             {activeTab === 'account' ? (
               <div className="space-y-6">
-                <h2 className="text-lg font-semibold">Account</h2>
-                <div className="flex items-center gap-6 border-b border-border/50 py-4">
-                  <div className="group relative cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-                    <Avatar className="size-20 ring-4 ring-background shadow-lg">
+                <div className="flex flex-col gap-5 rounded-lg border border-border bg-card p-5 sm:flex-row sm:items-center sm:gap-6">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="group relative h-auto shrink-0 justify-start p-0 hover:bg-transparent"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Avatar className="size-20 ring-4 ring-border">
                       <AvatarImage src={image || user?.image || undefined} alt={displayNameValue} className="object-cover" />
                       <AvatarFallback className="bg-primary text-xl font-medium text-primary-foreground">
                         {displayNameValue ? getInitials(displayNameValue) : <User className="size-8" />}
@@ -411,14 +446,17 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                     >
                       <Camera className="size-5 text-white" />
                     </div>
-                    <div className="absolute -right-1 -bottom-1 rounded-full bg-primary p-1 text-primary-foreground shadow-md">
+                    <div className="absolute -right-1 -bottom-1 rounded-full bg-primary p-1 text-primary-foreground ring-2 ring-background">
                       <Camera className="size-3" />
                     </div>
-                  </div>
+                  </Button>
                   <div>
                     <h3 className="font-medium">Profile picture</h3>
-                    <p className="mt-0.5 text-sm text-muted-foreground">Click to upload a new photo</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Click to upload a new photo.
+                    </p>
                   </div>
+                  {/* Native file inputs are required for the browser file picker. */}
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -428,7 +466,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                   />
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-4 rounded-lg border border-border bg-card p-5">
                   <div className="space-y-2">
                     <Label htmlFor="displayName">Display name</Label>
                     <Input
@@ -456,8 +494,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             ) : null}
 
             {activeTab === 'admin' && isAdminLike ? (
-              <div className="space-y-6">
-                <h2 className="text-lg font-semibold">Admin</h2>
+              <div className="space-y-3">
                 <SettingsItem
                   label="Open admin dashboard"
                   description="Manage providers, models, collections, plans, and usage."
@@ -476,7 +513,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
           </div>
 
           {activeTab === 'account' ? (
-            <div className="flex justify-end gap-3 border-t border-border bg-muted/30 px-8 py-4">
+            <div className="flex justify-end gap-3 border-t border-border bg-muted/20 px-6 py-4">
               <Button variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
@@ -486,7 +523,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               </Button>
             </div>
           ) : null}
-        </div>
+        </section>
       </div>
     </AdaptiveDialog>
   )

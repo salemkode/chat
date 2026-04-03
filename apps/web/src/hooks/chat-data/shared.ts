@@ -4,6 +4,8 @@ import { api } from '@convex/_generated/api'
 import type { FunctionReturnType } from 'convex/server'
 import { useMemo, useSyncExternalStore } from 'react'
 import type {
+  OfflineModelCollectionRecord,
+  OfflineModelPickerCacheRecord,
   OfflineModelRecord,
   OfflineProjectRecord,
   OfflineThreadRecord,
@@ -19,6 +21,8 @@ import {
   writeSettingsForUser,
   writeThreadsCache,
 } from '@/offline/local-cache'
+
+export type { OfflineModelPickerCacheRecord } from '@/offline/schema'
 
 const DRAFT_PREFIX = 'chat-draft:'
 
@@ -39,6 +43,7 @@ type ModelsWithProvidersRecord = FunctionReturnType<
   typeof api.admin.listModelsWithProviders
 >
 type ModelRecord = ModelsWithProvidersRecord['models'][number]
+type ModelCollectionRecord = ModelsWithProvidersRecord['collections'][number]
 type ProjectRecord = {
   id: string
   name: string
@@ -61,6 +66,8 @@ export type ChatMessage = {
   failureKind?: 'stopped' | 'error'
   failureMode?: 'replace' | 'clarify'
   failureNote?: string
+  localOnly?: boolean
+  clientSendId?: string
 }
 
 export type LocalCachedMessageRow = {
@@ -195,6 +202,19 @@ export function normalizeModel(model: ModelRecord): OfflineModelRecord {
   }
 }
 
+export function normalizeModelCollection(
+  collection: ModelCollectionRecord,
+): OfflineModelCollectionRecord {
+  return {
+    id: collection._id,
+    name: collection.name,
+    description: collection.description,
+    sortOrder: collection.sortOrder,
+    modelIds: collection.modelIds,
+    modelCount: collection.modelCount,
+  }
+}
+
 export function normalizeProject(project: ProjectRecord): OfflineProjectRecord {
   return {
     id: project.id,
@@ -223,7 +243,13 @@ export function cacheModelsToLocal(
   userId: string,
   data: ModelsWithProvidersRecord,
 ) {
-  writeModelsCache(userId, data.models.map(normalizeModel))
+  const models = Array.isArray(data.models) ? data.models : []
+  const collections = Array.isArray(data.collections) ? data.collections : []
+  const payload: OfflineModelPickerCacheRecord = {
+    models: models.map(normalizeModel),
+    collections: collections.map(normalizeModelCollection),
+  }
+  writeModelsCache(userId, payload)
 }
 
 export function cacheProjectsToLocal(userId: string, projects: ProjectsRecord) {

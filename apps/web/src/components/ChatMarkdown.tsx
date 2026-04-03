@@ -1,4 +1,4 @@
-import { Check, Copy } from 'lucide-react'
+import { Check, Copy } from '@/lib/icons'
 import React, {
   Children,
   Suspense,

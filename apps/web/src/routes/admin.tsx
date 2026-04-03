@@ -2,7 +2,7 @@
 import { useAuth } from '@clerk/tanstack-react-start'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useMutation } from 'convex/react'
-import { Loader2 } from 'lucide-react'
+import { Loader2 } from '@/lib/icons'
 import { useEffect, useReducer } from 'react'
 import { api } from '@convex/_generated/api'
 import { AdminBackdrop } from '@/components/admin/admin-backdrop'

@@ -5,7 +5,7 @@ import {
   useParams,
 } from '@tanstack/react-router'
 import type { Id } from '@convex/_generated/dataModel'
-import { Loader2 } from 'lucide-react'
+import { Loader2 } from '@/lib/icons'
 import {
   useCallback,
   useEffect,
@@ -33,12 +33,14 @@ import {
 } from '@/lib/project-selection'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import {
+  PendingSendsProvider,
   useCachedSessionStatus,
   useDraft,
   useGenerationState,
   useMessages,
   useModels,
   useProjects,
+  usePendingSends,
   useSettings,
   useSendMessage,
   useThread,
@@ -97,27 +99,29 @@ function AuthenticatedChatLayout() {
       <AppSidebar selectedThreadId={threadId ?? null} />
 
       <ChatModelProvider>
-        <SidebarInset
-          className="relative min-h-0"
-          style={
-            isMobile
-              ? ({
-                  '--mobile-header-height': '52px',
-                  '--mobile-composer-height': `${mobileComposerHeight}px`,
-                } as CSSProperties)
-              : undefined
-          }
-        >
-          <div className="min-h-0 flex-1">
-            <Outlet />
-          </div>
-
-          <div className="shrink-0">
-            <div className="mx-auto w-full max-w-3xl px-2 sm:px-4">
-              <ChatComposer threadId={threadId} mobile={isMobile} />
+        <PendingSendsProvider>
+          <SidebarInset
+            className="relative min-h-0"
+            style={
+              isMobile
+                ? ({
+                    '--mobile-header-height': '52px',
+                    '--mobile-composer-height': `${mobileComposerHeight}px`,
+                  } as CSSProperties)
+                : undefined
+            }
+          >
+            <div className="min-h-0 flex-1">
+              <Outlet />
             </div>
-          </div>
-        </SidebarInset>
+
+            <div className="shrink-0">
+              <div className="mx-auto w-full max-w-3xl px-2 sm:px-4">
+                <ChatComposer threadId={threadId} mobile={isMobile} />
+              </div>
+            </div>
+          </SidebarInset>
+        </PendingSendsProvider>
       </ChatModelProvider>
     </SidebarProvider>
   )
@@ -135,6 +139,14 @@ function ChatComposer({
   const { settings } = useSettings()
   const { projects } = useProjects()
   const { send, stop, disabledReason } = useSendMessage()
+  const {
+    clearFailedSendsForThread,
+    clearPendingSend,
+    createPendingSend,
+    markPendingFailed,
+    markPendingHandoff,
+    movePendingSendToThread,
+  } = usePendingSends()
   const thread = useThread(threadId)
   const { messages } = useMessages(threadId)
   const { activeGeneration } = useGenerationState(messages || [])
@@ -179,6 +191,12 @@ function ChatComposer({
 
   const sendNow = useCallback(
     async (input: QueuedMessage) => {
+      const pending = createPendingSend({
+        threadKey: threadId ?? 'new',
+        prompt: input.text,
+        attachments: input.attachments,
+      })
+
       const result = await send({
         text: input.text,
         threadId,
@@ -187,17 +205,42 @@ function ChatComposer({
         searchEnabled: input.searchEnabled,
         reasoning: input.reasoning,
         attachments: input.attachments,
+        onThreadReady: async (resolvedThreadId) => {
+          movePendingSendToThread(pending.clientSendId, resolvedThreadId)
+          if (!threadId) {
+            writePendingNewChatProjectId(undefined)
+            await navigate({
+              to: '/$chatId',
+              params: { chatId: resolvedThreadId },
+            })
+          }
+        },
+        onBeforeGenerate: () => {
+          markPendingHandoff(pending.clientSendId)
+        },
+        onError: (error) => {
+          markPendingFailed(pending.clientSendId, error.message)
+        },
       })
 
-      if (!threadId) {
-        writePendingNewChatProjectId(undefined)
+      clearPendingSend(pending.clientSendId)
+      clearFailedSendsForThread(threadId ?? 'new')
+      if (result.threadId && result.threadId !== (threadId ?? 'new')) {
+        clearFailedSendsForThread(result.threadId)
       }
-
-      if (result.threadId && result.threadId !== threadId) {
-        await navigate({ to: '/$chatId', params: { chatId: result.threadId } })
-      }
+      return result
     },
-    [navigate, send, threadId],
+    [
+      clearFailedSendsForThread,
+      clearPendingSend,
+      createPendingSend,
+      markPendingFailed,
+      markPendingHandoff,
+      movePendingSendToThread,
+      navigate,
+      send,
+      threadId,
+    ],
   )
 
   const dispatchNextQueued = useCallback(

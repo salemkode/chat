@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Upload } from 'lucide-react'
+import { Upload } from '@/lib/icons'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -48,7 +48,7 @@ export function IconPickerField({
   onUpload: (file: File) => Promise<void>
 }) {
   const [search, setSearch] = useState('')
-  const currentTab = iconType === 'upload' ? 'upload' : iconType === 'emoji' ? 'emoji' : 'lucide'
+  const currentTab = iconType === 'upload' ? 'upload' : iconType === 'emoji' ? 'emoji' : 'phosphor'
 
   const filteredIcons = useMemo(() => {
     if (!search.trim()) {
@@ -67,7 +67,7 @@ export function IconPickerField({
         <div className="grid gap-1">
           <Label>{label}</Label>
           <p className="text-xs text-muted-foreground">
-            Use a Lucide icon, emoji, or uploaded image.
+            Use a Phosphor icon, emoji, or uploaded image.
           </p>
         </div>
         <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2">
@@ -98,16 +98,19 @@ export function IconPickerField({
             onChange({ icon: iconType === 'emoji' ? icon : '✨', iconType: 'emoji' })
             return
           }
-          onChange({ icon: iconType === 'lucide' ? icon || 'Sparkles' : 'Sparkles', iconType: 'lucide' })
+          onChange({
+            icon: iconType === 'phosphor' ? icon || 'Sparkles' : 'Sparkles',
+            iconType: 'phosphor',
+          })
         }}
       >
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="lucide">Lucide</TabsTrigger>
+          <TabsTrigger value="phosphor">Phosphor</TabsTrigger>
           <TabsTrigger value="emoji">Emoji</TabsTrigger>
           <TabsTrigger value="upload">Upload</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="lucide" className="grid gap-3">
+        <TabsContent value="phosphor" className="grid gap-3">
           <Input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -118,9 +121,9 @@ export function IconPickerField({
               <Button
                 key={iconName}
                 type="button"
-                variant={icon === iconName && iconType === 'lucide' ? 'default' : 'outline'}
+                variant={icon === iconName && iconType === 'phosphor' ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => onChange({ icon: iconName, iconType: 'lucide' })}
+                onClick={() => onChange({ icon: iconName, iconType: 'phosphor' })}
               >
                 {iconName}
               </Button>
@@ -136,10 +139,10 @@ export function IconPickerField({
                     key={iconName}
                     type="button"
                     title={iconName}
-                    onClick={() => onChange({ icon: iconName, iconType: 'lucide' })}
+                    onClick={() => onChange({ icon: iconName, iconType: 'phosphor' })}
                     className={cn(
                       'flex min-h-16 flex-col items-center justify-center gap-1 rounded-lg border p-2 text-[10px] transition-colors',
-                      icon === iconName && iconType === 'lucide'
+                      icon === iconName && iconType === 'phosphor'
                         ? 'border-primary bg-primary/10 text-foreground'
                         : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted',
                     )}

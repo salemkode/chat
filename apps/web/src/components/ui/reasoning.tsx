@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils'
-import { ChevronDownIcon } from 'lucide-react'
+import { ChevronDownIcon } from '@/lib/icons'
 import React, {
   createContext,
   useContext,

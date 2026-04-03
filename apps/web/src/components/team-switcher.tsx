@@ -1,7 +1,8 @@
 'use client'
 
 import * as React from 'react'
-import { ChevronDown, Plus } from 'lucide-react'
+import { ChevronDown, Plus } from '@/lib/icons'
+import { Button } from '@/components/ui/button'
 
 import {
   ResponsivePopup,
@@ -56,10 +57,12 @@ export function TeamSwitcher({
               </ResponsivePopupTitle>
             </ResponsivePopupHeader>
             {teams.map((team, index) => (
-              <button
+              <Button
                 key={team.name}
+                type="button"
+                variant="ghost"
                 onClick={() => setActiveTeam(team)}
-                className="flex w-full items-center gap-2 rounded-md p-2 text-left text-sm hover:bg-accent"
+                className="flex h-auto w-full justify-start gap-2 rounded-md p-2 text-left text-sm hover:bg-accent"
               >
                 <div className="flex size-6 items-center justify-center rounded-xs border">
                   <team.logo className="size-4 shrink-0" />
@@ -68,15 +71,19 @@ export function TeamSwitcher({
                 <span className="ml-auto text-xs tracking-widest text-muted-foreground">
                   ⌘{index + 1}
                 </span>
-              </button>
+              </Button>
             ))}
             <div className="bg-border my-1 h-px" />
-            <button className="flex w-full items-center gap-2 rounded-md p-2 text-left text-sm hover:bg-accent">
+            <Button
+              type="button"
+              variant="ghost"
+              className="flex h-auto w-full justify-start gap-2 rounded-md p-2 text-left text-sm hover:bg-accent"
+            >
               <div className="bg-background flex size-6 items-center justify-center rounded-md border">
                 <Plus className="size-4" />
               </div>
               <div className="text-muted-foreground font-medium">Add team</div>
-            </button>
+            </Button>
           </ResponsivePopupContent>
         </ResponsivePopup>
       </SidebarMenuItem>

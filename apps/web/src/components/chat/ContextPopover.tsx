@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { AtSign, Search } from 'lucide-react'
+import { AtSign, Search } from '@/lib/icons'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import {
@@ -31,13 +32,15 @@ export function ContextPopover() {
   return (
     <ResponsivePopup>
       <ResponsivePopupTrigger asChild>
-        <button
+        <Button
           type="button"
+          variant="plain"
+          size="none"
           className="inline-flex items-center gap-2 rounded-full bg-zinc-800 px-3 py-1.5 text-sm text-zinc-300 transition-colors hover:bg-zinc-700"
         >
           <AtSign className="h-4 w-4" />
           Add context
-        </button>
+        </Button>
       </ResponsivePopupTrigger>
       <ResponsivePopupContent
         className="w-64 rounded-xl border-zinc-800 bg-zinc-900 p-0"
@@ -57,9 +60,11 @@ export function ContextPopover() {
           <p className="mb-2 px-2 text-xs font-medium text-zinc-500">Pages</p>
           <div className="max-h-64 overflow-y-auto">
             {filteredPages.map((page) => (
-              <button
+              <Button
                 type="button"
                 key={page.label}
+                variant="plain"
+                size="none"
                 onClick={() => {
                   setSelectedPage(page.label)
                   setSearchQuery('')
@@ -71,7 +76,7 @@ export function ContextPopover() {
               >
                 <span className="text-base">{page.icon}</span>
                 {page.label}
-              </button>
+              </Button>
             ))}
           </div>
         </div>

@@ -1,4 +1,5 @@
-import { ChevronDown, Check, Zap } from 'lucide-react'
+import { ChevronDown, Check, Zap } from '@/lib/icons'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -33,6 +34,15 @@ const agentModeLabel = {
   plan: 'Plan Mode',
 }
 
+function modeRowClass(active: boolean) {
+  return cn(
+    'flex h-auto w-full items-center justify-between rounded-md border px-3 py-2 text-sm transition-colors',
+    active
+      ? 'border-border bg-muted font-medium'
+      : 'border-transparent hover:bg-muted/60',
+  )
+}
+
 export function AgentModeSelector({
   agentMode,
   onAgentModeChange,
@@ -40,17 +50,12 @@ export function AgentModeSelector({
   onModelChange,
 }: AgentModeSelectorProps) {
   const availableModels = useQuery(api.admin.listEnabledModels)
-
   const showModelSelector = !!onModelChange
 
   return (
     <ResponsivePopup>
       <ResponsivePopupTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-9 gap-1 rounded-full px-3 text-muted-foreground hover:bg-secondary hover:text-foreground"
-        >
+        <Button variant="outline" size="sm" className="h-9 gap-1 font-normal">
           {showModelSelector && selectedModel ? (
             <>
               <Zap className="h-3 w-3" />
@@ -60,95 +65,98 @@ export function AgentModeSelector({
           ) : (
             agentModeLabel[agentMode]
           )}
-          <ChevronDown className="h-3 w-3" />
+          <ChevronDown className="h-3 w-3 opacity-50" />
         </Button>
       </ResponsivePopupTrigger>
       <ResponsivePopupContent
-        size="default"
-        className="w-72 rounded-xl border-border bg-background p-2"
+        size="small"
+        className="w-72 p-0"
         align="start"
         sideOffset={8}
       >
-        {/* Agent Mode Section */}
-        <div className="mb-3">
-          <p className="mb-2 px-2 text-xs font-medium text-zinc-500 uppercase tracking-wider">
-            Agent Mode
-          </p>
-          <div className="space-y-1">
-            <button
+        <div className="max-h-[min(400px,70dvh)] overflow-y-auto p-2">
+          <p className="px-2 pb-2 text-xs font-medium text-muted-foreground">Agent mode</p>
+          <div className="space-y-0.5">
+            <Button
               type="button"
+              variant="plain"
+              size="none"
               onClick={() => onAgentModeChange('auto')}
-              className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-sm text-zinc-300 transition-colors hover:bg-zinc-800"
+              className={modeRowClass(agentMode === 'auto')}
             >
               Auto
-              {agentMode === 'auto' && (
-                <Check className="h-4 w-4 text-indigo-400" />
-              )}
-            </button>
-            <button
+              {agentMode === 'auto' ? (
+                <Check className="h-4 w-4 shrink-0 text-primary" />
+              ) : null}
+            </Button>
+            <Button
               type="button"
+              variant="plain"
+              size="none"
               onClick={() => onAgentModeChange('agent')}
-              className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-sm text-zinc-300 transition-colors hover:bg-zinc-800"
+              className={modeRowClass(agentMode === 'agent')}
             >
               <span className="flex items-center gap-2">
-                Agent Mode
-                <Badge className="bg-indigo-600 px-1.5 py-0 text-[10px] font-medium text-white hover:bg-indigo-600">
+                Agent
+                <Badge variant="secondary" className="text-[10px] font-normal">
                   Beta
                 </Badge>
               </span>
-              {agentMode === 'agent' && (
-                <Check className="h-4 w-4 text-indigo-400" />
-              )}
-            </button>
-            <button
+              {agentMode === 'agent' ? (
+                <Check className="h-4 w-4 shrink-0 text-primary" />
+              ) : null}
+            </Button>
+            <Button
               type="button"
+              variant="plain"
+              size="none"
               onClick={() => onAgentModeChange('plan')}
-              className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-sm text-zinc-300 transition-colors hover:bg-zinc-800"
+              className={modeRowClass(agentMode === 'plan')}
             >
-              Plan Mode
-              {agentMode === 'plan' && (
-                <Check className="h-4 w-4 text-indigo-400" />
-              )}
-            </button>
+              Plan
+              {agentMode === 'plan' ? (
+                <Check className="h-4 w-4 shrink-0 text-primary" />
+              ) : null}
+            </Button>
           </div>
-        </div>
 
-        {/* Model Selection Section */}
-        {showModelSelector && availableModels && availableModels.length > 0 && (
-          <>
-            <div className="border-t border-zinc-800 my-3" />
-            <div>
-              <p className="mb-2 px-2 text-xs font-medium text-zinc-500 uppercase tracking-wider">
-                Model
-              </p>
-              <div className="space-y-1 max-h-48 overflow-y-auto">
+          {showModelSelector && availableModels && availableModels.length > 0 ? (
+            <>
+              <div className="my-2 border-t border-border" />
+              <p className="px-2 pb-2 text-xs font-medium text-muted-foreground">Model</p>
+              <div className="max-h-40 space-y-0.5 overflow-y-auto">
                 {availableModels
                   .sort((a: Model, b: Model) => a.sortOrder - b.sortOrder)
-                  .map((model: Model) => (
-                    <button
-                      key={model._id}
-                      type="button"
-                      onClick={() => onModelChange!(model.modelId)}
-                      className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-sm text-zinc-300 transition-colors hover:bg-zinc-800"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Zap className="h-3 w-3 text-yellow-500" />
-                        <span>{model.displayName}</span>
-                        {model.isFree && (
-                          <Badge className="bg-green-600 px-1.5 py-0 text-[10px] font-medium text-white hover:bg-green-600">
-                            Free
-                          </Badge>
-                        )}
-                      </div>
-                      {selectedModel === model.modelId && (
-                        <Check className="h-4 w-4 text-indigo-400" />
-                      )}
-                    </button>
-                  ))}
+                  .map((model: Model) => {
+                    const isPick = selectedModel === model.modelId
+                    return (
+                      <Button
+                        key={model._id}
+                        type="button"
+                        variant="plain"
+                        size="none"
+                        onClick={() => onModelChange!(model.modelId)}
+                        className={modeRowClass(isPick)}
+                      >
+                        <span className="flex min-w-0 items-center gap-2">
+                          <Zap className="h-3 w-3 shrink-0 text-muted-foreground" />
+                          <span className="truncate">{model.displayName}</span>
+                          {model.isFree ? (
+                            <Badge variant="outline" className="shrink-0 text-[10px] font-normal">
+                              Free
+                            </Badge>
+                          ) : null}
+                        </span>
+                        {isPick ? (
+                          <Check className="h-4 w-4 shrink-0 text-primary" />
+                        ) : null}
+                      </Button>
+                    )
+                  })}
               </div>
-            </div>
-          </>
-        )}
+            </>
+          ) : null}
+        </div>
       </ResponsivePopupContent>
     </ResponsivePopup>
   )

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return -- catalog model entries come from Convex-inferred ProviderCatalogResult */
 import { useMutation } from 'convex/react'
 import type { Doc, Id } from '@convex/_generated/dataModel'
-import { Loader2, Plus, RefreshCcw, Sparkles } from 'lucide-react'
+import { Loader2, Plus, RefreshCcw, Sparkles } from '@/lib/icons'
 import { useCallback, useId, useMemo, useReducer } from 'react'
 import { toast } from 'sonner'
 import { api } from '@convex/_generated/api'
@@ -125,7 +125,7 @@ export function AdminModelDialog({ state, actions }: AdminModelDialogProps) {
         Add model
       </Button>
       <ResponsiveModal open={open} onOpenChange={onOpenChange}>
-      <ResponsiveModalContent size="large" className="max-h-[90vh] w-[min(94vw,72rem)] max-w-none overflow-hidden">
+      <ResponsiveModalContent size="page" className="max-h-[90vh] overflow-hidden">
         <DialogHeader>
           <ResponsiveModalTitle>
             {editingModel ? 'Edit model' : 'Add model'}

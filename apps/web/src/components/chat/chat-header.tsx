@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button'
-import { Menu, Sparkles, Sun, Moon } from 'lucide-react'
+import { Menu, Sparkles, Sun, Moon } from '@/lib/icons'
 import { useTheme } from '@/components/theme-provider'
 import { cn } from '@/lib/utils'
 import { ResponsiveSelectField } from '@/components/ui/responsive-select-field'

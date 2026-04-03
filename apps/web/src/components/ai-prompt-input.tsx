@@ -1,22 +1,27 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { AlertCircle } from 'lucide-react'
+import { AlertCircle } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import {
   AttachmentGrid,
   ComposerActionRow,
   ProjectMentionPopup,
   SelectedProjectBadge,
+  TextAttachmentGrid,
   type PendingAttachment,
 } from './ai-prompt-input/parts'
 import {
+  combineTextAttachmentsWithPrompt,
+  createTextAttachment,
   getAttachmentFingerprint,
   getComposerErrorMessage,
   getProjectMention,
   isSupportedAttachment,
+  shouldConvertToTextAttachment,
   type ComposerReasoning,
   type ProjectMentionState,
+  type TextAttachment,
 } from './ai-prompt-input/utils'
 
 interface AIPromptInputProps {
@@ -83,6 +88,7 @@ export function AIPromptInput({
   )
   const [highlightedProjectIndex, setHighlightedProjectIndex] = useState(0)
   const [attachments, setAttachments] = useState<PendingAttachment[]>([])
+  const [textAttachments, setTextAttachments] = useState<TextAttachment[]>([])
   const [isDragging, setIsDragging] = useState(false)
 
   const attachmentsRef = useRef<PendingAttachment[]>([])
@@ -136,6 +142,11 @@ export function AIPromptInput({
 
       return []
     })
+    setTextAttachments([])
+  }
+
+  const removeTextAttachment = (id: string) => {
+    setTextAttachments((current) => current.filter((att) => att.id !== id))
   }
 
   const addAttachments = (files: FileList | File[] | null) => {
@@ -219,8 +230,9 @@ export function AIPromptInput({
 
   const handleSubmit = async (event?: React.FormEvent) => {
     event?.preventDefault()
+    const hasTextAttachments = textAttachments.length > 0
     if (
-      (!value.trim() && attachments.length === 0) ||
+      (!value.trim() && attachments.length === 0 && !hasTextAttachments) ||
       !onSubmit ||
       disabled ||
       isSubmitting
@@ -232,7 +244,11 @@ export function AIPromptInput({
     setSubmitError(null)
 
     try {
-      await onSubmit(value, {
+      const resolvedPrompt = combineTextAttachmentsWithPrompt(
+        value,
+        textAttachments,
+      )
+      await onSubmit(resolvedPrompt, {
         searchEnabled,
         projectId: selectedProjectId,
         attachments: attachments.map((attachment) => attachment.file),
@@ -312,7 +328,7 @@ export function AIPromptInput({
   }, [])
 
   return (
-    <div className={cn('pointer-events-auto w-full', mobile ? 'bg-transparent' : 'border-t border-border/70')}>
+    <div className={cn('pointer-events-auto w-full', mobile ? 'bg-transparent' : '')}>
       {submitError ? (
         <div className={cn('mb-2 flex justify-center', mobile && 'px-2')}>
           <div
@@ -350,8 +366,8 @@ export function AIPromptInput({
         className={cn(
           'pointer-events-auto relative flex w-full min-w-0 flex-col items-stretch text-secondary-foreground',
           mobile
-            ? 'rounded-[1.625rem] border border-border/90 bg-card p-3.5 shadow-[0_4px_24px_rgba(15,23,42,0.1)] dark:border-border/55 dark:bg-card/98 dark:shadow-[0_6px_28px_rgba(0,0,0,0.45)]'
-            : 'rounded-t-xl border border-border bg-linear-to-b from-background/95 to-background/90 bg-muted/80 p-3 backdrop-blur-2xl sm:max-w-3xl sm:p-4',
+            ? 'rounded-4xl border border-border/90 bg-card p-3.5 shadow-[0_4px_24px_rgba(15,23,42,0.1)] dark:border-border/55 dark:bg-card/98 dark:shadow-[0_6px_28px_rgba(0,0,0,0.45)]'
+            : 'rounded-4xl border border-border bg-linear-to-b from-background/95 to-background/90 bg-muted/80 p-3 backdrop-blur-2xl sm:max-w-3xl sm:p-4',
           isDragging && 'border-primary/60 bg-primary/5',
         )}
       >
@@ -360,6 +376,11 @@ export function AIPromptInput({
             selectedProject={selectedProject}
             mobile={mobile}
             onClear={() => onProjectChange?.(undefined)}
+          />
+          <TextAttachmentGrid
+            textAttachments={textAttachments}
+            mobile={mobile}
+            onRemove={removeTextAttachment}
           />
           <AttachmentGrid
             attachments={attachments}
@@ -371,6 +392,16 @@ export function AIPromptInput({
             name="input"
             placeholder="Type your message here..."
             value={value}
+            onPaste={(event) => {
+              const pastedText = event.clipboardData.getData('text/plain')
+              if (pastedText && shouldConvertToTextAttachment(pastedText)) {
+                event.preventDefault()
+                setTextAttachments((current) => [
+                  ...current,
+                  createTextAttachment(pastedText),
+                ])
+              }
+            }}
             onChange={(event) => {
               const nextValue = event.target.value
               setValue(nextValue)
@@ -406,7 +437,11 @@ export function AIPromptInput({
 
               if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault()
-                if (!value.trim() && attachments.length === 0) {
+                if (
+                  !value.trim() &&
+                  attachments.length === 0 &&
+                  textAttachments.length === 0
+                ) {
                   onEmptyEnter?.()
                   return
                 }
@@ -457,6 +492,7 @@ export function AIPromptInput({
           isSubmitting={isSubmitting}
           value={value}
           attachments={attachments}
+          textAttachments={textAttachments}
           mobile={mobile}
           selectedModel={selectedModel}
           onModelChange={onModelChange}

@@ -1,4 +1,4 @@
-import { Folder, MessageSquare, X } from 'lucide-react'
+import { Folder, MessageSquare, X } from '@/lib/icons'
 import { ShareChatDialog } from '@/components/chat/ShareChatDialog'
 import { Button } from '@/components/ui/button'
 import { SidebarTrigger } from '@/components/ui/sidebar'

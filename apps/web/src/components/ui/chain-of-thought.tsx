@@ -4,7 +4,7 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
 import { cn } from '@/lib/utils'
-import { ChevronDown, Circle } from 'lucide-react'
+import { ChevronDown, Circle } from '@/lib/icons'
 import React from 'react'
 
 export type ChainOfThoughtItemProps = React.ComponentProps<'div'>

@@ -47,7 +47,12 @@ export function useSendMessage() {
   )
   const sendMessage = useMutation(api.agents.generateMessage).withOptimisticUpdate(
     (localStore, args) => {
-      applyOptimisticGenerateMessage(localStore, args.threadId, args.prompt)
+      applyOptimisticGenerateMessage(
+        localStore,
+        args.threadId,
+        args.prompt,
+        args.attachments,
+      )
     },
   )
   const regenerateMessage = useMutation(api.agents.regenerateMessage).withOptimisticUpdate(
@@ -112,6 +117,10 @@ export function useSendMessage() {
       searchEnabled,
       reasoning,
       attachments,
+      onThreadReady,
+      onBeforeGenerate,
+      onError,
+      onSettled,
     }: {
       text: string
       threadId?: string
@@ -121,75 +130,99 @@ export function useSendMessage() {
       searchEnabled?: boolean
       reasoning?: { enabled: boolean; level?: 'low' | 'medium' | 'high' }
       attachments?: File[]
+      onThreadReady?: (threadId: string) => void | Promise<void>
+      onBeforeGenerate?: () => void | Promise<void>
+      onError?: (error: Error) => void | Promise<void>
+      onSettled?: () => void | Promise<void>
     }) => {
-      if (!isOnline) {
-        return { threadId, disabledReason: 'offline' as const }
-      }
+      let resolvedThreadId = threadId
 
-      let nextThreadId = threadId
-      if (!nextThreadId) {
-        nextThreadId = await createThread({
-          title: text.substring(0, 30) || attachments?.[0]?.name || 'New chat',
-          projectId,
-        } as never)
-      }
-      const resolvedThreadId = nextThreadId
-      if (!resolvedThreadId) {
-        throw new Error('Failed to create a chat thread')
-      }
-      followLatestMessage(resolvedThreadId)
-      resumeMessageStreaming(resolvedThreadId)
+      try {
+        if (!isOnline) {
+          return { threadId, disabledReason: 'offline' as const }
+        }
 
-      let resolvedModelDocId = modelDocId
-      if (!resolvedModelDocId && selectionTier) {
-        const selection = await selectModel({
-          tier: selectionTier,
+        let nextThreadId = threadId
+        if (!nextThreadId) {
+          nextThreadId = await createThread({
+            title: text.substring(0, 30) || attachments?.[0]?.name || 'New chat',
+            projectId,
+          } as never)
+        }
+        resolvedThreadId = nextThreadId
+        if (!resolvedThreadId) {
+          throw new Error('Failed to create a chat thread')
+        }
+
+        if (!threadId) {
+          writeDraft(resolvedThreadId, text)
+        }
+        await onThreadReady?.(resolvedThreadId)
+        followLatestMessage(resolvedThreadId)
+        resumeMessageStreaming(resolvedThreadId)
+
+        let resolvedModelDocId = modelDocId
+        if (!resolvedModelDocId && selectionTier) {
+          const selection = await selectModel({
+            tier: selectionTier,
+            threadId: resolvedThreadId,
+            requestContext: {
+              prompt: text,
+              promptChars: text.length,
+              requiresTools: searchEnabled === true,
+              requiresReasoning: reasoning?.enabled === true,
+              needsLongContext: text.length > 8000,
+            },
+            requiresTools: {
+              enabled: searchEnabled === true,
+            },
+            requiresReasoning: {
+              enabled: reasoning?.enabled === true,
+              level: reasoning?.level,
+            },
+          } as never)
+          resolvedModelDocId = selection.selectedModel.modelDocId as Id<'models'>
+        }
+        if (!resolvedModelDocId) {
+          throw new Error('No model selected')
+        }
+
+        const hasAttachments = Boolean(attachments && attachments.length > 0)
+        if (!text.trim() && !hasAttachments) {
+          throw new Error('Message cannot be empty')
+        }
+
+        const uploadedAttachments =
+          attachments && attachments.length > 0
+            ? await uploadAttachments(attachments)
+            : undefined
+
+        await onBeforeGenerate?.()
+        await sendMessage({
           threadId: resolvedThreadId,
-          requestContext: {
-            prompt: text,
-            promptChars: text.length,
-            requiresTools: searchEnabled === true,
-            requiresReasoning: reasoning?.enabled === true,
-            needsLongContext: text.length > 8000,
-          },
-          requiresTools: {
-            enabled: searchEnabled === true,
-          },
-          requiresReasoning: {
-            enabled: reasoning?.enabled === true,
-            level: reasoning?.level,
-          },
+          prompt: text,
+          modelId: resolvedModelDocId,
+          projectId,
+          searchEnabled: searchEnabled ?? false,
+          reasoning,
+          attachments: uploadedAttachments,
         } as never)
-        resolvedModelDocId = selection.selectedModel.modelDocId as Id<'models'>
+
+        writeDraft(threadId || 'new', '')
+        writeDraft(resolvedThreadId, '')
+
+        return { threadId: resolvedThreadId, disabledReason: null }
+      } catch (error) {
+        const resolvedError =
+          error instanceof Error ? error : new Error('Failed to send message')
+        if (resolvedThreadId) {
+          writeDraft(resolvedThreadId, text)
+        }
+        await onError?.(resolvedError)
+        throw resolvedError
+      } finally {
+        await onSettled?.()
       }
-      if (!resolvedModelDocId) {
-        throw new Error('No model selected')
-      }
-
-      const hasAttachments = Boolean(attachments && attachments.length > 0)
-      if (!text.trim() && !hasAttachments) {
-        throw new Error('Message cannot be empty')
-      }
-
-      const uploadedAttachments =
-        attachments && attachments.length > 0
-          ? await uploadAttachments(attachments)
-          : undefined
-
-      await sendMessage({
-        threadId: resolvedThreadId,
-        prompt: text,
-        modelId: resolvedModelDocId,
-        projectId,
-        searchEnabled: searchEnabled ?? false,
-        reasoning,
-        attachments: uploadedAttachments,
-      } as never)
-
-      writeDraft(threadId || 'new', '')
-      writeDraft(resolvedThreadId, '')
-
-      return { threadId: resolvedThreadId, disabledReason: null }
     },
     [
       createThread,

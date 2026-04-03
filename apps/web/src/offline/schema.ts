@@ -54,17 +54,31 @@ export interface OfflineModelRecord {
   isFavorite: boolean
   isFree?: boolean
   icon?: string
-  iconType?: 'emoji' | 'lucide' | 'upload'
+  iconType?: 'emoji' | 'lucide' | 'phosphor' | 'upload'
   iconUrl?: string
   provider?: {
     _id: string
     name: string
     providerType: string
     icon?: string
-    iconType?: 'emoji' | 'lucide' | 'upload'
+    iconType?: 'emoji' | 'lucide' | 'phosphor' | 'upload'
     iconId?: string
     iconUrl?: string
   } | null
+}
+
+export interface OfflineModelCollectionRecord {
+  id: string
+  name: string
+  description?: string
+  sortOrder: number
+  modelIds: string[]
+  modelCount: number
+}
+
+export interface OfflineModelPickerCacheRecord {
+  models: OfflineModelRecord[]
+  collections: OfflineModelCollectionRecord[]
 }
 
 export interface OfflineProjectRecord {

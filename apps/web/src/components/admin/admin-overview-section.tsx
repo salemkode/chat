@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access -- Convex hooks */
 import { useMutation } from 'convex/react'
 import type { Id } from '@convex/_generated/dataModel'
-import type { LucideIcon } from 'lucide-react'
-import { Bot, Boxes, Sparkles, Users } from 'lucide-react'
+import type { LucideIcon } from '@/lib/icons'
+import { Bot, Boxes, Sparkles, Users } from '@/lib/icons'
 import { Area, AreaChart, CartesianGrid, XAxis } from 'recharts'
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'

@@ -36,9 +36,7 @@ export function EntityIcon({
   }
 
   const iconName =
-    iconType === 'lucide' && icon
-      ? icon
-      : fallback
+    (iconType === 'lucide' || iconType === 'phosphor') && icon ? icon : fallback
   const IconComponent = getLucideIcon(iconName)
 
   if (IconComponent) {

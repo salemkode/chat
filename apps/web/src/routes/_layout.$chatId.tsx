@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access -- hook return types are narrowed at runtime for this route */
 import { createFileRoute } from '@tanstack/react-router'
-import { Loader2 } from 'lucide-react'
+import { Loader2 } from '@/lib/icons'
 import { AuthRedirect } from '@/components/auth-redirect'
 import { ChatMessageList } from '@/components/ChatMessageList'
 import { ChatThreadHeader } from '@/components/chat/ChatThreadHeader'

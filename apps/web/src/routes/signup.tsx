@@ -5,7 +5,7 @@ import {
   SignUp,
 } from '@clerk/tanstack-react-start'
 import { createFileRoute, Navigate, useSearch } from '@tanstack/react-router'
-import { Loader2 } from 'lucide-react'
+import { Loader2 } from '@/lib/icons'
 import { getPostLoginRedirectTarget } from '@/lib/auth-redirect'
 import { parseRouteSearchRedirects } from '@/lib/parsers'
 

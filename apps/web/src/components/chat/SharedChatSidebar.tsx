@@ -1,4 +1,4 @@
-import { Check, Copy, ExternalLink, Link2, Smartphone } from 'lucide-react'
+import { Check, Copy, ExternalLink, Link2, Smartphone } from '@/lib/icons'
 import { useMemo, useState } from 'react'
 import { useIsMobile } from '@chat/shared/hooks/use-mobile'
 import { Badge } from '@/components/ui/badge'

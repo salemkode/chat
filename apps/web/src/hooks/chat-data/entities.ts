@@ -14,7 +14,9 @@ import {
   cacheProjectsToLocal,
   cacheSettingsToLocal,
   type CachedSettingsView,
+  normalizeModelCollection,
   normalizeModel,
+  type OfflineModelPickerCacheRecord,
   toModelDocId,
   type ProjectsRecord,
   useConvexUserIdForCache,
@@ -28,23 +30,42 @@ export function useModels() {
   const data = useQuery(api.admin.listModelsWithProviders)
   const setFavoriteModel = useMutation(api.admin.setFavoriteModel)
 
-  const cachedModels = useMemo(() => {
+  const cachedModelPicker = useMemo(() => {
     if (!cacheUserId) {
-      return []
+      return { models: [], collections: [] }
     }
-    const fromLs = readModelsCache(cacheUserId)
-    return Array.isArray(fromLs) ? fromLs : []
+    const fromLs = readModelsCache<OfflineModelPickerCacheRecord>(cacheUserId)
+    if (!fromLs) {
+      return { models: [], collections: [] }
+    }
+    if (Array.isArray(fromLs)) {
+      return { models: fromLs, collections: [] }
+    }
+    return {
+      models: Array.isArray(fromLs.models) ? fromLs.models : [],
+      collections: Array.isArray(fromLs.collections) ? fromLs.collections : [],
+    }
   }, [cacheUserId, cacheVersion])
 
   useEffect(() => {
-    if (data?.models && cacheUserId) {
+    if (cacheUserId && (Array.isArray(data?.models) || Array.isArray(data?.collections))) {
       cacheModelsToLocal(cacheUserId, data)
     }
   }, [data, cacheUserId])
 
   const models = useMemo(
-    () => (data?.models ? data.models.map(normalizeModel) : cachedModels || []),
-    [cachedModels, data?.models],
+    () =>
+      Array.isArray(data?.models)
+        ? data.models.map(normalizeModel)
+        : cachedModelPicker.models || [],
+    [cachedModelPicker.models, data?.models],
+  )
+  const collections = useMemo(
+    () =>
+      Array.isArray(data?.collections)
+        ? data.collections.map(normalizeModelCollection)
+        : cachedModelPicker.collections || [],
+    [cachedModelPicker.collections, data?.collections],
   )
 
   const setFavorite = useCallback(
@@ -57,7 +78,7 @@ export function useModels() {
     [isOnline, setFavoriteModel],
   )
 
-  return { models, setFavorite }
+  return { models, collections, setFavorite }
 }
 
 export function useProjects() {
