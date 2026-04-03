@@ -1,0 +1,11 @@
+Frontend design skill (SKILL.md)
+--------------------------------
+
+This skill is bundled for use in this repository. The skill text may originate from
+third-party “agent skill” packs; use and redistribution are subject to the terms
+under which you obtained the skill and to your project’s policies.
+
+If you publish this skill outside the project, retain this notice and any
+vendor-specific license the upstream pack requires.
+
+No warranty: provided “as is” for development assistance only.
