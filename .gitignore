@@ -2,6 +2,10 @@ node_modules
 .DS_Store
 dist
 dist-ssr
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
 *.local
 count.txt
 .env
