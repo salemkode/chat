@@ -256,6 +256,16 @@ const dashboardModelCollectionValidator = v.object({
   models: v.array(collectionModelSummaryValidator),
 })
 
+const publicModelCollectionValidator = v.object({
+  _id: v.id('modelCollections'),
+  _creationTime: v.number(),
+  name: v.string(),
+  description: v.optional(v.string()),
+  sortOrder: v.number(),
+  modelIds: v.array(v.id('models')),
+  modelCount: v.number(),
+})
+
 async function hasAdminAccess(
   ctx: MutationCtx | QueryCtx,
   userId: Id<'users'>,
@@ -685,6 +695,7 @@ export const listEnabledModels = query({
 export const listModelsWithProviders = query({
   args: {},
   returns: v.object({
+    collections: v.array(publicModelCollectionValidator),
     providers: v.array(providerSummaryValidator),
     favorites: v.array(modelWithProviderValidator),
     models: v.array(modelWithProviderValidator),
@@ -692,25 +703,27 @@ export const listModelsWithProviders = query({
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) {
-      return { providers: [], favorites: [], models: [] }
+      return { collections: [], providers: [], favorites: [], models: [] }
     }
 
-    const [models, providers, favorites, settings, user] = await Promise.all([
-      ctx.db
-        .query('models')
-        .withIndex('by_enabled', (q) => q.eq('isEnabled', true))
-        .collect(),
-      ctx.db
-        .query('providers')
-        .withIndex('by_enabled', (q) => q.eq('isEnabled', true))
-        .collect(),
-      ctx.db
-        .query('userFavoriteModels')
-        .withIndex('by_user', (q) => q.eq('userId', userId))
-        .collect(),
-      getCurrentAdminSettings(ctx),
-      ctx.db.get(userId),
-    ])
+    const [models, providers, favorites, settings, user, collections] =
+      await Promise.all([
+        ctx.db
+          .query('models')
+          .withIndex('by_enabled', (q) => q.eq('isEnabled', true))
+          .collect(),
+        ctx.db
+          .query('providers')
+          .withIndex('by_enabled', (q) => q.eq('isEnabled', true))
+          .collect(),
+        ctx.db
+          .query('userFavoriteModels')
+          .withIndex('by_user', (q) => q.eq('userId', userId))
+          .collect(),
+        getCurrentAdminSettings(ctx),
+        ctx.db.get(userId),
+        ctx.db.query('modelCollections').collect(),
+      ])
     const effectiveAppPlan = await resolveEffectiveAppPlan(
       ctx,
       settings,
@@ -775,7 +788,29 @@ export const listModelsWithProviders = query({
         })),
     )
 
+    const visibleModelIds = new Set(modelsWithInfo.map((model) => model._id))
+    const collectionRows = collections
+      .map((collection) => {
+        const modelIds = collection.modelIds.filter((modelId) =>
+          visibleModelIds.has(modelId),
+        )
+
+        return {
+          ...collection,
+          modelIds,
+          modelCount: modelIds.length,
+        }
+      })
+      .filter((collection) => collection.modelCount > 0)
+      .sort((left, right) => {
+        if (left.sortOrder !== right.sortOrder) {
+          return left.sortOrder - right.sortOrder
+        }
+        return left.name.localeCompare(right.name)
+      })
+
     return {
+      collections: collectionRows,
       providers: sortedProviders,
       favorites: modelsWithInfo.filter((model) => model.isFavorite),
       models: modelsWithInfo.sort(

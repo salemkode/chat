@@ -29,6 +29,8 @@ import { exaWebSearchTool } from './lib/exaWebSearch'
 import { memoryTools } from './lib/memoryTools'
 import { rateLimiter } from './lib/rateLimiter'
 import { threadMetadataTools } from './lib/threadMetadataTools'
+import { quranDocsTool } from './lib/quranDocsTool'
+import { quranSourceTool } from './lib/quranSourceTool'
 import { extractMessageText } from './functions/memoryShared'
 import { threadMetadataValidator } from './lib/validators'
 import { isModelAllowedForPlan } from './lib/appPlan'
@@ -1270,6 +1272,28 @@ export const streamMessage = internalAction({
             'When you use web info, cite sources as markdown links using the returned URLs.',
           ].join('\n')
         : undefined
+      const quranDocsSystem = [
+        'QuranJS documentation search is enabled for this message.',
+        'Use the tool `quran_docs_search` only for QuranJS, Quran.com API docs, client usage, or migration-guide questions.',
+        'Use the tool `quran_source_lookup` for Quran content such as ayahs, verse text, verse lookup, topical Quran search, and translations.',
+        'This is a strict rule: if the user asks about Quran content, you must use `quran_source_lookup` before answering.',
+        'This is also a strict rule: if the user asks about QuranJS behavior or migration, you must use `quran_docs_search` before answering.',
+        'Do not answer Quran-related questions from memory alone.',
+        'Do not provide an ayah, surah detail, translation, or topical Quran answer unless it is verified by `quran_source_lookup`.',
+        'Do not call `quran_source_lookup` for ordinary non-Quran questions.',
+        'If you decide to mention, quote, recommend, or display a specific ayah, the final Quran tool call must be an exact verse lookup by `verseKey` so the client can render the full ayah card.',
+        'If you start with a topical Quran search and then choose one verse, call `quran_source_lookup` again with the exact `verseKey` before the final answer.',
+        'Never rely on a search snippet or your own memory for the final Arabic ayah text.',
+        'When the Quran tool returns a verified ayah card, keep your prose concise and rely on the ayah card for the full Arabic text and audio.',
+        'Do not provide QuranJS API behavior or migration guidance unless it is verified by `quran_docs_search`.',
+        'If the relevant Quran tool fails or does not return enough evidence, say that you could not verify the answer from the Quran source and ask the user to refine the request.',
+        'Do not use `quran_docs_search` for non-Quran topics.',
+        'Do not use `quran_source_lookup` for non-Quran topics.',
+        'For QuranJS or Quran.com API docs questions, prefer `quran_docs_search` before general web search.',
+        'For Quran verse or translation questions, prefer `quran_source_lookup` instead of general web search.',
+        'When `quran_source_lookup` returns Quran evidence, cite those verse URLs as markdown links.',
+        'When `quran_docs_search` returns relevant docs, cite those URLs as markdown links.',
+      ].join('\n')
       const reasoningSystem =
         args.reasoning?.enabled && args.reasoning.level
           ? `Reasoning mode is enabled for this request at "${args.reasoning.level}" level.`
@@ -1316,6 +1340,7 @@ export const streamMessage = internalAction({
       const system = [
         automaticMemoryContext.text,
         searchSystem,
+        quranDocsSystem,
         reasoningSystem,
         memorySystem,
         threadMetadataSystem,
@@ -1325,6 +1350,8 @@ export const streamMessage = internalAction({
       const tools = {
         ...memoryTools,
         ...threadMetadataTools,
+        quran_docs_search: quranDocsTool,
+        quran_source_lookup: quranSourceTool,
         ...(searchEnabled ? { exa_web_search: exaWebSearchTool } : {}),
       }
 

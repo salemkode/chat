@@ -15,6 +15,10 @@ const reasoningLevelValidator = v.union(
   v.literal('medium'),
   v.literal('high'),
 )
+const voiceTranscriptionModeValidator = v.union(
+  v.literal('cloud'),
+  v.literal('device'),
+)
 
 const userSettingsValidator = v.object({
   _id: v.id('userSettings'),
@@ -25,6 +29,7 @@ const userSettingsValidator = v.object({
   bio: v.optional(v.string()),
   reasoningEnabled: v.optional(v.boolean()),
   reasoningLevel: v.optional(reasoningLevelValidator),
+  voiceTranscriptionMode: v.optional(voiceTranscriptionModeValidator),
   updatedAt: v.number(),
 })
 
@@ -122,6 +127,7 @@ export const updateSettings = mutation({
     bio: v.optional(v.string()),
     reasoningEnabled: v.optional(v.boolean()),
     reasoningLevel: v.optional(reasoningLevelValidator),
+    voiceTranscriptionMode: v.optional(voiceTranscriptionModeValidator),
   },
   returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
@@ -138,30 +144,40 @@ export const updateSettings = mutation({
     const now = Date.now()
 
     if (existing) {
-      await ctx.db.patch(existing._id, {
-        ...(args.displayName !== undefined && {
-          displayName: args.displayName,
-        }),
-        ...(args.image !== undefined && { image: args.image }),
-        ...(args.bio !== undefined && { bio: args.bio }),
-        ...(args.reasoningEnabled !== undefined && {
-          reasoningEnabled: args.reasoningEnabled,
-        }),
-        ...(args.reasoningLevel !== undefined && {
-          reasoningLevel: args.reasoningLevel,
-        }),
-        updatedAt: now,
-      })
+      await ctx.db.patch(
+        existing._id,
+        {
+          ...(args.displayName !== undefined && {
+            displayName: args.displayName,
+          }),
+          ...(args.image !== undefined && { image: args.image }),
+          ...(args.bio !== undefined && { bio: args.bio }),
+          ...(args.reasoningEnabled !== undefined && {
+            reasoningEnabled: args.reasoningEnabled,
+          }),
+          ...(args.reasoningLevel !== undefined && {
+            reasoningLevel: args.reasoningLevel,
+          }),
+          ...(args.voiceTranscriptionMode !== undefined && {
+            voiceTranscriptionMode: args.voiceTranscriptionMode,
+          }),
+          updatedAt: now,
+        } as any,
+      )
     } else {
-      await ctx.db.insert('userSettings', {
-        userId,
-        displayName: args.displayName,
-        image: args.image,
-        bio: args.bio,
-        reasoningEnabled: args.reasoningEnabled,
-        reasoningLevel: args.reasoningLevel,
-        updatedAt: now,
-      })
+      await ctx.db.insert(
+        'userSettings',
+        {
+          userId,
+          displayName: args.displayName,
+          image: args.image,
+          bio: args.bio,
+          reasoningEnabled: args.reasoningEnabled,
+          reasoningLevel: args.reasoningLevel,
+          voiceTranscriptionMode: args.voiceTranscriptionMode,
+          updatedAt: now,
+        } as any,
+      )
     }
 
     return { success: true }

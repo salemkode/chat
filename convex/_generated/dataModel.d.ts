@@ -438,7 +438,7 @@ export type DataModel = {
       displayName: string;
       icon?: string;
       iconId?: Id<"_storage">;
-      iconType?: "emoji" | "lucide" | "upload";
+      iconType?: "emoji" | "lucide" | "phosphor" | "upload";
       isEnabled: boolean;
       isFree: boolean;
       lastSyncedAt?: number;
@@ -697,7 +697,7 @@ export type DataModel = {
       description?: string;
       icon?: string;
       iconId?: Id<"_storage">;
-      iconType?: "emoji" | "lucide" | "upload";
+      iconType?: "emoji" | "lucide" | "phosphor" | "upload";
       isEnabled: boolean;
       lastDiscoveredAt?: number;
       lastDiscoveredModelCount?: number;
@@ -1164,6 +1164,7 @@ export type DataModel = {
       image?: string;
       reasoningEnabled?: boolean;
       reasoningLevel?: "low" | "medium" | "high";
+      voiceTranscriptionMode?: "cloud" | "device";
       updatedAt: number;
       userId: Id<"users">;
       _id: Id<"userSettings">;
@@ -1177,6 +1178,7 @@ export type DataModel = {
       | "image"
       | "reasoningEnabled"
       | "reasoningLevel"
+      | "voiceTranscriptionMode"
       | "updatedAt"
       | "userId";
     indexes: {

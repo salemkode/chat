@@ -26,6 +26,7 @@ export const providerTypeValidator = v.union(
 export const iconTypeValidator = v.union(
   v.literal('emoji'),
   v.literal('lucide'),
+  v.literal('phosphor'),
   v.literal('upload'),
 )
 

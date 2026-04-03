@@ -5,6 +5,7 @@ import { appPlanValidator } from './lib/appPlan'
 const iconTypeValidator = v.union(
   v.literal('emoji'),
   v.literal('lucide'),
+  v.literal('phosphor'),
   v.literal('upload'),
 )
 
@@ -577,6 +578,9 @@ export default defineSchema({
     bio: v.optional(v.string()),
     reasoningEnabled: v.optional(v.boolean()),
     reasoningLevel: v.optional(reasoningLevelValidator),
+    voiceTranscriptionMode: v.optional(
+      v.union(v.literal('cloud'), v.literal('device')),
+    ),
     updatedAt: v.number(),
   }).index('by_user', ['userId']),
 })

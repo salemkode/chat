@@ -32,7 +32,7 @@ export declare const api: {
         displayName: string;
         icon?: string;
         iconId?: Id<"_storage">;
-        iconType?: "emoji" | "lucide" | "upload";
+        iconType?: "emoji" | "lucide" | "phosphor" | "upload";
         isEnabled: boolean;
         isFree: boolean;
         maxOutputTokens?: number;
@@ -81,7 +81,7 @@ export declare const api: {
         description?: string;
         icon?: string;
         iconId?: Id<"_storage">;
-        iconType?: "emoji" | "lucide" | "upload";
+        iconType?: "emoji" | "lucide" | "phosphor" | "upload";
         isEnabled: boolean;
         name: string;
         providerType:
@@ -218,7 +218,7 @@ export declare const api: {
         displayName: string;
         icon?: string;
         iconId?: Id<"_storage">;
-        iconType?: "emoji" | "lucide" | "upload";
+        iconType?: "emoji" | "lucide" | "phosphor" | "upload";
         isEnabled: boolean;
         isFree: boolean;
         lastSyncedAt?: number;
@@ -257,7 +257,7 @@ export declare const api: {
           displayName: string;
           icon?: string;
           iconId?: Id<"_storage">;
-          iconType?: "emoji" | "lucide" | "upload";
+          iconType?: "emoji" | "lucide" | "phosphor" | "upload";
           iconUrl?: string;
           isEnabled: boolean;
           isFavorite: boolean;
@@ -271,7 +271,7 @@ export declare const api: {
             _id: Id<"providers">;
             icon?: string;
             iconId?: Id<"_storage">;
-            iconType?: "emoji" | "lucide" | "upload";
+            iconType?: "emoji" | "lucide" | "phosphor" | "upload";
             iconUrl?: string;
             name: string;
             providerType:
@@ -321,7 +321,7 @@ export declare const api: {
           displayName: string;
           icon?: string;
           iconId?: Id<"_storage">;
-          iconType?: "emoji" | "lucide" | "upload";
+          iconType?: "emoji" | "lucide" | "phosphor" | "upload";
           iconUrl?: string;
           isEnabled: boolean;
           isFavorite: boolean;
@@ -335,7 +335,7 @@ export declare const api: {
             _id: Id<"providers">;
             icon?: string;
             iconId?: Id<"_storage">;
-            iconType?: "emoji" | "lucide" | "upload";
+            iconType?: "emoji" | "lucide" | "phosphor" | "upload";
             iconUrl?: string;
             name: string;
             providerType:
@@ -378,7 +378,7 @@ export declare const api: {
           _id: Id<"providers">;
           icon?: string;
           iconId?: Id<"_storage">;
-          iconType?: "emoji" | "lucide" | "upload";
+          iconType?: "emoji" | "lucide" | "phosphor" | "upload";
           iconUrl?: string;
           name: string;
           providerType:
@@ -482,7 +482,7 @@ export declare const api: {
         displayName?: string;
         icon?: string;
         iconId?: Id<"_storage">;
-        iconType?: "emoji" | "lucide" | "upload";
+        iconType?: "emoji" | "lucide" | "phosphor" | "upload";
         id: Id<"models">;
         isEnabled?: boolean;
         isFree?: boolean;
@@ -533,7 +533,7 @@ export declare const api: {
         description?: string;
         icon?: string;
         iconId?: Id<"_storage">;
-        iconType?: "emoji" | "lucide" | "upload";
+        iconType?: "emoji" | "lucide" | "phosphor" | "upload";
         id: Id<"providers">;
         isEnabled?: boolean;
         name?: string;
@@ -1524,6 +1524,7 @@ export declare const api: {
         image?: string;
         reasoningEnabled?: boolean;
         reasoningLevel?: "low" | "medium" | "high";
+        voiceTranscriptionMode?: "cloud" | "device";
         updatedAt: number;
         userId: Id<"users">;
       }
@@ -1537,10 +1538,25 @@ export declare const api: {
         image?: string;
         reasoningEnabled?: boolean;
         reasoningLevel?: "low" | "medium" | "high";
+        voiceTranscriptionMode?: "cloud" | "device";
       },
       { success: boolean }
     >;
     viewer: FunctionReference<"query", "public", {}, any>;
+  };
+  voice: {
+    generateUploadUrl: FunctionReference<"mutation", "public", {}, string>;
+    transcribeAudio: FunctionReference<
+      "action",
+      "public",
+      {
+        filename?: string;
+        language?: string;
+        mimeType: string;
+        storageId: Id<"_storage">;
+      },
+      { language?: string; provider: "cloud"; text: string }
+    >;
   };
 };
 
