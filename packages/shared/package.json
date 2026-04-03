@@ -12,6 +12,7 @@
     "./hooks/use-mobile": "./src/hooks/use-mobile.ts",
     "./hooks/use-online-status": "./src/hooks/use-online-status.ts",
     "./logic/project-mention": "./src/logic/project-mention.ts",
-    "./logic/thread-groups": "./src/logic/thread-groups.ts"
+    "./logic/thread-groups": "./src/logic/thread-groups.ts",
+    "./quran-ayah": "./src/quran-ayah.ts"
   }
 }
