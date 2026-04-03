@@ -42,7 +42,14 @@ const config = defineConfig({
         semicolons: false,
       },
     }),
-    netlify(),
+    netlify({
+      edgeSSR: false,
+      dev: {
+        edgeFunctions: {
+          enabled: false,
+        },
+      },
+    }),
     tailwindcss(),
     VitePWA({
       injectRegister: false,
