@@ -21,7 +21,7 @@ const PROVIDER_TYPES = [
   'stepfun',
 ] as const
 
-const ICON_TYPES = ['emoji', 'lucide', 'upload'] as const
+const ICON_TYPES = ['emoji', 'lucide', 'phosphor', 'upload'] as const
 const APP_PLANS = ['free', 'pro'] as const
 
 const RATE_LIMIT_SCOPES = ['global', 'user'] as const
