@@ -1,4 +1,5 @@
 import { useUIMessages } from '@convex-dev/agent/react'
+import { getQuranAyahCardFromParts } from '@chat/shared/quran-ayah'
 import { useEffect, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import type { ChatRenderableAttachment, ChatRenderableMessage } from '../components/chat/types'
@@ -55,6 +56,7 @@ function normalizeMessage(
     role: message.role,
     text: message.text,
     attachments: normalizeMessageAttachments(message.parts),
+    ayahCard: getQuranAyahCardFromParts(message.parts) ?? undefined,
     status: message.status,
     createdAt: message.order ?? index,
     order: message.order,
@@ -95,6 +97,9 @@ export function useMessages(threadId?: string) {
           message.createdAt ?? '',
           message.text.length,
           message.attachments?.map((attachment) => attachment.url).join(',') ?? '',
+          message.ayahCard?.verseKey ?? '',
+          message.ayahCard?.audioUrl ?? '',
+          message.ayahCard?.arabic.length ?? 0,
         ].join(':'),
       )
       .join('|')
@@ -115,9 +120,12 @@ export function useMessages(threadId?: string) {
   const mergedMessages = [...localMessages, ...persistedMessages].sort(
     (left, right) => (right.createdAt ?? 0) - (left.createdAt ?? 0),
   )
+  const displayMessages = [...mergedMessages].reverse()
 
   return {
     status,
-    messages: mergedMessages,
+    // Convex pagination should stay DESC so the newest page loads first.
+    // LegendList should receive oldest->newest for normal chat layout.
+    messages: displayMessages,
   }
 }

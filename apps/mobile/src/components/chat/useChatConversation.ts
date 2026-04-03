@@ -12,6 +12,7 @@ import { useChatOptimisticSendStore } from '../../store/chat-optimistic-send'
 import { useNetworkStatus } from '../../utils/network-status'
 import { CHAT_BG } from './constants'
 import type { ChatScreenMode, LocalAttachment } from './types'
+import { useVoiceComposer } from './useVoiceComposer'
 
 export function useChatConversation({
   mode,
@@ -31,7 +32,7 @@ export function useChatConversation({
   const thread = useThread(activeThreadId)
   const { isOnline } = useNetworkStatus()
   const { projects, removeThreadFromProject } = useProjects()
-  const { selectedModelId, models, setSelectedModelId, setFavorite } = useModels()
+  const { selectedModelId, models, collections, setSelectedModelId, setFavorite } = useModels()
   const { draft, setDraft } = useDraft(activeThreadId ?? 'new')
   const { send, pickDocumentAttachments, pickImageAttachments, disabledReason } = useSendMessage()
   const createPendingSend = useChatOptimisticSendStore((state) => state.createPendingSend)
@@ -73,8 +74,19 @@ export function useChatConversation({
     setLocalThreadId(threadId)
   }, [threadId])
 
+  const voiceComposer = useVoiceComposer({
+    draft,
+    setDraft,
+    onDraftUpdated: (value) => {
+      setMentionOpen(Boolean(getProjectMention(value, value.length)))
+    },
+  })
+
   const activeProject = projects.find((project) => project.id === selectedProjectId)
-  const sendDisabled = disabledReason !== null || (!draft.trim() && attachments.length === 0)
+  const sendDisabled =
+    disabledReason !== null ||
+    voiceComposer.voiceState !== 'idle' ||
+    (!draft.trim() && attachments.length === 0)
   const modelLabel =
     models.find((m) => m.modelId === selectedModelId)?.displayName ?? selectedModelId ?? 'Model'
 
@@ -237,10 +249,12 @@ export function useChatConversation({
       isOnline,
       bottomInset: insets.bottom,
       errorText: inlineError,
+      ...voiceComposer,
     },
     modelPicker: {
       visible: pickerOpen,
       models,
+      collections,
       selectedModelId,
       onClose: () => setPickerOpen(false),
       onSelect: (modelId: string) => {

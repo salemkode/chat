@@ -1,5 +1,5 @@
 export { ChatComposer } from './ChatComposer'
-export { ChatDrawerContent } from './ChatDrawerContent'
+export { ChatThreadPicker } from './ChatThreadPicker'
 export { ChatHeader } from './ChatHeader'
 export { ChatPage } from './ChatPage'
 export { MessageList } from './MessageList'

@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons'
-import { FlashList } from '@shopify/flash-list'
+import { LegendList } from '@legendapp/list/react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useQuery } from 'convex/react'
 import { Pressable, Text, View } from 'react-native'
@@ -103,10 +103,12 @@ export default function ProjectDetailScreen() {
           Chats in project
         </Text>
         <View className="min-h-0 flex-1">
-          <FlashList
+          <LegendList
             className="flex-1"
             data={threads}
             keyExtractor={(item) => item._id}
+            estimatedItemSize={78}
+            recycleItems
             ListEmptyComponent={
               <Text className="py-4 font-sans text-[15px] text-foreground-secondary">
                 No chats yet. Start with New chat.

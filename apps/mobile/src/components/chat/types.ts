@@ -1,3 +1,5 @@
+import type { QuranAyahCardData } from '@chat/shared/quran-ayah'
+
 export type ChatRenderableAttachment = {
   kind: 'image' | 'file'
   url: string
@@ -12,6 +14,7 @@ export type ChatRenderableMessage = {
   role: 'user' | 'assistant'
   text: string
   attachments?: ChatRenderableAttachment[]
+  ayahCard?: QuranAyahCardData
   status?: 'success' | 'streaming' | 'failed' | 'pending'
   createdAt?: number
   order?: number

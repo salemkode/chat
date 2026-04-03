@@ -1,4 +1,4 @@
-import { DrawerActions, useNavigation } from '@react-navigation/native'
+import { useRouter } from 'expo-router'
 import { KeyboardAvoidingView, Platform, View } from 'react-native'
 import { OfflineBanner } from '../OfflineBanner'
 import { ModelPickerDialog } from '../dialog'
@@ -12,12 +12,14 @@ export function ChatPage({
   mode,
   threadId,
   onThreadCreated,
+  onMenuPress,
 }: {
   mode: ChatScreenMode
   threadId?: string
   onThreadCreated?: (threadId: string, kind: 'local' | 'server') => void
+  onMenuPress?: () => void
 }) {
-  const navigation = useNavigation()
+  const router = useRouter()
   const c = useChatConversation({
     mode,
     threadId,
@@ -29,8 +31,10 @@ export function ChatPage({
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <ChatHeader
         title={c.header.title}
-        leftIcon="menu"
-        onLeftPress={() => navigation.dispatch(DrawerActions.openDrawer())}
+        leftIcon={mode === 'existing' ? 'chevron-back' : 'menu'}
+        onLeftPress={
+          mode === 'existing' ? () => router.back() : onMenuPress
+        }
         activeProjectName={c.header.activeProjectName}
         onRemoveProject={c.header.onRemoveProject}
       />

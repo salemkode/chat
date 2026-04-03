@@ -1,3 +1,5 @@
+import type { QuranAyahCardData } from '@chat/shared/quran-ayah'
+
 export interface MobileOfflineSessionSnapshot {
   id: 'current'
   userId: string
@@ -30,6 +32,7 @@ export interface MobileOfflineMessageRecord {
     mediaType: string
     filename?: string
   }>
+  ayahCard?: QuranAyahCardData
   status?: 'success' | 'streaming' | 'failed'
   createdAt: number
 }
@@ -39,8 +42,34 @@ export interface MobileOfflineModelRecord {
   modelId: string
   displayName: string
   description?: string
+  capabilities?: string[]
+  supportsReasoning?: boolean
+  reasoningLevels?: Array<'low' | 'medium' | 'high'>
+  defaultReasoningLevel?: 'off' | 'low' | 'medium' | 'high'
   sortOrder: number
   isFavorite: boolean
+  isFree?: boolean
+  icon?: string
+  iconType?: 'emoji' | 'lucide' | 'phosphor' | 'upload'
+  iconUrl?: string
+  provider?: {
+    _id: string
+    name: string
+    providerType: string
+    icon?: string
+    iconType?: 'emoji' | 'lucide' | 'phosphor' | 'upload'
+    iconId?: string
+    iconUrl?: string
+  } | null
+}
+
+export interface MobileOfflineModelCollectionRecord {
+  id: string
+  name: string
+  description?: string
+  sortOrder: number
+  modelIds: string[]
+  modelCount: number
 }
 
 export interface MobileOfflineProjectRecord {

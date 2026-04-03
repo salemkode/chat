@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons'
-import { Image, Pressable, Text, TextInput, View } from 'react-native'
+import { ActivityIndicator, Image, Pressable, Text, TextInput, View } from 'react-native'
 import { getProjectMention } from '@chat/shared/logic/project-mention'
 import { CHAT_BG, CHAT_BORDER, CHAT_CARD, CHAT_FG, CHAT_FG_MUTED } from './constants'
 import type { LocalAttachment } from './types'
+import type { VoiceComposerState, VoiceTranscriptionMode } from '../../lib/voice'
 
 type ProjectItem = { id: string; name: string; description?: string }
 
@@ -26,6 +27,13 @@ type Props = {
   isOnline: boolean
   bottomInset: number
   errorText?: string | null
+  voiceMode: VoiceTranscriptionMode
+  voiceState: VoiceComposerState
+  voicePreviewText?: string
+  voiceErrorText?: string | null
+  onToggleVoice: () => Promise<void>
+  onCancelVoice: () => Promise<void>
+  voiceDisabled: boolean
 }
 
 function formatAttachmentSize(sizeBytes?: number) {
@@ -58,7 +66,17 @@ export function ChatComposer({
   isOnline,
   bottomInset,
   errorText,
+  voiceMode,
+  voiceState,
+  voicePreviewText,
+  voiceErrorText,
+  onToggleVoice,
+  onCancelVoice,
+  voiceDisabled,
 }: Props) {
+  const attachmentsDisabled = voiceState !== 'idle'
+  const showVoicePanel = voiceState !== 'idle' || Boolean(voicePreviewText)
+
   return (
     <View
       style={{
@@ -73,6 +91,11 @@ export function ChatComposer({
       {errorText ? (
         <Text style={{ marginBottom: 8, color: '#eaa3af', fontFamily: 'Inter_400Regular' }}>
           {errorText}
+        </Text>
+      ) : null}
+      {voiceErrorText ? (
+        <Text style={{ marginBottom: 8, color: '#eaa3af', fontFamily: 'Inter_400Regular' }}>
+          {voiceErrorText}
         </Text>
       ) : null}
 
@@ -244,16 +267,98 @@ export function ChatComposer({
         >
           <Ionicons name="search" size={18} color={searchEnabled ? '#4a9cff' : CHAT_FG_MUTED} />
         </Pressable>
-        <Pressable onPress={() => void onPickImage()} style={{ borderRadius: 999, backgroundColor: CHAT_CARD, padding: 8 }}>
+        <Pressable
+          disabled={attachmentsDisabled}
+          onPress={() => void onPickImage()}
+          style={{
+            borderRadius: 999,
+            backgroundColor: CHAT_CARD,
+            padding: 8,
+            opacity: attachmentsDisabled ? 0.45 : 1,
+          }}
+        >
           <Ionicons name="image-outline" size={20} color={CHAT_FG} />
         </Pressable>
         <Pressable
+          disabled={attachmentsDisabled}
           onPress={() => void onPickDocument()}
-          style={{ borderRadius: 999, backgroundColor: CHAT_CARD, padding: 8 }}
+          style={{
+            borderRadius: 999,
+            backgroundColor: CHAT_CARD,
+            padding: 8,
+            opacity: attachmentsDisabled ? 0.45 : 1,
+          }}
         >
           <Ionicons name="document-attach-outline" size={20} color={CHAT_FG} />
         </Pressable>
       </View>
+
+      {showVoicePanel ? (
+        <View
+          style={{
+            marginBottom: 8,
+            borderRadius: 16,
+            borderWidth: 1,
+            borderColor: CHAT_BORDER,
+            backgroundColor: CHAT_CARD,
+            paddingHorizontal: 12,
+            paddingVertical: 10,
+          }}
+        >
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 8,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+              {voiceState === 'transcribing' ? (
+                <ActivityIndicator size="small" color="#4a9cff" />
+              ) : (
+                <Ionicons
+                  name={voiceState === 'recording' ? 'mic' : 'sparkles-outline'}
+                  size={18}
+                  color={voiceState === 'recording' ? '#4a9cff' : CHAT_FG_MUTED}
+                />
+              )}
+              <Text
+                style={{
+                  color: CHAT_FG,
+                  fontSize: 14,
+                  fontFamily: 'Inter_500Medium',
+                  flexShrink: 1,
+                }}
+              >
+                {voiceState === 'recording'
+                  ? voiceMode === 'cloud'
+                    ? 'Recording voice'
+                    : 'Listening on device'
+                  : 'Transcribing voice'}
+              </Text>
+            </View>
+            <Pressable onPress={() => void onCancelVoice()}>
+              <Text style={{ color: '#eaa3af', fontSize: 13, fontFamily: 'Inter_500Medium' }}>
+                Cancel
+              </Text>
+            </Pressable>
+          </View>
+          {voicePreviewText ? (
+            <Text
+              style={{
+                marginTop: 8,
+                color: CHAT_FG_MUTED,
+                fontSize: 14,
+                lineHeight: 20,
+                fontFamily: 'Inter_400Regular',
+              }}
+            >
+              {voicePreviewText}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
 
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8 }}>
         <View
@@ -288,6 +393,36 @@ export function ChatComposer({
             }}
           />
         </View>
+        <Pressable
+          disabled={voiceState === 'idle' ? voiceDisabled : false}
+          onPress={() => void onToggleVoice()}
+          style={{
+            marginBottom: 2,
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor:
+              voiceState === 'recording'
+                ? '#4a9cff'
+                : voiceState === 'transcribing'
+                  ? '#2f3138'
+                  : voiceDisabled
+                    ? '#4a4c52'
+                    : CHAT_CARD,
+          }}
+        >
+          {voiceState === 'transcribing' ? (
+            <ActivityIndicator size="small" color={CHAT_FG} />
+          ) : (
+            <Ionicons
+              name={voiceState === 'recording' ? 'stop' : 'mic-outline'}
+              size={20}
+              color={voiceState === 'recording' ? '#ffffff' : voiceDisabled ? CHAT_FG_MUTED : CHAT_FG}
+            />
+          )}
+        </Pressable>
         <Pressable
           disabled={sendDisabled || !isOnline}
           onPress={() => void onSend()}
