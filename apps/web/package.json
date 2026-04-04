@@ -101,6 +101,7 @@
     "ts-pattern": "^5.9.0",
     "tw-shimmer": "^0.4.8",
     "vaul": "^1.1.2",
+    "wrangler": "^4.80.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {
