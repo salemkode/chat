@@ -3,7 +3,6 @@ import { useMutation } from 'convex/react'
 import type { Id } from '@convex/_generated/dataModel'
 import type { LucideIcon } from '@/lib/icons'
 import { Bot, Boxes, Sparkles, Users } from '@/lib/icons'
-import { Area, AreaChart, CartesianGrid, XAxis } from 'recharts'
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { api } from '@convex/_generated/api'
@@ -11,13 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from '@/components/ui/chart'
-import {
   formatCompactNumber,
-  usageChartConfig,
 } from '@/components/admin/admin-utils'
 import type { DashboardData } from '@/components/admin/types'
 import { useQuery } from '@/lib/convex-query-cache'
@@ -98,14 +91,12 @@ export type AdminOverviewUserControls = ReturnType<
 
 interface AdminOverviewSectionProps {
   summary: DashboardData['summary'] | undefined
-  usageSeries: DashboardData['usageSeries']
   users: DashboardData['users']
   controls: AdminOverviewUserControls
 }
 
 export function AdminOverviewSection({
   summary,
-  usageSeries,
   users,
   controls,
 }: AdminOverviewSectionProps) {
@@ -158,49 +149,7 @@ export function AdminOverviewSection({
         />
       </section>
 
-      <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
-        <Card className="border-border bg-card shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
-          <CardHeader>
-            <CardTitle>Usage trend</CardTitle>
-            <CardDescription>
-              Requests and tokens over the last 7 days.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer
-              config={usageChartConfig}
-              className="h-[280px] w-full"
-            >
-              <AreaChart data={usageSeries}>
-                <CartesianGrid vertical={false} />
-                <XAxis
-                  dataKey="date"
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                />
-                <ChartTooltip content={<ChartTooltipContent indicator="dot" />} />
-                <Area
-                  dataKey="requests"
-                  type="monotone"
-                  fill="var(--color-requests)"
-                  fillOpacity={0.18}
-                  stroke="var(--color-requests)"
-                  strokeWidth={2}
-                />
-                <Area
-                  dataKey="tokens"
-                  type="monotone"
-                  fill="var(--color-tokens)"
-                  fillOpacity={0.12}
-                  stroke="var(--color-tokens)"
-                  strokeWidth={2}
-                />
-              </AreaChart>
-            </ChartContainer>
-          </CardContent>
-        </Card>
-
+      <div className="grid gap-4">
         <Card className="border-border bg-card shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
           <CardHeader>
             <CardTitle>Top accounts</CardTitle>

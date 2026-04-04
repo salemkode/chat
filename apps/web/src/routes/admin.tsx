@@ -168,7 +168,6 @@ function AdminPageInner({
         <>
           <AdminOverviewSection
             summary={summary}
-            usageSeries={dashboard.usageSeries}
             users={users}
             controls={overviewControls}
           />
