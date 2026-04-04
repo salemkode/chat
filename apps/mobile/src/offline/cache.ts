@@ -1,6 +1,5 @@
 import { getOfflineDb } from './db'
 import type {
-  MobileOfflineModelCollectionRecord,
   MobileOfflineMessageRecord,
   MobileOfflineModelRecord,
   MobileOfflineProjectRecord,
@@ -101,29 +100,6 @@ export async function readModels() {
     'SELECT json FROM models ORDER BY sortOrder ASC',
   )
   return rows.map((row) => fromJson<MobileOfflineModelRecord>(row.json))
-}
-
-export async function cacheModelCollections(
-  collections: MobileOfflineModelCollectionRecord[],
-) {
-  const db = await getOfflineDb()
-  await db.execAsync('DELETE FROM modelCollections')
-  for (const collection of collections) {
-    await db.runAsync(
-      'INSERT OR REPLACE INTO modelCollections (id, json, sortOrder) VALUES (?, ?, ?)',
-      collection.id,
-      toJson(collection),
-      collection.sortOrder,
-    )
-  }
-}
-
-export async function readModelCollections() {
-  const db = await getOfflineDb()
-  const rows = await db.getAllAsync<{ json: string }>(
-    'SELECT json FROM modelCollections ORDER BY sortOrder ASC',
-  )
-  return rows.map((row) => fromJson<MobileOfflineModelCollectionRecord>(row.json))
 }
 
 export async function cacheProjects(projects: MobileOfflineProjectRecord[]) {

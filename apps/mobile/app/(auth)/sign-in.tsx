@@ -16,8 +16,6 @@ export default function SignInScreen() {
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
 
-  const fieldLabelClassName = 'mt-1 text-[14px] font-medium text-gray-700'
-
   const handleSubmit = async () => {
     setError(null)
 
@@ -109,7 +107,6 @@ export default function SignInScreen() {
       >
         <Text className="text-3xl font-bold">Verify your account</Text>
         <Text className="text-gray-600">Enter the email code we just sent you.</Text>
-        <Text className={fieldLabelClassName}>Verification code</Text>
         <TextInput
           value={code}
           onChangeText={setCode}
@@ -144,7 +141,6 @@ export default function SignInScreen() {
       <Text className="text-3xl font-bold">Sign In</Text>
       <AppleSignInButton onSignInComplete={() => router.replace('/chats')} />
       <GoogleSignInButton onSignInComplete={() => router.replace('/chats')} />
-      <Text className={fieldLabelClassName}>Email</Text>
       <TextInput
         value={email}
         onChangeText={setEmail}
@@ -156,7 +152,6 @@ export default function SignInScreen() {
       {errors.fields.identifier ? (
         <Text className="text-red-700">{errors.fields.identifier.message}</Text>
       ) : null}
-      <Text className={fieldLabelClassName}>Password</Text>
       <TextInput
         value={password}
         onChangeText={setPassword}

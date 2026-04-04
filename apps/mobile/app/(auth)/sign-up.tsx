@@ -18,8 +18,6 @@ export default function SignUpScreen() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
 
-  const fieldLabelClassName = 'mt-1 text-[14px] font-medium text-gray-700'
-
   const handleSubmit = async () => {
     setError(null)
 
@@ -62,7 +60,6 @@ export default function SignUpScreen() {
       <Text className="text-3xl font-bold">Sign Up</Text>
       <AppleSignInButton onSignInComplete={() => router.replace('/chats')} />
       <GoogleSignInButton onSignInComplete={() => router.replace('/chats')} />
-      <Text className={fieldLabelClassName}>Email</Text>
       <TextInput
         value={email}
         onChangeText={setEmail}
@@ -74,7 +71,6 @@ export default function SignUpScreen() {
       {errors.fields.emailAddress ? (
         <Text className="text-red-700">{errors.fields.emailAddress.message}</Text>
       ) : null}
-      <Text className={fieldLabelClassName}>Password</Text>
       <TextInput
         value={password}
         onChangeText={setPassword}

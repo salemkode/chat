@@ -1,4 +1,4 @@
-import { LegendList } from '@legendapp/list/react-native'
+import { FlashList } from '@shopify/flash-list'
 import { Text, View } from 'react-native'
 import { useMessages } from '../../mobile-data/use-message-list'
 import { CHAT_FG, CHAT_FG_MUTED } from './constants'
@@ -51,21 +51,15 @@ export function MessageList({
   )
 
   return (
-    <LegendList
+    <FlashList
       data={list}
       keyExtractor={(item) => item.id}
       style={{ flex: 1 }}
       contentContainerStyle={{
         paddingHorizontal: 12,
         paddingTop: 8,
-        paddingBottom: 12,
+        flexGrow: 1,
       }}
-      alignItemsAtEnd
-      initialScrollAtEnd={list.length > 0}
-      maintainScrollAtEnd
-      maintainVisibleContentPosition={{ data: true, size: true }}
-      estimatedItemSize={180}
-      getEstimatedItemSize={(item) => (item.role === 'assistant' ? 220 : 112)}
       ListEmptyComponent={list.length === 0 ? emptyWelcome : null}
       ListFooterComponent={<View style={{ height: 12 }} />}
       renderItem={({ item }) => (

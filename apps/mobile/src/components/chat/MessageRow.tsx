@@ -1,7 +1,6 @@
 import { Image, Linking, Pressable, Text, View } from 'react-native'
 import { EnrichedMarkdownText } from 'react-native-enriched-markdown'
 import { CHAT_BORDER, CHAT_CARD, CHAT_FG, CHAT_FG_MUTED, markdownDarkStyle } from './constants'
-import { QuranAyahCard } from './QuranAyahCard'
 import type { ChatRenderableMessage } from './types'
 
 export function MessageRow({
@@ -14,10 +13,8 @@ export function MessageRow({
   const isAssistant = message.role === 'assistant'
   const imageAttachments = (message.attachments ?? []).filter((attachment) => attachment.kind === 'image')
   const fileAttachments = (message.attachments ?? []).filter((attachment) => attachment.kind === 'file')
-  const hasAyahCard = Boolean(message.ayahCard)
   const hasText = Boolean(message.text?.trim())
-  const hasContent =
-    hasAyahCard || hasText || imageAttachments.length > 0 || fileAttachments.length > 0
+  const hasContent = hasText || imageAttachments.length > 0 || fileAttachments.length > 0
   const isStreamingPlaceholder = isAssistant && message.status === 'streaming' && !hasContent
   const isFailed = message.status === 'failed'
 
@@ -49,24 +46,19 @@ export function MessageRow({
       >
         {hasContent ? (
           <>
-            {message.ayahCard ? <QuranAyahCard ayah={message.ayahCard} /> : null}
-
             {hasText ? (
               isAssistant ? (
-                <View style={{ marginTop: message.ayahCard ? 12 : 0 }}>
-                  <EnrichedMarkdownText
-                    markdown={message.text || ''}
-                    markdownStyle={markdownDarkStyle}
-                    onLinkPress={({ url }) => {
-                      void Linking.openURL(url)
-                    }}
-                    flavor="github"
-                  />
-                </View>
+                <EnrichedMarkdownText
+                  markdown={message.text || ''}
+                  markdownStyle={markdownDarkStyle}
+                  onLinkPress={({ url }) => {
+                    void Linking.openURL(url)
+                  }}
+                  flavor="github"
+                />
               ) : (
                 <Text
                   style={{
-                    marginTop: message.ayahCard ? 12 : 0,
                     fontSize: 16,
                     lineHeight: 22,
                     color: CHAT_FG,

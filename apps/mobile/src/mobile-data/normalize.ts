@@ -1,6 +1,5 @@
 import type { Id } from '../lib/convexApi'
 import type {
-  MobileOfflineModelCollectionRecord,
   MobileOfflineModelRecord,
   MobileOfflineProjectRecord,
   MobileOfflineThreadRecord,
@@ -44,39 +43,7 @@ export function normalizeModel(model: any): MobileOfflineModelRecord {
     modelId: model.modelId,
     displayName: model.displayName,
     description: model.description,
-    capabilities: model.capabilities,
-    supportsReasoning:
-      typeof model.supportsReasoning === 'boolean'
-        ? model.supportsReasoning
-        : undefined,
-    reasoningLevels: model.reasoningLevels as
-      | Array<'low' | 'medium' | 'high'>
-      | undefined,
-    defaultReasoningLevel: model.defaultReasoningLevel as
-      | 'off'
-      | 'low'
-      | 'medium'
-      | 'high'
-      | undefined,
     sortOrder: model.sortOrder,
     isFavorite: Boolean(model.isFavorite),
-    isFree: Boolean(model.isFree),
-    icon: model.icon,
-    iconType: model.iconType,
-    iconUrl: model.iconUrl,
-    provider: model.provider,
-  }
-}
-
-export function normalizeModelCollection(
-  collection: any,
-): MobileOfflineModelCollectionRecord {
-  return {
-    id: collection._id,
-    name: collection.name,
-    description: collection.description,
-    sortOrder: collection.sortOrder,
-    modelIds: collection.modelIds,
-    modelCount: collection.modelCount,
   }
 }

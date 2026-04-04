@@ -34,29 +34,11 @@
       "expo-router",
       "expo-dev-client",
       "expo-apple-authentication",
-      [
-        "expo-audio",
-        {
-          "microphonePermission": "Allow $(PRODUCT_NAME) to record audio for voice transcription."
-        }
-      ],
       "expo-secure-store",
       "expo-sqlite",
       "expo-image-picker",
       "expo-document-picker",
       "expo-web-browser",
-      [
-        "expo-speech-recognition",
-        {
-          "microphonePermission": "Allow $(PRODUCT_NAME) to use the microphone for voice transcription.",
-          "speechRecognitionPermission": "Allow $(PRODUCT_NAME) to transcribe your speech into chat drafts.",
-          "androidSpeechServicePackages": [
-            "com.google.android.googlequicksearchbox",
-            "com.google.android.tts",
-            "com.google.android.as"
-          ]
-        }
-      ],
       "@clerk/expo",
       "expo-font"
     ],
