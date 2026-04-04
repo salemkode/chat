@@ -17,7 +17,7 @@ import {
   Wrench,
   X,
 } from '@/lib/icons'
-import type { LucideIcon } from '@/lib/icons'
+import type { AppIcon } from '@/lib/icons'
 import { AdaptiveDialog } from '@/components/ui/adaptive-dialog'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -111,7 +111,7 @@ export function SettingsDialog({
         ...(isAdminLike
           ? [{ id: 'admin' as const, label: 'Admin', icon: Wrench }]
           : []),
-      ] satisfies Array<{ id: SettingsTab; label: string; icon: LucideIcon }>,
+      ] satisfies Array<{ id: SettingsTab; label: string; icon: AppIcon }>,
     [isAdminLike],
   )
 
@@ -144,7 +144,7 @@ export function SettingsDialog({
     id: ThemeMode
     label: string
     description: string
-    icon: LucideIcon
+    icon: AppIcon
     previewClassName: string
   }>
 

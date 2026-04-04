@@ -10,7 +10,7 @@ import {
   Trash2,
   TriangleAlert,
   Wrench,
-  type LucideIcon,
+  type AppIcon,
 } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 
@@ -212,7 +212,7 @@ export function getLastIncompleteStepId(steps: ActivityStep[]) {
 export function getStepIcon(
   step: ActivityStep,
   showActiveLoading: boolean,
-): LucideIcon {
+): AppIcon {
   if (
     showActiveLoading &&
     (step.status === 'running' || step.status === 'pending')

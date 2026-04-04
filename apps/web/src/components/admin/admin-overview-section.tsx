@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access -- Convex hooks */
 import { useMutation } from 'convex/react'
 import type { Id } from '@convex/_generated/dataModel'
-import type { LucideIcon } from '@/lib/icons'
+import type { AppIcon } from '@/lib/icons'
 import { Bot, Boxes, Sparkles, Users } from '@/lib/icons'
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
@@ -264,7 +264,7 @@ function StatCard({
   title: string
   value: string
   description: string
-  icon: LucideIcon
+  icon: AppIcon
 }) {
   return (
     <Card className="border-border bg-card shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
