@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from 'convex/react'
 import { api } from '@convex/_generated/api'
-import { useAuth } from '@clerk/tanstack-react-start'
+import { useAuth } from '@clerk/react-router'
 
 export function TestUserStore() {
   const { isSignedIn } = useAuth()

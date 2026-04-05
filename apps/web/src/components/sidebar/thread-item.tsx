@@ -1,7 +1,7 @@
 'use client'
 
 import { memo } from 'react'
-import { Link } from '@tanstack/react-router'
+import { generatePath, Link } from 'react-router'
 import { Pin, X } from '@/lib/icons'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -45,8 +45,10 @@ export const ThreadItem = memo(function ThreadItem({
             className="group/menu-item relative px-2 mb-0.5"
           >
             <Link
-              to="/$chatId"
-              params={{ chatId: thread._id }}
+              to={generatePath('/:chatId', { chatId: thread._id })}
+              discover="render"
+              prefetch="viewport"
+              viewTransition
               className={cn(
                 'group/link relative flex h-9 w-full items-center overflow-hidden rounded-lg px-2 py-1 text-sm outline-hidden',
                 'transition-colors duration-150 ease-snappy',

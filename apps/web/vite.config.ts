@@ -1,16 +1,11 @@
+import { reactRouter } from '@react-router/dev/vite'
 import { defineConfig } from 'vite'
-import { tanstackStart } from '@tanstack/react-start/plugin/vite'
-import netlify from '@netlify/vite-plugin-tanstack-start'
-import viteReact from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import babel from 'vite-plugin-babel'
 import { fileURLToPath, URL } from 'node:url'
-
 import tailwindcss from '@tailwindcss/vite'
 
 const config = defineConfig({
-  optimizeDeps: {
-    exclude: ['@tanstack/router-core'],
-  },
   server: {
     forwardConsole: false,
   },
@@ -23,34 +18,29 @@ const config = defineConfig({
     },
   },
   ssr: {
-    noExternal: ['@clerk/tanstack-react-start', '@clerk/react', '@clerk/shared'],
+    noExternal: ['@clerk/react-router', '@clerk/react', '@clerk/shared'],
     resolve: {
       conditions: ['module', 'browser', 'development'],
       externalConditions: ['node'],
     },
   },
   plugins: [
-    tanstackStart({
-      spa: {
-        enabled: true,
-      },
-      srcDirectory: 'src',
-      router: {
-        routesDirectory: './routes',
-        generatedRouteTree: './routeTree.gen.ts',
-        quoteStyle: 'single',
-        semicolons: false,
-      },
-    }),
-    netlify({
-      edgeSSR: false,
-      dev: {
-        edgeFunctions: {
-          enabled: false,
-        },
-      },
-    }),
     tailwindcss(),
+    reactRouter(),
+    babel({
+      filter: /\.[jt]sx?$/,
+      babelConfig: {
+        presets: ['@babel/preset-typescript'],
+        plugins: [
+          [
+            'babel-plugin-react-compiler',
+            {
+              target: '19',
+            },
+          ],
+        ],
+      },
+    }),
     VitePWA({
       injectRegister: false,
       manifest: false,
@@ -67,21 +57,8 @@ const config = defineConfig({
         cleanupOutdatedCaches: true,
         globPatterns: ['**/*.{css,html,ico,js,png,svg,woff2}'],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
-        // SPA: serve precached shell when offline so client router can hydrate deep links.
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\b/, /^\/__/],
-      },
-    }),
-    viteReact({
-      babel: {
-        plugins: [
-          [
-            'babel-plugin-react-compiler',
-            {
-              target: '19',
-            },
-          ],
-        ],
       },
     }),
   ],

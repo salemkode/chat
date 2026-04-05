@@ -1,4 +1,4 @@
-import { Link, createFileRoute } from '@tanstack/react-router'
+import { Link, useParams } from 'react-router'
 import { formatDistanceToNow } from 'date-fns'
 import { Loader2, MessageSquareText, MoveRight } from '@/lib/icons'
 import { useEffect } from 'react'
@@ -8,13 +8,8 @@ import { MarkdownContent } from '@/components/MarkdownContent'
 import { Button } from '@/components/ui/button'
 import { usePaginatedQuery, useQuery } from '@/lib/convex-query-cache'
 
-export const Route = createFileRoute('/share/$shareId')({
-  ssr: false,
-  component: SharedChatPage,
-})
-
-function SharedChatPage() {
-  const { shareId } = Route.useParams()
+export default function SharedChatPage() {
+  const { shareId = '' } = useParams()
   const share = useQuery(api.shares.getChatShare, { token: shareId })
   const shareUrl = typeof window === 'undefined' ? '' : window.location.href
   const { results, status, loadMore } = usePaginatedQuery(

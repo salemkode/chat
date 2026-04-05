@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access -- hook return types are narrowed at runtime for this route */
-import { createFileRoute } from '@tanstack/react-router'
+import { useParams } from 'react-router'
 import { Loader2 } from '@/lib/icons'
 import { AuthRedirect } from '@/components/auth-redirect'
 import { ChatMessageList } from '@/components/ChatMessageList'
@@ -12,12 +12,7 @@ import {
   useThread,
 } from '@/hooks/use-chat-data'
 
-export const Route = createFileRoute('/_layout/$chatId')({
-  ssr: false,
-  component: ChatPage,
-})
-
-function ChatPage() {
+export default function ChatPage() {
   const { isAuthenticatedOrOffline, isLoading, isOfflineReady } =
     useCachedSessionStatus()
 
@@ -37,15 +32,13 @@ function ChatPage() {
 }
 
 function AuthenticatedChatPage() {
-  const { chatId } = Route.useParams()
+  const { chatId = '' } = useParams()
   const thread = useThread(chatId)
   const { removeThreadFromProject } = useProjects()
   const {
     messages,
-    status,
     hasMore,
     isLoadingMore,
-    hasRenderableMessages,
     loadOlderMessages,
   } =
     useMessages(chatId)
@@ -79,7 +72,6 @@ function AuthenticatedChatPage() {
       <ChatMessageList
         threadId={chatId}
         messages={messages || []}
-        isLoading={status === 'LoadingFirstPage' && !hasRenderableMessages}
         isLoadingOlder={isLoadingMore}
         hasOlderMessages={hasMore}
         onLoadOlder={loadOlderMessages}

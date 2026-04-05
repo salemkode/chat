@@ -3,27 +3,20 @@ import {
   ClerkLoading,
   Show,
   SignIn,
-} from '@clerk/tanstack-react-start'
-import { createFileRoute, Navigate, useSearch } from '@tanstack/react-router'
+} from '@clerk/react-router'
+import { Navigate, useSearchParams } from 'react-router'
 import { Loader2 } from '@/lib/icons'
 import { useEffect } from 'react'
 import { getPostLoginRedirectTarget } from '@/lib/auth-redirect'
-import { parseRouteSearchRedirects } from '@/lib/parsers'
 
 const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1'])
 
-export const Route = createFileRoute('/login')({
-  ssr: false,
-  component: LoginPage,
-  validateSearch: parseRouteSearchRedirects,
-})
-
-function LoginPage() {
+export default function LoginPage() {
+  const [searchParams] = useSearchParams()
   const hostname = location.hostname
   const isLocalhost = LOCAL_HOSTNAMES.has(hostname)
   const isProduction = import.meta.env.PROD
-  const search = useSearch({ from: '/login' })
-  const redirect = search.redirect
+  const redirect = searchParams.get('redirect') ?? undefined
   const targetAfterLogin = getPostLoginRedirectTarget(redirect)
   const authFrontendBase = resolveAuthFrontendBaseUrl(
     import.meta.env.VITE_AUTH_FRONTEND_URL,
@@ -52,17 +45,17 @@ function LoginPage() {
         </Show>
 
         <Show when="signed-out">
-          {!useExternalAuth && (
+          {!useExternalAuth ? (
             <SignIn
               path="/login"
               routing="path"
               signUpUrl="/signup"
               {...redirectProps}
             />
-          )}
-          {useExternalAuth && authFrontendBase && (
+          ) : null}
+          {useExternalAuth && authFrontendBase ? (
             <ExternalAuthRedirect to={authFrontendBase} />
-          )}
+          ) : null}
         </Show>
       </ClerkLoaded>
     </div>

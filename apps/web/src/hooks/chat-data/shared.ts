@@ -41,9 +41,20 @@ type ThreadWithProject = ThreadRecord & {
 }
 type ModelsWithProvidersRecord = FunctionReturnType<
   typeof api.admin.listModelsWithProviders
->
+> & {
+  collections?: Array<{
+    _id: string
+    name: string
+    description?: string
+    sortOrder: number
+    modelIds: string[]
+    modelCount: number
+  }>
+}
 type ModelRecord = ModelsWithProvidersRecord['models'][number]
-type ModelCollectionRecord = ModelsWithProvidersRecord['collections'][number]
+type ModelCollectionRecord = NonNullable<
+  ModelsWithProvidersRecord['collections']
+>[number]
 type ProjectRecord = {
   id: string
   name: string

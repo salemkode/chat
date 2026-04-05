@@ -1,4 +1,4 @@
-import { Link } from '@tanstack/react-router'
+import { Link, NavLink } from 'react-router'
 
 import { useState } from 'react'
 import { Home, Menu, MessageSquare, X } from '@/lib/icons'
@@ -50,18 +50,18 @@ export default function Header() {
         </div>
 
         <nav className="flex-1 p-4 overflow-y-auto">
-          <Link
+          <NavLink
             to="/"
             onClick={() => setIsOpen(false)}
-            className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800 transition-colors mb-2"
-            activeProps={{
-              className:
-                'flex items-center gap-3 p-3 rounded-lg bg-cyan-600 hover:bg-cyan-700 transition-colors mb-2',
-            }}
+            className={({ isActive }) =>
+              isActive
+                ? 'flex items-center gap-3 p-3 rounded-lg bg-cyan-600 hover:bg-cyan-700 transition-colors mb-2'
+                : 'flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800 transition-colors mb-2'
+            }
           >
             <Home size={20} />
             <span className="font-medium">Home</span>
-          </Link>
+          </NavLink>
 
           {/* Demo Links Removed */}
         </nav>

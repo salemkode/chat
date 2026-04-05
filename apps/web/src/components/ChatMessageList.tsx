@@ -4,13 +4,11 @@ import type { ChatMessage } from '@/hooks/use-chat-data'
 import { buildPromptMessageIdsByIndex } from '@/lib/chat-generation'
 import { CHAT_FOLLOW_LATEST_EVENT } from '@/lib/chat-events'
 import { cn } from '@/lib/utils'
-import { MessageLoadingSkeleton } from './chat/MessageLoadingSkeleton'
 import { Message } from './Message'
 
 interface ChatMessageListProps {
   threadId: string
   messages: ChatMessage[]
-  isLoading?: boolean
   isLoadingOlder?: boolean
   hasOlderMessages?: boolean
   onLoadOlder?: (numItems: number) => void
@@ -22,7 +20,6 @@ interface ChatMessageListProps {
 export function ChatMessageList({
   threadId,
   messages,
-  isLoading = false,
   isLoadingOlder = false,
   hasOlderMessages = false,
   onLoadOlder,
@@ -56,23 +53,6 @@ export function ChatMessageList({
       window.removeEventListener(CHAT_FOLLOW_LATEST_EVENT, handleFollowLatest)
   }, [threadId])
   const dataVersion = `${messages.length}:${latestMessage?.id ?? ''}:${latestMessage?.status ?? ''}:${latestMessage?.text ?? ''}:${activeAssistantMessageId ?? ''}:${stalledAssistantMessageId ?? ''}`
-
-  if (isLoading && messages.length === 0) {
-    return (
-      <div
-        className={cn(
-          'flex-1 overflow-y-auto',
-          'pt-4 pb-28 sm:pt-6 sm:pb-32',
-          className,
-        )}
-      >
-        <div className="mx-auto w-full max-w-3xl px-3">
-          <MessageLoadingSkeleton />
-          <MessageLoadingSkeleton />
-        </div>
-      </div>
-    )
-  }
 
   if (messages.length === 0) {
     return (

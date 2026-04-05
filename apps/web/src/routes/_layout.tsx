@@ -1,9 +1,9 @@
 import {
-  createFileRoute,
+  generatePath,
   Outlet,
   useNavigate,
   useParams,
-} from '@tanstack/react-router'
+} from 'react-router'
 import type { Id } from '@convex/_generated/dataModel'
 import { Loader2 } from '@/lib/icons'
 import {
@@ -20,7 +20,7 @@ import {
   ChatModelProvider,
   useChatModel,
 } from '@/components/chat-model-context'
-import { useIsMobile } from '@chat/shared/hooks/use-mobile'
+import { useIsMobile } from '@/hooks/use-mobile'
 import {
   dequeueQueuedMessage,
   enqueueQueuedMessage,
@@ -46,16 +46,11 @@ import {
   useThread,
 } from '@/hooks/use-chat-data'
 
-export const Route = createFileRoute('/_layout')({
-  ssr: false,
-  component: ChatLayout,
-})
-
 function toModelDocId(value?: string): Id<'models'> | undefined {
   return value as Id<'models'> | undefined
 }
 
-function ChatLayout() {
+export default function ChatLayout() {
   const { isAuthenticatedOrOffline, isLoading, isOfflineReady } =
     useCachedSessionStatus()
 
@@ -76,22 +71,8 @@ function ChatLayout() {
 
 function AuthenticatedChatLayout() {
   const isMobile = useIsMobile()
-  const params = useParams({
-    from: '/_layout/$chatId',
-    shouldThrow: false,
-    select: (routeParams: unknown) => {
-      if (
-        routeParams &&
-        typeof routeParams === 'object' &&
-        'chatId' in routeParams &&
-        typeof routeParams.chatId === 'string'
-      ) {
-        return { chatId: routeParams.chatId }
-      }
-      return { chatId: undefined }
-    },
-  })
-  const threadId = params?.chatId
+  const { chatId } = useParams()
+  const threadId = chatId
   const [mobileComposerHeight] = useState(176)
 
   return (
@@ -209,10 +190,7 @@ function ChatComposer({
           movePendingSendToThread(pending.clientSendId, resolvedThreadId)
           if (!threadId) {
             writePendingNewChatProjectId(undefined)
-            await navigate({
-              to: '/$chatId',
-              params: { chatId: resolvedThreadId },
-            })
+            await navigate(generatePath('/:chatId', { chatId: resolvedThreadId }))
           }
         },
         onBeforeGenerate: () => {

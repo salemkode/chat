@@ -1,8 +1,8 @@
 'use client'
 
 import * as React from 'react'
-import { useClerk, useUser } from '@clerk/tanstack-react-start'
-import { useNavigate } from '@tanstack/react-router'
+import { useClerk, useUser } from '@clerk/react-router'
+import { generatePath, useNavigate } from 'react-router'
 import {
   ChevronDown,
   ChevronRight,
@@ -38,7 +38,7 @@ import {
 } from '@/components/ui/tooltip'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { SettingsDialog } from '@/components/settings-dialog'
-import { useOnlineStatus } from '@chat/shared/hooks/use-online-status'
+import { useOnlineStatus } from '@/hooks/use-online-status'
 import { useProjects, useThreads, useViewer } from '@/hooks/use-chat-data'
 import { writePendingNewChatProjectId } from '@/lib/project-selection'
 import { SidebarSearchDialog } from '@/components/sidebar/SidebarSearchDialog'
@@ -92,13 +92,13 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
 
   const handleNewChat = React.useCallback(() => {
     writePendingNewChatProjectId(undefined)
-    navigate({ to: '/' })
+    navigate('/')
   }, [navigate])
 
   const handleNewChatInProject = React.useCallback(
     (projectId: string) => {
       writePendingNewChatProjectId(projectId)
-      navigate({ to: '/' })
+      navigate('/')
     },
     [navigate],
   )
@@ -240,12 +240,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
                             <ThreadRow
                               thread={thread}
                               isActive={selectedThreadId === thread.id}
-                              onOpen={() =>
-                                navigate({
-                                  to: '/$chatId',
-                                  params: { chatId: thread.id },
-                                })
-                              }
+                              onOpen={() => navigate(generatePath('/:chatId', { chatId: thread.id }))}
                               onTogglePinned={() =>
                                 void handlePinThread(thread.id, !thread.pinned)
                               }
@@ -282,12 +277,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
                   <ThreadRow
                     thread={thread}
                     isActive={selectedThreadId === thread.id}
-                    onOpen={() =>
-                      navigate({
-                        to: '/$chatId',
-                        params: { chatId: thread.id },
-                      })
-                    }
+                    onOpen={() => navigate(generatePath('/:chatId', { chatId: thread.id }))}
                     onTogglePinned={() =>
                       void handlePinThread(thread.id, !thread.pinned)
                     }
@@ -377,12 +367,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
           <Button
             variant="ghost"
             className="w-full justify-start gap-3"
-            onClick={() =>
-              navigate({
-                to: '/login',
-                search: { redirect: undefined, redirect_url: undefined },
-              })
-            }
+            onClick={() => navigate('/login')}
           >
             <LogIn className="h-4 w-4" />
             Login

@@ -3,21 +3,15 @@ import {
   ClerkLoading,
   Show,
   SignUp,
-} from '@clerk/tanstack-react-start'
-import { createFileRoute, Navigate, useSearch } from '@tanstack/react-router'
+} from '@clerk/react-router'
+import { Navigate, useSearchParams } from 'react-router'
 import { Loader2 } from '@/lib/icons'
 import { getPostLoginRedirectTarget } from '@/lib/auth-redirect'
-import { parseRouteSearchRedirects } from '@/lib/parsers'
 
-export const Route = createFileRoute('/signup')({
-  ssr: false,
-  component: SignupPage,
-  validateSearch: parseRouteSearchRedirects,
-})
-
-function SignupPage() {
-  const search = useSearch({ from: '/signup' })
-  const redirect = search.redirect ?? search.redirect_url
+export default function SignupPage() {
+  const [searchParams] = useSearchParams()
+  const redirect =
+    searchParams.get('redirect') ?? searchParams.get('redirect_url') ?? undefined
   const targetAfterSignup = getPostLoginRedirectTarget(redirect)
   const redirectProps = redirect
     ? {

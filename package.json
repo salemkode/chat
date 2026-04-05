@@ -24,6 +24,7 @@
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
     "check": "pnpm run lint && pnpm run format:check",
+    "deploy:web:cloudflare": "pnpm --filter web run build && pnpm --filter web run deploy:cloudflare",
     "knip": "knip",
     "mobile:dev": "pnpm --filter mobile run dev",
     "ios": "pnpm --filter mobile run ios",

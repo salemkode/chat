@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo } from 'react'
 import type { Id } from '@convex/_generated/dataModel'
 import { useMutation } from 'convex/react'
 import { api } from '@convex/_generated/api'
-import { useOnlineStatus } from '@chat/shared/hooks/use-online-status'
+import type { FunctionReturnType } from 'convex/server'
+import { useOnlineStatus } from '@/hooks/use-online-status'
 import { useQuery } from '@/lib/convex-query-cache'
 import {
   readModelsCache,
@@ -23,11 +24,26 @@ import {
   useOfflineCacheVersion,
 } from '@/hooks/chat-data/shared'
 
+type ModelsWithCollections = FunctionReturnType<
+  typeof api.admin.listModelsWithProviders
+> & {
+  collections?: Array<{
+    _id: string
+    name: string
+    description?: string
+    sortOrder: number
+    modelIds: string[]
+    modelCount: number
+  }>
+}
+
 export function useModels() {
   const cacheUserId = useConvexUserIdForCache()
   const { isOnline } = useOnlineStatus()
   const cacheVersion = useOfflineCacheVersion()
-  const data = useQuery(api.admin.listModelsWithProviders)
+  const data = useQuery(api.admin.listModelsWithProviders) as
+    | ModelsWithCollections
+    | undefined
   const setFavoriteModel = useMutation(api.admin.setFavoriteModel)
 
   const cachedModelPicker = useMemo(() => {

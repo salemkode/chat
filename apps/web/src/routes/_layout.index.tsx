@@ -1,14 +1,8 @@
-import { createFileRoute } from '@tanstack/react-router'
 import { ChatMessageList } from '@/components/ChatMessageList'
 import { ChatThreadHeader } from '@/components/chat/ChatThreadHeader'
 import { useMessages } from '@/hooks/use-chat-data'
 
-export const Route = createFileRoute('/_layout/')({
-  ssr: false,
-  component: NewChatIndex,
-})
-
-function NewChatIndex() {
+export default function NewChatIndex() {
   const { messages } = useMessages()
 
   return (

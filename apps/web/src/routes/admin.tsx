@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access -- Convex hooks */
-import { useAuth } from '@clerk/tanstack-react-start'
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { useAuth } from '@clerk/react-router'
+import { useNavigate } from 'react-router'
 import { useMutation } from 'convex/react'
 import { Loader2 } from '@/lib/icons'
 import { useEffect, useReducer } from 'react'
@@ -144,7 +144,7 @@ function AdminPageInner({
   return (
     <>
       <AdminPageHeader
-        onNavigateHome={() => void navigate({ to: '/' })}
+        onNavigateHome={() => void navigate('/')}
         providerDialog={providerDialog.dialogProps}
         modelDialog={modelDialog.dialogProps}
         collectionDialog={collectionDialog.dialogProps}
@@ -182,8 +182,4 @@ function AdminPageInner({
     </>
   )
 }
-
-export const Route = createFileRoute('/admin')({
-  ssr: false,
-  component: AdminPage,
-})
+export default AdminPage

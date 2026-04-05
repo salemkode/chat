@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from '@tanstack/react-router'
+import { useNavigate } from 'react-router'
 import {
   Brain,
   Camera,
@@ -26,7 +26,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { MemorySettingsPanel } from '@/components/settings/memory-settings-panel'
 import { useTheme } from '@/components/theme-provider'
-import { useOnlineStatus } from '@chat/shared/hooks/use-online-status'
+import { useOnlineStatus } from '@/hooks/use-online-status'
 import { useRoleContext, useSettings, useViewer } from '@/hooks/use-chat-data'
 import type { SettingsTab } from '@/lib/settings-navigation'
 import { normalizeHexColor, type ThemeMode } from '@/lib/theme'
@@ -502,7 +502,7 @@ export function SettingsDialog({
                   <Button
                     onClick={() => {
                       onOpenChange(false)
-                      void navigate({ to: '/admin' })
+                      void navigate('/admin')
                     }}
                   >
                     Go to Admin

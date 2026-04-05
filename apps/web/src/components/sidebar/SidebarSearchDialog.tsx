@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { useAction } from 'convex/react'
 import type { FunctionReturnType } from 'convex/server'
-import { useNavigate } from '@tanstack/react-router'
+import { generatePath, useNavigate } from 'react-router'
 import { Loader2, Search, X } from '@/lib/icons'
 import { api } from '@convex/_generated/api'
 import { Button } from '@/components/ui/button'
@@ -205,10 +205,7 @@ export function SidebarSearchDialog({ isOnline }: { isOnline: boolean }) {
                     className="flex h-auto w-full justify-start gap-3 px-5 py-4 text-left transition-colors hover:bg-white/5"
                     onClick={() => {
                       handleOpenChange(false)
-                      void navigate({
-                        to: '/$chatId',
-                        params: { chatId: result.threadId },
-                      })
+                      void navigate(generatePath('/:chatId', { chatId: result.threadId }))
                     }}
                   >
                     <div className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/4">
