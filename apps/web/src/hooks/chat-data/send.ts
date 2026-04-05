@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { Id } from '@convex/_generated/dataModel'
 import { useMutation } from 'convex/react'
 import { api } from '@convex/_generated/api'
-import { useOnlineStatus } from '@chat/shared/hooks/use-online-status'
+import { useOnlineStatus } from '@/hooks/use-online-status'
 import { parseUploadResponse } from '@/lib/parsers'
 import {
   CHAT_FOLLOW_LATEST_EVENT,

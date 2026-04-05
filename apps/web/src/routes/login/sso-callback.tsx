@@ -1,14 +1,9 @@
-import { ClerkLoaded, useClerk, useSignIn } from '@clerk/tanstack-react-start'
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { ClerkLoaded, useClerk, useSignIn } from '@clerk/react-router'
+import { useNavigate } from 'react-router'
 import { useEffect } from 'react'
 import { Loader2 } from '@/lib/icons'
 
-export const Route = createFileRoute('/login/sso-callback')({
-  ssr: false,
-  component: SsoCallbackPage,
-})
-
-function SsoCallbackPage() {
+export default function SsoCallbackPage() {
   const clerk = useClerk()
   const { signIn } = useSignIn()
   const navigate = useNavigate()
@@ -33,10 +28,10 @@ function SsoCallbackPage() {
         })
       }
 
-      navigate({ to: redirectUrl })
+      navigate(redirectUrl)
     } catch (error) {
       console.error('SSO callback error:', error)
-      navigate({ to: '/login' })
+      navigate('/login')
     }
   }
 
@@ -48,7 +43,6 @@ function SsoCallbackPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-      welcome
       <ClerkLoaded>
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />

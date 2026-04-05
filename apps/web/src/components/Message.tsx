@@ -4,7 +4,7 @@ import type { FunctionReturnType } from 'convex/server'
 import { api } from '@convex/_generated/api'
 import { AlertCircle, FileText, ChevronDown, ChevronUp } from '@/lib/icons'
 import { memo, useMemo, useState } from 'react'
-import { useIsMobile } from '@chat/shared/hooks/use-mobile'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { getMessageFailurePresentation } from '@/lib/chat-generation'
 import { cn } from '@/lib/utils'
 import { QuranAyahCard } from './chat/QuranAyahCard'
@@ -71,11 +71,6 @@ export const Message = memo(function Message({
     () => getQuranAyahCardFromParts(message.parts),
     [message.parts],
   )
-  const shouldShowResponsePlaceholder =
-    !isFailedAssistant &&
-    (message.status === 'streaming' || message.status === 'pending') &&
-    !ayahCard &&
-    !visibleText.trim()
 
   if (message.role === 'assistant') {
     const disableRepeat =
@@ -112,14 +107,6 @@ export const Message = memo(function Message({
               <p className="whitespace-pre-wrap break-words">{failureNote}</p>
             </AlertDescription>
           </Alert>
-        ) : shouldShowResponsePlaceholder ? (
-          <div className="shimmer-container px-1 py-2">
-            <div className="space-y-3">
-              <div className="shimmer-bg h-3.5 w-full rounded-full bg-muted" />
-              <div className="shimmer-bg h-3.5 w-[90%] rounded-full bg-muted" />
-              <div className="shimmer-bg h-3.5 w-[72%] rounded-full bg-muted" />
-            </div>
-          </div>
         ) : (
           <div
             dir="auto"

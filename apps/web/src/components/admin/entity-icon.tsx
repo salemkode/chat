@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils'
-import { getLucideIcon } from '@/lib/lucide'
+import { getIcon } from '@/lib/icons'
 import type { IconType } from '@chat/shared/admin-types'
 
 export type { IconType }
@@ -35,9 +35,8 @@ export function EntityIcon({
     )
   }
 
-  const iconName =
-    (iconType === 'lucide' || iconType === 'phosphor') && icon ? icon : fallback
-  const IconComponent = getLucideIcon(iconName)
+  const iconName = iconType === 'phosphor' && icon ? icon : fallback
+  const IconComponent = getIcon(iconName)
 
   if (IconComponent) {
     return <IconComponent className={cn('size-5', className)} />

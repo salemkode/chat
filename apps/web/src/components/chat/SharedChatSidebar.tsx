@@ -1,6 +1,6 @@
 import { Check, Copy, ExternalLink, Link2, Smartphone } from '@/lib/icons'
 import { useMemo, useState } from 'react'
-import { useIsMobile } from '@chat/shared/hooks/use-mobile'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {

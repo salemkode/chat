@@ -9,7 +9,7 @@ This document describes the current repository architecture for the `chat` monor
 This repository is a pnpm workspace orchestrated by Turbo. The product is split into:
 
 - `apps/mobile`: Expo + React Native mobile client
-- `apps/web`: TanStack Start web client
+- `apps/web`: React Router framework web client
 - `packages/shared`: cross-platform hooks and domain helpers
 - `convex`: backend schema, queries, mutations, actions, and AI orchestration
 
@@ -24,7 +24,7 @@ There are also non-primary directories that should be treated as supporting or l
 ```text
 clients
   mobile (Expo Router) ─┐
-  web (TanStack Start) ─┼─> Convex backend + database + AI orchestration
+  web (React Router) ─┼─> Convex backend + database + AI orchestration
   shared package ───────┘
 
 Convex
@@ -103,7 +103,7 @@ Important mobile rule already implemented:
 
 ### 2. Web App
 
-The web app uses TanStack Start with client-side routing and Convex for live data.
+The web app uses React Router framework mode (SPA configuration) with Convex for live data.
 
 Entry and shell:
 
@@ -172,7 +172,7 @@ Mobile:
 
 Web:
 
-- `@clerk/tanstack-react-start`
+- `@clerk/react-router`
 - custom auth token wiring inside `ConvexClientProvider.tsx`
 
 Backend:
@@ -195,7 +195,7 @@ Backend:
 
 ### Web
 
-1. Route loads chat shell and current thread from TanStack Router.
+1. Route loads chat shell and current thread through React Router.
 2. Data hooks subscribe to Convex queries.
 3. `useSendMessage` in `apps/web/src/hooks/chat-data/send.ts` creates a thread if needed, uploads files, and calls generation mutations.
 4. Optimistic assistant and user message placeholders are inserted with local query store updates.

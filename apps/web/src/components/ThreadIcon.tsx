@@ -1,7 +1,7 @@
 'use client'
 
 import { MessageCircle } from '@/lib/icons'
-import { getLucideIcon } from '@/lib/lucide'
+import { getIcon } from '@/lib/icons'
 
 interface ThreadIconProps {
   iconName?: string
@@ -19,15 +19,15 @@ export function ThreadIcon({
   className = '',
   size = 16,
 }: ThreadIconProps) {
-  // If we have an icon name, try to render the Lucide icon
+  // If we have an icon name, try to render the app icon
   if (iconName) {
-    // Convert kebab-case or snake_case to PascalCase for Lucide
+    // Convert kebab-case or snake_case to PascalCase for icon lookup
     const normalizedName = iconName
       .replace(/[-_](.)/g, (_, char) => char.toUpperCase())
       .replace(/^(.)/, (_, char) => char.toUpperCase())
 
-    // Get the icon from Lucide
-    const IconComponent = getLucideIcon(normalizedName)
+    // Get the icon from the app icon map
+    const IconComponent = getIcon(normalizedName)
 
     if (IconComponent) {
       return <IconComponent className={className} size={size} />

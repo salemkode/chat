@@ -1,5 +1,4 @@
 import * as React from 'react'
-import { Gem as LucideGem, Server as LucideServer } from 'lucide-react'
 import { phosphorIcons } from '@/lib/phosphor-icons'
 
 type IconModule = Record<string, AppIcon>
@@ -9,31 +8,16 @@ export type AppIcon = React.ComponentType<{
   size?: string | number
 }>
 
-export type LucideIcon = AppIcon
-
 const phosphorModule: IconModule = phosphorIcons
-
-const lucideModule: IconModule = {
-  Gem: LucideGem,
-  Server: LucideServer,
-}
 
 function pickIcon(
   phosphorNames: string[],
-  legacyLucideName?: string,
   fallback = 'Sparkle',
 ): AppIcon {
   for (const name of phosphorNames) {
     const icon = phosphorModule[name]
     if (icon) {
       return icon
-    }
-  }
-
-  if (legacyLucideName) {
-    const legacy = lucideModule[legacyLucideName]
-    if (legacy) {
-      return legacy
     }
   }
 
@@ -384,16 +368,5 @@ export function getIcon(name: string): AppIcon | undefined {
     return phosphorIcon
   }
 
-  const legacyIcon = lucideModule[normalizedName]
-  if (legacyIcon) {
-    return legacyIcon
-  }
-
   return undefined
-}
-
-export const lucideIconNames = [...appIconNames]
-
-export function getLucideIcon(name: string): AppIcon | undefined {
-  return getIcon(name)
 }

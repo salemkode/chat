@@ -1,4 +1,4 @@
-import { useAuth } from '@clerk/tanstack-react-start'
+import { useAuth } from '@clerk/react-router'
 import { ConvexQueryCacheProvider } from 'convex-helpers/react/cache'
 import { ConvexProvider, ConvexReactClient } from 'convex/react'
 import { useEffect, type ReactNode } from 'react'

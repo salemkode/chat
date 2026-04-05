@@ -58,7 +58,6 @@ export function ModelSelector({
                 icon={currentModel.icon || currentModel.provider?.icon}
                 iconType={(currentModel.iconType || currentModel.provider?.iconType) as
                   | 'emoji'
-                  | 'lucide'
                   | 'phosphor'
                   | 'upload'
                   | undefined}
@@ -206,7 +205,6 @@ export function ModelSelectorPanel({
                             icon={model.icon || model.provider?.icon}
                             iconType={(model.iconType || model.provider?.iconType) as
                               | 'emoji'
-                              | 'lucide'
                               | 'phosphor'
                               | 'upload'
                               | undefined}

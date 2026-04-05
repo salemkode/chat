@@ -3,17 +3,12 @@ import {
   useClerk,
   useSignIn,
   useSignUp,
-} from '@clerk/tanstack-react-start'
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+} from '@clerk/react-router'
+import { useNavigate } from 'react-router'
 import { useEffect } from 'react'
 import { Loader2 } from '@/lib/icons'
 
-export const Route = createFileRoute('/signup/sso-callback')({
-  ssr: false,
-  component: SsoCallbackPage,
-})
-
-function SsoCallbackPage() {
+export default function SsoCallbackPage() {
   const clerk = useClerk()
   const { signIn } = useSignIn()
   const { signUp } = useSignUp()
@@ -49,10 +44,10 @@ function SsoCallbackPage() {
         })
       }
 
-      navigate({ to: redirectUrl })
+      navigate(redirectUrl)
     } catch (error) {
       console.error('SSO callback error:', error)
-      navigate({ to: '/signup' })
+      navigate('/signup')
     }
   }
 

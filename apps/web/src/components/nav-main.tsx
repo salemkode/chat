@@ -1,4 +1,4 @@
-import { type LucideIcon } from '@/lib/icons'
+import { type AppIcon } from '@/lib/icons'
 
 import {
   SidebarMenu,
@@ -12,7 +12,7 @@ export function NavMain({
   items: {
     title: string
     url: string
-    icon: LucideIcon
+    icon: AppIcon
     isActive?: boolean
   }[]
 }) {

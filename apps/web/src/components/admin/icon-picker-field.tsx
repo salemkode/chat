@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { getLucideIcon, lucideIconNames } from '@/lib/lucide'
+import { appIconNames, getIcon } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { EntityIcon, type IconType } from '@/components/admin/entity-icon'
 
@@ -28,7 +28,7 @@ const ICON_PRESETS = [
   'Gem',
 ] as const
 
-const LUCIDE_ICON_NAMES = lucideIconNames
+const ICON_NAMES = appIconNames
 
 export function IconPickerField({
   label,
@@ -52,11 +52,11 @@ export function IconPickerField({
 
   const filteredIcons = useMemo(() => {
     if (!search.trim()) {
-      return LUCIDE_ICON_NAMES
+      return ICON_NAMES
     }
 
     const query = search.toLowerCase()
-    return LUCIDE_ICON_NAMES.filter((iconName) =>
+    return ICON_NAMES.filter((iconName) =>
       iconName.toLowerCase().includes(query),
     )
   }, [search])
@@ -132,7 +132,7 @@ export function IconPickerField({
           <ScrollArea className="h-56 rounded-lg border border-border bg-background p-2">
             <div className="grid grid-cols-4 gap-2 pr-3">
               {filteredIcons.slice(0, 120).map((iconName) => {
-                const IconComponent = getLucideIcon(iconName)
+                const IconComponent = getIcon(iconName)
 
                 return (
                   <button

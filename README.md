@@ -4,7 +4,7 @@ Salemkode Chat is a pnpm + Turbo monorepo for a Convex-powered AI chat product w
 
 - Clerk authentication
 - Expo mobile app
-- TanStack Start web app
+- React Router framework web app
 - admin-managed model/provider configuration
 - platform-specific offline read-back layers
 - a memory system for durable user, thread, and project context
@@ -13,11 +13,12 @@ Salemkode Chat is a pnpm + Turbo monorepo for a Convex-powered AI chat product w
 
 - [Architecture overview](./docs/architecture.md)
 - [Development setup](./DEVELOPMENT.md)
+- [Cloudflare Pages deploy](./docs/cloudflare-pages.md)
 
 ## Tech Stack
 
 - React 19
-- TanStack Router
+- React Router
 - Convex
 - `@convex-dev/agent`
 - Clerk
@@ -27,7 +28,7 @@ Salemkode Chat is a pnpm + Turbo monorepo for a Convex-powered AI chat product w
 ## Project Structure
 
 - `apps/mobile`: Expo Router mobile client
-- `apps/web`: TanStack Start web client
+- `apps/web`: React Router framework web client
 - `packages/shared`: shared hooks and domain logic
 - `convex/`: backend schema, mutations, actions, and AI orchestration
 - `docs/`: project documentation

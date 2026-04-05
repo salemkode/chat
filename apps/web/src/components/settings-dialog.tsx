@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from '@tanstack/react-router'
+import { useNavigate } from 'react-router'
 import {
   Brain,
   Camera,
@@ -17,7 +17,7 @@ import {
   Wrench,
   X,
 } from '@/lib/icons'
-import type { LucideIcon } from '@/lib/icons'
+import type { AppIcon } from '@/lib/icons'
 import { AdaptiveDialog } from '@/components/ui/adaptive-dialog'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -26,7 +26,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { MemorySettingsPanel } from '@/components/settings/memory-settings-panel'
 import { useTheme } from '@/components/theme-provider'
-import { useOnlineStatus } from '@chat/shared/hooks/use-online-status'
+import { useOnlineStatus } from '@/hooks/use-online-status'
 import { useRoleContext, useSettings, useViewer } from '@/hooks/use-chat-data'
 import type { SettingsTab } from '@/lib/settings-navigation'
 import { normalizeHexColor, type ThemeMode } from '@/lib/theme'
@@ -111,7 +111,7 @@ export function SettingsDialog({
         ...(isAdminLike
           ? [{ id: 'admin' as const, label: 'Admin', icon: Wrench }]
           : []),
-      ] satisfies Array<{ id: SettingsTab; label: string; icon: LucideIcon }>,
+      ] satisfies Array<{ id: SettingsTab; label: string; icon: AppIcon }>,
     [isAdminLike],
   )
 
@@ -144,7 +144,7 @@ export function SettingsDialog({
     id: ThemeMode
     label: string
     description: string
-    icon: LucideIcon
+    icon: AppIcon
     previewClassName: string
   }>
 
@@ -502,7 +502,7 @@ export function SettingsDialog({
                   <Button
                     onClick={() => {
                       onOpenChange(false)
-                      void navigate({ to: '/admin' })
+                      void navigate('/admin')
                     }}
                   >
                     Go to Admin

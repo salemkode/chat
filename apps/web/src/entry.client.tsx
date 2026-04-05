@@ -1,4 +1,4 @@
-import { StartClient } from '@tanstack/react-start/client'
+import { HydratedRouter } from 'react-router/dom'
 import { StrictMode } from 'react'
 import { hydrateRoot } from 'react-dom/client'
 import { registerSW } from 'virtual:pwa-register'
@@ -22,6 +22,6 @@ if ('serviceWorker' in navigator) {
 hydrateRoot(
   document,
   <StrictMode>
-    <StartClient />
+    <HydratedRouter />
   </StrictMode>,
 )

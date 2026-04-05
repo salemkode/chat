@@ -1,11 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
-
-export const Route = createFileRoute('/memory-demo')({
-  ssr: false,
-  component: MemoryDemo,
-})
-
-function MemoryDemo() {
+export default function MemoryDemo() {
   return (
     <div className="min-h-screen bg-background text-foreground font-sans p-8">
       <div className="max-w-7xl mx-auto space-y-8">

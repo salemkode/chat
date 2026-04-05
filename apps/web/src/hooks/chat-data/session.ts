@@ -1,7 +1,7 @@
-import { useAuth } from '@clerk/tanstack-react-start'
+import { useAuth } from '@clerk/react-router'
 import { useEffect, useMemo } from 'react'
 import { api } from '@convex/_generated/api'
-import { useOnlineStatus } from '@chat/shared/hooks/use-online-status'
+import { useOnlineStatus } from '@/hooks/use-online-status'
 import { useQuery } from '@/lib/convex-query-cache'
 import { readSession, readSettings } from '@/offline/local-cache'
 import {

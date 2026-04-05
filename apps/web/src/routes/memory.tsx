@@ -1,19 +1,14 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { useNavigate } from 'react-router'
 import { Loader2 } from '@/lib/icons'
 import { useEffect } from 'react'
 import { queueSettingsTabIntent } from '@/lib/settings-navigation'
 
-export const Route = createFileRoute('/memory')({
-  ssr: false,
-  component: MemoryRedirectPage,
-})
-
-function MemoryRedirectPage() {
+export default function MemoryRedirectPage() {
   const navigate = useNavigate()
 
   useEffect(() => {
     queueSettingsTabIntent('memory')
-    void navigate({ to: '/', replace: true })
+    void navigate('/', { replace: true })
   }, [navigate])
 
   return (
