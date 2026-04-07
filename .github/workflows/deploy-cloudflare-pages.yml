@@ -46,6 +46,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CF_PAGES_PROJECT_NAME: ${{ secrets.CF_PAGES_PROJECT_NAME }}
         run: |
-          pnpm --filter web exec wrangler pages deploy dist/client \
+          test -d apps/web/dist/client
+          pnpm exec wrangler pages deploy apps/web/dist/client \
             --project-name "$CF_PAGES_PROJECT_NAME" \
             --branch "${GITHUB_REF_NAME}"

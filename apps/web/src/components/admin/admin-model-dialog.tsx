@@ -18,6 +18,10 @@ import {
   mergeReducer,
 } from '@/components/admin/admin-form-state'
 import {
+  ADMIN_MUTATION_ERROR_TOAST_DURATION_MS,
+  formatAdminMutationError,
+} from '@/components/admin/admin-mutation-error'
+import {
   formatModelModalities,
   getCapabilitiesTextFromModalities,
 } from '@/components/admin/admin-utils'
@@ -735,18 +739,39 @@ export function useAdminModelDialog({
   )
 
   const handleSaveModel = useCallback(() => {
+    const modelIdTrim = modelForm.modelId.trim()
+    const displayNameTrim = modelForm.displayName.trim()
+    const providerIdTrim = modelForm.providerId.trim()
+    if (!providerIdTrim) {
+      toast.error('Choose a provider.', {
+        duration: ADMIN_MUTATION_ERROR_TOAST_DURATION_MS,
+      })
+      return
+    }
+    if (!modelIdTrim) {
+      toast.error('Model ID is required.', {
+        duration: ADMIN_MUTATION_ERROR_TOAST_DURATION_MS,
+      })
+      return
+    }
+    if (!displayNameTrim) {
+      toast.error('Display name is required.', {
+        duration: ADMIN_MUTATION_ERROR_TOAST_DURATION_MS,
+      })
+      return
+    }
     const capabilities = modelForm.capabilitiesText
       .split(',')
       .map((value) => value.trim())
       .filter(Boolean)
     const payload = {
-      modelId: modelForm.modelId.trim(),
-      displayName: modelForm.displayName.trim(),
+      modelId: modelIdTrim,
+      displayName: displayNameTrim,
       description: modelForm.description.trim() || undefined,
       isEnabled: modelForm.isEnabled,
       isFree: modelForm.isFree,
       sortOrder: modelForm.sortOrder,
-      providerId: modelForm.providerId as Doc<'providers'>['_id'],
+      providerId: providerIdTrim as Doc<'providers'>['_id'],
       icon:
         modelForm.iconType === 'upload'
           ? undefined
@@ -785,9 +810,9 @@ export function useAdminModelDialog({
         setModelIconPreviewUrl(undefined)
       })
       .catch((error) => {
-        toast.error(
-          error instanceof Error ? error.message : 'Failed to save model',
-        )
+        toast.error(formatAdminMutationError(error, 'Failed to save model'), {
+          duration: ADMIN_MUTATION_ERROR_TOAST_DURATION_MS,
+        })
       })
   }, [
     addModel,

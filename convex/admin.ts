@@ -906,13 +906,40 @@ export const addProvider = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
-    if (!userId) return null
+    if (!userId) {
+      throw new ConvexError({
+        code: 'UNAUTHORIZED',
+        message: 'Not signed in.',
+      })
+    }
     const isAdminLike = await hasAdminAccess(ctx, userId)
 
-    if (!isAdminLike) return null
+    if (!isAdminLike) {
+      throw new ConvexError({
+        code: 'FORBIDDEN',
+        message: 'Not authorized to manage providers.',
+      })
+    }
+
+    const name = args.name.trim()
+    const apiKey = args.apiKey.trim()
+    if (!name) {
+      throw new ConvexError({
+        code: 'VALIDATION_ERROR',
+        message: 'Provider name is required.',
+      })
+    }
+    if (!apiKey) {
+      throw new ConvexError({
+        code: 'VALIDATION_ERROR',
+        message: 'API key is required.',
+      })
+    }
 
     return await ctx.db.insert('providers', {
       ...args,
+      name,
+      apiKey,
       lastDiscoveredAt: undefined,
       lastDiscoveryError: undefined,
       lastDiscoveredModelCount: undefined,
@@ -938,12 +965,44 @@ export const updateProvider = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
-    if (!userId) return
+    if (!userId) {
+      throw new ConvexError({
+        code: 'UNAUTHORIZED',
+        message: 'Not signed in.',
+      })
+    }
     const isAdminLike = await hasAdminAccess(ctx, userId)
 
-    if (!isAdminLike) return
+    if (!isAdminLike) {
+      throw new ConvexError({
+        code: 'FORBIDDEN',
+        message: 'Not authorized to manage providers.',
+      })
+    }
 
-    const { id, ...updates } = args
+    const { id, ...rawUpdates } = args
+    const updates = { ...rawUpdates }
+    if (updates.name !== undefined) {
+      const trimmed = updates.name.trim()
+      if (!trimmed) {
+        throw new ConvexError({
+          code: 'VALIDATION_ERROR',
+          message: 'Provider name cannot be empty.',
+        })
+      }
+      updates.name = trimmed
+    }
+    if (updates.apiKey !== undefined) {
+      const trimmed = updates.apiKey.trim()
+      if (!trimmed) {
+        throw new ConvexError({
+          code: 'VALIDATION_ERROR',
+          message: 'API key cannot be empty.',
+        })
+      }
+      updates.apiKey = trimmed
+    }
+
     await ctx.db.patch(id, cleanUpdates(updates))
     return
   },
@@ -1013,12 +1072,41 @@ export const addModel = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
-    if (!userId) return null
+    if (!userId) {
+      throw new ConvexError({
+        code: 'UNAUTHORIZED',
+        message: 'Not signed in.',
+      })
+    }
     const isAdminLike = await hasAdminAccess(ctx, userId)
 
-    if (!isAdminLike) return null
+    if (!isAdminLike) {
+      throw new ConvexError({
+        code: 'FORBIDDEN',
+        message: 'Not authorized to manage models.',
+      })
+    }
 
-    return await ctx.db.insert('models', args)
+    const modelId = args.modelId.trim()
+    const displayName = args.displayName.trim()
+    if (!modelId) {
+      throw new ConvexError({
+        code: 'VALIDATION_ERROR',
+        message: 'Model ID is required.',
+      })
+    }
+    if (!displayName) {
+      throw new ConvexError({
+        code: 'VALIDATION_ERROR',
+        message: 'Display name is required.',
+      })
+    }
+
+    return await ctx.db.insert('models', {
+      ...args,
+      modelId,
+      displayName,
+    })
   },
 })
 
@@ -1047,12 +1135,44 @@ export const updateModel = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
-    if (!userId) return
+    if (!userId) {
+      throw new ConvexError({
+        code: 'UNAUTHORIZED',
+        message: 'Not signed in.',
+      })
+    }
     const isAdminLike = await hasAdminAccess(ctx, userId)
 
-    if (!isAdminLike) return
+    if (!isAdminLike) {
+      throw new ConvexError({
+        code: 'FORBIDDEN',
+        message: 'Not authorized to manage models.',
+      })
+    }
 
-    const { id, ...updates } = args
+    const { id, ...rawUpdates } = args
+    const updates = { ...rawUpdates }
+    if (updates.modelId !== undefined) {
+      const trimmed = updates.modelId.trim()
+      if (!trimmed) {
+        throw new ConvexError({
+          code: 'VALIDATION_ERROR',
+          message: 'Model ID cannot be empty.',
+        })
+      }
+      updates.modelId = trimmed
+    }
+    if (updates.displayName !== undefined) {
+      const trimmed = updates.displayName.trim()
+      if (!trimmed) {
+        throw new ConvexError({
+          code: 'VALIDATION_ERROR',
+          message: 'Display name cannot be empty.',
+        })
+      }
+      updates.displayName = trimmed
+    }
+
     await ctx.db.patch(id, cleanUpdates(updates))
     return
   },

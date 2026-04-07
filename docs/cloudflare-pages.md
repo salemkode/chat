@@ -75,3 +75,9 @@ Required GitHub repository secrets:
 Cloudflare Pages hosts your web app. Your chat/model API remains in Convex (`convex/*`).
 
 That is the expected architecture for this repo and avoids re-implementing Convex server logic inside Pages Functions.
+
+## React Router Workers guide note
+
+Cloudflare's React Router Workers framework guide is for full-stack React Router deployments with SSR (`ssr: true`) and Worker server entry.
+
+This repo currently runs React Router in SPA mode (`ssr: false`), so deployment should stay on **Pages static upload** (`wrangler pages deploy ...`) instead of `wrangler deploy`.

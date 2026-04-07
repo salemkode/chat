@@ -51,7 +51,11 @@ export function ChatDrawerContent({ navigation }: DrawerContentComponentProps) {
           className={`size-12 items-center justify-center rounded-full border ${isNewChatActive ? 'border-primary bg-primary' : 'border-border bg-elevated'} active:opacity-80`}
           accessibilityLabel="New chat"
         >
-          <Ionicons name="create-outline" size={20} color={isNewChatActive ? '#111827' : '#f5f5f5'} />
+          <Ionicons
+            name={isNewChatActive ? 'create' : 'create-outline'}
+            size={20}
+            color={isNewChatActive ? '#111827' : '#f5f5f5'}
+          />
         </Pressable>
       </View>
 

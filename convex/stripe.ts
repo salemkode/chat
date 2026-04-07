@@ -85,8 +85,8 @@ export const createProSubscriptionCheckout = action({
       priceId,
       customerId,
       mode: 'subscription',
-      successUrl: `${origin}/admin?billing=success`,
-      cancelUrl: `${origin}/admin?billing=canceled`,
+      successUrl: `${origin}/admin/settings?billing=success`,
+      cancelUrl: `${origin}/admin/settings?billing=canceled`,
       metadata: {
         appBillingOrgId: APP_BILLING_ORG_ID,
       },
@@ -119,7 +119,7 @@ export const createBillingPortalSession = action({
 
     return await stripeClient.createCustomerPortalSession(ctx, {
       customerId: existingSubscription.stripeCustomerId,
-      returnUrl: `${origin}/admin`,
+      returnUrl: `${origin}/admin/settings`,
     })
   },
 })

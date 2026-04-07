@@ -8,8 +8,13 @@ import { api } from '@convex/_generated/api'
 import { useAdminDiscovery } from '@/components/admin/admin-discovery-context'
 import { IconPickerField } from '@/components/admin/icon-picker-field'
 import {
+  ADMIN_MUTATION_ERROR_TOAST_DURATION_MS,
+  formatAdminMutationError,
+} from '@/components/admin/admin-mutation-error'
+import {
   PROVIDER_TYPES,
   defaultBaseURL,
+  getProviderFormHints,
   type ProviderType,
 } from '@/components/admin/admin-provider-catalog'
 import type {
@@ -91,6 +96,8 @@ export function AdminProviderDialog({ state, actions }: AdminProviderDialogProps
     discoveringProviderId,
   } = state
 
+  const hints = getProviderFormHints(providerForm.providerType)
+
   return (
     <>
       <Button onClick={() => actions.onTriggerOpen()}>
@@ -112,8 +119,9 @@ export function AdminProviderDialog({ state, actions }: AdminProviderDialogProps
         <ScrollArea className="max-h-[70vh] pr-6">
           <div className="py-4">
             <Tabs defaultValue="configuration" className="grid gap-4">
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-2 gap-1 sm:grid-cols-4">
                 <TabsTrigger value="configuration">Configuration</TabsTrigger>
+                <TabsTrigger value="advanced">Advanced</TabsTrigger>
                 <TabsTrigger value="icon">Icon</TabsTrigger>
                 <TabsTrigger value="limitation">Limitation</TabsTrigger>
               </TabsList>
@@ -139,16 +147,28 @@ export function AdminProviderDialog({ state, actions }: AdminProviderDialogProps
                     <Label htmlFor={ids.providerType}>Provider type</Label>
                     <Select
                       value={providerForm.providerType}
-                      onValueChange={(value) =>
-                        setProviderForm((current) => ({
-                          ...current,
-                          providerType: value as ProviderType,
-                          baseURL: editingProvider
-                            ? current.baseURL
-                            : current.baseURL ||
-                              defaultBaseURL(value as ProviderType),
-                        }))
-                      }
+                      onValueChange={(value) => {
+                        const nextType = value as ProviderType
+                        setProviderForm((current) => {
+                          if (editingProvider) {
+                            return {
+                              ...current,
+                              providerType: nextType,
+                            }
+                          }
+                          const prevDefault = defaultBaseURL(current.providerType)
+                          const url = current.baseURL.trim()
+                          const shouldApplyDefault =
+                            !url || url === prevDefault.trim()
+                          return {
+                            ...current,
+                            providerType: nextType,
+                            baseURL: shouldApplyDefault
+                              ? defaultBaseURL(nextType)
+                              : current.baseURL,
+                          }
+                        })
+                      }}
                     >
                       <SelectTrigger id={ids.providerType}>
                         <SelectValue />
@@ -189,7 +209,7 @@ export function AdminProviderDialog({ state, actions }: AdminProviderDialogProps
                           apiKey: event.target.value,
                         }))
                       }
-                      placeholder="sk-..."
+                      placeholder={hints.apiKeyPlaceholder}
                     />
                   </div>
 
@@ -204,68 +224,13 @@ export function AdminProviderDialog({ state, actions }: AdminProviderDialogProps
                           baseURL: event.target.value,
                         }))
                       }
-                      placeholder="https://api.example.com/v1"
+                      placeholder={hints.baseURLPlaceholder}
                     />
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label>OpenAI organization</Label>
-                    <Input
-                      value={providerForm.organization}
-                      onChange={(event) =>
-                        setProviderForm((current) => ({
-                          ...current,
-                          organization: event.target.value,
-                        }))
-                      }
-                      placeholder="org_..."
-                    />
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label>OpenAI project</Label>
-                    <Input
-                      value={providerForm.project}
-                      onChange={(event) =>
-                        setProviderForm((current) => ({
-                          ...current,
-                          project: event.target.value,
-                        }))
-                      }
-                      placeholder="proj_..."
-                    />
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label>Headers JSON</Label>
-                    <Textarea
-                      value={providerForm.headersJson}
-                      onChange={(event) =>
-                        setProviderForm((current) => ({
-                          ...current,
-                          headersJson: event.target.value,
-                        }))
-                      }
-                      placeholder={
-                        '{\n  "HTTP-Referer": "https://example.com"\n}'
-                      }
-                    />
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label>Query params JSON</Label>
-                    <Textarea
-                      value={providerForm.queryParamsJson}
-                      onChange={(event) =>
-                        setProviderForm((current) => ({
-                          ...current,
-                          queryParamsJson: event.target.value,
-                        }))
-                      }
-                      placeholder={
-                        '{\n  "api-version": "2024-10-01-preview"\n}'
-                      }
-                    />
+                    {hints.baseURLNote ? (
+                      <p className="text-xs text-muted-foreground">
+                        {hints.baseURLNote}
+                      </p>
+                    ) : null}
                   </div>
 
                   <div className="grid gap-2">
@@ -299,6 +264,77 @@ export function AdminProviderDialog({ state, actions }: AdminProviderDialogProps
                         disappear from chat.
                       </p>
                     </div>
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="advanced" className="mt-0">
+                <div className="grid gap-4 rounded-2xl bg-muted/10 p-4 md:grid-cols-2">
+                  <p className="text-sm text-muted-foreground md:col-span-2">
+                    Optional settings for{' '}
+                    <span className="font-medium text-foreground">OpenAI</span>{' '}
+                    routing (organization and project IDs), plus custom headers
+                    or query parameters sent with every request to this
+                    provider.
+                  </p>
+                  <div className="grid gap-2">
+                    <Label>OpenAI organization ID</Label>
+                    <Input
+                      value={providerForm.organization}
+                      onChange={(event) =>
+                        setProviderForm((current) => ({
+                          ...current,
+                          organization: event.target.value,
+                        }))
+                      }
+                      placeholder="org_... (optional)"
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label>OpenAI project ID</Label>
+                    <Input
+                      value={providerForm.project}
+                      onChange={(event) =>
+                        setProviderForm((current) => ({
+                          ...current,
+                          project: event.target.value,
+                        }))
+                      }
+                      placeholder="proj_... (optional)"
+                    />
+                  </div>
+
+                  <div className="grid gap-2 md:col-span-2">
+                    <Label>Headers JSON</Label>
+                    <Textarea
+                      value={providerForm.headersJson}
+                      onChange={(event) =>
+                        setProviderForm((current) => ({
+                          ...current,
+                          headersJson: event.target.value,
+                        }))
+                      }
+                      placeholder={
+                        '{\n  "HTTP-Referer": "https://example.com"\n}'
+                      }
+                    />
+                  </div>
+
+                  <div className="grid gap-2 md:col-span-2">
+                    <Label>Query params JSON</Label>
+                    <Textarea
+                      value={providerForm.queryParamsJson}
+                      onChange={(event) =>
+                        setProviderForm((current) => ({
+                          ...current,
+                          queryParamsJson: event.target.value,
+                        }))
+                      }
+                      placeholder={
+                        '{\n  "api-version": "2024-10-01-preview"\n}'
+                      }
+                    />
                   </div>
                 </div>
               </TabsContent>
@@ -468,12 +504,28 @@ export function useAdminProviderDialog({
   const providerBaseUrlId = useId()
 
   const handleSaveProvider = useCallback(() => {
+    const nameTrim = providerForm.name.trim()
+    const apiKeyTrim = providerForm.apiKey.trim()
+    if (!nameTrim) {
+      toast.error('Provider name is required.', {
+        duration: ADMIN_MUTATION_ERROR_TOAST_DURATION_MS,
+      })
+      return
+    }
+    if (!apiKeyTrim) {
+      toast.error('API key is required.', {
+        duration: ADMIN_MUTATION_ERROR_TOAST_DURATION_MS,
+      })
+      return
+    }
     const headersResult = getParsedJsonRecord(
       providerForm.headersJson,
       'Headers',
     )
     if (headersResult.error) {
-      toast.error(headersResult.error)
+      toast.error(headersResult.error, {
+        duration: ADMIN_MUTATION_ERROR_TOAST_DURATION_MS,
+      })
       return
     }
     const queryParamsResult = getParsedJsonRecord(
@@ -481,15 +533,17 @@ export function useAdminProviderDialog({
       'Query params',
     )
     if (queryParamsResult.error) {
-      toast.error(queryParamsResult.error)
+      toast.error(queryParamsResult.error, {
+        duration: ADMIN_MUTATION_ERROR_TOAST_DURATION_MS,
+      })
       return
     }
     const headers = headersResult.value
     const queryParams = queryParamsResult.value
     const payload = {
-      name: providerForm.name.trim(),
+      name: nameTrim,
       providerType: providerForm.providerType,
-      apiKey: providerForm.apiKey.trim(),
+      apiKey: apiKeyTrim,
       baseURL: providerForm.baseURL.trim() || undefined,
       description: providerForm.description.trim() || undefined,
       isEnabled: providerForm.isEnabled,
@@ -531,9 +585,9 @@ export function useAdminProviderDialog({
         setProviderIconPreviewUrl(undefined)
       })
       .catch((error) => {
-        toast.error(
-          error instanceof Error ? error.message : 'Failed to save provider',
-        )
+        toast.error(formatAdminMutationError(error, 'Failed to save provider'), {
+          duration: ADMIN_MUTATION_ERROR_TOAST_DURATION_MS,
+        })
       })
   }, [
     addProvider,

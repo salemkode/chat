@@ -117,3 +117,84 @@ export function defaultBaseURL(providerType: ProviderType) {
       ?.defaultBaseURL ?? ''
   )
 }
+
+const PROVIDER_FORM_HINTS: Record<
+  ProviderType,
+  { apiKeyPlaceholder: string; baseURLNote?: string }
+> = {
+  openrouter: {
+    apiKeyPlaceholder: 'sk-or-v1-...',
+  },
+  openai: {
+    apiKeyPlaceholder: 'sk-...',
+  },
+  anthropic: {
+    apiKeyPlaceholder: 'sk-ant-api03-...',
+  },
+  google: {
+    apiKeyPlaceholder: 'AIza... (Google AI Studio API key)',
+  },
+  azure: {
+    apiKeyPlaceholder: 'Azure OpenAI API key',
+    baseURLNote:
+      'Use your resource endpoint, e.g. https://YOUR_RESOURCE.openai.azure.com/openai',
+  },
+  groq: {
+    apiKeyPlaceholder: 'gsk_...',
+  },
+  deepseek: {
+    apiKeyPlaceholder: 'sk-...',
+  },
+  xai: {
+    apiKeyPlaceholder: 'xai-...',
+  },
+  cerebras: {
+    apiKeyPlaceholder: 'csk-...',
+  },
+  'openai-compatible': {
+    apiKeyPlaceholder: 'Bearer token or API key for your server',
+    baseURLNote: 'Full base URL of the OpenAI-compatible API (often ends in /v1).',
+  },
+  opencode: {
+    apiKeyPlaceholder: 'API key from OpenCode',
+  },
+  mistral: {
+    apiKeyPlaceholder: 'mistral-... or API key from La Plateforme',
+  },
+  cohere: {
+    apiKeyPlaceholder: 'cohere API key',
+  },
+  perplexity: {
+    apiKeyPlaceholder: 'pplx-...',
+  },
+  fireworks: {
+    apiKeyPlaceholder: 'fw_...',
+  },
+  together: {
+    apiKeyPlaceholder: 'Together API key',
+  },
+  replicate: {
+    apiKeyPlaceholder: 'r8_...',
+    baseURLNote: 'Optional; discovery is limited for Replicate.',
+  },
+  moonshot: {
+    apiKeyPlaceholder: 'sk-...',
+  },
+  qwen: {
+    apiKeyPlaceholder: 'DashScope API key',
+  },
+  stepfun: {
+    apiKeyPlaceholder: 'StepFun API key',
+  },
+}
+
+export function getProviderFormHints(providerType: ProviderType) {
+  const hints = PROVIDER_FORM_HINTS[providerType]
+  const fallbackUrl = defaultBaseURL(providerType)
+  return {
+    apiKeyPlaceholder: hints.apiKeyPlaceholder,
+    baseURLPlaceholder:
+      fallbackUrl || 'https://api.example.com/v1',
+    baseURLNote: hints.baseURLNote,
+  }
+}

@@ -1,11 +1,26 @@
-import { type RouteConfig, index, layout, route } from '@react-router/dev/routes'
+import {
+  type RouteConfig,
+  index,
+  layout,
+  prefix,
+  route,
+} from '@react-router/dev/routes'
 
 export default [
   layout('./routes/_layout.tsx', [
     index('./routes/_layout.index.tsx'),
     route(':chatId', './routes/_layout.$chatId.tsx'),
   ]),
-  route('admin', './routes/admin.tsx'),
+  ...prefix('admin', [
+    layout('./routes/admin._layout.tsx', [
+      index('./routes/admin._index.tsx'),
+      route('providers', './routes/admin.providers.tsx'),
+      route('models', './routes/admin.models.tsx'),
+      route('collections', './routes/admin.collections.tsx'),
+      route('usage', './routes/admin.usage.tsx'),
+      route('settings', './routes/admin.settings.tsx'),
+    ]),
+  ]),
   route('login', './routes/login.tsx'),
   route('login/sso-callback', './routes/login/sso-callback.tsx'),
   route('memory', './routes/memory.tsx'),
