@@ -2,6 +2,7 @@ import { mutation, query } from './_generated/server'
 import { ConvexError, v } from 'convex/values'
 import type { Doc, Id } from './_generated/dataModel'
 import { getAuthUserId } from './lib/auth'
+import { estimateCostFromProfile } from './lib/pricingTier'
 
 const selectionTierValidator = v.union(
   v.literal('free'),
@@ -156,6 +157,21 @@ function deterministicDecisionId() {
   return `decision_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
 }
 
+const selectionPricingValidator = v.object({
+  inputPer1M: v.number(),
+  outputPer1M: v.number(),
+  currency: v.optional(v.string()),
+  tiers: v.optional(
+    v.array(
+      v.object({
+        maxContextTokens: v.number(),
+        inputPer1M: v.number(),
+        outputPer1M: v.number(),
+      }),
+    ),
+  ),
+})
+
 async function hasAdminAccess(ctx: Parameters<typeof getAuthUserId>[0], userId: Id<'users'>) {
   const [roleRecord, legacyAdmin] = await Promise.all([
     ctx.db
@@ -192,13 +208,7 @@ export const upsertModelSelectionProfile = mutation({
   args: {
     modelId: v.id('models'),
     tierAllowed: v.array(selectionTierValidator),
-    pricing: v.optional(
-      v.object({
-        inputPer1M: v.number(),
-        outputPer1M: v.number(),
-        currency: v.optional(v.string()),
-      }),
-    ),
+    pricing: v.optional(selectionPricingValidator),
     latencyStats: v.optional(
       v.object({
         p50Ms: v.number(),
@@ -484,10 +494,11 @@ export const selectModel = mutation({
       }
 
       const pricing = profile?.pricing
-      const estimatedCost = pricing
-        ? ((estimated.input / 1_000_000) * pricing.inputPer1M +
-            (estimated.output / 1_000_000) * pricing.outputPer1M)
-        : null
+      const estimatedCost = estimateCostFromProfile(
+        pricing ?? undefined,
+        estimated.input,
+        estimated.output,
+      )
       if (
         constraints.maxCost !== undefined &&
         estimatedCost !== null &&

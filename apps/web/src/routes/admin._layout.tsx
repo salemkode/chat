@@ -120,7 +120,7 @@ function AdminLayoutShell({
             controls={overviewControls}
           />
           <nav
-            className="grid h-auto w-full grid-cols-2 gap-1 rounded-md bg-muted p-1 sm:grid-cols-3 md:grid-cols-5 lg:w-[640px]"
+            className="grid h-auto w-full grid-cols-2 gap-1 rounded-md bg-muted p-1 sm:grid-cols-3 md:grid-cols-6 md:max-w-4xl"
             aria-label="Admin sections"
           >
             <NavLink to="providers" className={adminNavLinkClass}>
@@ -134,6 +134,9 @@ function AdminLayoutShell({
             </NavLink>
             <NavLink to="usage" className={adminNavLinkClass}>
               Usage
+            </NavLink>
+            <NavLink to="offers" className={adminNavLinkClass}>
+              Offers
             </NavLink>
             <NavLink to="settings" className={adminNavLinkClass}>
               Settings

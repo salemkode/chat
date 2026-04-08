@@ -60,6 +60,26 @@ const userRoleValidator = v.union(
   v.literal('member'),
 )
 
+const modelOfferKindValidator = v.union(
+  v.literal('free_access'),
+  v.literal('availability_window'),
+)
+
+const modelSelectionPricingValidator = v.object({
+  inputPer1M: v.number(),
+  outputPer1M: v.number(),
+  currency: v.optional(v.string()),
+  tiers: v.optional(
+    v.array(
+      v.object({
+        maxContextTokens: v.number(),
+        inputPer1M: v.number(),
+        outputPer1M: v.number(),
+      }),
+    ),
+  ),
+})
+
 export default defineSchema({
   users: defineTable({
     tokenIdentifier: v.optional(v.string()),
@@ -170,13 +190,7 @@ export default defineSchema({
     modelId: v.id('models'),
     providerId: v.id('providers'),
     tierAllowed: v.array(modelSelectionTierValidator),
-    pricing: v.optional(
-      v.object({
-        inputPer1M: v.number(),
-        outputPer1M: v.number(),
-        currency: v.optional(v.string()),
-      }),
-    ),
+    pricing: v.optional(modelSelectionPricingValidator),
     latencyStats: v.optional(
       v.object({
         p50Ms: v.number(),
@@ -222,6 +236,19 @@ export default defineSchema({
     sortOrder: v.number(),
     modelIds: v.array(v.id('models')),
   }).index('by_sortOrder', ['sortOrder']),
+
+  modelOffers: defineTable({
+    modelId: v.id('models'),
+    kind: modelOfferKindValidator,
+    startsAt: v.number(),
+    endsAt: v.number(),
+    label: v.optional(v.string()),
+    description: v.optional(v.string()),
+    isEnabled: v.boolean(),
+    updatedAt: v.number(),
+  })
+    .index('by_modelId', ['modelId'])
+    .index('by_endsAt', ['endsAt']),
 
   // User's favorite models
   userFavoriteModels: defineTable({
@@ -273,7 +300,8 @@ export default defineSchema({
     .index('by_createdAt', ['createdAt'])
     .index('by_model_createdAt', ['modelId', 'createdAt'])
     .index('by_provider_createdAt', ['providerId', 'createdAt'])
-    .index('by_user_createdAt', ['userId', 'createdAt']),
+    .index('by_user_createdAt', ['userId', 'createdAt'])
+    .index('by_thread_createdAt', ['threadId', 'createdAt']),
 
   routerEvents: defineTable({
     decisionId: v.string(),

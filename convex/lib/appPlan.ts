@@ -16,3 +16,17 @@ export function isModelAllowedForPlan(
 ) {
   return resolveAppPlan(settings) === 'pro' || model.isFree
 }
+
+/**
+ * Plan gating plus time-limited free_access promos (see modelOffers).
+ * Call sites must exclude models with offer flags.blocksAllAccess before this.
+ */
+export function isModelUsableForPlan(args: {
+  model: { isFree: boolean }
+  effectiveAppPlan: AppPlan
+  hasActiveFreeAccessOffer: boolean
+}) {
+  if (args.effectiveAppPlan === 'pro') return true
+  if (args.model.isFree) return true
+  return args.hasActiveFreeAccessOffer
+}

@@ -18,6 +18,7 @@ export default [
       route('models', './routes/admin.models.tsx'),
       route('collections', './routes/admin.collections.tsx'),
       route('usage', './routes/admin.usage.tsx'),
+      route('offers', './routes/admin.offers.tsx'),
       route('settings', './routes/admin.settings.tsx'),
     ]),
   ]),

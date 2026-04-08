@@ -24,8 +24,9 @@ import type { Id } from './_generated/dataModel'
 import {
   appPlanValidator,
   DEFAULT_APP_PLAN,
-  isModelAllowedForPlan,
+  isModelUsableForPlan,
 } from './lib/appPlan'
+import { getModelOfferAccessFlags } from './lib/modelOffersAccess'
 import {
   getAppBillingSubscription,
   isStripeSubscriptionActive,
@@ -264,6 +265,24 @@ const publicModelCollectionValidator = v.object({
   sortOrder: v.number(),
   modelIds: v.array(v.id('models')),
   modelCount: v.number(),
+})
+
+const modelOfferKindValidator = v.union(
+  v.literal('free_access'),
+  v.literal('availability_window'),
+)
+
+const modelOfferRowValidator = v.object({
+  _id: v.id('modelOffers'),
+  _creationTime: v.number(),
+  modelId: v.id('models'),
+  kind: modelOfferKindValidator,
+  startsAt: v.number(),
+  endsAt: v.number(),
+  label: v.optional(v.string()),
+  description: v.optional(v.string()),
+  isEnabled: v.boolean(),
+  updatedAt: v.number(),
 })
 
 async function hasAdminAccess(
@@ -682,12 +701,24 @@ export const listEnabledModels = query({
       providers.map((provider) => provider._id),
     )
 
+    const nowMs = Date.now()
+    const modelOffers = await ctx.db.query('modelOffers').collect()
+
     return models
-      .filter(
-        (model) =>
-          enabledProviderIds.has(model.providerId) &&
-          isModelAllowedForPlan(model, { appPlan: effectiveAppPlan }),
-      )
+      .filter((model) => {
+        if (!enabledProviderIds.has(model.providerId)) {
+          return false
+        }
+        const flags = getModelOfferAccessFlags(model._id, modelOffers, nowMs)
+        if (flags.blocksAllAccess) {
+          return false
+        }
+        return isModelUsableForPlan({
+          model,
+          effectiveAppPlan,
+          hasActiveFreeAccessOffer: flags.grantsFreeAccess,
+        })
+      })
       .sort((left, right) => left.sortOrder - right.sortOrder)
   },
 })
@@ -730,6 +761,9 @@ export const listModelsWithProviders = query({
       user ?? undefined,
     )
 
+    const nowMs = Date.now()
+    const modelOffers = await ctx.db.query('modelOffers').collect()
+
     const favoriteModelIds = new Set(
       favorites.map((favorite) => favorite.modelId),
     )
@@ -739,11 +773,20 @@ export const listModelsWithProviders = query({
 
     const modelsWithInfo = await Promise.all(
       models
-        .filter(
-          (model) =>
-            providerMap.has(model.providerId) &&
-            isModelAllowedForPlan(model, { appPlan: effectiveAppPlan }),
-        )
+        .filter((model) => {
+          if (!providerMap.has(model.providerId)) {
+            return false
+          }
+          const flags = getModelOfferAccessFlags(model._id, modelOffers, nowMs)
+          if (flags.blocksAllAccess) {
+            return false
+          }
+          return isModelUsableForPlan({
+            model,
+            effectiveAppPlan,
+            hasActiveFreeAccessOffer: flags.grantsFreeAccess,
+          })
+        })
         .map(async (model) => {
           const provider = providerMap.get(model.providerId)
           const providerIconUrl = provider?.iconId
@@ -1929,5 +1972,118 @@ export const setUserRole = mutation({
       grantedBy: actorId,
       updatedAt: Date.now(),
     })
+  },
+})
+
+export const listModelOffers = query({
+  args: {},
+  returns: v.array(modelOfferRowValidator),
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId || !(await hasAdminAccess(ctx, userId))) {
+      return []
+    }
+    const offers = await ctx.db.query('modelOffers').collect()
+    return offers.sort((a, b) => b.endsAt - a.endsAt)
+  },
+})
+
+export const createModelOffer = mutation({
+  args: {
+    modelId: v.id('models'),
+    kind: modelOfferKindValidator,
+    startsAt: v.number(),
+    endsAt: v.number(),
+    label: v.optional(v.string()),
+    description: v.optional(v.string()),
+    isEnabled: v.optional(v.boolean()),
+  },
+  returns: v.id('modelOffers'),
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx)
+    if (args.startsAt >= args.endsAt) {
+      throw new ConvexError({
+        code: 'INVALID_ARGUMENT',
+        message: 'startsAt must be before endsAt',
+      })
+    }
+    const model = await ctx.db.get(args.modelId)
+    if (!model) {
+      throw new ConvexError({
+        code: 'NOT_FOUND',
+        message: 'Model not found',
+      })
+    }
+    const now = Date.now()
+    return await ctx.db.insert('modelOffers', {
+      modelId: args.modelId,
+      kind: args.kind,
+      startsAt: args.startsAt,
+      endsAt: args.endsAt,
+      label: args.label,
+      description: args.description,
+      isEnabled: args.isEnabled ?? true,
+      updatedAt: now,
+    })
+  },
+})
+
+export const updateModelOffer = mutation({
+  args: {
+    offerId: v.id('modelOffers'),
+    kind: v.optional(modelOfferKindValidator),
+    startsAt: v.optional(v.number()),
+    endsAt: v.optional(v.number()),
+    label: v.optional(v.string()),
+    description: v.optional(v.string()),
+    isEnabled: v.optional(v.boolean()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx)
+    const existing = await ctx.db.get(args.offerId)
+    if (!existing) {
+      throw new ConvexError({
+        code: 'NOT_FOUND',
+        message: 'Offer not found',
+      })
+    }
+    const startsAt = args.startsAt ?? existing.startsAt
+    const endsAt = args.endsAt ?? existing.endsAt
+    if (startsAt >= endsAt) {
+      throw new ConvexError({
+        code: 'INVALID_ARGUMENT',
+        message: 'startsAt must be before endsAt',
+      })
+    }
+    await ctx.db.patch(args.offerId, {
+      ...(args.kind !== undefined ? { kind: args.kind } : {}),
+      ...(args.startsAt !== undefined ? { startsAt: args.startsAt } : {}),
+      ...(args.endsAt !== undefined ? { endsAt: args.endsAt } : {}),
+      ...(args.label !== undefined ? { label: args.label } : {}),
+      ...(args.description !== undefined
+        ? { description: args.description }
+        : {}),
+      ...(args.isEnabled !== undefined ? { isEnabled: args.isEnabled } : {}),
+      updatedAt: Date.now(),
+    })
+    return null
+  },
+})
+
+export const deleteModelOffer = mutation({
+  args: { offerId: v.id('modelOffers') },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx)
+    const existing = await ctx.db.get(args.offerId)
+    if (!existing) {
+      throw new ConvexError({
+        code: 'NOT_FOUND',
+        message: 'Offer not found',
+      })
+    }
+    await ctx.db.delete(args.offerId)
+    return null
   },
 })

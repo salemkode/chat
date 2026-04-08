@@ -1,8 +1,11 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { api } from '@convex/_generated/api'
+import type { Id } from '@convex/_generated/dataModel'
 import { AlertCircle } from '@/lib/icons'
 import { cn } from '@/lib/utils'
+import { useQuery } from '@/lib/convex-query-cache'
 import {
   AttachmentGrid,
   ComposerActionRow,
@@ -23,6 +26,78 @@ import {
   type ProjectMentionState,
   type TextAttachment,
 } from './ai-prompt-input/utils'
+
+function formatContextTokens(n: number) {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 10_000) return `${Math.round(n / 1000)}k`
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`
+  return String(n)
+}
+
+function ComposerContextMeter({
+  threadId,
+  modelDocId,
+  mobile,
+}: {
+  threadId?: string
+  modelDocId?: Id<'models'>
+  mobile: boolean
+}) {
+  const data = useQuery(
+    api.agents.getThreadContextMeter,
+    threadId && modelDocId
+      ? { threadId, selectedModelId: modelDocId }
+      : 'skip',
+  )
+
+  if (!threadId || !modelDocId) {
+    return null
+  }
+  if (data === undefined) {
+    return null
+  }
+  if (data.contextWindow === null && !data.hasUsage) {
+    return null
+  }
+
+  const limit = data.contextWindow
+  const used = data.usedPromptTokens
+  const pct =
+    limit !== null && used !== null && limit > 0
+      ? Math.min(100, Math.round((used / limit) * 100))
+      : null
+
+  const labelRight =
+    used !== null && limit !== null
+      ? `${formatContextTokens(used)} / ${formatContextTokens(limit)}`
+      : limit !== null
+        ? data.modelMatches
+          ? '—'
+          : 'Last turn used a different model'
+        : '—'
+
+  return (
+    <div
+      className={cn(
+        'w-full px-0.5',
+        mobile && 'px-0',
+      )}
+    >
+      <div className="mb-1 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+        <span>Context</span>
+        <span className="tabular-nums">{labelRight}</span>
+      </div>
+      {limit !== null && used !== null ? (
+        <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full rounded-full bg-primary transition-[width] duration-300"
+            style={{ width: `${pct ?? 0}%` }}
+          />
+        </div>
+      ) : null}
+    </div>
+  )
+}
 
 interface AIPromptInputProps {
   onSubmit?: (
@@ -54,6 +129,8 @@ interface AIPromptInputProps {
   defaultReasoningLevel?: 'off' | 'low' | 'medium' | 'high'
   userReasoningEnabled?: boolean
   userReasoningLevel?: 'low' | 'medium' | 'high'
+  contextThreadId?: string
+  contextModelDocId?: Id<'models'>
 }
 
 export function AIPromptInput({
@@ -74,6 +151,8 @@ export function AIPromptInput({
   defaultReasoningLevel = 'off',
   userReasoningEnabled = false,
   userReasoningLevel = 'medium',
+  contextThreadId,
+  contextModelDocId,
 }: AIPromptInputProps) {
   const [internalValue, setInternalValue] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -435,7 +514,7 @@ export function AIPromptInput({
                 }
               }
 
-              if (event.key === 'Enter' && !event.shiftKey) {
+              if (event.key === 'Enter' && event.shiftKey) {
                 event.preventDefault()
                 if (
                   !value.trim() &&
@@ -477,6 +556,11 @@ export function AIPromptInput({
             aria-label="Message input"
             autoComplete="off"
             style={{ height: mobile ? '52px' : '48px' }}
+          />
+          <ComposerContextMeter
+            threadId={contextThreadId}
+            modelDocId={contextModelDocId}
+            mobile={mobile}
           />
         </div>
 

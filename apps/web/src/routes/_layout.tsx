@@ -362,6 +362,8 @@ function ChatComposer({
       }}
       selectedModel={selectedModelId}
       onModelChange={setSelectedModelId}
+      contextThreadId={threadId}
+      contextModelDocId={selectedModelDocId}
       onEmptyEnter={() => {
         if (!threadId || queuedMessages.length === 0) {
           return

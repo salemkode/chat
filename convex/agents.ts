@@ -33,8 +33,9 @@ import { quranDocsTool } from './lib/quranDocsTool'
 import { quranSourceTool } from './lib/quranSourceTool'
 import { extractMessageText } from './functions/memoryShared'
 import { threadMetadataValidator } from './lib/validators'
-import { isModelAllowedForPlan } from './lib/appPlan'
+import { isModelUsableForPlan } from './lib/appPlan'
 import { resolveEffectiveAppPlan } from './lib/billing'
+import { getModelOfferAccessFlags } from './lib/modelOffersAccess'
 
 // Random emoji picker for new chats
 const CHAT_EMOJIS = [
@@ -487,6 +488,79 @@ export const getThreadPresentation = internalQuery({
   },
 })
 
+const threadContextMeterValidator = v.object({
+  contextWindow: v.union(v.number(), v.null()),
+  usedPromptTokens: v.union(v.number(), v.null()),
+  hasUsage: v.boolean(),
+  modelMatches: v.boolean(),
+})
+
+export const getThreadContextMeter = query({
+  args: {
+    threadId: v.string(),
+    selectedModelId: v.id('models'),
+  },
+  returns: threadContextMeterValidator,
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId) {
+      return {
+        contextWindow: null,
+        usedPromptTokens: null,
+        hasUsage: false,
+        modelMatches: false,
+      }
+    }
+
+    const metadata = await ctx.db
+      .query('threadMetadata')
+      .withIndex('by_threadId', (q) => q.eq('threadId', args.threadId))
+      .first()
+    if (!metadata || metadata.userId !== userId) {
+      return {
+        contextWindow: null,
+        usedPromptTokens: null,
+        hasUsage: false,
+        modelMatches: false,
+      }
+    }
+
+    const [model, profile] = await Promise.all([
+      ctx.db.get(args.selectedModelId),
+      ctx.db
+        .query('modelSelectionProfiles')
+        .withIndex('by_modelId', (q) => q.eq('modelId', args.selectedModelId))
+        .first(),
+    ])
+
+    const contextWindow =
+      profile?.contextWindow ?? model?.contextWindow ?? null
+
+    const latest = await ctx.db
+      .query('modelUsageEvents')
+      .withIndex('by_thread_createdAt', (q) => q.eq('threadId', args.threadId))
+      .order('desc')
+      .first()
+
+    if (!latest) {
+      return {
+        contextWindow,
+        usedPromptTokens: null,
+        hasUsage: false,
+        modelMatches: true,
+      }
+    }
+
+    const modelMatches = latest.modelId === args.selectedModelId
+    return {
+      contextWindow,
+      usedPromptTokens: modelMatches ? latest.promptTokens : null,
+      hasUsage: true,
+      modelMatches,
+    }
+  },
+})
+
 export const applyThreadMetadataUpdate = internalMutation({
   args: {
     threadId: v.string(),
@@ -748,7 +822,23 @@ async function resolveGenerationDependencies(
     })
   }
 
-  if (!isModelAllowedForPlan(model, { appPlan: effectiveAppPlan })) {
+  const nowMs = Date.now()
+  const modelOffers = await ctx.db.query('modelOffers').collect()
+  const offerFlags = getModelOfferAccessFlags(model._id, modelOffers, nowMs)
+  if (offerFlags.blocksAllAccess) {
+    throw new ConvexError({
+      code: 'FORBIDDEN',
+      message: 'The selected model is not available right now',
+    })
+  }
+
+  if (
+    !isModelUsableForPlan({
+      model,
+      effectiveAppPlan,
+      hasActiveFreeAccessOffer: offerFlags.grantsFreeAccess,
+    })
+  ) {
     throw new ConvexError({
       code: 'FORBIDDEN',
       message: 'The selected model requires the Pro plan',

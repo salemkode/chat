@@ -1,0 +1,15 @@
+.git
+.github
+.turbo
+.wrangler
+.vscode
+node_modules
+**/node_modules
+apps/web/dist
+apps/web/.react-router
+apps/mobile
+docs
+local-notes
+*.log
+.env
+.env.*

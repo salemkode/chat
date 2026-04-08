@@ -118,6 +118,20 @@ export declare const api: {
       },
       any
     >;
+    createModelOffer: FunctionReference<
+      "mutation",
+      "public",
+      {
+        description?: string;
+        endsAt: number;
+        isEnabled?: boolean;
+        kind: "free_access" | "availability_window";
+        label?: string;
+        modelId: Id<"models">;
+        startsAt: number;
+      },
+      Id<"modelOffers">
+    >;
     deleteModel: FunctionReference<
       "mutation",
       "public",
@@ -129,6 +143,12 @@ export declare const api: {
       "public",
       { id: Id<"modelCollections"> },
       any
+    >;
+    deleteModelOffer: FunctionReference<
+      "mutation",
+      "public",
+      { offerId: Id<"modelOffers"> },
+      null
     >;
     deleteProvider: FunctionReference<
       "mutation",
@@ -241,11 +261,37 @@ export declare const api: {
         supportsReasoning?: boolean;
       }>
     >;
+    listModelOffers: FunctionReference<
+      "query",
+      "public",
+      {},
+      Array<{
+        _creationTime: number;
+        _id: Id<"modelOffers">;
+        description?: string;
+        endsAt: number;
+        isEnabled: boolean;
+        kind: "free_access" | "availability_window";
+        label?: string;
+        modelId: Id<"models">;
+        startsAt: number;
+        updatedAt: number;
+      }>
+    >;
     listModelsWithProviders: FunctionReference<
       "query",
       "public",
       {},
       {
+        collections: Array<{
+          _creationTime: number;
+          _id: Id<"modelCollections">;
+          description?: string;
+          modelCount: number;
+          modelIds: Array<Id<"models">>;
+          name: string;
+          sortOrder: number;
+        }>;
         favorites: Array<{
           _creationTime: number;
           _id: Id<"models">;
@@ -518,6 +564,20 @@ export declare const api: {
       },
       any
     >;
+    updateModelOffer: FunctionReference<
+      "mutation",
+      "public",
+      {
+        description?: string;
+        endsAt?: number;
+        isEnabled?: boolean;
+        kind?: "free_access" | "availability_window";
+        label?: string;
+        offerId: Id<"modelOffers">;
+        startsAt?: number;
+      },
+      null
+    >;
     updateProvider: FunctionReference<
       "mutation",
       "public",
@@ -606,6 +666,17 @@ export declare const api: {
         threadId: string;
       },
       any
+    >;
+    getThreadContextMeter: FunctionReference<
+      "query",
+      "public",
+      { selectedModelId: Id<"models">; threadId: string },
+      {
+        contextWindow: number | null;
+        hasUsage: boolean;
+        modelMatches: boolean;
+        usedPromptTokens: number | null;
+      }
     >;
     listThreadsWithMetadata: FunctionReference<
       "query",
@@ -1323,6 +1394,11 @@ export declare const api: {
           currency?: string;
           inputPer1M: number;
           outputPer1M: number;
+          tiers?: Array<{
+            inputPer1M: number;
+            maxContextTokens: number;
+            outputPer1M: number;
+          }>;
         };
         riskScore?: number;
         tierAllowed: Array<"free" | "pro" | "advanced" | "light" | "medium">;
@@ -1524,9 +1600,9 @@ export declare const api: {
         image?: string;
         reasoningEnabled?: boolean;
         reasoningLevel?: "low" | "medium" | "high";
-        voiceTranscriptionMode?: "cloud" | "device";
         updatedAt: number;
         userId: Id<"users">;
+        voiceTranscriptionMode?: "cloud" | "device";
       }
     >;
     updateSettings: FunctionReference<

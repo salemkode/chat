@@ -381,6 +381,39 @@ export type DataModel = {
     searchIndexes: {};
     vectorIndexes: {};
   };
+  modelOffers: {
+    document: {
+      description?: string;
+      endsAt: number;
+      isEnabled: boolean;
+      kind: "free_access" | "availability_window";
+      label?: string;
+      modelId: Id<"models">;
+      startsAt: number;
+      updatedAt: number;
+      _id: Id<"modelOffers">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "description"
+      | "endsAt"
+      | "isEnabled"
+      | "kind"
+      | "label"
+      | "modelId"
+      | "startsAt"
+      | "updatedAt";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_endsAt: ["endsAt", "_creationTime"];
+      by_modelId: ["modelId", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
   modelRoutingPolicies: {
     document: {
       allowedModelIds?: Array<Id<"models">>;
@@ -514,7 +547,16 @@ export type DataModel = {
       latencyStats?: { p50Ms: number; p95Ms: number };
       maxOutputTokens?: number;
       modelId: Id<"models">;
-      pricing?: { currency?: string; inputPer1M: number; outputPer1M: number };
+      pricing?: {
+        currency?: string;
+        inputPer1M: number;
+        outputPer1M: number;
+        tiers?: Array<{
+          inputPer1M: number;
+          maxContextTokens: number;
+          outputPer1M: number;
+        }>;
+      };
       providerId: Id<"providers">;
       riskScore?: number;
       tierAllowed: Array<"free" | "pro" | "advanced" | "light" | "medium">;
@@ -541,6 +583,7 @@ export type DataModel = {
       | "pricing.currency"
       | "pricing.inputPer1M"
       | "pricing.outputPer1M"
+      | "pricing.tiers"
       | "providerId"
       | "riskScore"
       | "tierAllowed"
@@ -603,6 +646,7 @@ export type DataModel = {
       by_createdAt: ["createdAt", "_creationTime"];
       by_model_createdAt: ["modelId", "createdAt", "_creationTime"];
       by_provider_createdAt: ["providerId", "createdAt", "_creationTime"];
+      by_thread_createdAt: ["threadId", "createdAt", "_creationTime"];
       by_user_createdAt: ["userId", "createdAt", "_creationTime"];
     };
     searchIndexes: {};
@@ -1164,9 +1208,9 @@ export type DataModel = {
       image?: string;
       reasoningEnabled?: boolean;
       reasoningLevel?: "low" | "medium" | "high";
-      voiceTranscriptionMode?: "cloud" | "device";
       updatedAt: number;
       userId: Id<"users">;
+      voiceTranscriptionMode?: "cloud" | "device";
       _id: Id<"userSettings">;
       _creationTime: number;
     };
@@ -1178,9 +1222,9 @@ export type DataModel = {
       | "image"
       | "reasoningEnabled"
       | "reasoningLevel"
-      | "voiceTranscriptionMode"
       | "updatedAt"
-      | "userId";
+      | "userId"
+      | "voiceTranscriptionMode";
     indexes: {
       by_id: ["_id"];
       by_creation_time: ["_creationTime"];

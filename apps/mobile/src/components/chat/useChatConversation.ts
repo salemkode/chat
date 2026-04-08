@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { getProjectMention, removeMentionToken } from '@chat/shared/logic/project-mention'
 import { useDraft } from '../../mobile-data/use-draft'
 import { createLocalThreadId, isLocalThreadId } from '../../mobile-data/local-thread-id'
+import type { Id } from '../../lib/convexApi'
 import { useModels } from '../../mobile-data/use-models'
 import { useProjects } from '../../mobile-data/use-projects'
 import { useSendMessage } from '../../mobile-data/use-send-message'
@@ -75,8 +76,13 @@ export function useChatConversation({
 
   const activeProject = projects.find((project) => project.id === selectedProjectId)
   const sendDisabled = disabledReason !== null || (!draft.trim() && attachments.length === 0)
-  const modelLabel =
-    models.find((m) => m.modelId === selectedModelId)?.displayName ?? selectedModelId ?? 'Model'
+  const selectedModelRecord = models.find((m) => m.modelId === selectedModelId)
+  const modelLabel = selectedModelRecord?.displayName ?? selectedModelId ?? 'Model'
+  const contextModelDocId = selectedModelRecord?.id as Id<'models'> | undefined
+  const contextThreadId =
+    activeThreadId !== undefined && !isLocalThreadId(activeThreadId)
+      ? activeThreadId
+      : undefined
 
   const title = thread?.title || (mode === 'new' ? 'New chat' : 'Chat')
 
@@ -237,6 +243,8 @@ export function useChatConversation({
       isOnline,
       bottomInset: insets.bottom,
       errorText: inlineError,
+      contextThreadId,
+      contextModelDocId,
     },
     modelPicker: {
       visible: pickerOpen,

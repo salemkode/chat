@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons'
-import { Image, Pressable, Text, TextInput, View } from 'react-native'
+import { Image, Platform, Pressable, Text, TextInput, View } from 'react-native'
 import { getProjectMention } from '@chat/shared/logic/project-mention'
 import { CHAT_BG, CHAT_BORDER, CHAT_CARD, CHAT_FG, CHAT_FG_MUTED } from './constants'
+import { ContextMeter } from './ContextMeter'
 import type { LocalAttachment } from './types'
+import type { Id } from '../../lib/convexApi'
 
 type ProjectItem = { id: string; name: string; description?: string }
 
@@ -26,6 +28,8 @@ type Props = {
   isOnline: boolean
   bottomInset: number
   errorText?: string | null
+  contextThreadId?: string
+  contextModelDocId?: Id<'models'>
 }
 
 function formatAttachmentSize(sizeBytes?: number) {
@@ -58,6 +62,8 @@ export function ChatComposer({
   isOnline,
   bottomInset,
   errorText,
+  contextThreadId,
+  contextModelDocId,
 }: Props) {
   return (
     <View
@@ -67,7 +73,7 @@ export function ChatComposer({
         backgroundColor: CHAT_BG,
         paddingHorizontal: 12,
         paddingTop: 8,
-        paddingBottom: Math.max(bottomInset, 12),
+        paddingBottom: Math.max(bottomInset, 12) + 10,
       }}
     >
       {errorText ? (
@@ -75,6 +81,8 @@ export function ChatComposer({
           {errorText}
         </Text>
       ) : null}
+
+      <ContextMeter threadId={contextThreadId} modelDocId={contextModelDocId} />
 
       {attachments.length > 0 ? (
         <View
@@ -273,6 +281,20 @@ export function ChatComposer({
               const nextMention = getProjectMention(value, value.length)
               setMentionOpen(Boolean(nextMention))
             }}
+            {...(Platform.OS === 'web'
+              ? ({
+                  onKeyDown: (e: {
+                    key: string
+                    shiftKey: boolean
+                    preventDefault: () => void
+                  }) => {
+                    if (e.key === 'Enter' && e.shiftKey && !sendDisabled && isOnline) {
+                      e.preventDefault()
+                      void onSend()
+                    }
+                  },
+                } as Record<string, unknown>)
+              : {})}
             placeholder="Message…"
             placeholderTextColor={CHAT_FG_MUTED}
             selectionColor="#4a9cff"
