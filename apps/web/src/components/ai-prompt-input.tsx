@@ -16,6 +16,8 @@ import {
 } from './ai-prompt-input/parts'
 import {
   combineTextAttachmentsWithPrompt,
+  buildMentionProjectOptions,
+  buildPendingProjectDraft,
   createTextAttachment,
   getAttachmentFingerprint,
   getComposerErrorMessage,
@@ -23,6 +25,8 @@ import {
   isSupportedAttachment,
   shouldConvertToTextAttachment,
   type ComposerReasoning,
+  type MentionProjectOption,
+  type PendingProjectDraft,
   type ProjectMentionState,
   type TextAttachment,
 } from './ai-prompt-input/utils'
@@ -164,6 +168,26 @@ interface AIPromptInputProps {
   userReasoningLevel?: 'low' | 'medium' | 'high'
   contextThreadId?: string
   contextModelDocId?: Id<'models'>
+  onNewProjectMentionSelect?: (args: {
+    mentionQuery: string
+    draftWithoutMention: string
+  }) => Promise<
+    | {
+        name: string
+        description?: string
+        source: 'ai' | 'fallback'
+        reason?: string
+      }
+    | undefined
+  >
+  pendingProjectDraft?: PendingProjectDraft | null
+  onPendingProjectDraftChange?: (draft: PendingProjectDraft | null) => void
+  onConfirmCreateProject?: (values: {
+    name: string
+    description?: string
+  }) => Promise<void> | void
+  onCancelCreateProject?: () => void
+  creatingProject?: boolean
 }
 
 export function AIPromptInput({
@@ -186,6 +210,12 @@ export function AIPromptInput({
   userReasoningLevel = 'medium',
   contextThreadId,
   contextModelDocId,
+  onNewProjectMentionSelect,
+  pendingProjectDraft,
+  onPendingProjectDraftChange,
+  onConfirmCreateProject,
+  onCancelCreateProject,
+  creatingProject = false,
 }: AIPromptInputProps) {
   const [internalValue, setInternalValue] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -202,26 +232,20 @@ export function AIPromptInput({
   const [attachments, setAttachments] = useState<PendingAttachment[]>([])
   const [textAttachments, setTextAttachments] = useState<TextAttachment[]>([])
   const [isDragging, setIsDragging] = useState(false)
+  const [pendingProjectName, setPendingProjectName] = useState('')
+  const [pendingProjectDescription, setPendingProjectDescription] = useState('')
 
   const attachmentsRef = useRef<PendingAttachment[]>([])
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const value = controlledValue ?? internalValue
   const selectedProject = projects.find((project) => project.id === selectedProjectId)
-  const mentionProjects = projectMention
-    ? (() => {
-        const needle = projectMention.query.trim().toLowerCase()
-        const matches = projects.filter((project) => {
-          if (!needle) {
-            return true
-          }
-
-          return `${project.name}\n${project.description ?? ''}`
-            .toLowerCase()
-            .includes(needle)
-        })
-        return matches.slice(0, 1)
-      })()
+  const mentionOptions: MentionProjectOption[] = projectMention
+    ? buildMentionProjectOptions({
+        mentionQuery: projectMention.query,
+        projects,
+        maxProjects: 1,
+      }).options
     : []
 
   const setValue = (nextValue: string) => {
@@ -317,8 +341,8 @@ export function AIPromptInput({
     })
   }
 
-  const handleProjectSelect = (projectId?: string) => {
-    if (!projectId || !projectMention) {
+  const handleProjectSelect = (optionId?: string) => {
+    if (!optionId || !projectMention) {
       return
     }
 
@@ -326,10 +350,63 @@ export function AIPromptInput({
     const before = value.slice(0, projectMention.start)
     const after = value.slice(projectMention.end)
     const nextValue = `${before}${after}`
+    const selectedOption = mentionOptions.find((item) => item.id === optionId)
 
-    onProjectChange?.(projectId)
+    if (!selectedOption) {
+      return
+    }
+
     setValue(nextValue)
     setProjectMention(null)
+    if (selectedOption.kind === 'project') {
+      onProjectChange?.(selectedOption.id)
+      onPendingProjectDraftChange?.(null)
+    } else {
+      onProjectChange?.(undefined)
+      onPendingProjectDraftChange?.({
+        name: buildPendingProjectDraft({
+          mentionQuery: projectMention.query,
+          draftWithoutMention: nextValue,
+          suggestion: null,
+        }).name,
+        description: undefined,
+        loading: true,
+        error: null,
+      })
+
+      if (!onNewProjectMentionSelect) {
+        onPendingProjectDraftChange?.(
+          buildPendingProjectDraft({
+            mentionQuery: projectMention.query,
+            draftWithoutMention: nextValue,
+          }),
+        )
+      } else {
+        void (async () => {
+          try {
+            const suggestion = await onNewProjectMentionSelect({
+              mentionQuery: projectMention.query,
+              draftWithoutMention: nextValue,
+            })
+            onPendingProjectDraftChange?.(
+              buildPendingProjectDraft({
+                mentionQuery: projectMention.query,
+                draftWithoutMention: nextValue,
+                suggestion,
+              }),
+            )
+          } catch (error) {
+            onPendingProjectDraftChange?.(
+              buildPendingProjectDraft({
+                mentionQuery: projectMention.query,
+                draftWithoutMention: nextValue,
+                errorMessage: getComposerErrorMessage(error),
+              }),
+            )
+          }
+        })()
+      }
+    }
 
     requestAnimationFrame(() => {
       if (!textarea) {
@@ -385,6 +462,22 @@ export function AIPromptInput({
     }
   }
 
+  const handleConfirmCreateProject = async () => {
+    if (!onConfirmCreateProject || !pendingProjectName.trim()) {
+      return
+    }
+
+    await onConfirmCreateProject({
+      name: pendingProjectName.trim(),
+      description: pendingProjectDescription.trim() || undefined,
+    })
+  }
+
+  const handleCancelCreateProject = () => {
+    onCancelCreateProject?.()
+    onPendingProjectDraftChange?.(null)
+  }
+
   useEffect(() => {
     const textarea = textareaRef.current
     if (!textarea) {
@@ -402,11 +495,21 @@ export function AIPromptInput({
     }
 
     setHighlightedProjectIndex((current) =>
-      mentionProjects.length === 0
+      mentionOptions.length === 0
         ? 0
-        : Math.min(current, mentionProjects.length - 1),
+        : Math.min(current, mentionOptions.length - 1),
     )
-  }, [mentionProjects.length, projectMention])
+  }, [mentionOptions.length, projectMention])
+
+  useEffect(() => {
+    if (!pendingProjectDraft) {
+      setPendingProjectName('')
+      setPendingProjectDescription('')
+      return
+    }
+    setPendingProjectName(pendingProjectDraft.name)
+    setPendingProjectDescription(pendingProjectDraft.description ?? '')
+  }, [pendingProjectDraft?.description, pendingProjectDraft?.name])
 
   useEffect(() => {
     attachmentsRef.current = attachments
@@ -497,6 +600,63 @@ export function AIPromptInput({
             mobile={mobile}
             onClear={() => onProjectChange?.(undefined)}
           />
+          {pendingProjectDraft ? (
+            <div className="w-full rounded-2xl border border-border/70 bg-background/75 p-3">
+              <div className="mb-2 text-sm font-medium text-foreground">
+                New project for this chat
+              </div>
+              {pendingProjectDraft.loading ? (
+                <div className="mb-2 text-xs text-muted-foreground">
+                  Generating project suggestion...
+                </div>
+              ) : null}
+              {pendingProjectDraft.error ? (
+                <div className="mb-2 text-xs text-destructive">
+                  {pendingProjectDraft.error}
+                </div>
+              ) : null}
+              <div className="space-y-2">
+                <input
+                  value={pendingProjectName}
+                  onChange={(event) => setPendingProjectName(event.target.value)}
+                  placeholder="Project name"
+                  className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground outline-none ring-ring/20 placeholder:text-muted-foreground focus:ring-2"
+                  disabled={pendingProjectDraft.loading || creatingProject}
+                />
+                <textarea
+                  value={pendingProjectDescription}
+                  onChange={(event) => setPendingProjectDescription(event.target.value)}
+                  placeholder="Project description (optional)"
+                  className="min-h-[72px] w-full resize-none rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none ring-ring/20 placeholder:text-muted-foreground focus:ring-2"
+                  disabled={pendingProjectDraft.loading || creatingProject}
+                />
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCancelCreateProject}
+                    className="rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted/50"
+                    disabled={creatingProject}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void handleConfirmCreateProject()
+                    }}
+                    className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+                    disabled={
+                      creatingProject ||
+                      pendingProjectDraft.loading ||
+                      !pendingProjectName.trim()
+                    }
+                  >
+                    {creatingProject ? 'Creating…' : 'Create project'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
           <TextAttachmentGrid
             textAttachments={textAttachments}
             mobile={mobile}
@@ -516,7 +676,7 @@ export function AIPromptInput({
               const pastedText = event.clipboardData.getData('text/plain')
               if (pastedText && shouldConvertToTextAttachment(pastedText)) {
                 event.preventDefault()
-                setTextAttachments((current) => [
+              setTextAttachments((current) => [
                   ...current,
                   createTextAttachment(pastedText),
                 ])
@@ -529,23 +689,23 @@ export function AIPromptInput({
             }}
             onKeyDown={(event) => {
               if (projectMention) {
-                if (event.key === 'ArrowDown' && mentionProjects.length > 0) {
+                if (event.key === 'ArrowDown' && mentionOptions.length > 0) {
                   event.preventDefault()
                   setHighlightedProjectIndex((current) =>
-                    current + 1 >= mentionProjects.length ? 0 : current + 1,
+                    current + 1 >= mentionOptions.length ? 0 : current + 1,
                   )
                   return
                 }
-                if (event.key === 'ArrowUp' && mentionProjects.length > 0) {
+                if (event.key === 'ArrowUp' && mentionOptions.length > 0) {
                   event.preventDefault()
                   setHighlightedProjectIndex((current) =>
-                    current - 1 < 0 ? mentionProjects.length - 1 : current - 1,
+                    current - 1 < 0 ? mentionOptions.length - 1 : current - 1,
                   )
                   return
                 }
-                if (event.key === 'Enter' && mentionProjects.length > 0) {
+                if (event.key === 'Enter' && mentionOptions.length > 0) {
                   event.preventDefault()
-                  handleProjectSelect(mentionProjects[highlightedProjectIndex]?.id)
+                  void handleProjectSelect(mentionOptions[highlightedProjectIndex]?.id)
                   return
                 }
                 if (event.key === 'Escape') {
@@ -602,10 +762,12 @@ export function AIPromptInput({
 
         <ProjectMentionPopup
           projectMention={projectMention}
-          mentionProjects={mentionProjects}
+          mentionOptions={mentionOptions}
           highlightedProjectIndex={highlightedProjectIndex}
           mobile={mobile}
-          onSelect={handleProjectSelect}
+          onSelect={(optionId) => {
+            void handleProjectSelect(optionId)
+          }}
         />
 
         <ComposerActionRow

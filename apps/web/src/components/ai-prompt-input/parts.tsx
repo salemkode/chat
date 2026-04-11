@@ -1,6 +1,16 @@
 'use client'
 
-import { ArrowUp, FileText, Folder, Globe, Paperclip, X, ChevronDown, ChevronUp } from '@/lib/icons'
+import {
+  ArrowUp,
+  FileText,
+  Folder,
+  Globe,
+  Paperclip,
+  Sparkles,
+  X,
+  ChevronDown,
+  ChevronUp,
+} from '@/lib/icons'
 import { ModelSelector } from '@/components/model-selector'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -19,6 +29,7 @@ import { useState, type ReactNode } from 'react'
 import {
   formatAttachmentMeta,
   getTextAttachmentPreview,
+  type MentionProjectOption,
   type TextAttachment,
 } from './utils'
 
@@ -233,16 +244,16 @@ function TextAttachmentCard({
 
 export function ProjectMentionPopup({
   projectMention,
-  mentionProjects,
+  mentionOptions,
   highlightedProjectIndex,
   mobile = false,
   onSelect,
 }: {
   projectMention: unknown
-  mentionProjects: Array<{ id: string; name: string; description?: string }>
+  mentionOptions: MentionProjectOption[]
   highlightedProjectIndex: number
   mobile?: boolean
-  onSelect: (projectId: string) => void
+  onSelect: (optionId: string) => void
 }) {
   if (!projectMention) {
     return null
@@ -258,14 +269,14 @@ export function ProjectMentionPopup({
       )}
     >
       <div className="max-h-56 overflow-y-auto">
-        {mentionProjects.length > 0 ? (
-          mentionProjects.map((project, index) => {
+        {mentionOptions.length > 0 ? (
+          mentionOptions.map((option, index) => {
             const isHighlighted = index === highlightedProjectIndex
 
             return (
               <Button
                 type="button"
-                key={project.id}
+                key={option.id}
                 variant="plain"
                 size="none"
                 className={cn(
@@ -275,7 +286,7 @@ export function ProjectMentionPopup({
                     : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground',
                 )}
                 onMouseDown={(event) => event.preventDefault()}
-                onClick={() => onSelect(project.id)}
+                onClick={() => onSelect(option.id)}
               >
                 <div
                   className={cn(
@@ -285,9 +296,20 @@ export function ProjectMentionPopup({
                       : 'border-border/70 bg-background text-muted-foreground',
                   )}
                 >
-                  <Folder className="size-3" />
+                  {option.kind === 'new-project-ai' ? (
+                    <Sparkles className="size-3" />
+                  ) : (
+                    <Folder className="size-3" />
+                  )}
                 </div>
-                <div className="min-w-0 flex-1 truncate font-medium">{project.name}</div>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-medium">{option.name}</div>
+                  {option.description ? (
+                    <div className="truncate text-xs text-muted-foreground">
+                      {option.description}
+                    </div>
+                  ) : null}
+                </div>
               </Button>
             )
           })

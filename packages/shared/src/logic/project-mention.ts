@@ -4,6 +4,8 @@ export type ProjectMentionState = {
   query: string
 }
 
+const NEW_PROJECT_MENTION_PREFIX = 'new'
+
 export function getProjectMention(
   value: string,
   caretPosition: number,
@@ -33,4 +35,26 @@ export function removeMentionToken(
   const before = value.slice(0, mention.start)
   const after = value.slice(mention.end)
   return `${before}${after}`
+}
+
+export function isNewProjectMentionQuery(query: string): boolean {
+  const normalized = query.trim().toLowerCase()
+  if (!normalized) {
+    return false
+  }
+  return normalized.startsWith(NEW_PROJECT_MENTION_PREFIX)
+}
+
+export function fallbackProjectNameFromMentionQuery(query: string): string {
+  const normalized = query
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/^new\s*[:\-]?\s*/i, '')
+    .trim()
+
+  if (normalized.length > 0) {
+    return normalized.slice(0, 60)
+  }
+
+  return 'New Project'
 }

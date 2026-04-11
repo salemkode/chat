@@ -6,7 +6,26 @@ import { ContextMeter } from './ContextMeter'
 import type { LocalAttachment } from './types'
 import type { Id } from '../../lib/convexApi'
 
-type ProjectItem = { id: string; name: string; description?: string }
+type MentionProjectOption =
+  | {
+      kind: 'new-project-ai'
+      id: '__new_project_ai__'
+      name: string
+      description?: string
+    }
+  | {
+      kind: 'project'
+      id: string
+      name: string
+      description?: string
+    }
+
+type PendingProjectDraft = {
+  name: string
+  description?: string
+  loading: boolean
+  error?: string | null
+}
 
 type Props = {
   draft: string
@@ -15,8 +34,14 @@ type Props = {
   setAttachments: (updater: (current: LocalAttachment[]) => LocalAttachment[]) => void
   mentionOpen: boolean
   setMentionOpen: (open: boolean) => void
-  mentionProjects: ProjectItem[]
-  onMentionPick: (projectId: string) => void
+  mentionOptions: MentionProjectOption[]
+  onMentionPick: (optionId: string) => void
+  pendingProjectDraft?: PendingProjectDraft | null
+  onPendingProjectNameChange: (name: string) => void
+  onPendingProjectDescriptionChange: (description: string) => void
+  onConfirmCreateProject: () => void
+  onCancelCreateProject: () => void
+  creatingProject?: boolean
   modelLabel: string
   onOpenModelPicker: () => void
   searchEnabled: boolean
@@ -49,8 +74,14 @@ export function ChatComposer({
   setAttachments,
   mentionOpen,
   setMentionOpen,
-  mentionProjects,
+  mentionOptions,
   onMentionPick,
+  pendingProjectDraft,
+  onPendingProjectNameChange,
+  onPendingProjectDescriptionChange,
+  onConfirmCreateProject,
+  onCancelCreateProject,
+  creatingProject = false,
   modelLabel,
   onOpenModelPicker,
   searchEnabled,
@@ -159,6 +190,139 @@ export function ChatComposer({
         </View>
       ) : null}
 
+      {pendingProjectDraft ? (
+        <View
+          style={{
+            marginBottom: 8,
+            borderRadius: 16,
+            borderWidth: 1,
+            borderColor: CHAT_BORDER,
+            backgroundColor: CHAT_CARD,
+            paddingHorizontal: 12,
+            paddingVertical: 10,
+            gap: 8,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 14,
+              color: CHAT_FG,
+              fontFamily: 'Inter_500Medium',
+            }}
+          >
+            New project for this chat
+          </Text>
+          {pendingProjectDraft.loading ? (
+            <Text
+              style={{
+                fontSize: 12,
+                color: CHAT_FG_MUTED,
+                fontFamily: 'Inter_400Regular',
+              }}
+            >
+              Generating project suggestion...
+            </Text>
+          ) : null}
+          {pendingProjectDraft.error ? (
+            <Text
+              style={{
+                fontSize: 12,
+                color: '#eaa3af',
+                fontFamily: 'Inter_400Regular',
+              }}
+            >
+              {pendingProjectDraft.error}
+            </Text>
+          ) : null}
+          <TextInput
+            value={pendingProjectDraft.name}
+            onChangeText={onPendingProjectNameChange}
+            placeholder="Project name"
+            placeholderTextColor={CHAT_FG_MUTED}
+            editable={!pendingProjectDraft.loading && !creatingProject}
+            style={{
+              borderWidth: 1,
+              borderColor: CHAT_BORDER,
+              borderRadius: 12,
+              paddingHorizontal: 10,
+              paddingVertical: 8,
+              fontFamily: 'Inter_400Regular',
+              color: CHAT_FG,
+              fontSize: 14,
+            }}
+          />
+          <TextInput
+            value={pendingProjectDraft.description ?? ''}
+            onChangeText={onPendingProjectDescriptionChange}
+            placeholder="Project description (optional)"
+            placeholderTextColor={CHAT_FG_MUTED}
+            editable={!pendingProjectDraft.loading && !creatingProject}
+            multiline
+            style={{
+              borderWidth: 1,
+              borderColor: CHAT_BORDER,
+              borderRadius: 12,
+              paddingHorizontal: 10,
+              paddingVertical: 8,
+              fontFamily: 'Inter_400Regular',
+              color: CHAT_FG,
+              fontSize: 13,
+              minHeight: 64,
+              textAlignVertical: 'top',
+            }}
+          />
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 8 }}>
+            <Pressable
+              onPress={onCancelCreateProject}
+              style={{
+                borderWidth: 1,
+                borderColor: CHAT_BORDER,
+                borderRadius: 10,
+                paddingHorizontal: 10,
+                paddingVertical: 6,
+              }}
+            >
+              <Text style={{ color: CHAT_FG_MUTED, fontFamily: 'Inter_400Regular' }}>
+                Cancel
+              </Text>
+            </Pressable>
+            <Pressable
+              disabled={
+                creatingProject ||
+                pendingProjectDraft.loading ||
+                !pendingProjectDraft.name.trim()
+              }
+              onPress={onConfirmCreateProject}
+              style={{
+                borderRadius: 10,
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                backgroundColor:
+                  creatingProject ||
+                  pendingProjectDraft.loading ||
+                  !pendingProjectDraft.name.trim()
+                    ? '#4a4c52'
+                    : '#ffffff',
+              }}
+            >
+              <Text
+                style={{
+                  color:
+                    creatingProject ||
+                    pendingProjectDraft.loading ||
+                    !pendingProjectDraft.name.trim()
+                      ? CHAT_FG_MUTED
+                      : '#000000',
+                  fontFamily: 'Inter_500Medium',
+                }}
+              >
+                {creatingProject ? 'Creating...' : 'Create project'}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
+
       {mentionOpen ? (
         <View
           style={{
@@ -172,11 +336,11 @@ export function ChatComposer({
             paddingVertical: 4,
           }}
         >
-          {mentionProjects.length ? (
-            mentionProjects.map((project) => (
+          {mentionOptions.length ? (
+            mentionOptions.map((option) => (
               <Pressable
-                key={project.id}
-                onPress={() => onMentionPick(project.id)}
+                key={option.id}
+                onPress={() => onMentionPick(option.id)}
                 style={{ borderRadius: 12, paddingHorizontal: 8, paddingVertical: 8 }}
               >
                 <Text
@@ -186,8 +350,20 @@ export function ChatComposer({
                     fontFamily: 'Inter_500Medium',
                   }}
                 >
-                  {project.name}
+                  {option.name}
                 </Text>
+                {option.description ? (
+                  <Text
+                    style={{
+                      marginTop: 2,
+                      fontSize: 12,
+                      color: CHAT_FG_MUTED,
+                      fontFamily: 'Inter_400Regular',
+                    }}
+                  >
+                    {option.description}
+                  </Text>
+                ) : null}
               </Pressable>
             ))
           ) : (

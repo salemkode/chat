@@ -1489,6 +1489,22 @@ export declare const api: {
       { threadId: string },
       any
     >;
+    suggestProjectFromContext: FunctionReference<
+      "action",
+      "public",
+      {
+        draft: string;
+        mentionQuery?: string;
+        modelId?: Id<"models">;
+        threadId?: string;
+      },
+      {
+        description?: string;
+        name: string;
+        reason?: string;
+        source: "ai" | "fallback";
+      }
+    >;
     updateProject: FunctionReference<
       "mutation",
       "public",
@@ -2145,6 +2161,20 @@ export declare const internal: {
         any
       >;
     };
+  };
+  projects: {
+    getProjectSuggestionContext: FunctionReference<
+      "query",
+      "internal",
+      { threadId?: string },
+      { recentTranscript?: string; threadTitle?: string; userId: Id<"users"> }
+    >;
+    resolveProjectSuggestionModel: FunctionReference<
+      "query",
+      "internal",
+      { modelId?: Id<"models"> },
+      string
+    >;
   };
   sidebarSearch: {
     getSearchUserId: FunctionReference<"query", "internal", {}, string | null>;

@@ -1,10 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Alert } from 'react-native'
+import { useAction } from 'convex/react'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { getProjectMention, removeMentionToken } from '@chat/shared/logic/project-mention'
+import {
+  fallbackProjectNameFromMentionQuery,
+  getProjectMention,
+  isNewProjectMentionQuery,
+  removeMentionToken,
+} from '@chat/shared/logic/project-mention'
 import { useDraft } from '../../mobile-data/use-draft'
 import { createLocalThreadId, isLocalThreadId } from '../../mobile-data/local-thread-id'
-import type { Id } from '../../lib/convexApi'
+import { api, type Id } from '../../lib/convexApi'
 import { useModels } from '../../mobile-data/use-models'
 import { useProjects } from '../../mobile-data/use-projects'
 import { useSendMessage } from '../../mobile-data/use-send-message'
@@ -13,6 +19,29 @@ import { useChatOptimisticSendStore } from '../../store/chat-optimistic-send'
 import { useNetworkStatus } from '../../utils/network-status'
 import { CHAT_BG } from './constants'
 import type { ChatScreenMode, LocalAttachment } from './types'
+
+type MentionProjectOption =
+  | {
+      kind: 'new-project-ai'
+      id: '__new_project_ai__'
+      name: string
+      description?: string
+    }
+  | {
+      kind: 'project'
+      id: string
+      name: string
+      description?: string
+    }
+
+type PendingProjectDraft = {
+  name: string
+  description?: string
+  loading: boolean
+  error?: string | null
+  source?: 'ai' | 'fallback'
+  reason?: string
+}
 
 export function useChatConversation({
   mode,
@@ -28,10 +57,22 @@ export function useChatConversation({
   const insets = useSafeAreaInsets()
   const [localThreadId, setLocalThreadId] = useState<string | undefined>(threadId)
   const activeThreadId = threadId || localThreadId || undefined
+  const suggestProjectFromContext = useAction(
+    ((api as typeof api & {
+      projects: {
+        suggestProjectFromContext: unknown
+      }
+    }).projects.suggestProjectFromContext as never),
+  )
 
   const thread = useThread(activeThreadId)
   const { isOnline } = useNetworkStatus()
-  const { projects, removeThreadFromProject } = useProjects()
+  const {
+    projects,
+    createProject,
+    assignThreadToProject,
+    removeThreadFromProject,
+  } = useProjects()
   const { selectedModelId, models, setSelectedModelId, setFavorite } = useModels()
   const { draft, setDraft } = useDraft(activeThreadId ?? 'new')
   const { send, pickDocumentAttachments, pickImageAttachments, disabledReason } = useSendMessage()
@@ -51,21 +92,45 @@ export function useChatConversation({
   const [attachments, setAttachmentsState] = useState<LocalAttachment[]>([])
   const [mentionOpen, setMentionOpen] = useState(false)
   const [inlineError, setInlineError] = useState<string | null>(null)
+  const [pendingProjectDraft, setPendingProjectDraft] = useState<PendingProjectDraft | null>(null)
+  const [creatingProject, setCreatingProject] = useState(false)
 
   const setAttachments = (updater: (current: LocalAttachment[]) => LocalAttachment[]) => {
     setAttachmentsState((current) => updater(current))
   }
 
   const mention = useMemo(() => getProjectMention(draft, draft.length), [draft])
-  const mentionProjects = useMemo(() => {
-    if (!mention) return []
+  const mentionOptions = useMemo(() => {
+    if (!mention) return [] as MentionProjectOption[]
+
     const needle = mention.query.trim().toLowerCase()
-    if (!needle) return projects.slice(0, 1)
-    return projects
-      .filter((item) =>
-        `${item.name}\n${item.description || ''}`.toLowerCase().includes(needle),
-      )
+    const matches = projects
+      .filter((item) => {
+        if (!needle) {
+          return true
+        }
+        return `${item.name}\n${item.description || ''}`.toLowerCase().includes(needle)
+      })
       .slice(0, 1)
+      .map((project) => ({
+        kind: 'project' as const,
+        id: project.id,
+        name: project.name,
+        description: project.description,
+      }))
+
+    const newOption: MentionProjectOption = {
+      kind: 'new-project-ai',
+      id: '__new_project_ai__',
+      name: 'New project with AI',
+      description: 'Create and link a new project for this chat',
+    }
+
+    if (isNewProjectMentionQuery(mention.query)) {
+      return [newOption, ...matches]
+    }
+
+    return [...matches, newOption]
   }, [mention, projects])
 
   useEffect(() => {
@@ -75,6 +140,11 @@ export function useChatConversation({
   useEffect(() => {
     setLocalThreadId(threadId)
   }, [threadId])
+
+  useEffect(() => {
+    setPendingProjectDraft(null)
+    setCreatingProject(false)
+  }, [activeThreadId])
 
   const activeProject = projects.find((project) => project.id === selectedProjectId)
   const sendDisabled = disabledReason !== null || (!draft.trim() && attachments.length === 0)
@@ -190,6 +260,174 @@ export function useChatConversation({
     ])
   }
 
+  const createFallbackPendingDraft = (args: {
+    mentionQuery: string
+    draftWithoutMention: string
+    error?: string
+  }): PendingProjectDraft => {
+    const fallbackName = fallbackProjectNameFromMentionQuery(args.mentionQuery)
+    const normalizedDraft = args.draftWithoutMention.replace(/\s+/g, ' ').trim()
+    return {
+      name: fallbackName,
+      description: normalizedDraft ? normalizedDraft.slice(0, 160) : undefined,
+      loading: false,
+      error: args.error ?? null,
+      source: 'fallback',
+    }
+  }
+
+  const handleNewProjectMentionPick = async () => {
+    if (!mention) {
+      return
+    }
+
+    const draftWithoutMention = removeMentionToken(draft, mention)
+    await setDraft(draftWithoutMention)
+    setMentionOpen(false)
+    setInlineError(null)
+    setPendingProjectDraft({
+      name: fallbackProjectNameFromMentionQuery(mention.query),
+      description: undefined,
+      loading: true,
+      error: null,
+    })
+
+    if (!isOnline) {
+      setPendingProjectDraft(
+        createFallbackPendingDraft({
+          mentionQuery: mention.query,
+          draftWithoutMention,
+          error: 'Project suggestions are unavailable offline.',
+        }),
+      )
+      return
+    }
+
+    try {
+      const suggestion = (await suggestProjectFromContext({
+        threadId: contextThreadId,
+        draft: draftWithoutMention,
+        modelId: contextModelDocId,
+        mentionQuery: mention.query,
+      } as never)) as
+        | {
+            name: string
+            description?: string
+            source: 'ai' | 'fallback'
+            reason?: string
+          }
+        | undefined
+
+      if (!suggestion) {
+        setPendingProjectDraft(
+          createFallbackPendingDraft({
+            mentionQuery: mention.query,
+            draftWithoutMention,
+          }),
+        )
+        return
+      }
+
+      setPendingProjectDraft({
+        name: suggestion.name.trim() || fallbackProjectNameFromMentionQuery(mention.query),
+        description: suggestion.description?.trim() || undefined,
+        loading: false,
+        error: null,
+        source: suggestion.source,
+        reason: suggestion.reason,
+      })
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to suggest a project.'
+      setPendingProjectDraft(
+        createFallbackPendingDraft({
+          mentionQuery: mention.query,
+          draftWithoutMention,
+          error: message,
+        }),
+      )
+    }
+  }
+
+  const confirmMoveExistingProject = (projectName: string) =>
+    new Promise<boolean>((resolve) => {
+      Alert.alert(
+        'Move chat to new project?',
+        `This chat is already linked. Move it to ${projectName}?`,
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+            onPress: () => resolve(false),
+          },
+          {
+            text: 'Move',
+            onPress: () => resolve(true),
+          },
+        ],
+      )
+    })
+
+  const handleConfirmCreateProject = async () => {
+    if (!pendingProjectDraft || creatingProject) {
+      return
+    }
+
+    const name = pendingProjectDraft.name.trim()
+    if (!name) {
+      setPendingProjectDraft((current) =>
+        current
+          ? {
+              ...current,
+              error: 'Project name is required.',
+            }
+          : current,
+      )
+      return
+    }
+
+    setCreatingProject(true)
+    try {
+      const created = (await createProject({
+        name,
+        description: pendingProjectDraft.description?.trim() || undefined,
+      })) as { id: string } | null
+      const createdProjectId = created?.id
+      if (!createdProjectId) {
+        throw new Error('Could not create project right now.')
+      }
+
+      if (contextThreadId) {
+        if (thread?.projectId && thread.projectId !== createdProjectId) {
+          const shouldMove = await confirmMoveExistingProject(name)
+          if (!shouldMove) {
+            setPendingProjectDraft(null)
+            return
+          }
+        }
+
+        await assignThreadToProject(contextThreadId, createdProjectId)
+      }
+
+      setSelectedProjectId(createdProjectId)
+      setPendingProjectDraft(null)
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to create project.'
+      setPendingProjectDraft((current) =>
+        current
+          ? {
+              ...current,
+              loading: false,
+              error: message,
+            }
+          : current,
+      )
+    } finally {
+      setCreatingProject(false)
+    }
+  }
+
   return {
     bg: CHAT_BG,
     showHeader,
@@ -219,15 +457,50 @@ export function useChatConversation({
       setAttachments,
       mentionOpen: mentionOpen && Boolean(mention),
       setMentionOpen,
-      mentionProjects,
-      onMentionPick: (projectId: string) => {
+      mentionOptions,
+      onMentionPick: (optionId: string) => {
         if (!mention) {
           return
         }
-        setSelectedProjectId(projectId)
+        const option = mentionOptions.find((item) => item.id === optionId)
+        if (!option) {
+          return
+        }
+        if (option.kind === 'new-project-ai') {
+          void handleNewProjectMentionPick()
+          return
+        }
+        setSelectedProjectId(option.id)
+        setPendingProjectDraft(null)
         void setDraft(removeMentionToken(draft, mention))
         setMentionOpen(false)
       },
+      pendingProjectDraft,
+      onPendingProjectNameChange: (name: string) => {
+        setPendingProjectDraft((current) =>
+          current
+            ? {
+                ...current,
+                name,
+              }
+            : current,
+        )
+      },
+      onPendingProjectDescriptionChange: (description: string) => {
+        setPendingProjectDraft((current) =>
+          current
+            ? {
+                ...current,
+                description,
+              }
+            : current,
+        )
+      },
+      onConfirmCreateProject: () => {
+        void handleConfirmCreateProject()
+      },
+      onCancelCreateProject: () => setPendingProjectDraft(null),
+      creatingProject,
       modelLabel,
       onOpenModelPicker: () => setPickerOpen(true),
       searchEnabled,

@@ -1,3 +1,8 @@
+import {
+  fallbackProjectNameFromMentionQuery,
+  isNewProjectMentionQuery,
+} from '@chat/shared/logic/project-mention'
+
 export type ProjectMentionState = {
   start: number
   end: number
@@ -13,6 +18,29 @@ export type TextAttachment = {
   id: string
   text: string
   label: string
+}
+
+export type MentionProjectOption =
+  | {
+      kind: 'new-project-ai'
+      id: '__new_project_ai__'
+      name: string
+      description?: string
+    }
+  | {
+      kind: 'project'
+      id: string
+      name: string
+      description?: string
+    }
+
+export type PendingProjectDraft = {
+  name: string
+  description?: string
+  loading: boolean
+  error?: string | null
+  source?: 'ai' | 'fallback'
+  reason?: string
 }
 
 const TEXT_ATTACHMENT_CHAR_THRESHOLD = 500
@@ -105,6 +133,76 @@ export function getProjectMention(
     start: beforeCaret.length - match[0].length + prefix.length,
     end: caretPosition,
     query: match[2] ?? '',
+  }
+}
+
+export function buildMentionProjectOptions(args: {
+  mentionQuery: string
+  projects: Array<{ id: string; name: string; description?: string }>
+  maxProjects?: number
+}) {
+  const needle = args.mentionQuery.trim().toLowerCase()
+  const maxProjects = args.maxProjects ?? 1
+  const matchingProjects = args.projects
+    .filter((project) => {
+      if (!needle) {
+        return true
+      }
+      return `${project.name}\n${project.description ?? ''}`
+        .toLowerCase()
+        .includes(needle)
+    })
+    .slice(0, maxProjects)
+    .map((project) => ({
+      kind: 'project' as const,
+      id: project.id,
+      name: project.name,
+      description: project.description,
+    }))
+
+  const newProjectOption: MentionProjectOption = {
+    kind: 'new-project-ai',
+    id: '__new_project_ai__',
+    name: 'New project with AI',
+    description: 'Create and link a new project for this chat',
+  }
+  const preferNewOption = isNewProjectMentionQuery(args.mentionQuery)
+
+  return {
+    options: preferNewOption
+      ? [newProjectOption, ...matchingProjects]
+      : [...matchingProjects, newProjectOption],
+    preferNewOption,
+  }
+}
+
+export function buildPendingProjectDraft(args: {
+  mentionQuery?: string
+  suggestion?: {
+    name?: string
+    description?: string
+    source?: 'ai' | 'fallback'
+    reason?: string
+  } | null
+  draftWithoutMention: string
+  errorMessage?: string
+}): PendingProjectDraft {
+  const suggestedName = args.suggestion?.name?.trim()
+  const fallbackName = fallbackProjectNameFromMentionQuery(args.mentionQuery ?? '')
+  const fallbackDescription = args.draftWithoutMention
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 160)
+  const normalizedDescription =
+    args.suggestion?.description?.trim() || fallbackDescription || undefined
+
+  return {
+    name: (suggestedName || fallbackName).slice(0, 60),
+    description: normalizedDescription,
+    loading: false,
+    error: args.errorMessage || null,
+    source: args.suggestion?.source ?? 'fallback',
+    reason: args.suggestion?.reason,
   }
 }
 

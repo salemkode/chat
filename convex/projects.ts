@@ -1,13 +1,20 @@
 import {
   query,
   mutation,
+  action,
+  internalQuery,
   type QueryCtx,
   type MutationCtx,
+  type ActionCtx,
 } from './_generated/server'
-import { components } from './_generated/api'
+import { components, internal } from './_generated/api'
 import type { Id } from './_generated/dataModel'
 import { v, ConvexError } from 'convex/values'
+import { createOpenRouter } from '@openrouter/ai-sdk-provider'
+import { generateObject } from 'ai'
+import { z } from 'zod'
 import { getAuthUserId } from './lib/auth'
+import { extractMessageText } from './functions/memoryShared'
 
 async function requireUserId(
   ctx: QueryCtx | MutationCtx,
@@ -49,6 +56,266 @@ async function getOwnedThreadMetadata(
 
   return metadata
 }
+
+const PROJECT_NAME_MAX_LENGTH = 60
+const PROJECT_DESCRIPTION_MAX_LENGTH = 280
+const PROJECT_SUGGESTION_DEFAULT_MODEL = 'openai/gpt-4.1-mini'
+
+const projectSuggestionSchema = z.object({
+  name: z.string().min(1).max(PROJECT_NAME_MAX_LENGTH),
+  description: z.string().max(PROJECT_DESCRIPTION_MAX_LENGTH).optional(),
+})
+
+const openrouter = process.env.OPENROUTER_API_KEY
+  ? createOpenRouter({
+      apiKey: process.env.OPENROUTER_API_KEY,
+    })
+  : null
+
+function summarizeLine(value: string, maxLength: number) {
+  const normalized = value.replace(/\s+/g, ' ').trim()
+  if (!normalized) {
+    return ''
+  }
+  if (normalized.length <= maxLength) {
+    return normalized
+  }
+  return `${normalized.slice(0, maxLength - 1).trimEnd()}…`
+}
+
+function normalizeProjectName(name: string) {
+  const normalized = name.replace(/\s+/g, ' ').trim()
+  if (!normalized) {
+    return ''
+  }
+  return normalized.slice(0, PROJECT_NAME_MAX_LENGTH).trim()
+}
+
+function normalizeProjectDescription(description?: string) {
+  const normalized = description?.replace(/\s+/g, ' ').trim()
+  if (!normalized) {
+    return undefined
+  }
+  return normalized.slice(0, PROJECT_DESCRIPTION_MAX_LENGTH).trim()
+}
+
+function fallbackProjectNameFromMentionQuery(query: string): string {
+  const normalized = query
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/^new\s*[:\-]?\s*/i, '')
+    .trim()
+
+  if (!normalized) {
+    return 'New Project'
+  }
+
+  return normalized.slice(0, PROJECT_NAME_MAX_LENGTH)
+}
+
+function fallbackSuggestion(args: {
+  mentionQuery?: string
+  draft: string
+  reason: string
+}) {
+  const normalizedDraft = args.draft.replace(/\s+/g, ' ').trim()
+  const description = normalizedDraft
+    ? summarizeLine(normalizedDraft, 160)
+    : undefined
+  return {
+    name: normalizeProjectName(
+      fallbackProjectNameFromMentionQuery(args.mentionQuery ?? ''),
+    ),
+    description: normalizeProjectDescription(description),
+    source: 'fallback' as const,
+    reason: args.reason,
+  }
+}
+
+export const getProjectSuggestionContext = internalQuery({
+  args: {
+    threadId: v.optional(v.string()),
+  },
+  returns: v.object({
+    userId: v.id('users'),
+    threadTitle: v.optional(v.string()),
+    recentTranscript: v.optional(v.string()),
+  }),
+  handler: async (ctx, args) => {
+    const userId = await requireUserId(ctx)
+    if (!userId) {
+      throw new ConvexError({
+        code: 'UNAUTHORIZED',
+        message: 'You must be logged in to suggest a project',
+      })
+    }
+
+    if (!args.threadId) {
+      return {
+        userId,
+        threadTitle: undefined,
+        recentTranscript: undefined,
+      }
+    }
+
+    const metadata = await ctx.db
+      .query('threadMetadata')
+      .withIndex('by_threadId', (q) => q.eq('threadId', args.threadId!))
+      .first()
+
+    if (!metadata || metadata.userId !== userId) {
+      throw new ConvexError({
+        code: 'NOT_FOUND',
+        message: 'Thread not found',
+      })
+    }
+
+    const [thread, recentMessages] = await Promise.all([
+      ctx.runQuery(components.agent.threads.getThread, {
+        threadId: args.threadId,
+      }),
+      ctx.runQuery(components.agent.messages.listMessagesByThreadId, {
+        threadId: args.threadId,
+        statuses: ['success'],
+        excludeToolMessages: true,
+        order: 'desc',
+        paginationOpts: {
+          cursor: null,
+          numItems: 12,
+        },
+      }),
+    ])
+
+    const recentTranscript = recentMessages.page
+      .map((message) => {
+        const role = message.message?.role
+        if (role !== 'user' && role !== 'assistant') {
+          return null
+        }
+        const text = extractMessageText(message)
+        if (!text) {
+          return null
+        }
+        return `${role}: ${summarizeLine(text, 180)}`
+      })
+      .filter((line): line is string => line !== null)
+      .reverse()
+      .join('\n')
+
+    return {
+      userId,
+      threadTitle: thread?.title,
+      recentTranscript: recentTranscript || undefined,
+    }
+  },
+})
+
+export const resolveProjectSuggestionModel = internalQuery({
+  args: {
+    modelId: v.optional(v.id('models')),
+  },
+  returns: v.string(),
+  handler: async (ctx, args) => {
+    if (!args.modelId) {
+      return PROJECT_SUGGESTION_DEFAULT_MODEL
+    }
+
+    const model = await ctx.db.get(args.modelId)
+    if (!model) {
+      return PROJECT_SUGGESTION_DEFAULT_MODEL
+    }
+
+    return model.modelId || PROJECT_SUGGESTION_DEFAULT_MODEL
+  },
+})
+
+export const suggestProjectFromContext = action({
+  args: {
+    threadId: v.optional(v.string()),
+    draft: v.string(),
+    modelId: v.optional(v.id('models')),
+    mentionQuery: v.optional(v.string()),
+  },
+  returns: v.object({
+    name: v.string(),
+    description: v.optional(v.string()),
+    source: v.union(v.literal('ai'), v.literal('fallback')),
+    reason: v.optional(v.string()),
+  }),
+  handler: async (ctx: ActionCtx, args) => {
+    const suggestionContext = await ctx.runQuery(
+      (internal as any).projects.getProjectSuggestionContext,
+      {
+        threadId: args.threadId,
+      },
+    )
+
+    const mentionQuery = args.mentionQuery?.trim() || ''
+    const normalizedDraft = args.draft.replace(/\s+/g, ' ').trim()
+
+    if (!openrouter) {
+      return fallbackSuggestion({
+        mentionQuery,
+        draft: normalizedDraft,
+        reason: 'OPENROUTER_API_KEY is not configured.',
+      })
+    }
+
+    const modelId = await ctx.runQuery(
+      (internal as any).projects.resolveProjectSuggestionModel,
+      { modelId: args.modelId },
+    )
+
+    const prompt = [
+      'Suggest a concise project name and optional description for this chat context.',
+      'Return JSON-safe content through the schema only.',
+      'Project name: 2-6 words, max 60 chars. Description: optional, max 160 chars.',
+      'Avoid quotes, emojis, and generic names when context is specific.',
+      mentionQuery ? `Mention query: ${mentionQuery}` : '',
+      normalizedDraft ? `Current draft: ${normalizedDraft}` : '',
+      suggestionContext.threadTitle
+        ? `Current thread title: ${suggestionContext.threadTitle}`
+        : '',
+      suggestionContext.recentTranscript
+        ? `Recent thread transcript:\n${suggestionContext.recentTranscript}`
+        : '',
+    ]
+      .filter(Boolean)
+      .join('\n')
+
+    try {
+      const result = await generateObject({
+        model: openrouter.chat(modelId),
+        schema: projectSuggestionSchema,
+        temperature: 0.2,
+        prompt,
+      })
+
+      const name = normalizeProjectName(result.object.name)
+      if (!name) {
+        return fallbackSuggestion({
+          mentionQuery,
+          draft: normalizedDraft,
+          reason: 'AI suggestion returned an empty project name.',
+        })
+      }
+
+      return {
+        name,
+        description: normalizeProjectDescription(result.object.description),
+        source: 'ai' as const,
+        reason: undefined,
+      }
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : 'AI suggestion failed.'
+      return fallbackSuggestion({
+        mentionQuery,
+        draft: normalizedDraft,
+        reason,
+      })
+    }
+  },
+})
 
 export const createProject = mutation({
   args: {

@@ -4,7 +4,9 @@ import {
   useNavigate,
   useParams,
 } from 'react-router'
+import { api } from '@convex/_generated/api'
 import type { Id } from '@convex/_generated/dataModel'
+import { useAction } from 'convex/react'
 import { Loader2 } from '@/lib/icons'
 import {
   useCallback,
@@ -138,9 +140,16 @@ function ChatComposer({
   mobile?: boolean
 }) {
   const navigate = useNavigate()
+  const suggestProjectFromContext = useAction(
+    (api as typeof api & {
+      projects: {
+        suggestProjectFromContext: unknown
+      }
+    }).projects.suggestProjectFromContext as never,
+  )
   const { models } = useModels()
   const { settings } = useSettings()
-  const { projects } = useProjects()
+  const { projects, createProject, assignThreadToProject } = useProjects()
   const { send, stop, disabledReason } = useSendMessage()
   const {
     clearFailedSendsForThread,
@@ -161,6 +170,15 @@ function ChatComposer({
   >(undefined)
   const [queuedMessages, setQueuedMessages] = useState<QueuedMessage[]>([])
   const [isQueueDispatching, setIsQueueDispatching] = useState(false)
+  const [pendingProjectDraft, setPendingProjectDraft] = useState<{
+    name: string
+    description?: string
+    loading: boolean
+    error?: string | null
+    source?: 'ai' | 'fallback'
+    reason?: string
+  } | null>(null)
+  const [isCreatingProject, setIsCreatingProject] = useState(false)
 
   useEffect(() => {
     if (threadId) {
@@ -170,6 +188,11 @@ function ChatComposer({
 
     setSelectedProjectId(readPendingNewChatProjectId())
   }, [thread?.projectId, threadId])
+
+  useEffect(() => {
+    setPendingProjectDraft(null)
+    setIsCreatingProject(false)
+  }, [threadId])
 
   const selectedModelDocId = useMemo(
     () =>
@@ -335,6 +358,88 @@ function ChatComposer({
     await sendNow(payload)
   }
 
+  const handleNewProjectMentionSelect = useCallback(
+    async (args: { mentionQuery: string; draftWithoutMention: string }) => {
+      const result = (await suggestProjectFromContext({
+        threadId,
+        draft: args.draftWithoutMention,
+        modelId: selectedModelDocId,
+        mentionQuery: args.mentionQuery,
+      } as never)) as
+        | {
+            name: string
+            description?: string
+            source: 'ai' | 'fallback'
+            reason?: string
+          }
+        | undefined
+      return result
+    },
+    [selectedModelDocId, suggestProjectFromContext, threadId],
+  )
+
+  const handleConfirmCreateProject = useCallback(
+    async (values: { name: string; description?: string }) => {
+      if (isCreatingProject) {
+        return
+      }
+
+      setIsCreatingProject(true)
+      try {
+        const created = (await createProject({
+          name: values.name,
+          description: values.description,
+        })) as { id: string } | null
+
+        const nextProjectId = created?.id
+        if (!nextProjectId) {
+          throw new Error('Could not create project right now.')
+        }
+
+        if (threadId) {
+          if (thread?.projectId && thread.projectId !== nextProjectId) {
+            const confirmed = window.confirm(
+              `Move this chat from ${thread.projectName || 'its current project'} to ${values.name}?`,
+            )
+            if (!confirmed) {
+              setPendingProjectDraft(null)
+              return
+            }
+          }
+
+          await assignThreadToProject(threadId, nextProjectId as Id<'projects'>)
+        } else {
+          writePendingNewChatProjectId(nextProjectId)
+        }
+
+        setSelectedProjectId(nextProjectId)
+        setPendingProjectDraft(null)
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'Failed to create project.'
+        setPendingProjectDraft((current) =>
+          current
+            ? {
+                ...current,
+                loading: false,
+                error: message,
+              }
+            : current,
+        )
+      } finally {
+        setIsCreatingProject(false)
+      }
+    },
+    [
+      assignThreadToProject,
+      createProject,
+      isCreatingProject,
+      thread?.projectId,
+      thread?.projectName,
+      threadId,
+    ],
+  )
+
   return (
     <AIPromptInput
       value={draft}
@@ -350,6 +455,7 @@ function ChatComposer({
       projects={projects}
       selectedProjectId={selectedProjectId}
       onProjectChange={(nextProjectId) => {
+        setPendingProjectDraft(null)
         if (!threadId) {
           setSelectedProjectId(nextProjectId)
           writePendingNewChatProjectId(nextProjectId)
@@ -403,6 +509,12 @@ function ChatComposer({
         (settings?.reasoningLevel as 'low' | 'medium' | 'high' | undefined) ??
         'medium'
       }
+      onNewProjectMentionSelect={handleNewProjectMentionSelect}
+      pendingProjectDraft={pendingProjectDraft}
+      onPendingProjectDraftChange={setPendingProjectDraft}
+      onConfirmCreateProject={handleConfirmCreateProject}
+      onCancelCreateProject={() => setPendingProjectDraft(null)}
+      creatingProject={isCreatingProject}
     />
   )
 }
