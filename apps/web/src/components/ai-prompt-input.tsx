@@ -76,25 +76,58 @@ function ComposerContextMeter({
           : 'Last turn used a different model'
         : '—'
 
+  const size = mobile ? 34 : 32
+  const strokeWidth = 4
+  const radius = (size - strokeWidth) / 2
+  const circumference = 2 * Math.PI * radius
+  const progress = Math.max(0, Math.min(100, pct ?? 0))
+  const dashOffset = circumference - (progress / 100) * circumference
+  const hasUsage = limit !== null && used !== null
+
   return (
-    <div
-      className={cn(
-        'w-full px-0.5',
-        mobile && 'px-0',
-      )}
-    >
-      <div className="mb-1 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
-        <span>Context</span>
-        <span className="tabular-nums">{labelRight}</span>
-      </div>
-      {limit !== null && used !== null ? (
-        <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
-          <div
-            className="h-full rounded-full bg-primary transition-[width] duration-300"
-            style={{ width: `${pct ?? 0}%` }}
+    <div className="inline-flex shrink-0 items-center justify-center">
+      <div
+        className="group/context relative inline-flex items-center justify-center"
+        title={labelRight}
+      >
+        <svg
+          width={size}
+          height={size}
+          viewBox={`0 0 ${size} ${size}`}
+          className="-rotate-90"
+          aria-hidden="true"
+        >
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            stroke="currentColor"
+            strokeWidth={strokeWidth}
+            className="text-muted/70"
+            fill="transparent"
           />
+          {hasUsage ? (
+            <circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              stroke="currentColor"
+              strokeWidth={strokeWidth}
+              className="text-primary transition-[stroke-dashoffset] duration-300"
+              fill="transparent"
+              strokeLinecap="round"
+              strokeDasharray={circumference}
+              strokeDashoffset={dashOffset}
+            />
+          ) : null}
+        </svg>
+        <span className="pointer-events-none absolute text-[11px] font-semibold tabular-nums text-foreground/85">
+          {hasUsage ? progress : '—'}
+        </span>
+        <div className="pointer-events-none absolute bottom-full right-0 z-10 mb-2 hidden whitespace-nowrap rounded-md border border-border/70 bg-background/95 px-2 py-1 text-[11px] text-muted-foreground shadow-sm backdrop-blur group-hover/context:block">
+          {labelRight}
         </div>
-      ) : null}
+      </div>
     </div>
   )
 }
@@ -176,16 +209,19 @@ export function AIPromptInput({
   const value = controlledValue ?? internalValue
   const selectedProject = projects.find((project) => project.id === selectedProjectId)
   const mentionProjects = projectMention
-    ? projects.filter((project) => {
+    ? (() => {
         const needle = projectMention.query.trim().toLowerCase()
-        if (!needle) {
-          return true
-        }
+        const matches = projects.filter((project) => {
+          if (!needle) {
+            return true
+          }
 
-        return `${project.name}\n${project.description ?? ''}`
-          .toLowerCase()
-          .includes(needle)
-      })
+          return `${project.name}\n${project.description ?? ''}`
+            .toLowerCase()
+            .includes(needle)
+        })
+        return matches.slice(0, 1)
+      })()
     : []
 
   const setValue = (nextValue: string) => {
@@ -407,7 +443,12 @@ export function AIPromptInput({
   }, [])
 
   return (
-    <div className={cn('pointer-events-auto w-full', mobile ? 'bg-transparent' : '')}>
+    <div
+      className={cn(
+        'pointer-events-auto mb-1 w-full',
+        mobile ? 'bg-transparent' : '',
+      )}
+    >
       {submitError ? (
         <div className={cn('mb-2 flex justify-center', mobile && 'px-2')}>
           <div
@@ -557,17 +598,13 @@ export function AIPromptInput({
             autoComplete="off"
             style={{ height: mobile ? '52px' : '48px' }}
           />
-          <ComposerContextMeter
-            threadId={contextThreadId}
-            modelDocId={contextModelDocId}
-            mobile={mobile}
-          />
         </div>
 
         <ProjectMentionPopup
           projectMention={projectMention}
           mentionProjects={mentionProjects}
           highlightedProjectIndex={highlightedProjectIndex}
+          mobile={mobile}
           onSelect={handleProjectSelect}
         />
 
@@ -590,6 +627,13 @@ export function AIPromptInput({
           reasoningLevels={reasoningLevels}
           defaultReasoningLevel={defaultReasoningLevel}
           onAttach={addAttachments}
+          contextMeter={
+            <ComposerContextMeter
+              threadId={contextThreadId}
+              modelDocId={contextModelDocId}
+              mobile={mobile}
+            />
+          }
         />
       </form>
 

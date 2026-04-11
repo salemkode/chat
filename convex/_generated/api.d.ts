@@ -637,6 +637,7 @@ export declare const api: {
       "mutation",
       "public",
       {
+        clientThreadKey?: string;
         projectId?: Id<"projects">;
         sectionId?: Id<"sections">;
         title?: string;
@@ -658,6 +659,7 @@ export declare const api: {
           mediaType?: string;
           storageId: Id<"_storage">;
         }>;
+        clientRequestId?: string;
         modelId: Id<"models">;
         projectId?: Id<"projects">;
         prompt: string;
@@ -689,6 +691,7 @@ export declare const api: {
         metadata: null | {
           _creationTime: number;
           _id: Id<"threadMetadata">;
+          clientThreadKey?: string;
           emoji: string;
           icon?: string;
           lastLabelUpdateAt: number;
@@ -708,6 +711,7 @@ export declare const api: {
       "mutation",
       "public",
       {
+        clientRequestId?: string;
         modelId: Id<"models">;
         projectId?: Id<"projects">;
         promptMessageId: string;
@@ -716,6 +720,12 @@ export declare const api: {
         threadId: string;
       },
       null
+    >;
+    resolveThreadIdByClientKey: FunctionReference<
+      "query",
+      "public",
+      { clientThreadKey: string },
+      string | null
     >;
     setThreadPinned: FunctionReference<
       "mutation",

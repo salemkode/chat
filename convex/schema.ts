@@ -384,6 +384,7 @@ export default defineSchema({
   // Thread metadata (emoji/icon, sectionId) linked to agent threads
   threadMetadata: defineTable({
     threadId: v.string(), // ID from @convex-dev/agent threads table
+    clientThreadKey: v.optional(v.string()),
     emoji: v.string(),
     icon: v.optional(v.string()), // Lucide icon name
     lastLabelUpdateAt: v.number(),
@@ -397,12 +398,21 @@ export default defineSchema({
     .index('by_sectionId', ['sectionId'])
     .index('by_projectId', ['projectId'])
     .index('by_threadId', ['threadId'])
+    .index('by_userId_clientThreadKey', ['userId', 'clientThreadKey'])
     .index('by_userId_sortOrder', ['userId', 'sortOrder'])
     .index('by_userId_sortOrder_lastMessageAt', [
       'userId',
       'sortOrder',
       'lastMessageAt',
     ]),
+
+  clientMutationReceipts: defineTable({
+    userId: v.id('users'),
+    clientRequestId: v.string(),
+    kind: v.union(v.literal('generateMessage'), v.literal('regenerateMessage')),
+    threadId: v.string(),
+    createdAt: v.number(),
+  }).index('by_userId_clientRequestId', ['userId', 'clientRequestId']),
 
   // Public share snapshots for chat transcripts
   chatShares: defineTable({

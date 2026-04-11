@@ -55,11 +55,7 @@ export default function ChatLayout() {
     useCachedSessionStatus()
 
   if (isLoading && !isOfflineReady) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-background text-foreground">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    )
+    return <AuthBootstrapShell />
   }
 
   if (!isAuthenticatedOrOffline) {
@@ -67,6 +63,32 @@ export default function ChatLayout() {
   }
 
   return <AuthenticatedChatLayout />
+}
+
+function AuthBootstrapShell() {
+  return (
+    <div className="flex h-screen w-full items-center justify-center bg-background p-6 text-foreground">
+      <div className="w-full max-w-sm rounded-2xl border border-border/80 bg-card p-5 shadow-sm">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="size-8 rounded-lg bg-primary/15 p-1.5 text-primary">
+            <Loader2 className="size-5 animate-spin" />
+          </div>
+          <div>
+            <p className="text-sm font-medium">Preparing your workspace</p>
+            <p className="text-xs text-muted-foreground">
+              Loading session in the background.
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-2" aria-hidden="true">
+          <div className="h-2.5 w-full rounded-full bg-muted" />
+          <div className="h-2.5 w-5/6 rounded-full bg-muted" />
+          <div className="h-2.5 w-2/3 rounded-full bg-muted" />
+        </div>
+      </div>
+    </div>
+  )
 }
 
 function AuthenticatedChatLayout() {

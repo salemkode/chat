@@ -1,7 +1,11 @@
 import type { FunctionReturnType } from 'convex/server'
 import type { Value } from 'convex/values'
 import { insertAtPosition, useMutation } from 'convex/react'
-import { useCallback } from 'react'
+import { useCallback, useRef } from 'react'
+import {
+  createClientRequestId,
+  createClientThreadKey,
+} from '@chat/shared/logic/client-keys'
 import { api, type Id } from '../lib/convexApi'
 import { writeDraft } from '../offline/cache'
 import { useNetworkStatus } from '../utils/network-status'
@@ -19,14 +23,38 @@ type ListMessagesPageItem = FunctionReturnType<
   typeof api.chat.listMessages
 >['page'][number]
 
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message
+  }
+  if (typeof error === 'string') {
+    return error
+  }
+  return ''
+}
+
+function isExtraFieldValidationError(error: unknown, fieldName: string) {
+  const message = getErrorMessage(error)
+  return (
+    message.includes('ArgumentValidationError') &&
+    message.includes('extra field') &&
+    message.includes(fieldName)
+  )
+}
+
 export function useSendMessage() {
   const { isOnline } = useNetworkStatus()
+  const supportsClientThreadKeyRef = useRef(true)
+  const supportsClientRequestIdRef = useRef(true)
   const createThreadMutation = useMutation(api.agents.createChatThread).withOptimisticUpdate(
-    (localStore, args: { title?: string; projectId?: Id<'projects'> }) => {
+    (
+      localStore,
+      args: { title?: string; projectId?: Id<'projects'>; clientThreadKey?: string },
+    ) => {
       const now = Date.now()
       withOptimisticThreads(localStore, (threads) => {
         const row: ThreadsWithMetadata[number] = {
-          _id: `optimistic-thread-${now}`,
+          _id: `optimistic-thread-${args.clientThreadKey || now}`,
           _creationTime: now,
           lastMessageAt: now,
           title: args.title || 'New chat',
@@ -127,14 +155,33 @@ export function useSendMessage() {
   const generateUploadUrlMutation = useMutation(api.agents.generateAttachmentUploadUrl)
 
   const createThread = useCallback(
-    async (title?: string, projectId?: string) => {
+    async (title?: string, projectId?: string, clientThreadKey?: string) => {
       if (!isOnline) {
         return undefined
       }
-      return await createThreadMutation({
+      const baseArgs = {
         title,
         projectId: toProjectId(projectId),
-      })
+      }
+
+      if (!supportsClientThreadKeyRef.current || !clientThreadKey) {
+        return await createThreadMutation(baseArgs as never)
+      }
+
+      try {
+        return await createThreadMutation(
+          {
+            ...baseArgs,
+            clientThreadKey,
+          } as never,
+        )
+      } catch (error) {
+        if (!isExtraFieldValidationError(error, 'clientThreadKey')) {
+          throw error
+        }
+        supportsClientThreadKeyRef.current = false
+        return await createThreadMutation(baseArgs as never)
+      }
     },
     [createThreadMutation, isOnline],
   )
@@ -196,12 +243,14 @@ export function useSendMessage() {
         throw new Error('Message cannot be empty')
       }
 
+      const clientThreadKey = threadId && isLocalThreadId(threadId) ? threadId : undefined
       const normalizedThreadId = threadId && !isLocalThreadId(threadId) ? threadId : undefined
       let resolvedThreadId = normalizedThreadId
       if (!resolvedThreadId) {
         resolvedThreadId = await createThread(
           prompt.trim().split('\n')[0]?.slice(0, 60) || 'New chat',
           projectId,
+          clientThreadKey || createClientThreadKey(),
         )
         if (resolvedThreadId) {
           await onThreadResolved?.(resolvedThreadId)
@@ -234,14 +283,30 @@ export function useSendMessage() {
       }
 
       await onBeforeGenerate?.()
-      await generateMessageMutation({
+      const sendPayload = {
         threadId: resolvedThreadId,
         prompt,
         modelId: toModelId(modelDocId),
         projectId: toProjectId(projectId),
         searchEnabled,
         attachments: uploaded,
-      } as never)
+      }
+      if (supportsClientRequestIdRef.current) {
+        try {
+          await generateMessageMutation({
+            ...sendPayload,
+            clientRequestId: createClientRequestId(),
+          } as never)
+        } catch (error) {
+          if (!isExtraFieldValidationError(error, 'clientRequestId')) {
+            throw error
+          }
+          supportsClientRequestIdRef.current = false
+          await generateMessageMutation(sendPayload as never)
+        }
+      } else {
+        await generateMessageMutation(sendPayload as never)
+      }
       await writeDraft(resolvedThreadId, '')
       await writeDraft('new', '')
       return { threadId: resolvedThreadId, disabledReason: null }
@@ -270,13 +335,29 @@ export function useSendMessage() {
         if (!isOnline) {
           return { disabledReason: 'offline' as const }
         }
-        await regenerateMessageMutation({
+        const regeneratePayload = {
           threadId,
           promptMessageId,
           modelId: toModelId(modelDocId),
           projectId: toProjectId(projectId),
           searchEnabled,
-        } as never)
+        }
+        if (supportsClientRequestIdRef.current) {
+          try {
+            await regenerateMessageMutation({
+              ...regeneratePayload,
+              clientRequestId: createClientRequestId(),
+            } as never)
+          } catch (error) {
+            if (!isExtraFieldValidationError(error, 'clientRequestId')) {
+              throw error
+            }
+            supportsClientRequestIdRef.current = false
+            await regenerateMessageMutation(regeneratePayload as never)
+          }
+        } else {
+          await regenerateMessageMutation(regeneratePayload as never)
+        }
         return { disabledReason: null }
       },
       [isOnline, regenerateMessageMutation],

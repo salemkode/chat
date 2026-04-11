@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useClerk } from '@clerk/react-router'
 import { useNavigate } from 'react-router'
 import {
   Brain,
@@ -10,6 +11,7 @@ import {
   Monitor,
   Moon,
   Palette,
+  LogOut,
   Settings,
   Sun,
   User,
@@ -70,6 +72,7 @@ export function SettingsDialog({
   const { isAdminLike } = useRoleContext()
   const { isOnline } = useOnlineStatus()
   const { theme, setTheme, primaryColor, setPrimaryColor } = useTheme()
+  const { signOut } = useClerk()
   const navigate = useNavigate()
 
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab)
@@ -490,6 +493,22 @@ export function SettingsDialog({
                     />
                   </div>
                 </div>
+
+                <SettingsItem
+                  label="Session"
+                  description="Sign out from your current session."
+                >
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={() => {
+                      void signOut()
+                    }}
+                  >
+                    <LogOut className="size-4" />
+                    Logout
+                  </Button>
+                </SettingsItem>
               </div>
             ) : null}
 

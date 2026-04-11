@@ -6,6 +6,10 @@ import { useQuery } from '@/lib/convex-query-cache'
 import { compareThreadsForSidebar } from '@/lib/project-sidebar'
 import { readThreadsCache } from '@/offline/local-cache'
 import {
+  filterPersistableThreads,
+  isOptimisticThreadId,
+} from '@/hooks/chat-data/optimistic-threads'
+import {
   cacheThreadsToLocal,
   normalizeThread,
   type ThreadSummary,
@@ -17,7 +21,7 @@ export function useThreads() {
   const cacheUserId = useConvexUserIdForCache()
   const { isOnline } = useOnlineStatus()
   const cacheVersion = useOfflineCacheVersion()
-  const liveThreads = useQuery(api.agents.listThreadsWithMetadata) || []
+  const liveThreads = useQuery(api.agents.listThreadsWithMetadata)
   const setThreadPinned = useMutation(api.agents.setThreadPinned)
   const deleteThreadMutation = useMutation(api.chat.deleteThread)
   const [optimisticPinnedById, setOptimisticPinnedById] = useState<
@@ -34,27 +38,30 @@ export function useThreads() {
   }, [cacheUserId, cacheVersion])
 
   useEffect(() => {
-    if (liveThreads.length > 0 && cacheUserId) {
-      cacheThreadsToLocal(cacheUserId, liveThreads)
+    if (liveThreads === undefined || !cacheUserId) {
+      return
     }
+    cacheThreadsToLocal(cacheUserId, filterPersistableThreads(liveThreads))
   }, [liveThreads, cacheUserId])
 
   const threads = useMemo<ThreadSummary[]>(() => {
-    const normalized = (
-      liveThreads.length > 0 ? liveThreads : cachedThreads
-    ).map((thread) => {
+    const source = liveThreads ?? cachedThreads
+    const normalized = source.map((thread) => {
       if ('_id' in thread) {
         const normalizedThread = normalizeThread(thread)
+        const optimistic = isOptimisticThreadId(thread._id)
         return {
           ...normalizedThread,
-          serverId: thread._id,
+          serverId: optimistic ? undefined : thread._id,
+          isOptimistic: optimistic,
         }
       }
 
       return {
         ...thread,
         updatedAt: thread.lastMessageAt,
-        serverId: undefined,
+        serverId: thread.serverId,
+        isOptimistic: Boolean(thread.isOptimistic),
       }
     })
 
@@ -78,7 +85,7 @@ export function useThreads() {
   }, [cachedThreads, liveThreads, optimisticPinnedById])
 
   useEffect(() => {
-    if (liveThreads.length === 0) {
+    if (liveThreads === undefined) {
       return
     }
 
@@ -87,6 +94,9 @@ export function useThreads() {
       const next = { ...current }
 
       for (const thread of liveThreads) {
+        if (isOptimisticThreadId(thread._id)) {
+          continue
+        }
         const optimisticPinned = next[thread._id]
         if (optimisticPinned === undefined) {
           continue

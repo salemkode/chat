@@ -1,4 +1,5 @@
 import { ClerkProvider, useAuth } from '@clerk/expo'
+import { resourceCache } from '@clerk/expo/resource-cache'
 import { tokenCache } from '@clerk/expo/token-cache'
 import { ConvexReactClient } from 'convex/react'
 import { ConvexProviderWithClerk } from 'convex/react-clerk'
@@ -15,6 +16,7 @@ export function AppProviders({ children }: PropsWithChildren) {
     <ClerkProvider
       publishableKey={mobileEnv.clerkPublishableKey}
       tokenCache={tokenCache}
+      __experimental_resourceCache={resourceCache}
     >
       <ConvexProviderWithClerk client={convexClient} useAuth={useAuth}>
         <SafeAreaProvider>{children}</SafeAreaProvider>

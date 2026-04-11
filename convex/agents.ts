@@ -47,28 +47,18 @@ const CHAT_EMOJIS = [
   '🚀',
   '🎯',
   '💡',
-  '🔮',
-  '🌟',
-  '🎨',
+  '🔍',
+  '📌',
+  '📎',
   '📝',
-  '🔥',
   '⚡',
-  '🌈',
-  '🎭',
-  '🎪',
-  '🎬',
-  '🎵',
-  '🎮',
-  '🤖',
-  '👾',
-  '🦄',
-  '🦋',
-  '🌸',
-  '🍀',
-  '🌙',
-  '☀️',
-  '🌊',
-  '🏔️',
+  '📚',
+  '📅',
+  '✅',
+  '❓',
+  '🔔',
+  '📊',
+  '🌐',
 ]
 
 export function getRandomEmoji(): string {
@@ -1049,6 +1039,68 @@ async function registerChatAttachments(
   return registered
 }
 
+type ClientMutationKind = 'generateMessage' | 'regenerateMessage'
+
+async function getClientMutationReceipt(
+  ctx: MutationCtx,
+  args: {
+    userId: Id<'users'>
+    clientRequestId?: string
+  },
+) {
+  const clientRequestId = args.clientRequestId
+  if (!clientRequestId) {
+    return null
+  }
+
+  return await ctx.db
+    .query('clientMutationReceipts')
+    .withIndex('by_userId_clientRequestId', (q) =>
+      q.eq('userId', args.userId).eq('clientRequestId', clientRequestId),
+    )
+    .first()
+}
+
+function validateClientMutationReceipt(
+  receipt: {
+    kind: ClientMutationKind
+    threadId: string
+  },
+  args: {
+    kind: ClientMutationKind
+    threadId: string
+  },
+) {
+  if (receipt.kind !== args.kind || receipt.threadId !== args.threadId) {
+    throw new ConvexError({
+      code: 'VALIDATION_ERROR',
+      message: 'clientRequestId was already used for another operation',
+    })
+  }
+}
+
+async function recordClientMutationReceipt(
+  ctx: MutationCtx,
+  args: {
+    userId: Id<'users'>
+    clientRequestId?: string
+    kind: ClientMutationKind
+    threadId: string
+  },
+) {
+  if (!args.clientRequestId) {
+    return
+  }
+
+  await ctx.db.insert('clientMutationReceipts', {
+    userId: args.userId,
+    clientRequestId: args.clientRequestId,
+    kind: args.kind,
+    threadId: args.threadId,
+    createdAt: Date.now(),
+  })
+}
+
 export const streamMessage = internalAction({
   args: {
     agent: v.union(
@@ -1504,6 +1556,7 @@ export const generateAttachmentUploadUrl = mutation({
 export const generateMessage = mutation({
   args: {
     threadId: v.string(),
+    clientRequestId: v.optional(v.string()),
     prompt: v.string(),
     modelId: v.id('models'),
     projectId: v.optional(v.id('projects')),
@@ -1516,6 +1569,18 @@ export const generateMessage = mutation({
     if (!result) return null
 
     const { userId, model, provider, resolvedProjectId } = result
+    const existingReceipt = await getClientMutationReceipt(ctx, {
+      userId,
+      clientRequestId: args.clientRequestId,
+    })
+    if (existingReceipt) {
+      validateClientMutationReceipt(existingReceipt, {
+        kind: 'generateMessage',
+        threadId: args.threadId,
+      })
+      return null
+    }
+
     const resolvedReasoning = await resolveRequestReasoning(ctx, {
       userId,
       model,
@@ -1622,6 +1687,12 @@ export const generateMessage = mutation({
       modelName: model.displayName,
       config: provider.config,
     })
+    await recordClientMutationReceipt(ctx, {
+      userId,
+      clientRequestId: args.clientRequestId,
+      kind: 'generateMessage',
+      threadId: args.threadId,
+    })
     return null
   },
 })
@@ -1629,6 +1700,7 @@ export const generateMessage = mutation({
 export const regenerateMessage = mutation({
   args: {
     threadId: v.string(),
+    clientRequestId: v.optional(v.string()),
     promptMessageId: v.string(),
     modelId: v.id('models'),
     projectId: v.optional(v.id('projects')),
@@ -1639,6 +1711,18 @@ export const regenerateMessage = mutation({
   handler: async (ctx, args) => {
     const { userId, model, provider, resolvedProjectId } =
       await resolveGenerationDependencies(ctx, args)
+    const existingReceipt = await getClientMutationReceipt(ctx, {
+      userId,
+      clientRequestId: args.clientRequestId,
+    })
+    if (existingReceipt) {
+      validateClientMutationReceipt(existingReceipt, {
+        kind: 'regenerateMessage',
+        threadId: args.threadId,
+      })
+      return null
+    }
+
     const resolvedReasoning = await resolveRequestReasoning(ctx, {
       userId,
       model,
@@ -1712,6 +1796,12 @@ export const regenerateMessage = mutation({
       modelName: model.displayName,
       config: provider.config,
     })
+    await recordClientMutationReceipt(ctx, {
+      userId,
+      clientRequestId: args.clientRequestId,
+      kind: 'regenerateMessage',
+      threadId: args.threadId,
+    })
 
     return null
   },
@@ -1765,6 +1855,7 @@ export const createChatThread = mutation({
     title: v.optional(v.string()),
     sectionId: v.optional(v.id('sections')),
     projectId: v.optional(v.id('projects')),
+    clientThreadKey: v.optional(v.string()),
   },
   returns: v.string(),
   handler: async (ctx, args) => {
@@ -1786,6 +1877,21 @@ export const createChatThread = mutation({
       }
     }
 
+    const normalizedClientThreadKey = args.clientThreadKey?.trim() || undefined
+    if (normalizedClientThreadKey) {
+      const existing = await ctx.db
+        .query('threadMetadata')
+        .withIndex('by_userId_clientThreadKey', (q) =>
+          q
+            .eq('userId', userId)
+            .eq('clientThreadKey', normalizedClientThreadKey),
+        )
+        .first()
+      if (existing?.threadId) {
+        return existing.threadId
+      }
+    }
+
     const threadId = await createThread(ctx, components.agent, {
       title: args.title,
       userId,
@@ -1801,11 +1907,39 @@ export const createChatThread = mutation({
       lastMessageAt: Date.now(),
       sectionId: args.sectionId,
       projectId: args.projectId,
+      clientThreadKey: normalizedClientThreadKey,
       userId,
       sortOrder: 0, // Default to not pinned
     })
 
     return threadId
+  },
+})
+
+export const resolveThreadIdByClientKey = query({
+  args: {
+    clientThreadKey: v.string(),
+  },
+  returns: v.union(v.string(), v.null()),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId) {
+      return null
+    }
+
+    const normalizedClientThreadKey = args.clientThreadKey.trim()
+    if (!normalizedClientThreadKey) {
+      return null
+    }
+
+    const metadata = await ctx.db
+      .query('threadMetadata')
+      .withIndex('by_userId_clientThreadKey', (q) =>
+        q.eq('userId', userId).eq('clientThreadKey', normalizedClientThreadKey),
+      )
+      .first()
+
+    return metadata?.threadId ?? null
   },
 })
 

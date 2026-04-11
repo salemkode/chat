@@ -1,11 +1,8 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access -- hook return types are narrowed at runtime for this route */
 import { useParams } from 'react-router'
-import { Loader2 } from '@/lib/icons'
-import { AuthRedirect } from '@/components/auth-redirect'
 import { ChatMessageList } from '@/components/ChatMessageList'
 import { ChatThreadHeader } from '@/components/chat/ChatThreadHeader'
 import {
-  useCachedSessionStatus,
   useGenerationState,
   useMessages,
   useProjects,
@@ -13,21 +10,6 @@ import {
 } from '@/hooks/use-chat-data'
 
 export default function ChatPage() {
-  const { isAuthenticatedOrOffline, isLoading, isOfflineReady } =
-    useCachedSessionStatus()
-
-  if (isLoading && !isOfflineReady) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-background text-foreground">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    )
-  }
-
-  if (!isAuthenticatedOrOffline) {
-    return <AuthRedirect />
-  }
-
   return <AuthenticatedChatPage />
 }
 

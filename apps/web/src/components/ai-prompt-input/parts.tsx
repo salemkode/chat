@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import {
   formatAttachmentMeta,
   getTextAttachmentPreview,
@@ -235,11 +235,13 @@ export function ProjectMentionPopup({
   projectMention,
   mentionProjects,
   highlightedProjectIndex,
+  mobile = false,
   onSelect,
 }: {
   projectMention: unknown
   mentionProjects: Array<{ id: string; name: string; description?: string }>
   highlightedProjectIndex: number
+  mobile?: boolean
   onSelect: (projectId: string) => void
 }) {
   if (!projectMention) {
@@ -247,11 +249,15 @@ export function ProjectMentionPopup({
   }
 
   return (
-    <div className="mt-3 overflow-hidden rounded-2xl border border-border/70 bg-background/95 shadow-2xl backdrop-blur">
-      <div className="border-b border-border/60 px-3 py-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-        Projects
-      </div>
-      <div className="max-h-56 overflow-y-auto p-2">
+    <div
+      className={cn(
+        'absolute z-40 overflow-hidden rounded-2xl border border-border/70 bg-card/95 p-1.5 shadow-2xl backdrop-blur-xl',
+        mobile
+          ? 'bottom-[calc(100%+8px)] left-0 right-0'
+          : 'bottom-[calc(100%+10px)] left-0 w-[min(19rem,calc(100vw-2rem))]',
+      )}
+    >
+      <div className="max-h-56 overflow-y-auto">
         {mentionProjects.length > 0 ? (
           mentionProjects.map((project, index) => {
             const isHighlighted = index === highlightedProjectIndex
@@ -263,7 +269,7 @@ export function ProjectMentionPopup({
                 variant="plain"
                 size="none"
                 className={cn(
-                  'flex w-full items-start gap-3 rounded-xl px-3 py-2 text-left transition-colors',
+                  'flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-sm transition-colors',
                   isHighlighted
                     ? 'bg-muted text-foreground'
                     : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground',
@@ -273,29 +279,20 @@ export function ProjectMentionPopup({
               >
                 <div
                   className={cn(
-                    'mt-0.5 inline-flex size-7 shrink-0 items-center justify-center rounded-full border',
+                    'inline-flex size-6 shrink-0 items-center justify-center rounded-full border',
                     isHighlighted
                       ? 'border-primary/30 bg-primary/10 text-primary'
                       : 'border-border/70 bg-background text-muted-foreground',
                   )}
                 >
-                  <Folder className="size-3.5" />
+                  <Folder className="size-3" />
                 </div>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-medium">
-                    {project.name}
-                  </div>
-                  {project.description ? (
-                    <div className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
-                      {project.description}
-                    </div>
-                  ) : null}
-                </div>
+                <div className="min-w-0 flex-1 truncate font-medium">{project.name}</div>
               </Button>
             )
           })
         ) : (
-          <div className="px-3 py-5 text-sm text-muted-foreground">
+          <div className="px-2.5 py-3 text-sm text-muted-foreground">
             No matching projects.
           </div>
         )}
@@ -323,6 +320,7 @@ export function ComposerActionRow({
   reasoningLevels,
   defaultReasoningLevel,
   onAttach,
+  contextMeter,
 }: {
   disabled: boolean
   isSubmitting: boolean
@@ -342,6 +340,7 @@ export function ComposerActionRow({
   reasoningLevels?: Array<'low' | 'medium' | 'high'>
   defaultReasoningLevel: 'off' | 'low' | 'medium' | 'high'
   onAttach: (files: FileList | null) => void
+  contextMeter?: ReactNode
 }) {
   const hasContent =
     value.trim() || attachments.length > 0 || textAttachments.length > 0
@@ -352,26 +351,29 @@ export function ComposerActionRow({
         mobile ? 'mt-1 flex-row-reverse gap-3' : 'mt-2 flex-row-reverse',
       )}
     >
-      <Button
-        type="submit"
-        size={mobile ? 'icon-lg' : 'icon'}
-        disabled={disabled || isSubmitting || !hasContent}
-        aria-label={
-          isSubmitting
-            ? 'Sending message'
-            : hasContent
-              ? 'Send message'
-              : 'Message requires text or a supported file'
-        }
-        className={cn(
-          'inline-flex items-center justify-center bg-primary font-semibold text-primary-foreground transition-colors hover:bg-primary/90 active:bg-primary disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-primary disabled:active:bg-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
-          mobile
-            ? 'h-[52px] min-w-[52px] rounded-full px-4 shadow-sm'
-            : 'h-12 min-w-12 rounded-full px-3',
-        )}
-      >
-        <ArrowUp className="size-5" aria-hidden="true" />
-      </Button>
+      <div className="inline-flex items-center gap-2">
+        {contextMeter}
+        <Button
+          type="submit"
+          size={mobile ? 'icon-lg' : 'icon'}
+          disabled={disabled || isSubmitting || !hasContent}
+          aria-label={
+            isSubmitting
+              ? 'Sending message'
+              : hasContent
+                ? 'Send message'
+                : 'Message requires text or a supported file'
+          }
+          className={cn(
+            'inline-flex items-center justify-center bg-primary font-semibold text-primary-foreground transition-colors hover:bg-primary/90 active:bg-primary disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-primary disabled:active:bg-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
+            mobile
+              ? 'h-[52px] min-w-[52px] rounded-full px-4 shadow-sm'
+              : 'h-12 min-w-12 rounded-full px-3',
+          )}
+        >
+          <ArrowUp className="size-5" aria-hidden="true" />
+        </Button>
+      </div>
 
       <div
         className={cn(

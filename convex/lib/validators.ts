@@ -87,6 +87,7 @@ export const threadMetadataValidator = v.object({
   _id: v.id('threadMetadata'),
   _creationTime: v.number(),
   threadId: v.string(),
+  clientThreadKey: v.optional(v.string()),
   emoji: v.string(),
   icon: v.optional(v.string()),
   lastLabelUpdateAt: v.number(),

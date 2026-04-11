@@ -126,6 +126,32 @@ export type DataModel = {
     searchIndexes: {};
     vectorIndexes: {};
   };
+  clientMutationReceipts: {
+    document: {
+      clientRequestId: string;
+      createdAt: number;
+      kind: "generateMessage" | "regenerateMessage";
+      threadId: string;
+      userId: Id<"users">;
+      _id: Id<"clientMutationReceipts">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "clientRequestId"
+      | "createdAt"
+      | "kind"
+      | "threadId"
+      | "userId";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_userId_clientRequestId: ["userId", "clientRequestId", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
   memoryChunks: {
     document: {
       agentId: string;
@@ -987,6 +1013,7 @@ export type DataModel = {
   };
   threadMetadata: {
     document: {
+      clientThreadKey?: string;
       emoji: string;
       icon?: string;
       lastLabelUpdateAt: number;
@@ -1002,6 +1029,7 @@ export type DataModel = {
     fieldPaths:
       | "_creationTime"
       | "_id"
+      | "clientThreadKey"
       | "emoji"
       | "icon"
       | "lastLabelUpdateAt"
@@ -1018,6 +1046,7 @@ export type DataModel = {
       by_sectionId: ["sectionId", "_creationTime"];
       by_threadId: ["threadId", "_creationTime"];
       by_userId: ["userId", "_creationTime"];
+      by_userId_clientThreadKey: ["userId", "clientThreadKey", "_creationTime"];
       by_userId_sortOrder: ["userId", "sortOrder", "_creationTime"];
       by_userId_sortOrder_lastMessageAt: [
         "userId",

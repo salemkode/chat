@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { useClerk, useUser } from '@clerk/react-router'
+import { useUser } from '@clerk/react-router'
 import { generatePath, useNavigate } from 'react-router'
 import {
   ChevronDown,
@@ -9,7 +9,6 @@ import {
   Folder,
   FolderOpen,
   LogIn,
-  LogOut,
   Plus,
   Settings,
   User,
@@ -72,7 +71,6 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
   const { projects, createProject, removeThreadFromProject } = useProjects()
   const viewer = useViewer()
   const { user: clerkUser } = useUser()
-  const { signOut } = useClerk()
   const { isOnline } = useOnlineStatus()
 
   React.useEffect(() => {
@@ -240,12 +238,20 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
                             <ThreadRow
                               thread={thread}
                               isActive={selectedThreadId === thread.id}
-                              onOpen={() => navigate(generatePath('/:chatId', { chatId: thread.id }))}
-                              onTogglePinned={() =>
+                              onOpen={() => {
+                                if (thread.isOptimistic) {
+                                  return
+                                }
+                                navigate(generatePath('/:chatId', { chatId: thread.id }))
+                              }}
+                              onTogglePinned={() => {
+                                if (thread.isOptimistic) {
+                                  return
+                                }
                                 void handlePinThread(thread.id, !thread.pinned)
-                              }
+                              }}
                               onRemoveFromProject={
-                                thread.serverId
+                                thread.serverId && !thread.isOptimistic
                                   ? () =>
                                       setRemoveFromProjectDialog({
                                         projectName: project.name,
@@ -277,10 +283,18 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
                   <ThreadRow
                     thread={thread}
                     isActive={selectedThreadId === thread.id}
-                    onOpen={() => navigate(generatePath('/:chatId', { chatId: thread.id }))}
-                    onTogglePinned={() =>
+                    onOpen={() => {
+                      if (thread.isOptimistic) {
+                        return
+                      }
+                      navigate(generatePath('/:chatId', { chatId: thread.id }))
+                    }}
+                    onTogglePinned={() => {
+                      if (thread.isOptimistic) {
+                        return
+                      }
                       void handlePinThread(thread.id, !thread.pinned)
-                    }
+                    }}
                   />
                 )}
               />
@@ -352,16 +366,6 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
               </Tooltip>
             </TooltipProvider>
 
-            <Button
-              variant="ghost"
-              className="w-full justify-start gap-3"
-              onClick={() => {
-                void signOut()
-              }}
-            >
-              <LogOut className="h-4 w-4" />
-              Logout
-            </Button>
           </>
         ) : (
           <Button

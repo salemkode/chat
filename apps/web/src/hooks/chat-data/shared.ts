@@ -105,6 +105,7 @@ export type CachedSettingsView = {
 export interface ThreadSummary {
   id: string
   serverId?: string
+  isOptimistic?: boolean
   title?: string
   emoji: string
   icon?: string

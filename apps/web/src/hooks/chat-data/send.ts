@@ -1,4 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  createClientRequestId,
+  createClientThreadKey,
+} from '@chat/shared/logic/client-keys'
 import type { Id } from '@convex/_generated/dataModel'
 import { useMutation } from 'convex/react'
 import { api } from '@convex/_generated/api'
@@ -14,6 +18,26 @@ import {
   applyOptimisticGenerateMessage,
   applyOptimisticRegenerateMessage,
 } from '@/hooks/chat-data/optimistic-list-messages'
+import { applyOptimisticCreateThread } from '@/hooks/chat-data/optimistic-threads'
+
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message
+  }
+  if (typeof error === 'string') {
+    return error
+  }
+  return ''
+}
+
+function isExtraFieldValidationError(error: unknown, fieldName: string) {
+  const message = getErrorMessage(error)
+  return (
+    message.includes('ArgumentValidationError') &&
+    message.includes('extra field') &&
+    message.includes(fieldName)
+  )
+}
 
 export function useDraft(threadId: string) {
   const [draft, setDraftState] = useState(() => readDraft(threadId))
@@ -40,7 +64,17 @@ export function useDraft(threadId: string) {
 
 export function useSendMessage() {
   const { isOnline } = useOnlineStatus()
-  const createThread = useMutation(api.agents.createChatThread)
+  const supportsClientThreadKeyRef = useRef(true)
+  const supportsClientRequestIdRef = useRef(true)
+  const createThread = useMutation(api.agents.createChatThread).withOptimisticUpdate(
+    (localStore, args) => {
+      applyOptimisticCreateThread(localStore, args as {
+        title?: string
+        projectId?: string
+        clientThreadKey?: string
+      })
+    },
+  )
   const selectModel = useMutation(api.modelSelection.selectModel)
   const generateAttachmentUploadUrl = useMutation(
     api.agents.generateAttachmentUploadUrl,
@@ -143,11 +177,32 @@ export function useSendMessage() {
         }
 
         let nextThreadId = threadId
+        const clientThreadKey = threadId ?? createClientThreadKey()
         if (!nextThreadId) {
-          nextThreadId = await createThread({
-            title: text.substring(0, 30) || attachments?.[0]?.name || 'New chat',
-            projectId,
-          } as never)
+          const title = text.substring(0, 30) || attachments?.[0]?.name || 'New chat'
+          if (supportsClientThreadKeyRef.current) {
+            try {
+              nextThreadId = await createThread({
+                title,
+                projectId,
+                clientThreadKey,
+              } as never)
+            } catch (error) {
+              if (!isExtraFieldValidationError(error, 'clientThreadKey')) {
+                throw error
+              }
+              supportsClientThreadKeyRef.current = false
+              nextThreadId = await createThread({
+                title,
+                projectId,
+              } as never)
+            }
+          } else {
+            nextThreadId = await createThread({
+              title,
+              projectId,
+            } as never)
+          }
         }
         resolvedThreadId = nextThreadId
         if (!resolvedThreadId) {
@@ -198,7 +253,7 @@ export function useSendMessage() {
             : undefined
 
         await onBeforeGenerate?.()
-        await sendMessage({
+        const sendPayload = {
           threadId: resolvedThreadId,
           prompt: text,
           modelId: resolvedModelDocId,
@@ -206,7 +261,23 @@ export function useSendMessage() {
           searchEnabled: searchEnabled ?? false,
           reasoning,
           attachments: uploadedAttachments,
-        } as never)
+        }
+        if (supportsClientRequestIdRef.current) {
+          try {
+            await sendMessage({
+              ...sendPayload,
+              clientRequestId: createClientRequestId(),
+            } as never)
+          } catch (error) {
+            if (!isExtraFieldValidationError(error, 'clientRequestId')) {
+              throw error
+            }
+            supportsClientRequestIdRef.current = false
+            await sendMessage(sendPayload as never)
+          }
+        } else {
+          await sendMessage(sendPayload as never)
+        }
 
         writeDraft(threadId || 'new', '')
         writeDraft(resolvedThreadId, '')
@@ -308,14 +379,30 @@ export function useSendMessage() {
           throw new Error('No model selected')
         }
 
-        await regenerateMessage({
+        const regeneratePayload = {
           threadId,
           promptMessageId,
           modelId: resolvedModelDocId,
           projectId,
           searchEnabled: searchEnabled ?? false,
           reasoning,
-        } as never)
+        }
+        if (supportsClientRequestIdRef.current) {
+          try {
+            await regenerateMessage({
+              ...regeneratePayload,
+              clientRequestId: createClientRequestId(),
+            } as never)
+          } catch (error) {
+            if (!isExtraFieldValidationError(error, 'clientRequestId')) {
+              throw error
+            }
+            supportsClientRequestIdRef.current = false
+            await regenerateMessage(regeneratePayload as never)
+          }
+        } else {
+          await regenerateMessage(regeneratePayload as never)
+        }
         resumeMessageStreaming(threadId)
 
         return { disabledReason: null }

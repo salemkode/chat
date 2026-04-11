@@ -60,10 +60,12 @@ export function useChatConversation({
   const mentionProjects = useMemo(() => {
     if (!mention) return []
     const needle = mention.query.trim().toLowerCase()
-    if (!needle) return projects
-    return projects.filter((item) =>
-      `${item.name}\n${item.description || ''}`.toLowerCase().includes(needle),
-    )
+    if (!needle) return projects.slice(0, 1)
+    return projects
+      .filter((item) =>
+        `${item.name}\n${item.description || ''}`.toLowerCase().includes(needle),
+      )
+      .slice(0, 1)
   }, [mention, projects])
 
   useEffect(() => {
