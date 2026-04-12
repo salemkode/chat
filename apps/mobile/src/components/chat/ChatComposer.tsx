@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons'
+import type { ChatSuggestion } from '@chat/shared'
 import { Image, Platform, Pressable, Text, TextInput, View } from 'react-native'
 import { getProjectMention } from '@chat/shared/logic/project-mention'
 import { CHAT_BG, CHAT_BORDER, CHAT_CARD, CHAT_FG, CHAT_FG_MUTED } from './constants'
 import { ContextMeter } from './ContextMeter'
+import { ChatSuggestions } from './ChatSuggestions'
 import type { LocalAttachment } from './types'
 import type { Id } from '../../lib/convexApi'
 
@@ -42,6 +44,9 @@ type Props = {
   onConfirmCreateProject: () => void
   onCancelCreateProject: () => void
   creatingProject?: boolean
+  showSuggestions?: boolean
+  suggestions?: ChatSuggestion[]
+  onSuggestionPick?: (prompt: string) => void
   modelLabel: string
   onOpenModelPicker: () => void
   searchEnabled: boolean
@@ -82,6 +87,9 @@ export function ChatComposer({
   onConfirmCreateProject,
   onCancelCreateProject,
   creatingProject = false,
+  showSuggestions = false,
+  suggestions = [],
+  onSuggestionPick,
   modelLabel,
   onOpenModelPicker,
   searchEnabled,
@@ -114,6 +122,10 @@ export function ChatComposer({
       ) : null}
 
       <ContextMeter threadId={contextThreadId} modelDocId={contextModelDocId} />
+
+      {showSuggestions && suggestions.length > 0 && onSuggestionPick ? (
+        <ChatSuggestions suggestions={suggestions} onSelect={onSuggestionPick} />
+      ) : null}
 
       {attachments.length > 0 ? (
         <View
@@ -282,15 +294,11 @@ export function ChatComposer({
                 paddingVertical: 6,
               }}
             >
-              <Text style={{ color: CHAT_FG_MUTED, fontFamily: 'Inter_400Regular' }}>
-                Cancel
-              </Text>
+              <Text style={{ color: CHAT_FG_MUTED, fontFamily: 'Inter_400Regular' }}>Cancel</Text>
             </Pressable>
             <Pressable
               disabled={
-                creatingProject ||
-                pendingProjectDraft.loading ||
-                !pendingProjectDraft.name.trim()
+                creatingProject || pendingProjectDraft.loading || !pendingProjectDraft.name.trim()
               }
               onPress={onConfirmCreateProject}
               style={{
@@ -298,9 +306,7 @@ export function ChatComposer({
                 paddingHorizontal: 12,
                 paddingVertical: 6,
                 backgroundColor:
-                  creatingProject ||
-                  pendingProjectDraft.loading ||
-                  !pendingProjectDraft.name.trim()
+                  creatingProject || pendingProjectDraft.loading || !pendingProjectDraft.name.trim()
                     ? '#4a4c52'
                     : '#ffffff',
               }}
@@ -428,7 +434,10 @@ export function ChatComposer({
         >
           <Ionicons name="search" size={18} color={searchEnabled ? '#4a9cff' : CHAT_FG_MUTED} />
         </Pressable>
-        <Pressable onPress={() => void onPickImage()} style={{ borderRadius: 999, backgroundColor: CHAT_CARD, padding: 8 }}>
+        <Pressable
+          onPress={() => void onPickImage()}
+          style={{ borderRadius: 999, backgroundColor: CHAT_CARD, padding: 8 }}
+        >
           <Ionicons name="image-outline" size={20} color={CHAT_FG} />
         </Pressable>
         <Pressable

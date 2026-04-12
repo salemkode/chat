@@ -36,6 +36,14 @@ import { threadMetadataValidator } from './lib/validators'
 import { isModelUsableForPlan } from './lib/appPlan'
 import { resolveEffectiveAppPlan } from './lib/billing'
 import { getModelOfferAccessFlags } from './lib/modelOffersAccess'
+import {
+  evaluateToolPolicy,
+  finalizeToolPolicyEvaluation,
+  runThreadMetadataPolicy,
+  TOOL_POLICY_VERSION,
+  type ToolPolicyAutomaticAction,
+  type ToolPolicyRequiredAction,
+} from './lib/toolPolicy'
 
 // Random emoji picker for new chats
 const CHAT_EMOJIS = [
@@ -66,8 +74,6 @@ export function getRandomEmoji(): string {
 }
 
 const THREAD_TITLE_MAX_LENGTH = 60
-const AUTO_METADATA_MESSAGE_THRESHOLD = 5
-const AUTO_METADATA_STALE_AFTER_MS = 5 * 60 * 1000
 const SUPPORTED_CHAT_ATTACHMENT_TYPES = ['application/pdf'] as const
 export const GENERATION_STOPPED_BY_USER = 'GENERATION_STOPPED_BY_USER'
 const GENERATION_FAILED_FALLBACK_MESSAGE = 'The model could not complete this response.'
@@ -125,34 +131,6 @@ function summarizeForPrompt(text: string, maxLength = 240) {
     return normalized
   }
   return `${normalized.slice(0, maxLength - 1).trimEnd()}…`
-}
-
-function hasMeaningfulTitleCandidate(text: string) {
-  const normalized = text.trim()
-  if (normalized.length < 18) return false
-  return normalized.split(/\s+/).length >= 4
-}
-
-function isPlaceholderThreadTitle(
-  title: string | undefined,
-  firstUserMessage: string,
-) {
-  const normalizedTitle = title?.trim().toLowerCase()
-  if (!normalizedTitle) return true
-
-  const placeholderTitles = new Set(['new chat', 'untitled', 'untitled chat'])
-
-  if (placeholderTitles.has(normalizedTitle)) {
-    return true
-  }
-
-  const firstSnippet = firstUserMessage
-    .trim()
-    .replace(/\s+/g, ' ')
-    .slice(0, 30)
-    .toLowerCase()
-
-  return firstSnippet.length > 0 && normalizedTitle === firstSnippet
 }
 
 async function getConversationSnapshot(
@@ -415,6 +393,118 @@ async function failPendingMessagesByOrder(
 
   return matchingPendingMessages.length > 0
 }
+
+async function getAssistantResponsePartsForPrompt(
+  ctx: Pick<ActionCtx, 'runQuery'>,
+  args: {
+    threadId: string
+    promptMessageId?: string
+  },
+) {
+  const promptOrder = await resolvePromptOrder(ctx, {
+    promptMessageId: args.promptMessageId,
+  })
+
+  const messages = await ctx.runQuery(components.agent.messages.listMessagesByThreadId, {
+    threadId: args.threadId,
+    statuses: ['success'],
+    order: 'desc',
+    paginationOpts: {
+      cursor: null,
+      numItems: 20,
+    },
+  })
+
+  const assistantMessage = messages.page.find((message) => {
+    if (message.message?.role !== 'assistant') {
+      return false
+    }
+
+    if (promptOrder === undefined) {
+      return true
+    }
+
+    return message.order > promptOrder
+  })
+
+  const content = assistantMessage?.message?.content
+  if (!Array.isArray(content)) {
+    return []
+  }
+
+  return content.flatMap((part) =>
+    part && typeof part === 'object' && !Array.isArray(part)
+      ? [part as Record<string, unknown>]
+      : [],
+  )
+}
+
+const toolPolicyEventStatusValidator = v.union(
+  v.literal('evaluated'),
+  v.literal('completed'),
+  v.literal('skipped'),
+  v.literal('failed'),
+)
+
+const toolPolicyDetectedIntentValidator = v.union(
+  v.literal('memory_search'),
+  v.literal('memory_add'),
+  v.literal('memory_update'),
+  v.literal('memory_delete'),
+  v.literal('metadata_refresh'),
+  v.literal('none'),
+)
+
+export const createToolPolicyEvent = internalMutation({
+  args: {
+    threadId: v.string(),
+    userId: v.id('users'),
+    promptMessageId: v.optional(v.string()),
+    policyVersion: v.string(),
+    detectedIntent: v.optional(toolPolicyDetectedIntentValidator),
+    requiredActions: v.array(v.string()),
+    automaticActions: v.array(v.string()),
+    systemAddendum: v.string(),
+    policyTrace: v.array(v.string()),
+    status: toolPolicyEventStatusValidator,
+    error: v.optional(v.string()),
+  },
+  returns: v.id('toolPolicyEvents'),
+  handler: async (ctx, args) => {
+    return await ctx.db.insert('toolPolicyEvents', {
+      ...args,
+      createdAt: Date.now(),
+    })
+  },
+})
+
+export const updateToolPolicyEvent = internalMutation({
+  args: {
+    eventId: v.id('toolPolicyEvents'),
+    automaticActions: v.optional(v.array(v.string())),
+    observedTools: v.optional(v.array(v.string())),
+    satisfiedActions: v.optional(v.array(v.string())),
+    status: v.optional(toolPolicyEventStatusValidator),
+    error: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const existing = await ctx.db.get(args.eventId)
+    if (!existing) {
+      return null
+    }
+
+    await ctx.db.patch(args.eventId, {
+      automaticActions: args.automaticActions ?? existing.automaticActions,
+      observedTools: args.observedTools ?? existing.observedTools,
+      satisfiedActions: args.satisfiedActions ?? existing.satisfiedActions,
+      status: args.status ?? existing.status,
+      error: args.error ?? existing.error,
+    })
+
+    return null
+  },
+})
 
 const threadPresentationValidator = v.union(
   v.null(),
@@ -1149,6 +1239,11 @@ export const streamMessage = internalAction({
     ),
   },
   handler: async (ctx, args) => {
+    let toolPolicyEventId: Id<'toolPolicyEvents'> | null = null
+    let policyAutomaticActions: ToolPolicyAutomaticAction[] = []
+    let policyError: string | undefined
+    let toolPolicyRequiredActions: ToolPolicyRequiredAction[] = []
+
     try {
       const searchEnabled = args.searchEnabled === true
       let resolvedPrompt = args.prompt?.trim() || ''
@@ -1377,34 +1472,85 @@ export const streamMessage = internalAction({
         getConversationSnapshot(ctx, args.threadId, resolvedPrompt),
       ])
 
-      const currentTitle = threadPresentation?.title
-      const currentEmoji = threadPresentation?.emoji || '💬'
-      const minutesSinceLabelUpdate = Math.max(
-        0,
-        Math.floor(
-          (Date.now() - (threadPresentation?.lastLabelUpdateAt || Date.now())) /
-            60000,
-        ),
-      )
-      const titleLooksPlaceholder = isPlaceholderThreadTitle(
+      let currentTitle = threadPresentation?.title
+      let currentEmoji = threadPresentation?.emoji || '💬'
+      const policyNow = Date.now()
+      const toolPolicy = evaluateToolPolicy({
+        threadId: args.threadId,
+        userId: args.userId.toString(),
+        prompt: resolvedPrompt,
         currentTitle,
-        conversationSnapshot.firstUserMessage,
-      )
-      const shouldCreateInitialTitle =
-        hasMeaningfulTitleCandidate(conversationSnapshot.firstUserMessage) &&
-        titleLooksPlaceholder
-      const shouldRefreshStaleMetadata =
-        conversationSnapshot.messageCount > AUTO_METADATA_MESSAGE_THRESHOLD &&
-        Date.now() - (threadPresentation?.lastLabelUpdateAt || 0) >=
-          AUTO_METADATA_STALE_AFTER_MS
-      const autoMetadataTrigger =
-        shouldCreateInitialTitle || shouldRefreshStaleMetadata
+        currentEmoji,
+        lastLabelUpdateAt: threadPresentation?.lastLabelUpdateAt ?? 0,
+        firstUserMessage: conversationSnapshot.firstUserMessage,
+        messageCount: conversationSnapshot.messageCount,
+        now: policyNow,
+      })
+      const metadataPolicy = runThreadMetadataPolicy({
+        prompt: resolvedPrompt,
+        currentTitle,
+        currentEmoji,
+        lastLabelUpdateAt: threadPresentation?.lastLabelUpdateAt ?? 0,
+        firstUserMessage: conversationSnapshot.firstUserMessage,
+        messageCount: conversationSnapshot.messageCount,
+        now: policyNow,
+      })
+      toolPolicyRequiredActions = toolPolicy.requiredActions
 
-      const autoMetadataReason = shouldCreateInitialTitle
-        ? 'The first user message is descriptive enough for a better thread title and emoji.'
-        : shouldRefreshStaleMetadata
-          ? 'The thread has at least five messages and the current title or emoji may be stale.'
-          : 'No automatic refresh is required right now.'
+      try {
+        toolPolicyEventId = await ctx.runMutation(
+          internal.agents.createToolPolicyEvent,
+          {
+            threadId: args.threadId,
+            userId: args.userId,
+            promptMessageId: args.promptMessageId,
+            policyVersion: TOOL_POLICY_VERSION,
+            detectedIntent: toolPolicy.detectedIntent,
+            requiredActions: toolPolicy.requiredActions,
+            automaticActions: policyAutomaticActions,
+            systemAddendum: toolPolicy.systemAddendum,
+            policyTrace: toolPolicy.policyTrace,
+            status: 'evaluated',
+            error: undefined,
+          },
+        )
+      } catch (error) {
+        console.error('Failed to create tool policy event:', error)
+      }
+
+      if (
+        metadataPolicy.detectedIntent === 'metadata_refresh' &&
+        metadataPolicy.update
+      ) {
+        try {
+          await ctx.runMutation(internal.agents.applyThreadMetadataUpdate, {
+            threadId: args.threadId,
+            userId: args.userId,
+            title: metadataPolicy.update.title,
+            emoji: metadataPolicy.update.emoji,
+          })
+          policyAutomaticActions = ['metadata_update_applied']
+          currentTitle = metadataPolicy.update.title
+          currentEmoji = metadataPolicy.update.emoji
+        } catch (error) {
+          policyAutomaticActions = ['metadata_update_failed']
+          policyError = `Automatic metadata update failed: ${getErrorMessage(error)}`
+          console.error(policyError, error)
+        }
+
+        if (toolPolicyEventId) {
+          try {
+            await ctx.runMutation(internal.agents.updateToolPolicyEvent, {
+              eventId: toolPolicyEventId,
+              automaticActions: policyAutomaticActions,
+              status: policyError ? 'failed' : 'evaluated',
+              error: policyError,
+            })
+          } catch (error) {
+            console.error('Failed to update tool policy event:', error)
+          }
+        }
+      }
 
       const searchSystem = searchEnabled
         ? [
@@ -1443,14 +1589,10 @@ export const streamMessage = internalAction({
 
       const memorySystem = [
         'Memory tools are enabled for this message.',
-        'Use `memory_search` before claiming you remember something, and before updating or deleting memory.',
-        'Use `memory_add` only for durable facts, preferences, instructions, or project knowledge that should persist beyond this message.',
-        'For most user messages, proactively extract and store multiple compact memory facts when appropriate (often 3-4 facts from one message).',
-        'When the user shares a CV/resume/profile, treat it as high-value memory input: store all durable details in compact atomic facts before answering.',
-        'Split long user inputs into the smallest useful stable facts (for example role, company, timeframe, skill, preference) and store each fact separately.',
-        'Do not save transient status, temporary plans, or one-off facts.',
+        'Use `memory_search` when the user explicitly asks what is remembered, and before updating or deleting a memory.',
+        'Use `memory_add` only for explicit durable information the user asked to remember.',
         'Use `memory_update` and `memory_delete` only after you have the correct `memoryId`, usually from `memory_search`.',
-        'Prefer saving memory first, then answer using both stored memory and the current user message.',
+        'Stored memory is advisory; the latest user message overrides it.',
         'Thread scope means the current conversation only.',
         linkedProject
           ? `Project scope is limited to the project linked to this thread: ${linkedProject.name} (${linkedProject._id}).`
@@ -1460,19 +1602,11 @@ export const streamMessage = internalAction({
 
       const threadMetadataSystem = [
         'Thread metadata updates are enabled for this message.',
-        'Use the tool `update_thread_metadata` to update the current thread title, emoji, and optional icon.',
+        'Use the tool `update_thread_metadata` only when the current thread title or emoji is clearly wrong and needs a manual correction.',
         'A good title is short, specific, and ideally 3-6 words.',
-        'Choose a single relevant emoji for the thread.',
-        'Set an icon only when you are confident about a matching Lucide icon name.',
-        'Do not call the tool if the current title and emoji are already accurate.',
-        autoMetadataTrigger
-          ? 'AUTO_METADATA_TRIGGER: yes. If you can infer a clearly better title or emoji, call `update_thread_metadata` once before answering.'
-          : 'AUTO_METADATA_TRIGGER: no. You may still call `update_thread_metadata` if the current title or emoji is clearly wrong.',
-        `AUTO_METADATA_REASON: ${autoMetadataReason}`,
         `Current thread title: ${currentTitle || '(none)'}`,
         `Current thread emoji: ${currentEmoji}`,
         `Conversation message count including the current prompt: ${conversationSnapshot.messageCount}`,
-        `Minutes since the thread title or emoji was last updated: ${minutesSinceLabelUpdate}`,
         `First user message: ${summarizeForPrompt(conversationSnapshot.firstUserMessage || resolvedPrompt)}`,
         conversationSnapshot.recentTranscript
           ? `Recent conversation excerpt:\n${conversationSnapshot.recentTranscript}`
@@ -1486,6 +1620,7 @@ export const streamMessage = internalAction({
         reasoningSystem,
         memorySystem,
         threadMetadataSystem,
+        toolPolicy.systemAddendum,
       ]
         .filter(Boolean)
         .join('\n\n')
@@ -1528,9 +1663,47 @@ export const streamMessage = internalAction({
           },
         },
       )
+
+      const assistantMessageParts = await getAssistantResponsePartsForPrompt(ctx, {
+        threadId: args.threadId,
+        promptMessageId: args.promptMessageId,
+      })
+      const finalizedPolicy = finalizeToolPolicyEvaluation({
+        requiredActions: toolPolicyRequiredActions,
+        automaticActions: policyAutomaticActions,
+        messageParts: assistantMessageParts,
+        preflightError: policyError,
+      })
+
+      if (toolPolicyEventId) {
+        try {
+          await ctx.runMutation(internal.agents.updateToolPolicyEvent, {
+            eventId: toolPolicyEventId,
+            automaticActions: policyAutomaticActions,
+            observedTools: finalizedPolicy.observedTools,
+            satisfiedActions: finalizedPolicy.satisfiedActions,
+            status: finalizedPolicy.status,
+            error: finalizedPolicy.error,
+          })
+        } catch (error) {
+          console.error('Failed to finalize tool policy event:', error)
+        }
+      }
     } catch (error) {
       console.error('Error in streamMessage:', error)
       const formattedError = formatGenerationError(error)
+      if (toolPolicyEventId) {
+        try {
+          await ctx.runMutation(internal.agents.updateToolPolicyEvent, {
+            eventId: toolPolicyEventId,
+            automaticActions: policyAutomaticActions,
+            status: 'failed',
+            error: formattedError || policyError || GENERATION_FAILED_FALLBACK_MESSAGE,
+          })
+        } catch (policyEventError) {
+          console.error('Failed to mark tool policy event as failed:', policyEventError)
+        }
+      }
       await markPendingGenerationFailed(ctx, {
         threadId: args.threadId,
         promptMessageId: args.promptMessageId,

@@ -5,7 +5,7 @@ import {
   SignUp,
 } from '@clerk/react-router'
 import { Navigate, useSearchParams } from 'react-router'
-import { Loader2 } from '@/lib/icons'
+import { AuthLoadingScreen } from '@/components/auth/auth-loading-screen'
 import { getPostLoginRedirectTarget } from '@/lib/auth-redirect'
 
 export default function SignupPage() {
@@ -24,9 +24,9 @@ export default function SignupPage() {
       }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+    <>
       <ClerkLoading>
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <AuthLoadingScreen />
       </ClerkLoading>
 
       <ClerkLoaded>
@@ -35,14 +35,16 @@ export default function SignupPage() {
         </Show>
 
         <Show when="signed-out">
-          <SignUp
-            path="/signup"
-            routing="path"
-            signInUrl="/login"
-            {...redirectProps}
-          />
+          <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+            <SignUp
+              path="/signup"
+              routing="path"
+              signInUrl="/login"
+              {...redirectProps}
+            />
+          </div>
         </Show>
       </ClerkLoaded>
-    </div>
+    </>
   )
 }

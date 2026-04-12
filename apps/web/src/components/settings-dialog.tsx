@@ -7,6 +7,7 @@ import {
   Brain,
   Camera,
   Database,
+  Key,
   Loader2,
   Monitor,
   Moon,
@@ -27,6 +28,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { MemorySettingsPanel } from '@/components/settings/memory-settings-panel'
+import { KeyboardSettingsPanel } from '@/components/settings/keyboard-settings-panel'
 import { useTheme } from '@/components/theme-provider'
 import { useOnlineStatus } from '@/hooks/use-online-status'
 import { useRoleContext, useSettings, useViewer } from '@/hooks/use-chat-data'
@@ -106,6 +108,7 @@ export function SettingsDialog({
     () =>
       [
         { id: 'general', label: 'General', icon: Settings },
+        { id: 'keyboard', label: 'Keyboard', icon: Key },
         { id: 'theme', label: 'Theme', icon: Palette },
         { id: 'model', label: 'Models & reasoning', icon: Brain },
         { id: 'memory', label: 'Memory', icon: Database },
@@ -272,6 +275,8 @@ export function SettingsDialog({
                 </SettingsItem>
               </div>
             ) : null}
+
+            {activeTab === 'keyboard' ? <KeyboardSettingsPanel /> : null}
 
             {activeTab === 'theme' ? (
               <div className="space-y-6">

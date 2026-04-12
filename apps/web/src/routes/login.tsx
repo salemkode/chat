@@ -5,8 +5,8 @@ import {
   SignIn,
 } from '@clerk/react-router'
 import { Navigate, useSearchParams } from 'react-router'
-import { Loader2 } from '@/lib/icons'
 import { useEffect } from 'react'
+import { AuthLoadingScreen } from '@/components/auth/auth-loading-screen'
 import { getPostLoginRedirectTarget } from '@/lib/auth-redirect'
 
 const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1'])
@@ -34,9 +34,9 @@ export default function LoginPage() {
       }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+    <>
       <ClerkLoading>
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <AuthLoadingScreen />
       </ClerkLoading>
 
       <ClerkLoaded>
@@ -46,19 +46,21 @@ export default function LoginPage() {
 
         <Show when="signed-out">
           {!useExternalAuth ? (
-            <SignIn
-              path="/login"
-              routing="path"
-              signUpUrl="/signup"
-              {...redirectProps}
-            />
+            <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+              <SignIn
+                path="/login"
+                routing="path"
+                signUpUrl="/signup"
+                {...redirectProps}
+              />
+            </div>
           ) : null}
           {useExternalAuth && authFrontendBase ? (
             <ExternalAuthRedirect to={authFrontendBase} />
           ) : null}
         </Show>
       </ClerkLoaded>
-    </div>
+    </>
   )
 }
 
@@ -67,14 +69,7 @@ function ExternalAuthRedirect({ to }: { to: string }) {
     window.location.replace(to)
   }, [to])
 
-  return (
-    <div className="flex flex-col items-center gap-4">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      <p className="text-sm text-muted-foreground">
-        Redirecting to sign in...
-      </p>
-    </div>
-  )
+  return <AuthLoadingScreen />
 }
 
 function resolveAuthFrontendBaseUrl(configuredUrl?: string) {

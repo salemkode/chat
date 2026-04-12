@@ -10,8 +10,8 @@ import { useEffect, useState } from 'react'
 import { ClerkProvider } from '@clerk/react-router'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 import { ConvexClientProvider } from '@/components/ConvexClientProvider'
+import { HotkeysProvider } from '@/components/hotkeys-provider'
 import { ThemeProvider } from '@/components/theme-provider'
-import { Loader2 } from '@/lib/icons'
 import { getRequiredEnv } from '@/lib/parsers'
 import appCss from '@/styles.css?url'
 
@@ -57,11 +57,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export function HydrateFallback() {
-  return (
-    <div className="flex h-screen w-full items-center justify-center bg-background text-foreground">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-    </div>
-  )
+  return <div className="min-h-screen w-full bg-[#050505]" />
 }
 
 export default function App() {
@@ -76,16 +72,18 @@ export default function App() {
       publishableKey={getRequiredEnv(import.meta.env, 'VITE_CLERK_PUBLISHABLE_KEY')}
     >
       <ThemeProvider>
-        <ConvexClientProvider>
-          <Outlet />
-          {showDevtools ? (
-            <TanStackDevtools
-              config={{
-                position: 'bottom-right',
-              }}
-            />
-          ) : null}
-        </ConvexClientProvider>
+        <HotkeysProvider>
+          <ConvexClientProvider>
+            <Outlet />
+            {showDevtools ? (
+              <TanStackDevtools
+                config={{
+                  position: 'bottom-right',
+                }}
+              />
+            ) : null}
+          </ConvexClientProvider>
+        </HotkeysProvider>
       </ThemeProvider>
     </ClerkProvider>
   )

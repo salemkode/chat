@@ -26,7 +26,7 @@ const memorySearchInputSchema = z.object({
     .string()
     .min(1)
     .max(500)
-    .describe('Semantic search query for saved memory.'),
+    .describe('What saved memory to search for.'),
   scope: z
     .enum(['all', 'user', 'thread', 'project'])
     .optional()
@@ -41,7 +41,7 @@ const memorySearchInputSchema = z.object({
     .min(1)
     .max(10)
     .optional()
-    .describe('Maximum number of memories to return, defaults to 5.'),
+    .describe('Maximum memories to return. Defaults to 5.'),
   categories: z
     .array(z.string().min(1).max(80))
     .max(8)
@@ -52,7 +52,7 @@ const memorySearchInputSchema = z.object({
 const memoryAddInputSchema = z.object({
   scope: z
     .enum(['user', 'thread', 'project'])
-    .describe('Where the memory should be stored.'),
+    .describe('Where to store the memory.'),
   title: z.string().min(1).max(120),
   content: z.string().min(1).max(1000),
   category: z.string().min(1).max(80).optional(),
@@ -60,7 +60,7 @@ const memoryAddInputSchema = z.object({
   projectId: z
     .string()
     .optional()
-    .describe('Optional when the current chat already has a linked project.'),
+    .describe('Optional if the current chat already has a linked project.'),
 })
 
 const memoryUpdateInputSchema = z.object({
@@ -68,7 +68,7 @@ const memoryUpdateInputSchema = z.object({
   memoryId: z
     .string()
     .min(1)
-    .describe('The memoryId returned by memory_search.'),
+    .describe('The `memoryId` returned by `memory_search`.'),
   title: z.string().min(1).max(120).optional(),
   content: z.string().min(1).max(1000).optional(),
   category: z.string().max(80).optional(),
@@ -80,7 +80,7 @@ const memoryDeleteInputSchema = z.object({
   memoryId: z
     .string()
     .min(1)
-    .describe('The memoryId returned by memory_search.'),
+    .describe('The `memoryId` returned by `memory_search`.'),
 })
 
 function errorToMessage(error: unknown) {
@@ -301,7 +301,7 @@ async function searchMemoryHits(
 export const memoryTools = {
   memory_search: createTool({
     description:
-      'Search saved user, thread, or project memory. Use this before claiming you remember something, and before updating or deleting memory.',
+      'Search saved memory when the user asks what is remembered, or before updating or deleting a memory.',
     inputSchema: memorySearchInputSchema,
     execute: async (ctx, input) => {
       try {
@@ -325,7 +325,7 @@ export const memoryTools = {
   }),
   memory_add: createTool({
     description:
-      'Create durable memory in user, thread, or project scope. Use only for stable facts, preferences, instructions, or project knowledge worth remembering later.',
+      'Save explicit durable information the user asked to remember.',
     inputSchema: memoryAddInputSchema,
     execute: async (ctx, input) => {
       try {
@@ -370,7 +370,7 @@ export const memoryTools = {
   }),
   memory_update: createTool({
     description:
-      'Update an existing saved memory by memoryId. Usually call memory_search first to get the correct memoryId.',
+      'Update an existing saved memory by `memoryId`. Usually call `memory_search` first.',
     inputSchema: memoryUpdateInputSchema,
     execute: async (ctx, input) => {
       try {
@@ -418,7 +418,7 @@ export const memoryTools = {
   }),
   memory_delete: createTool({
     description:
-      'Delete an existing saved memory by memoryId. Usually call memory_search first to get the correct memoryId.',
+      'Delete an existing saved memory by `memoryId`. Usually call `memory_search` first.',
     inputSchema: memoryDeleteInputSchema,
     execute: async (ctx, input) => {
       try {

@@ -1,5 +1,4 @@
 'use client'
-
 import { useEffect, useRef, useState } from 'react'
 import { api } from '@convex/_generated/api'
 import type { Id } from '@convex/_generated/dataModel'
@@ -49,9 +48,7 @@ function ComposerContextMeter({
 }) {
   const data = useQuery(
     api.agents.getThreadContextMeter,
-    threadId && modelDocId
-      ? { threadId, selectedModelId: modelDocId }
-      : 'skip',
+    threadId && modelDocId ? { threadId, selectedModelId: modelDocId } : 'skip',
   )
 
   if (!threadId || !modelDocId) {
@@ -66,19 +63,14 @@ function ComposerContextMeter({
 
   const limit = data.contextWindow
   const used = data.usedPromptTokens
-  const pct =
-    limit !== null && used !== null && limit > 0
-      ? Math.min(100, Math.round((used / limit) * 100))
-      : null
+  const hasValues = limit !== null && used !== null
 
-  const labelRight =
-    used !== null && limit !== null
-      ? `${formatContextTokens(used)} / ${formatContextTokens(limit)}`
-      : limit !== null
-        ? data.modelMatches
-          ? '—'
-          : 'Last turn used a different model'
-        : '—'
+  if (!hasValues) {
+    return null
+  }
+
+  const pct = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : null
+  const labelRight = `${formatContextTokens(used)} / ${formatContextTokens(limit)}`
 
   const size = mobile ? 34 : 32
   const strokeWidth = 4
@@ -86,8 +78,6 @@ function ComposerContextMeter({
   const circumference = 2 * Math.PI * radius
   const progress = Math.max(0, Math.min(100, pct ?? 0))
   const dashOffset = circumference - (progress / 100) * circumference
-  const hasUsage = limit !== null && used !== null
-
   return (
     <div className="inline-flex shrink-0 items-center justify-center">
       <div
@@ -110,23 +100,21 @@ function ComposerContextMeter({
             className="text-muted/70"
             fill="transparent"
           />
-          {hasUsage ? (
-            <circle
-              cx={size / 2}
-              cy={size / 2}
-              r={radius}
-              stroke="currentColor"
-              strokeWidth={strokeWidth}
-              className="text-primary transition-[stroke-dashoffset] duration-300"
-              fill="transparent"
-              strokeLinecap="round"
-              strokeDasharray={circumference}
-              strokeDashoffset={dashOffset}
-            />
-          ) : null}
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            stroke="currentColor"
+            strokeWidth={strokeWidth}
+            className="text-primary transition-[stroke-dashoffset] duration-300"
+            fill="transparent"
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={dashOffset}
+          />
         </svg>
         <span className="pointer-events-none absolute text-[11px] font-semibold tabular-nums text-foreground/85">
-          {hasUsage ? progress : '—'}
+          {progress}
         </span>
         <div className="pointer-events-none absolute bottom-full right-0 z-10 mb-2 hidden whitespace-nowrap rounded-md border border-border/70 bg-background/95 px-2 py-1 text-[11px] text-muted-foreground shadow-sm backdrop-blur group-hover/context:block">
           {labelRight}
@@ -152,6 +140,7 @@ interface AIPromptInputProps {
   value?: string
   onValueChange?: (value: string) => void
   footerText?: string
+  onEmptyStateChange?: (isEmpty: boolean) => void
   projects?: Array<{
     id: string
     name: string
@@ -182,10 +171,7 @@ interface AIPromptInputProps {
   >
   pendingProjectDraft?: PendingProjectDraft | null
   onPendingProjectDraftChange?: (draft: PendingProjectDraft | null) => void
-  onConfirmCreateProject?: (values: {
-    name: string
-    description?: string
-  }) => Promise<void> | void
+  onConfirmCreateProject?: (values: { name: string; description?: string }) => Promise<void> | void
   onCancelCreateProject?: () => void
   creatingProject?: boolean
 }
@@ -198,6 +184,7 @@ export function AIPromptInput({
   value: controlledValue,
   onValueChange,
   footerText,
+  onEmptyStateChange,
   projects = [],
   selectedProjectId,
   onProjectChange,
@@ -225,9 +212,7 @@ export function AIPromptInput({
     userReasoningLevel,
   )
   const [submitError, setSubmitError] = useState<string | null>(null)
-  const [projectMention, setProjectMention] = useState<ProjectMentionState | null>(
-    null,
-  )
+  const [projectMention, setProjectMention] = useState<ProjectMentionState | null>(null)
   const [highlightedProjectIndex, setHighlightedProjectIndex] = useState(0)
   const [attachments, setAttachments] = useState<PendingAttachment[]>([])
   const [textAttachments, setTextAttachments] = useState<TextAttachment[]>([])
@@ -260,10 +245,7 @@ export function AIPromptInput({
     onValueChange?.(nextValue)
   }
 
-  const syncProjectMention = (
-    nextValue: string,
-    caretPosition: number | null | undefined,
-  ) => {
+  const syncProjectMention = (nextValue: string, caretPosition: number | null | undefined) => {
     const nextMention = getProjectMention(nextValue, caretPosition ?? nextValue.length)
     setProjectMention(nextMention)
     if (nextMention) {
@@ -305,9 +287,7 @@ export function AIPromptInput({
     }
 
     setAttachments((current) => {
-      const known = new Set(
-        current.map((attachment) => getAttachmentFingerprint(attachment.file)),
-      )
+      const known = new Set(current.map((attachment) => getAttachmentFingerprint(attachment.file)))
       const next = [...current]
 
       for (const file of supported) {
@@ -320,9 +300,7 @@ export function AIPromptInput({
         next.push({
           id: fingerprint,
           file,
-          previewUrl: file.type.startsWith('image/')
-            ? URL.createObjectURL(file)
-            : undefined,
+          previewUrl: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined,
         })
       }
 
@@ -436,10 +414,7 @@ export function AIPromptInput({
     setSubmitError(null)
 
     try {
-      const resolvedPrompt = combineTextAttachmentsWithPrompt(
-        value,
-        textAttachments,
-      )
+      const resolvedPrompt = combineTextAttachmentsWithPrompt(value, textAttachments)
       await onSubmit(resolvedPrompt, {
         searchEnabled,
         projectId: selectedProjectId,
@@ -495,9 +470,7 @@ export function AIPromptInput({
     }
 
     setHighlightedProjectIndex((current) =>
-      mentionOptions.length === 0
-        ? 0
-        : Math.min(current, mentionOptions.length - 1),
+      mentionOptions.length === 0 ? 0 : Math.min(current, mentionOptions.length - 1),
     )
   }, [mentionOptions.length, projectMention])
 
@@ -514,6 +487,21 @@ export function AIPromptInput({
   useEffect(() => {
     attachmentsRef.current = attachments
   }, [attachments])
+
+  useEffect(() => {
+    onEmptyStateChange?.(
+      !value.trim() &&
+        attachments.length === 0 &&
+        textAttachments.length === 0 &&
+        !pendingProjectDraft,
+    )
+  }, [
+    attachments.length,
+    onEmptyStateChange,
+    pendingProjectDraft,
+    textAttachments.length,
+    value,
+  ])
 
   useEffect(() => {
     setReasoningEnabled(userReasoningEnabled)
@@ -546,12 +534,7 @@ export function AIPromptInput({
   }, [])
 
   return (
-    <div
-      className={cn(
-        'pointer-events-auto mb-1 w-full',
-        mobile ? 'bg-transparent' : '',
-      )}
-    >
+    <div className={cn('pointer-events-auto mb-1 w-full', mobile ? 'bg-transparent' : '')}>
       {submitError ? (
         <div className={cn('mb-2 flex justify-center', mobile && 'px-2')}>
           <div
@@ -611,9 +594,7 @@ export function AIPromptInput({
                 </div>
               ) : null}
               {pendingProjectDraft.error ? (
-                <div className="mb-2 text-xs text-destructive">
-                  {pendingProjectDraft.error}
-                </div>
+                <div className="mb-2 text-xs text-destructive">{pendingProjectDraft.error}</div>
               ) : null}
               <div className="space-y-2">
                 <input
@@ -646,9 +627,7 @@ export function AIPromptInput({
                     }}
                     className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
                     disabled={
-                      creatingProject ||
-                      pendingProjectDraft.loading ||
-                      !pendingProjectName.trim()
+                      creatingProject || pendingProjectDraft.loading || !pendingProjectName.trim()
                     }
                   >
                     {creatingProject ? 'Creating…' : 'Create project'}
@@ -662,11 +641,7 @@ export function AIPromptInput({
             mobile={mobile}
             onRemove={removeTextAttachment}
           />
-          <AttachmentGrid
-            attachments={attachments}
-            mobile={mobile}
-            onRemove={removeAttachment}
-          />
+          <AttachmentGrid attachments={attachments} mobile={mobile} onRemove={removeAttachment} />
           <textarea
             ref={textareaRef}
             name="input"
@@ -676,10 +651,7 @@ export function AIPromptInput({
               const pastedText = event.clipboardData.getData('text/plain')
               if (pastedText && shouldConvertToTextAttachment(pastedText)) {
                 event.preventDefault()
-              setTextAttachments((current) => [
-                  ...current,
-                  createTextAttachment(pastedText),
-                ])
+                setTextAttachments((current) => [...current, createTextAttachment(pastedText)])
               }
             }}
             onChange={(event) => {
@@ -717,11 +689,7 @@ export function AIPromptInput({
 
               if (event.key === 'Enter' && event.shiftKey) {
                 event.preventDefault()
-                if (
-                  !value.trim() &&
-                  attachments.length === 0 &&
-                  textAttachments.length === 0
-                ) {
+                if (!value.trim() && attachments.length === 0 && textAttachments.length === 0) {
                   onEmptyEnter?.()
                   return
                 }
@@ -729,10 +697,7 @@ export function AIPromptInput({
               }
             }}
             onClick={(event) =>
-              syncProjectMention(
-                event.currentTarget.value,
-                event.currentTarget.selectionStart,
-              )
+              syncProjectMention(event.currentTarget.value, event.currentTarget.selectionStart)
             }
             onKeyUp={(event) => {
               if (
@@ -744,15 +709,13 @@ export function AIPromptInput({
                 return
               }
 
-              syncProjectMention(
-                event.currentTarget.value,
-                event.currentTarget.selectionStart,
-              )
+              syncProjectMention(event.currentTarget.value, event.currentTarget.selectionStart)
             }}
             disabled={disabled}
             className={cn(
               'w-full min-w-0 resize-none bg-transparent text-base leading-6 text-foreground outline-none placeholder:text-muted-foreground/60 disabled:opacity-50',
-              mobile && 'min-h-[52px] text-[17px] leading-[1.35] placeholder:text-muted-foreground/55 sm:text-base',
+              mobile &&
+                'min-h-[52px] text-[17px] leading-[1.35] placeholder:text-muted-foreground/55 sm:text-base',
             )}
             aria-label="Message input"
             autoComplete="off"
@@ -799,9 +762,7 @@ export function AIPromptInput({
         />
       </form>
 
-      {footerText ? (
-        <p className="mt-2 px-1 text-xs text-muted-foreground">{footerText}</p>
-      ) : null}
+      {footerText ? <p className="mt-2 px-1 text-xs text-muted-foreground">{footerText}</p> : null}
     </div>
   )
 }

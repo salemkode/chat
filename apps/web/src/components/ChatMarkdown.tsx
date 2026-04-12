@@ -179,7 +179,10 @@ function MarkdownCodeBlock({
   )
 
   return (
-    <div className="chat-markdown-codeblock not-prose relative my-3 overflow-hidden rounded-xl border border-border/60 bg-sidebar/85 shadow-sm">
+    <div
+      dir="ltr"
+      className="chat-markdown-codeblock not-prose relative my-3 overflow-hidden rounded-xl border border-border/60 bg-sidebar/85 text-left shadow-sm [unicode-bidi:isolate]"
+    >
       <span className="pointer-events-none absolute top-2 left-3 z-10 inline-flex h-6 items-center rounded-md border border-border/60 bg-background/85 px-2 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
         {languageLabel}
       </span>
@@ -192,7 +195,7 @@ function MarkdownCodeBlock({
       >
         {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
       </button>
-      <div className="overflow-x-auto pt-10 pb-4 [&_.shiki]:bg-transparent! [&_pre]:m-0! [&_pre]:bg-transparent! [&_pre]:px-4! [&_pre]:py-0! [&_pre]:text-[13px]">
+      <div className="overflow-x-auto pt-10 pb-4 [&_.shiki]:bg-transparent! [&_pre]:m-0! [&_pre]:bg-transparent! [&_pre]:px-4! [&_pre]:py-0! [&_pre]:text-left [&_pre]:text-[13px]">
         {children}
       </div>
     </div>

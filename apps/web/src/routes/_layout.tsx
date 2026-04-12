@@ -1,27 +1,15 @@
-import {
-  generatePath,
-  Outlet,
-  useNavigate,
-  useParams,
-} from 'react-router'
+import { generatePath, Outlet, useNavigate, useParams } from 'react-router'
+import { chatSuggestions } from '@chat/shared'
 import { api } from '@convex/_generated/api'
 import type { Id } from '@convex/_generated/dataModel'
 import { useAction } from 'convex/react'
-import { Loader2 } from '@/lib/icons'
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  type CSSProperties,
-} from 'react'
+import { AuthLoadingScreen } from '@/components/auth/auth-loading-screen'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { AIPromptInput } from '@/components/ai-prompt-input'
 import { AppSidebar } from '@/components/app-sidebar'
 import { AuthRedirect } from '@/components/auth-redirect'
-import {
-  ChatModelProvider,
-  useChatModel,
-} from '@/components/chat-model-context'
+import { ChatSuggestions } from '@/components/chat/ChatSuggestions'
+import { ChatModelProvider, useChatModel } from '@/components/chat-model-context'
 import { useIsMobile } from '@/hooks/use-mobile'
 import {
   dequeueQueuedMessage,
@@ -29,10 +17,7 @@ import {
   QUEUE_CAPACITY,
   type QueuedMessage,
 } from '@/lib/chat-generation'
-import {
-  readPendingNewChatProjectId,
-  writePendingNewChatProjectId,
-} from '@/lib/project-selection'
+import { readPendingNewChatProjectId, writePendingNewChatProjectId } from '@/lib/project-selection'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import {
   PendingSendsProvider,
@@ -53,8 +38,7 @@ function toModelDocId(value?: string): Id<'models'> | undefined {
 }
 
 export default function ChatLayout() {
-  const { isAuthenticatedOrOffline, isLoading, isOfflineReady } =
-    useCachedSessionStatus()
+  const { isAuthenticatedOrOffline, isLoading, isOfflineReady } = useCachedSessionStatus()
 
   if (isLoading && !isOfflineReady) {
     return <AuthBootstrapShell />
@@ -68,29 +52,7 @@ export default function ChatLayout() {
 }
 
 function AuthBootstrapShell() {
-  return (
-    <div className="flex h-screen w-full items-center justify-center bg-background p-6 text-foreground">
-      <div className="w-full max-w-sm rounded-2xl border border-border/80 bg-card p-5 shadow-sm">
-        <div className="mb-4 flex items-center gap-3">
-          <div className="size-8 rounded-lg bg-primary/15 p-1.5 text-primary">
-            <Loader2 className="size-5 animate-spin" />
-          </div>
-          <div>
-            <p className="text-sm font-medium">Preparing your workspace</p>
-            <p className="text-xs text-muted-foreground">
-              Loading session in the background.
-            </p>
-          </div>
-        </div>
-
-        <div className="space-y-2" aria-hidden="true">
-          <div className="h-2.5 w-full rounded-full bg-muted" />
-          <div className="h-2.5 w-5/6 rounded-full bg-muted" />
-          <div className="h-2.5 w-2/3 rounded-full bg-muted" />
-        </div>
-      </div>
-    </div>
-  )
+  return <AuthLoadingScreen />
 }
 
 function AuthenticatedChatLayout() {
@@ -132,20 +94,16 @@ function AuthenticatedChatLayout() {
   )
 }
 
-function ChatComposer({
-  threadId,
-  mobile = false,
-}: {
-  threadId?: string
-  mobile?: boolean
-}) {
+function ChatComposer({ threadId, mobile = false }: { threadId?: string; mobile?: boolean }) {
   const navigate = useNavigate()
   const suggestProjectFromContext = useAction(
-    (api as typeof api & {
-      projects: {
-        suggestProjectFromContext: unknown
+    (
+      api as typeof api & {
+        projects: {
+          suggestProjectFromContext: unknown
+        }
       }
-    }).projects.suggestProjectFromContext as never,
+    ).projects.suggestProjectFromContext as never,
   )
   const { models } = useModels()
   const { settings } = useSettings()
@@ -165,9 +123,8 @@ function ChatComposer({
   const draftKey = threadId || 'new'
   const { draft, setDraft } = useDraft(draftKey)
   const { selectedModelId, setSelectedModelId } = useChatModel()
-  const [selectedProjectId, setSelectedProjectId] = useState<
-    string | undefined
-  >(undefined)
+  const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>(undefined)
+  const [isComposerEmpty, setIsComposerEmpty] = useState(true)
   const [queuedMessages, setQueuedMessages] = useState<QueuedMessage[]>([])
   const [isQueueDispatching, setIsQueueDispatching] = useState(false)
   const [pendingProjectDraft, setPendingProjectDraft] = useState<{
@@ -196,10 +153,8 @@ function ChatComposer({
 
   const selectedModelDocId = useMemo(
     () =>
-      models.find(
-        (model: { modelId: string; id: string }) =>
-          model.modelId === selectedModelId,
-      )?.id,
+      models.find((model: { modelId: string; id: string }) => model.modelId === selectedModelId)
+        ?.id,
     [models, selectedModelId],
   )
   const selectedModel = useMemo(
@@ -299,13 +254,7 @@ function ChatComposer({
         setIsQueueDispatching(false)
       }
     },
-    [
-      activeGeneration?.promptMessageId,
-      isQueueDispatching,
-      sendNow,
-      stop,
-      threadId,
-    ],
+    [activeGeneration?.promptMessageId, isQueueDispatching, sendNow, stop, threadId],
   )
 
   useEffect(() => {
@@ -321,12 +270,7 @@ function ChatComposer({
     void dispatchNextQueued(false).catch(() => {
       // sendNow errors are surfaced by the composer on direct sends.
     })
-  }, [
-    activeGeneration,
-    dispatchNextQueued,
-    queuedMessages.length,
-    threadId,
-  ])
+  }, [activeGeneration, dispatchNextQueued, queuedMessages.length, threadId])
 
   async function handleSendMessage(
     text: string,
@@ -415,8 +359,7 @@ function ChatComposer({
         setSelectedProjectId(nextProjectId)
         setPendingProjectDraft(null)
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : 'Failed to create project.'
+        const message = error instanceof Error ? error.message : 'Failed to create project.'
         setPendingProjectDraft((current) =>
           current
             ? {
@@ -440,81 +383,97 @@ function ChatComposer({
     ],
   )
 
+  const showSuggestions =
+    (messages || []).length === 0 && isComposerEmpty
+
   return (
-    <AIPromptInput
-      value={draft}
-      onValueChange={(value) => void setDraft(value)}
-      onSubmit={handleSendMessage}
-      mobile={mobile}
-      disabled={disabledReason !== null}
-      footerText={
-        disabledReason === 'offline'
-          ? 'Offline mode is read-only. Cached chats stay available until you reconnect.'
-          : undefined
-      }
-      projects={projects}
-      selectedProjectId={selectedProjectId}
-      onProjectChange={(nextProjectId) => {
-        setPendingProjectDraft(null)
-        if (!threadId) {
-          setSelectedProjectId(nextProjectId)
-          writePendingNewChatProjectId(nextProjectId)
-          return
+    <div className="flex min-w-0 flex-col gap-3">
+      {showSuggestions ? (
+        <div className="w-full rounded-3xl border border-border/70 bg-background/70 p-3">
+          <div className="mb-3">
+            <div className="text-sm font-medium text-foreground">Try one to start</div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              Suggestions fill the composer so you can adjust them before sending.
+            </div>
+          </div>
+          <ChatSuggestions
+            suggestions={chatSuggestions}
+            onSelect={(prompt) => {
+              void setDraft(prompt)
+            }}
+          />
+        </div>
+      ) : null}
+
+      <AIPromptInput
+        value={draft}
+        onValueChange={(value) => void setDraft(value)}
+        onSubmit={handleSendMessage}
+        mobile={mobile}
+        onEmptyStateChange={setIsComposerEmpty}
+        disabled={disabledReason !== null}
+        footerText={
+          disabledReason === 'offline'
+            ? 'Offline mode is read-only. Cached chats stay available until you reconnect.'
+            : undefined
         }
-
-        if (!nextProjectId && thread?.projectId) {
-          return
-        }
-
-        if (
-          thread?.projectId &&
-          nextProjectId &&
-          thread.projectId !== nextProjectId
-        ) {
-          const nextProjectName =
-            projects.find(
-              (project: (typeof projects)[number]) =>
-                project.id === nextProjectId,
-            )?.name || 'the selected project'
-
-          if (
-            !window.confirm(
-              `Move this chat from ${thread.projectName || 'its current project'} to ${nextProjectName}?`,
-            )
-          ) {
+        projects={projects}
+        selectedProjectId={selectedProjectId}
+        onProjectChange={(nextProjectId) => {
+          setPendingProjectDraft(null)
+          if (!threadId) {
+            setSelectedProjectId(nextProjectId)
+            writePendingNewChatProjectId(nextProjectId)
             return
           }
-        }
 
-        setSelectedProjectId(nextProjectId)
-      }}
-      selectedModel={selectedModelId}
-      onModelChange={setSelectedModelId}
-      contextThreadId={threadId}
-      contextModelDocId={selectedModelDocId}
-      onEmptyEnter={() => {
-        if (!threadId || queuedMessages.length === 0) {
-          return
-        }
+          if (!nextProjectId && thread?.projectId) {
+            return
+          }
 
-        void dispatchNextQueued(Boolean(activeGeneration)).catch(() => {
-          // Errors are shown through the composer error state on direct sends.
-        })
-      }}
-      reasoningSupported={Boolean(selectedModel?.supportsReasoning)}
-      reasoningLevels={selectedModel?.reasoningLevels}
-      defaultReasoningLevel={selectedModel?.defaultReasoningLevel}
-      userReasoningEnabled={Boolean(settings?.reasoningEnabled)}
-      userReasoningLevel={
-        (settings?.reasoningLevel as 'low' | 'medium' | 'high' | undefined) ??
-        'medium'
-      }
-      onNewProjectMentionSelect={handleNewProjectMentionSelect}
-      pendingProjectDraft={pendingProjectDraft}
-      onPendingProjectDraftChange={setPendingProjectDraft}
-      onConfirmCreateProject={handleConfirmCreateProject}
-      onCancelCreateProject={() => setPendingProjectDraft(null)}
-      creatingProject={isCreatingProject}
-    />
+          if (thread?.projectId && nextProjectId && thread.projectId !== nextProjectId) {
+            const nextProjectName =
+              projects.find((project: (typeof projects)[number]) => project.id === nextProjectId)
+                ?.name || 'the selected project'
+
+            if (
+              !window.confirm(
+                `Move this chat from ${thread.projectName || 'its current project'} to ${nextProjectName}?`,
+              )
+            ) {
+              return
+            }
+          }
+
+          setSelectedProjectId(nextProjectId)
+        }}
+        selectedModel={selectedModelId}
+        onModelChange={setSelectedModelId}
+        contextThreadId={threadId}
+        contextModelDocId={selectedModelDocId}
+        onEmptyEnter={() => {
+          if (!threadId || queuedMessages.length === 0) {
+            return
+          }
+
+          void dispatchNextQueued(Boolean(activeGeneration)).catch(() => {
+            // Errors are shown through the composer error state on direct sends.
+          })
+        }}
+        reasoningSupported={Boolean(selectedModel?.supportsReasoning)}
+        reasoningLevels={selectedModel?.reasoningLevels}
+        defaultReasoningLevel={selectedModel?.defaultReasoningLevel}
+        userReasoningEnabled={Boolean(settings?.reasoningEnabled)}
+        userReasoningLevel={
+          (settings?.reasoningLevel as 'low' | 'medium' | 'high' | undefined) ?? 'medium'
+        }
+        onNewProjectMentionSelect={handleNewProjectMentionSelect}
+        pendingProjectDraft={pendingProjectDraft}
+        onPendingProjectDraftChange={setPendingProjectDraft}
+        onConfirmCreateProject={handleConfirmCreateProject}
+        onCancelCreateProject={() => setPendingProjectDraft(null)}
+        creatingProject={isCreatingProject}
+      />
+    </div>
   )
 }

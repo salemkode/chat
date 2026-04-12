@@ -414,6 +414,40 @@ export default defineSchema({
     createdAt: v.number(),
   }).index('by_userId_clientRequestId', ['userId', 'clientRequestId']),
 
+  toolPolicyEvents: defineTable({
+    threadId: v.string(),
+    userId: v.id('users'),
+    promptMessageId: v.optional(v.string()),
+    policyVersion: v.string(),
+    detectedIntent: v.optional(
+      v.union(
+        v.literal('memory_search'),
+        v.literal('memory_add'),
+        v.literal('memory_update'),
+        v.literal('memory_delete'),
+        v.literal('metadata_refresh'),
+        v.literal('none'),
+      ),
+    ),
+    requiredActions: v.array(v.string()),
+    automaticActions: v.array(v.string()),
+    observedTools: v.optional(v.array(v.string())),
+    satisfiedActions: v.optional(v.array(v.string())),
+    systemAddendum: v.string(),
+    policyTrace: v.array(v.string()),
+    status: v.union(
+      v.literal('evaluated'),
+      v.literal('completed'),
+      v.literal('skipped'),
+      v.literal('failed'),
+    ),
+    error: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index('by_thread_createdAt', ['threadId', 'createdAt'])
+    .index('by_user_createdAt', ['userId', 'createdAt'])
+    .index('by_promptMessageId', ['promptMessageId']),
+
   // Public share snapshots for chat transcripts
   chatShares: defineTable({
     threadId: v.string(),

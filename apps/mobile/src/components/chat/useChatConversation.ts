@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Alert } from 'react-native'
 import { useAction } from 'convex/react'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { chatSuggestions } from '@chat/shared'
 import {
   fallbackProjectNameFromMentionQuery,
   getProjectMention,
@@ -14,6 +15,7 @@ import { api, type Id } from '../../lib/convexApi'
 import { useModels } from '../../mobile-data/use-models'
 import { useProjects } from '../../mobile-data/use-projects'
 import { useSendMessage } from '../../mobile-data/use-send-message'
+import { useMessages } from '../../mobile-data/use-message-list'
 import { useThread } from '../../mobile-data/use-thread'
 import { useChatOptimisticSendStore } from '../../store/chat-optimistic-send'
 import { useNetworkStatus } from '../../utils/network-status'
@@ -58,21 +60,19 @@ export function useChatConversation({
   const [localThreadId, setLocalThreadId] = useState<string | undefined>(threadId)
   const activeThreadId = threadId || localThreadId || undefined
   const suggestProjectFromContext = useAction(
-    ((api as typeof api & {
-      projects: {
-        suggestProjectFromContext: unknown
+    (
+      api as typeof api & {
+        projects: {
+          suggestProjectFromContext: unknown
+        }
       }
-    }).projects.suggestProjectFromContext as never),
+    ).projects.suggestProjectFromContext as never,
   )
 
   const thread = useThread(activeThreadId)
+  const { messages } = useMessages(activeThreadId)
   const { isOnline } = useNetworkStatus()
-  const {
-    projects,
-    createProject,
-    assignThreadToProject,
-    removeThreadFromProject,
-  } = useProjects()
+  const { projects, createProject, assignThreadToProject, removeThreadFromProject } = useProjects()
   const { selectedModelId, models, setSelectedModelId, setFavorite } = useModels()
   const { draft, setDraft } = useDraft(activeThreadId ?? 'new')
   const { send, pickDocumentAttachments, pickImageAttachments, disabledReason } = useSendMessage()
@@ -147,14 +147,13 @@ export function useChatConversation({
   }, [activeThreadId])
 
   const activeProject = projects.find((project) => project.id === selectedProjectId)
+  const hasMessages = messages.length > 0
   const sendDisabled = disabledReason !== null || (!draft.trim() && attachments.length === 0)
   const selectedModelRecord = models.find((m) => m.modelId === selectedModelId)
   const modelLabel = selectedModelRecord?.displayName ?? selectedModelId ?? 'Model'
   const contextModelDocId = selectedModelRecord?.id as Id<'models'> | undefined
   const contextThreadId =
-    activeThreadId !== undefined && !isLocalThreadId(activeThreadId)
-      ? activeThreadId
-      : undefined
+    activeThreadId !== undefined && !isLocalThreadId(activeThreadId) ? activeThreadId : undefined
 
   const title = thread?.title || (mode === 'new' ? 'New chat' : 'Chat')
 
@@ -235,7 +234,9 @@ export function useChatConversation({
     const applyRetry = (includeAttachments: boolean) => {
       void setDraft(failed.retryPayload.prompt)
       setAttachmentsState(includeAttachments ? failed.retryPayload.attachments : [])
-      setMentionOpen(Boolean(getProjectMention(failed.retryPayload.prompt, failed.retryPayload.prompt.length)))
+      setMentionOpen(
+        Boolean(getProjectMention(failed.retryPayload.prompt, failed.retryPayload.prompt.length)),
+      )
       setInlineError(null)
     }
 
@@ -337,8 +338,7 @@ export function useChatConversation({
         reason: suggestion.reason,
       })
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Failed to suggest a project.'
+      const message = error instanceof Error ? error.message : 'Failed to suggest a project.'
       setPendingProjectDraft(
         createFallbackPendingDraft({
           mentionQuery: mention.query,
@@ -412,8 +412,7 @@ export function useChatConversation({
       setSelectedProjectId(createdProjectId)
       setPendingProjectDraft(null)
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Failed to create project.'
+      const message = error instanceof Error ? error.message : 'Failed to create project.'
       setPendingProjectDraft((current) =>
         current
           ? {
@@ -501,6 +500,18 @@ export function useChatConversation({
       },
       onCancelCreateProject: () => setPendingProjectDraft(null),
       creatingProject,
+      showSuggestions:
+        !hasMessages &&
+        !draft.trim() &&
+        attachments.length === 0 &&
+        !pendingProjectDraft &&
+        !mentionOpen,
+      suggestions: chatSuggestions,
+      onSuggestionPick: (prompt: string) => {
+        void setDraft(prompt)
+        setMentionOpen(false)
+        setInlineError(null)
+      },
       modelLabel,
       onOpenModelPicker: () => setPickerOpen(true),
       searchEnabled,

@@ -1058,6 +1058,58 @@ export type DataModel = {
     searchIndexes: {};
     vectorIndexes: {};
   };
+  toolPolicyEvents: {
+    document: {
+      automaticActions: Array<string>;
+      createdAt: number;
+      detectedIntent?:
+        | "memory_search"
+        | "memory_add"
+        | "memory_update"
+        | "memory_delete"
+        | "metadata_refresh"
+        | "none";
+      error?: string;
+      observedTools?: Array<string>;
+      policyTrace: Array<string>;
+      policyVersion: string;
+      promptMessageId?: string;
+      requiredActions: Array<string>;
+      satisfiedActions?: Array<string>;
+      status: "evaluated" | "completed" | "skipped" | "failed";
+      systemAddendum: string;
+      threadId: string;
+      userId: Id<"users">;
+      _id: Id<"toolPolicyEvents">;
+      _creationTime: number;
+    };
+    fieldPaths:
+      | "_creationTime"
+      | "_id"
+      | "automaticActions"
+      | "createdAt"
+      | "detectedIntent"
+      | "error"
+      | "observedTools"
+      | "policyTrace"
+      | "policyVersion"
+      | "promptMessageId"
+      | "requiredActions"
+      | "satisfiedActions"
+      | "status"
+      | "systemAddendum"
+      | "threadId"
+      | "userId";
+    indexes: {
+      by_id: ["_id"];
+      by_creation_time: ["_creationTime"];
+      by_promptMessageId: ["promptMessageId", "_creationTime"];
+      by_thread_createdAt: ["threadId", "createdAt", "_creationTime"];
+      by_user_createdAt: ["userId", "createdAt", "_creationTime"];
+    };
+    searchIndexes: {};
+    vectorIndexes: {};
+  };
   trainingExamples: {
     document: {
       costLabel?: number;

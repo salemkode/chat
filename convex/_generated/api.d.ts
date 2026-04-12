@@ -1716,6 +1716,30 @@ export declare const internal: {
       },
       { emoji: string; icon?: string; title?: string; updated: boolean }
     >;
+    createToolPolicyEvent: FunctionReference<
+      "mutation",
+      "internal",
+      {
+        automaticActions: Array<string>;
+        detectedIntent?:
+          | "memory_search"
+          | "memory_add"
+          | "memory_update"
+          | "memory_delete"
+          | "metadata_refresh"
+          | "none";
+        error?: string;
+        policyTrace: Array<string>;
+        policyVersion: string;
+        promptMessageId?: string;
+        requiredActions: Array<string>;
+        status: "evaluated" | "completed" | "skipped" | "failed";
+        systemAddendum: string;
+        threadId: string;
+        userId: Id<"users">;
+      },
+      Id<"toolPolicyEvents">
+    >;
     getThreadPresentation: FunctionReference<
       "query",
       "internal",
@@ -1775,6 +1799,19 @@ export declare const internal: {
         userId: Id<"users">;
       },
       any
+    >;
+    updateToolPolicyEvent: FunctionReference<
+      "mutation",
+      "internal",
+      {
+        automaticActions?: Array<string>;
+        error?: string;
+        eventId: Id<"toolPolicyEvents">;
+        observedTools?: Array<string>;
+        satisfiedActions?: Array<string>;
+        status?: "evaluated" | "completed" | "skipped" | "failed";
+      },
+      null
     >;
   };
   functions: {

@@ -9,23 +9,19 @@ const updateThreadMetadataInputSchema = z.object({
     .min(3)
     .max(60)
     .optional()
-    .describe(
-      'A short thread title, ideally 3-6 words and under 60 characters.',
-    ),
+    .describe('A short replacement thread title.'),
   emoji: z
     .string()
     .min(1)
     .max(16)
     .optional()
-    .describe('A single emoji that best matches the current thread topic.'),
+    .describe('A single replacement emoji for the thread.'),
   icon: z
     .string()
     .min(1)
     .max(40)
     .optional()
-    .describe(
-      'Optional Lucide icon name when you are confident it matches the thread.',
-    ),
+    .describe('Optional replacement Lucide icon name.'),
 }).refine(
   (value) =>
     Boolean(value.title?.trim() || value.emoji?.trim() || value.icon?.trim()),
@@ -61,7 +57,7 @@ function getThreadId(ctx: ToolCtx) {
 export const threadMetadataTools = {
   update_thread_metadata: createTool({
     description:
-      'Update the current thread title, emoji, and optional icon when the conversation topic becomes clear or changes.',
+      'Manually update the current thread title, emoji, or icon when the label is clearly wrong.',
     inputSchema: updateThreadMetadataInputSchema,
     execute: async (ctx, input) => {
       try {

@@ -5,7 +5,9 @@ import { useAction } from 'convex/react'
 import type { FunctionReturnType } from 'convex/server'
 import { generatePath, useNavigate } from 'react-router'
 import { Loader2, Search, X } from '@/lib/icons'
+import { formatHotkeyBinding } from '@/lib/hotkeys'
 import { api } from '@convex/_generated/api'
+import { useHotkeyAction, useHotkeys } from '@/components/hotkeys-provider'
 import { Button } from '@/components/ui/button'
 import {
   ResponsiveModal,
@@ -31,24 +33,19 @@ function createInitialState() {
 export function SidebarSearchDialog({ isOnline }: { isOnline: boolean }) {
   const navigate = useNavigate()
   const searchSidebar = useAction(api.sidebarSearch.searchSidebar)
+  const { bindings } = useHotkeys()
   const [open, setOpen] = React.useState(false)
   const [searchState, setSearchState] = React.useState(createInitialState)
   const deferredQuery = React.useDeferredValue(searchState.query)
   const requestIdRef = React.useRef(0)
 
-  React.useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key.toLowerCase() !== 'k' || (!event.metaKey && !event.ctrlKey)) {
-        return
-      }
-
-      event.preventDefault()
+  useHotkeyAction(
+    'searchChats',
+    () => {
       setOpen((current) => !current)
-    }
-
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [])
+    },
+    isOnline,
+  )
 
   React.useEffect(() => {
     if (!open || !isOnline) {
@@ -128,7 +125,7 @@ export function SidebarSearchDialog({ isOnline }: { isOnline: boolean }) {
           Search chats
         </span>
         <span className="rounded-md border border-sidebar-border px-2 py-0.5 text-[11px] text-sidebar-foreground/55">
-          Cmd/Ctrl+K
+          {formatHotkeyBinding(bindings.searchChats)}
         </span>
       </Button>
 

@@ -2,6 +2,7 @@ import { useMutation } from 'convex/react'
 import { api } from '@convex/_generated/api'
 import { Check, Copy, ExternalLink, Loader2, Share2 } from '@/lib/icons'
 import { useMemo, useState } from 'react'
+import { useHotkeyAction } from '@/components/hotkeys-provider'
 import { Button } from '@/components/ui/button'
 import { DialogHeader } from '@/components/ui/dialog'
 import {
@@ -30,6 +31,10 @@ export function ShareChatDialog({
   const [messageCount, setMessageCount] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+
+  useHotkeyAction('shareChat', () => {
+    handleOpenChange(true)
+  })
 
   const shareUrl = useMemo(() => {
     if (!shareToken || typeof window === 'undefined') {

@@ -1,5 +1,6 @@
 export type SettingsTab =
   | 'general'
+  | 'keyboard'
   | 'theme'
   | 'model'
   | 'memory'
@@ -11,6 +12,7 @@ const SETTINGS_TAB_INTENT_KEY = 'chat.settings.intent'
 
 const VALID_TABS = new Set<SettingsTab>([
   'general',
+  'keyboard',
   'theme',
   'model',
   'memory',

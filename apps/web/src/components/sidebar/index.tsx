@@ -42,6 +42,7 @@ import { useProjects, useThreads, useViewer } from '@/hooks/use-chat-data'
 import { writePendingNewChatProjectId } from '@/lib/project-selection'
 import { SidebarSearchDialog } from '@/components/sidebar/SidebarSearchDialog'
 import { AnimatedThreadList, ThreadRow } from '@/components/sidebar/thread-list'
+import { useHotkeyAction } from '@/components/hotkeys-provider'
 import {
   ProjectCreateDialog,
   ProjectDraftState,
@@ -88,10 +89,42 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
     [threads],
   )
 
+  const orderedThreadIds = React.useMemo(
+    () => threads.filter((thread) => !thread.isOptimistic).map((thread) => thread.id),
+    [threads],
+  )
+
   const handleNewChat = React.useCallback(() => {
     writePendingNewChatProjectId(undefined)
     navigate('/')
   }, [navigate])
+
+  const handleNavigateRelative = React.useCallback(
+    (direction: -1 | 1) => {
+      if (orderedThreadIds.length === 0) {
+        return
+      }
+
+      const currentIndex = selectedThreadId
+        ? orderedThreadIds.indexOf(selectedThreadId)
+        : -1
+
+      const nextIndex =
+        currentIndex < 0
+          ? direction > 0
+            ? 0
+            : orderedThreadIds.length - 1
+          : Math.max(0, Math.min(orderedThreadIds.length - 1, currentIndex + direction))
+
+      const nextThreadId = orderedThreadIds[nextIndex]
+      if (!nextThreadId || nextThreadId === selectedThreadId) {
+        return
+      }
+
+      navigate(generatePath('/:chatId', { chatId: nextThreadId }))
+    },
+    [navigate, orderedThreadIds, selectedThreadId],
+  )
 
   const handleNewChatInProject = React.useCallback(
     (projectId: string) => {
@@ -141,6 +174,18 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
     await removeThreadFromProject(removeFromProjectDialog.threadId)
     setRemoveFromProjectDialog(null)
   }
+
+  useHotkeyAction('newChat', handleNewChat)
+  useHotkeyAction('openSettings', () => {
+    setSettingsTab('general')
+    setSettingsOpen(true)
+  })
+  useHotkeyAction('nextChat', () => {
+    handleNavigateRelative(1)
+  }, orderedThreadIds.length > 0)
+  useHotkeyAction('previousChat', () => {
+    handleNavigateRelative(-1)
+  }, orderedThreadIds.length > 0)
 
   return (
     <Sidebar className={cn('border-r border-sidebar-border', className)}>

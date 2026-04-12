@@ -9,8 +9,9 @@ export type CodeBlockProps = {
 function CodeBlock({ children, className, ...props }: CodeBlockProps) {
   return (
     <div
+      dir="ltr"
       className={cn(
-        'not-prose flex w-full flex-col overflow-clip border',
+        'not-prose flex w-full flex-col overflow-clip border text-left [unicode-bidi:isolate]',
         'border-border bg-card text-card-foreground rounded-xl',
         className,
       )}
@@ -62,7 +63,7 @@ function CodeBlockCode({
   }, [code, language, theme])
 
   const classNames = cn(
-    'w-full overflow-x-auto text-[13px] [&>pre]:px-4 [&>pre]:py-4',
+    'w-full overflow-x-auto text-[13px] [&>pre]:px-4 [&>pre]:py-4 [&>pre]:text-left',
     className,
   )
 
