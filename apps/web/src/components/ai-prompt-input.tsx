@@ -132,6 +132,7 @@ interface AIPromptInputProps {
     value: string,
     opts: {
       searchEnabled: boolean
+      searchMode: 'auto' | 'required'
       projectId?: string
       attachments: File[]
       reasoning: ComposerReasoning
@@ -422,6 +423,7 @@ export function AIPromptInput({
       const resolvedPrompt = combineTextAttachmentsWithPrompt(value, textAttachments)
       await onSubmit(resolvedPrompt, {
         searchEnabled,
+        searchMode: searchEnabled ? 'required' : 'auto',
         projectId: selectedProjectId,
         attachments: attachments.map((attachment) => attachment.file),
         reasoning: reasoningSupported

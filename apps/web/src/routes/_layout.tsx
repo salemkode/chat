@@ -184,6 +184,7 @@ function ChatComposer({ threadId, mobile = false }: { threadId?: string; mobile?
         modelDocId: toModelDocId(input.modelDocId),
         projectId: input.projectId as Id<'projects'> | undefined,
         searchEnabled: input.searchEnabled,
+        searchMode: input.searchMode,
         reasoning: input.reasoning,
         attachments: input.attachments,
         onThreadReady: async (resolvedThreadId) => {
@@ -276,6 +277,7 @@ function ChatComposer({ threadId, mobile = false }: { threadId?: string; mobile?
     text: string,
     opts: {
       searchEnabled: boolean
+      searchMode: 'auto' | 'required'
       projectId?: string
       attachments: File[]
       reasoning: { enabled: boolean; level?: 'low' | 'medium' | 'high' }
@@ -286,6 +288,7 @@ function ChatComposer({ threadId, mobile = false }: { threadId?: string; mobile?
       modelDocId: selectedModelDocId,
       projectId: opts.projectId,
       searchEnabled: opts.searchEnabled,
+      searchMode: opts.searchMode,
       reasoning: opts.reasoning,
       attachments: opts.attachments,
     }

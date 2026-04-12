@@ -60,6 +60,92 @@ const userRoleValidator = v.union(
   v.literal('member'),
 )
 
+const projectRoleValidator = v.union(
+  v.literal('owner'),
+  v.literal('editor'),
+  v.literal('viewer'),
+)
+
+const projectVisibilityValidator = v.union(
+  v.literal('private'),
+  v.literal('shared'),
+)
+
+const integrationProviderValidator = v.union(
+  v.literal('github'),
+  v.literal('google'),
+)
+
+const integrationStatusValidator = v.union(
+  v.literal('active'),
+  v.literal('expired'),
+  v.literal('revoked'),
+  v.literal('error'),
+)
+
+const projectSourceProviderValidator = v.union(
+  v.literal('github'),
+  v.literal('gmail'),
+  v.literal('manual'),
+)
+
+const projectSourceKindValidator = v.union(
+  v.literal('github_repo'),
+  v.literal('gmail_query'),
+  v.literal('manual_uploads'),
+  v.literal('manual_links'),
+)
+
+const projectSourceStatusValidator = v.union(
+  v.literal('active'),
+  v.literal('paused'),
+  v.literal('error'),
+)
+
+const projectSyncModeValidator = v.union(v.literal('rule'), v.literal('manual'))
+
+const projectArtifactKindValidator = v.union(
+  v.literal('repo_file'),
+  v.literal('pull_request'),
+  v.literal('issue'),
+  v.literal('commit'),
+  v.literal('email_thread'),
+  v.literal('email_message'),
+  v.literal('email_attachment'),
+  v.literal('uploaded_file'),
+  v.literal('external_link'),
+)
+
+const projectArtifactStatusValidator = v.union(
+  v.literal('active'),
+  v.literal('archived'),
+  v.literal('error'),
+)
+
+const projectArtifactSelectionOriginValidator = v.union(
+  v.literal('manual'),
+  v.literal('rule'),
+)
+
+const projectExtractionStatusValidator = v.union(
+  v.literal('pending'),
+  v.literal('ready'),
+  v.literal('error'),
+)
+
+const projectSyncJobTypeValidator = v.union(
+  v.literal('full'),
+  v.literal('incremental'),
+  v.literal('artifact_refresh'),
+)
+
+const projectSyncJobStatusValidator = v.union(
+  v.literal('queued'),
+  v.literal('running'),
+  v.literal('done'),
+  v.literal('error'),
+)
+
 const modelOfferKindValidator = v.union(
   v.literal('free_access'),
   v.literal('availability_window'),
@@ -605,16 +691,165 @@ export default defineSchema({
     .index('by_project_contentHash', ['projectId', 'contentHash'])
     .index('by_project_updated', ['projectId', 'updatedAt']),
 
+  projectMembers: defineTable({
+    projectId: v.id('projects'),
+    userId: v.id('users'),
+    role: projectRoleValidator,
+    invitedByUserId: v.optional(v.id('users')),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index('by_project', ['projectId'])
+    .index('by_user', ['userId'])
+    .index('by_project_user', ['projectId', 'userId']),
+
+  integrationConnections: defineTable({
+    ownerUserId: v.id('users'),
+    provider: integrationProviderValidator,
+    accountLabel: v.string(),
+    accountSubject: v.string(),
+    scopes: v.array(v.string()),
+    accessTokenCiphertext: v.string(),
+    refreshTokenCiphertext: v.optional(v.string()),
+    expiresAt: v.optional(v.number()),
+    status: integrationStatusValidator,
+    lastValidatedAt: v.optional(v.number()),
+    lastSyncAt: v.optional(v.number()),
+    lastError: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index('by_owner', ['ownerUserId'])
+    .index('by_provider_owner', ['provider', 'ownerUserId'])
+    .index('by_account_owner', ['ownerUserId', 'provider', 'accountSubject']),
+
+  oauthStates: defineTable({
+    userId: v.id('users'),
+    provider: integrationProviderValidator,
+    state: v.string(),
+    codeVerifier: v.optional(v.string()),
+    redirectTo: v.string(),
+    expiresAt: v.number(),
+    createdAt: v.number(),
+  })
+    .index('by_state', ['state'])
+    .index('by_user', ['userId']),
+
+  projectSources: defineTable({
+    projectId: v.id('projects'),
+    createdByUserId: v.id('users'),
+    connectionId: v.optional(v.id('integrationConnections')),
+    provider: projectSourceProviderValidator,
+    kind: projectSourceKindValidator,
+    title: v.string(),
+    status: projectSourceStatusValidator,
+    syncMode: projectSyncModeValidator,
+    configJson: v.string(),
+    lastSyncedAt: v.optional(v.number()),
+    lastCursor: v.optional(v.string()),
+    lastError: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index('by_project', ['projectId'])
+    .index('by_project_provider', ['projectId', 'provider'])
+    .index('by_connection', ['connectionId']),
+
+  projectArtifacts: defineTable({
+    projectId: v.id('projects'),
+    sourceId: v.id('projectSources'),
+    createdByUserId: v.id('users'),
+    provider: projectSourceProviderValidator,
+    kind: projectArtifactKindValidator,
+    externalId: v.string(),
+    title: v.string(),
+    subtitle: v.optional(v.string()),
+    url: v.optional(v.string()),
+    mimeType: v.optional(v.string()),
+    storageId: v.optional(v.id('_storage')),
+    parentArtifactId: v.optional(v.id('projectArtifacts')),
+    includeInContext: v.boolean(),
+    pinned: v.boolean(),
+    selectionOrigin: projectArtifactSelectionOriginValidator,
+    status: projectArtifactStatusValidator,
+    metadataJson: v.optional(v.string()),
+    firstSeenAt: v.number(),
+    lastSyncedAt: v.optional(v.number()),
+    updatedAt: v.number(),
+  })
+    .index('by_project', ['projectId'])
+    .index('by_source_external', ['sourceId', 'externalId'])
+    .index('by_project_updated', ['projectId', 'updatedAt']),
+
+  projectArtifactContents: defineTable({
+    artifactId: v.id('projectArtifacts'),
+    projectId: v.id('projects'),
+    text: v.string(),
+    contentHash: v.string(),
+    extractionStatus: projectExtractionStatusValidator,
+    error: v.optional(v.string()),
+    updatedAt: v.number(),
+  })
+    .index('by_artifact', ['artifactId'])
+    .index('by_project', ['projectId']),
+
+  projectArtifactChunks: defineTable({
+    artifactId: v.id('projectArtifacts'),
+    projectId: v.id('projects'),
+    provider: projectSourceProviderValidator,
+    kind: projectArtifactKindValidator,
+    chunkIndex: v.number(),
+    text: v.string(),
+    embedding: v.array(v.number()),
+    updatedAt: v.number(),
+  })
+    .index('by_artifact', ['artifactId'])
+    .index('by_project', ['projectId'])
+    .vectorIndex('by_embedding', {
+      vectorField: 'embedding',
+      dimensions: 1536,
+      filterFields: ['projectId', 'provider', 'kind'],
+    }),
+
+  projectSyncJobs: defineTable({
+    projectId: v.id('projects'),
+    sourceId: v.id('projectSources'),
+    jobType: projectSyncJobTypeValidator,
+    status: projectSyncJobStatusValidator,
+    scheduledAt: v.number(),
+    startedAt: v.optional(v.number()),
+    finishedAt: v.optional(v.number()),
+    error: v.optional(v.string()),
+  })
+    .index('by_project', ['projectId'])
+    .index('by_source', ['sourceId'])
+    .index('by_source_status', ['sourceId', 'status']),
+
+  messageArtifactContextLinks: defineTable({
+    userId: v.id('users'),
+    threadId: v.string(),
+    messageId: v.string(),
+    artifactId: v.id('projectArtifacts'),
+    createdAt: v.number(),
+  })
+    .index('by_thread_message', ['threadId', 'messageId'])
+    .index('by_artifact', ['artifactId'])
+    .index('by_user', ['userId']),
+
   // NEW: Projects table (for grouping threads)
   projects: defineTable({
     name: v.string(),
     description: v.optional(v.string()),
-    userId: v.id('users'),
+    ownerUserId: v.id('users'),
+    // Legacy owner field kept for backward compatibility with older queries.
+    userId: v.optional(v.id('users')),
+    visibility: projectVisibilityValidator,
     threadIds: v.optional(v.array(v.string())),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index('by_user', ['userId'])
+    .index('by_owner', ['ownerUserId'])
     .index('by_updated', ['updatedAt']),
 
   // NEW: Memory sync state (per user)

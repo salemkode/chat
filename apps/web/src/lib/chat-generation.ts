@@ -14,6 +14,7 @@ export type QueuedMessage = {
   modelDocId?: string
   projectId?: string
   searchEnabled: boolean
+  searchMode?: 'auto' | 'required'
   reasoning?: { enabled: boolean; level?: 'low' | 'medium' | 'high' }
   attachments: File[]
 }

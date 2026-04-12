@@ -194,6 +194,7 @@ export function useChatConversation({
       modelDocId,
       projectId: selectedProjectId,
       searchEnabled,
+      searchMode: searchEnabled ? 'required' : 'auto',
     })
 
     try {
@@ -203,6 +204,7 @@ export function useChatConversation({
         modelDocId,
         projectId: selectedProjectId,
         searchEnabled,
+        searchMode: searchEnabled ? 'required' : 'auto',
         attachments: attachmentsSnapshot,
         onThreadResolved: async (resolvedThreadId) => {
           if (isLocalThreadId(threadForSend)) {

@@ -18,6 +18,7 @@ export type PendingSendRecord = {
     modelDocId?: string
     projectId?: string
     searchEnabled: boolean
+    searchMode?: 'auto' | 'required'
   }
 }
 
@@ -31,6 +32,7 @@ type ChatOptimisticSendState = {
     modelDocId?: string
     projectId?: string
     searchEnabled: boolean
+    searchMode?: 'auto' | 'required'
   }) => PendingSendRecord
   moveThreadKey: (fromThreadId: string, toThreadId: string) => void
   markHandoff: (clientSendId: string) => void
@@ -217,6 +219,7 @@ export const useChatOptimisticSendStore = create<ChatOptimisticSendState>((set, 
     modelDocId,
     projectId,
     searchEnabled,
+    searchMode,
   }) => {
     const clientSendId = `send-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     const record: PendingSendRecord = {
@@ -232,6 +235,7 @@ export const useChatOptimisticSendStore = create<ChatOptimisticSendState>((set, 
         modelDocId,
         projectId,
         searchEnabled,
+        searchMode,
       },
     }
     set((state) => ({
