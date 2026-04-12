@@ -3,7 +3,6 @@ import { api } from '@convex/_generated/api'
 import {
   BookMarked,
   Database,
-  LoaderCircle,
   PencilLine,
   Search,
   Sparkles,
@@ -213,13 +212,6 @@ export function getStepIcon(
   step: ActivityStep,
   showActiveLoading: boolean,
 ): AppIcon {
-  if (
-    showActiveLoading &&
-    (step.status === 'running' || step.status === 'pending')
-  ) {
-    return LoaderCircle
-  }
-
   if (step.status === 'error') {
     return TriangleAlert
   }
@@ -251,6 +243,16 @@ export function getStepIcon(
   return Wrench
 }
 
+export function isStepActivelyLoading(
+  step: ActivityStep,
+  showActiveLoading: boolean,
+) {
+  return (
+    showActiveLoading &&
+    (step.status === 'running' || step.status === 'pending')
+  )
+}
+
 export function getStepIconClassName(
   step: ActivityStep,
   showActiveLoading: boolean,
@@ -261,9 +263,7 @@ export function getStepIconClassName(
 
   return cn(
     'size-4 shrink-0',
-    showActiveLoading &&
-      (step.status === 'running' || step.status === 'pending') &&
-      'animate-spin text-primary',
+    isStepActivelyLoading(step, showActiveLoading) && 'text-primary',
     !showActiveLoading &&
       step.kind === 'reasoning' &&
       step.status !== 'error' &&

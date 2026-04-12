@@ -12,6 +12,11 @@ describe('hotkeys helpers', () => {
   it('keeps mod bindings normalized for cross-platform defaults', () => {
     expect(normalizeHotkeyBinding(' Mod + Shift + K ')).toBe('mod+shift+k')
     expect(formatHotkeyBinding('mod+k', 'other')).toBe('Ctrl+K')
+    expect(formatHotkeyBinding('mod+alt+k', 'apple')).toBe('Command+Option+K')
+  })
+
+  it('includes a configurable default binding for sending messages', () => {
+    expect(getDefaultHotkeyBindings().sendMessage).toBe('shift+enter')
   })
 
   it('matches mod bindings against ctrl or meta key events', () => {

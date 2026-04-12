@@ -10,6 +10,7 @@ import {
   ChainOfThoughtStep,
   ChainOfThoughtTrigger,
 } from '@/components/ui/chain-of-thought'
+import { OriginalThinkingLoader } from '@/components/ui/original-thinking-loader'
 import { Source, SourceContent, SourceTrigger } from '@/components/ui/source'
 import {
   buildActivitySteps,
@@ -17,6 +18,7 @@ import {
   getSearchEmptyState,
   getStepIcon,
   getStepIconClassName,
+  isStepActivelyLoading,
   isSearchTool,
   type ActivityStep,
   type ReasoningStep,
@@ -93,6 +95,11 @@ function ActivityStepRow({
   }
 
   const Icon = getStepIcon(step, showActiveLoading)
+  const leftIcon = isStepActivelyLoading(step, showActiveLoading) ? (
+    <OriginalThinkingLoader />
+  ) : (
+    <Icon className={getStepIconClassName(step, showActiveLoading)} />
+  )
 
   return (
     <ChainOfThoughtStep
@@ -108,7 +115,7 @@ function ActivityStepRow({
             : 'text-muted-foreground',
         )}
       >
-        <Icon className={getStepIconClassName(step, showActiveLoading)} />
+        {leftIcon}
         <span className="truncate font-medium">{step.title}</span>
         <ActivityCount count={step.count} />
       </ChainOfThoughtItem>
@@ -128,6 +135,11 @@ function SearchToolRow({
   const [isOpen, setIsOpen] = useState(false)
   const Icon = getStepIcon(step, showActiveLoading)
   const sources = step.sources ?? []
+  const leftIcon = isStepActivelyLoading(step, showActiveLoading) ? (
+    <OriginalThinkingLoader />
+  ) : (
+    <Icon className={getStepIconClassName(step, showActiveLoading)} />
+  )
 
   return (
     <ChainOfThoughtStep
@@ -137,9 +149,7 @@ function SearchToolRow({
       data-last={isLast}
     >
       <ChainOfThoughtTrigger
-        leftIcon={
-          <Icon className={getStepIconClassName(step, showActiveLoading)} />
-        }
+        leftIcon={leftIcon}
         swapIconOnHover={false}
         className="py-1 font-medium"
       >
@@ -185,6 +195,11 @@ function ReasoningRow({
   const [reasoningText] = useSmoothText(step.body, {
     startStreaming: showActiveLoading && step.status === 'running',
   })
+  const leftIcon = isStepActivelyLoading(step, showActiveLoading) ? (
+    <OriginalThinkingLoader />
+  ) : (
+    <Icon className={getStepIconClassName(step, showActiveLoading)} />
+  )
 
   return (
     <ChainOfThoughtStep
@@ -194,9 +209,7 @@ function ReasoningRow({
       data-last={isLast}
     >
       <ChainOfThoughtTrigger
-        leftIcon={
-          <Icon className={getStepIconClassName(step, showActiveLoading)} />
-        }
+        leftIcon={leftIcon}
         swapIconOnHover={false}
         className="py-1 font-medium"
       >

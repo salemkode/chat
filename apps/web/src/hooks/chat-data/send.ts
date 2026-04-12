@@ -149,6 +149,7 @@ export function useSendMessage() {
       selectionTier,
       projectId,
       searchEnabled,
+      searchMode,
       reasoning,
       attachments,
       onThreadReady,
@@ -162,6 +163,7 @@ export function useSendMessage() {
       selectionTier?: 'free' | 'pro' | 'advanced'
       projectId?: Id<'projects'>
       searchEnabled?: boolean
+      searchMode?: 'auto' | 'required'
       reasoning?: { enabled: boolean; level?: 'low' | 'medium' | 'high' }
       attachments?: File[]
       onThreadReady?: (threadId: string) => void | Promise<void>
@@ -259,6 +261,7 @@ export function useSendMessage() {
           modelId: resolvedModelDocId,
           projectId,
           searchEnabled: searchEnabled ?? false,
+          searchMode: searchEnabled === true ? (searchMode ?? 'required') : 'auto',
           reasoning,
           attachments: uploadedAttachments,
         }
@@ -341,6 +344,7 @@ export function useSendMessage() {
         selectionTier,
         projectId,
         searchEnabled,
+        searchMode,
         reasoning,
       }: {
         threadId: string
@@ -349,6 +353,7 @@ export function useSendMessage() {
         selectionTier?: 'free' | 'pro' | 'advanced'
         projectId?: Id<'projects'>
         searchEnabled?: boolean
+        searchMode?: 'auto' | 'required'
         reasoning?: { enabled: boolean; level?: 'low' | 'medium' | 'high' }
       }) => {
         if (!isOnline) {
@@ -385,6 +390,7 @@ export function useSendMessage() {
           modelId: resolvedModelDocId,
           projectId,
           searchEnabled: searchEnabled ?? false,
+          searchMode: searchEnabled === true ? (searchMode ?? 'required') : 'auto',
           reasoning,
         }
         if (supportsClientRequestIdRef.current) {

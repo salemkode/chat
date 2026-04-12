@@ -7,7 +7,10 @@ export default function ChatsTabScreen() {
   return (
     <ChatPage
       mode="new"
-      onThreadCreated={(threadId) => {
+      onThreadCreated={(threadId, kind) => {
+        if (kind !== 'server') {
+          return
+        }
         router.replace(`/chat/${threadId}`)
       }}
     />

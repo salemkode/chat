@@ -3,8 +3,10 @@ import { useEffect, useRef, useState } from 'react'
 import { api } from '@convex/_generated/api'
 import type { Id } from '@convex/_generated/dataModel'
 import { AlertCircle } from '@/lib/icons'
+import { matchesHotkeyBinding } from '@/lib/hotkeys'
 import { cn } from '@/lib/utils'
 import { useQuery } from '@/lib/convex-query-cache'
+import { useHotkeys } from '@/components/hotkeys-provider'
 import {
   AttachmentGrid,
   ComposerActionRow,
@@ -18,6 +20,7 @@ import {
   buildMentionProjectOptions,
   buildPendingProjectDraft,
   createTextAttachment,
+  extractClipboardImageFiles,
   getAttachmentFingerprint,
   getComposerErrorMessage,
   getProjectMention,
@@ -129,6 +132,7 @@ interface AIPromptInputProps {
     value: string,
     opts: {
       searchEnabled: boolean
+      searchMode: 'auto' | 'required'
       projectId?: string
       attachments: File[]
       reasoning: ComposerReasoning
@@ -222,9 +226,11 @@ export function AIPromptInput({
 
   const attachmentsRef = useRef<PendingAttachment[]>([])
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const { bindings } = useHotkeys()
 
   const value = controlledValue ?? internalValue
   const selectedProject = projects.find((project) => project.id === selectedProjectId)
+  const sendBinding = bindings.sendMessage
   const mentionOptions: MentionProjectOption[] = projectMention
     ? buildMentionProjectOptions({
         mentionQuery: projectMention.query,
@@ -417,6 +423,7 @@ export function AIPromptInput({
       const resolvedPrompt = combineTextAttachmentsWithPrompt(value, textAttachments)
       await onSubmit(resolvedPrompt, {
         searchEnabled,
+        searchMode: searchEnabled ? 'required' : 'auto',
         projectId: selectedProjectId,
         attachments: attachments.map((attachment) => attachment.file),
         reasoning: reasoningSupported
@@ -648,6 +655,13 @@ export function AIPromptInput({
             placeholder="Type your message here..."
             value={value}
             onPaste={(event) => {
+              const pastedImages = extractClipboardImageFiles(event.clipboardData)
+              if (pastedImages.length > 0) {
+                event.preventDefault()
+                addAttachments(pastedImages)
+                return
+              }
+
               const pastedText = event.clipboardData.getData('text/plain')
               if (pastedText && shouldConvertToTextAttachment(pastedText)) {
                 event.preventDefault()
@@ -660,6 +674,10 @@ export function AIPromptInput({
               syncProjectMention(nextValue, event.target.selectionStart)
             }}
             onKeyDown={(event) => {
+              if (event.nativeEvent.isComposing) {
+                return
+              }
+
               if (projectMention) {
                 if (event.key === 'ArrowDown' && mentionOptions.length > 0) {
                   event.preventDefault()
@@ -687,7 +705,7 @@ export function AIPromptInput({
                 }
               }
 
-              if (event.key === 'Enter' && event.shiftKey) {
+              if (matchesHotkeyBinding(sendBinding, event.nativeEvent)) {
                 event.preventDefault()
                 if (!value.trim() && attachments.length === 0 && textAttachments.length === 0) {
                   onEmptyEnter?.()

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildMentionProjectOptions,
   buildPendingProjectDraft,
+  extractClipboardImageFiles,
 } from './utils'
 
 describe('buildMentionProjectOptions', () => {
@@ -69,5 +70,56 @@ describe('buildPendingProjectDraft', () => {
     expect(draft.description).toBe('Track invoices and subscriptions')
     expect(draft.source).toBe('ai')
     expect(draft.error).toBeNull()
+  })
+})
+
+describe('extractClipboardImageFiles', () => {
+  it('prefers clipboard items and assigns a fallback name to unnamed pasted images', () => {
+    const imageFile = new File(['image'], '', {
+      type: 'image/png',
+      lastModified: 123,
+    })
+    const pdfFile = new File(['pdf'], 'doc.pdf', {
+      type: 'application/pdf',
+      lastModified: 456,
+    })
+
+    const files = extractClipboardImageFiles({
+      items: [
+        {
+          kind: 'file',
+          type: 'image/png',
+          getAsFile: () => imageFile,
+        },
+        {
+          kind: 'file',
+          type: 'application/pdf',
+          getAsFile: () => pdfFile,
+        },
+      ] as unknown as DataTransferItemList,
+      files: [pdfFile] as unknown as FileList,
+    })
+
+    expect(files).toHaveLength(1)
+    expect(files[0]?.name).toBe('pasted-image-1.png')
+    expect(files[0]?.type).toBe('image/png')
+  })
+
+  it('falls back to clipboard files when item metadata is unavailable', () => {
+    const imageFile = new File(['image'], 'clipboard-shot.webp', {
+      type: 'image/webp',
+    })
+    const pdfFile = new File(['pdf'], 'doc.pdf', {
+      type: 'application/pdf',
+    })
+
+    const files = extractClipboardImageFiles({
+      items: [] as unknown as DataTransferItemList,
+      files: [imageFile, pdfFile] as unknown as FileList,
+    })
+
+    expect(files).toHaveLength(1)
+    expect(files[0]?.name).toBe('clipboard-shot.webp')
+    expect(files[0]?.type).toBe('image/webp')
   })
 })

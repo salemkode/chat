@@ -665,6 +665,7 @@ export declare const api: {
         prompt: string;
         reasoning?: { enabled: boolean; level?: "low" | "medium" | "high" };
         searchEnabled?: boolean;
+        searchMode?: "auto" | "required";
         threadId: string;
       },
       any
@@ -717,6 +718,7 @@ export declare const api: {
         promptMessageId: string;
         reasoning?: { enabled: boolean; level?: "low" | "medium" | "high" };
         searchEnabled?: boolean;
+        searchMode?: "auto" | "required";
         threadId: string;
       },
       null
@@ -1795,6 +1797,7 @@ export declare const internal: {
         providerName: string;
         reasoning?: { enabled: boolean; level?: "low" | "medium" | "high" };
         searchEnabled?: boolean;
+        searchMode?: "auto" | "required";
         threadId: string;
         userId: Id<"users">;
       },

@@ -218,6 +218,7 @@ export function useSendMessage() {
       modelDocId,
       projectId,
       searchEnabled,
+      searchMode,
       attachments,
       onThreadResolved,
       onBeforeGenerate,
@@ -227,6 +228,7 @@ export function useSendMessage() {
       modelDocId?: string
       projectId?: string
       searchEnabled: boolean
+      searchMode?: 'auto' | 'required'
       attachments: LocalAsset[]
       onThreadResolved?: (threadId: string) => Promise<void> | void
       onBeforeGenerate?: () => Promise<void> | void
@@ -289,6 +291,7 @@ export function useSendMessage() {
         modelId: toModelId(modelDocId),
         projectId: toProjectId(projectId),
         searchEnabled,
+        searchMode: searchEnabled ? (searchMode ?? 'required') : 'auto',
         attachments: uploaded,
       }
       if (supportsClientRequestIdRef.current) {
@@ -325,12 +328,14 @@ export function useSendMessage() {
         modelDocId,
         projectId,
         searchEnabled,
+        searchMode,
       }: {
         threadId: string
         promptMessageId: string
         modelDocId?: string
         projectId?: string
         searchEnabled: boolean
+        searchMode?: 'auto' | 'required'
       }) => {
         if (!isOnline) {
           return { disabledReason: 'offline' as const }
@@ -341,6 +346,7 @@ export function useSendMessage() {
           modelId: toModelId(modelDocId),
           projectId: toProjectId(projectId),
           searchEnabled,
+          searchMode: searchEnabled ? (searchMode ?? 'required') : 'auto',
         }
         if (supportsClientRequestIdRef.current) {
           try {
