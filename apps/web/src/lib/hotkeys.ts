@@ -2,6 +2,7 @@ export type HotkeyActionId =
   | 'searchChats'
   | 'toggleSidebar'
   | 'newChat'
+  | 'sendMessage'
   | 'shareChat'
   | 'nextChat'
   | 'previousChat'
@@ -42,6 +43,13 @@ export const HOTKEY_DEFINITIONS: HotkeyDefinition[] = [
     label: 'New chat',
     description: 'Start a fresh chat from the current workspace.',
     defaultBinding: 'mod+shift+n',
+    allowInInput: true,
+  },
+  {
+    id: 'sendMessage',
+    label: 'Send message',
+    description: 'Send the current composer message without clicking the send button.',
+    defaultBinding: 'shift+enter',
     allowInInput: true,
   },
   {
@@ -333,9 +341,9 @@ function getPlatform(): HotkeyPlatform {
 function formatHotkeyToken(token: string, platform: 'apple' | 'other' | 'unknown') {
   switch (token) {
     case 'meta':
-      return platform === 'apple' ? 'Cmd' : 'Meta'
+      return platform === 'apple' ? 'Command' : 'Meta'
     case 'mod':
-      return platform === 'apple' ? 'Cmd' : 'Ctrl'
+      return platform === 'apple' ? 'Command' : 'Ctrl'
     case 'ctrl':
       return 'Ctrl'
     case 'alt':

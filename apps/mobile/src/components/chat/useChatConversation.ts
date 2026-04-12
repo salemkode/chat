@@ -171,6 +171,9 @@ export function useChatConversation({
     }
 
     setInlineError(null)
+    setMentionOpen(false)
+    setAttachmentsState([])
+
     let threadForSend = activeThreadId
     if (!threadForSend) {
       threadForSend = createLocalThreadId()
@@ -178,9 +181,11 @@ export function useChatConversation({
       onThreadCreated?.(threadForSend, 'local')
     }
 
-    await setDraft('')
-    setMentionOpen(false)
-    setAttachmentsState([])
+    const draftKeysToClear = [activeThreadId ?? 'new']
+    if (threadForSend !== activeThreadId) {
+      draftKeysToClear.push(threadForSend)
+    }
+    void setDraft('', { persistTo: draftKeysToClear })
 
     const pending = createPendingSend({
       threadId: threadForSend,
@@ -217,7 +222,7 @@ export function useChatConversation({
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to send message.'
       markFailed(pending.clientSendId, message)
-      await setDraft(promptSnapshot)
+      void setDraft(promptSnapshot, { persistTo: threadForSend })
       setAttachmentsState(attachmentsSnapshot)
       setInlineError(message)
     }

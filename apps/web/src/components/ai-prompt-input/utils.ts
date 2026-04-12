@@ -45,6 +45,16 @@ export type PendingProjectDraft = {
 
 const TEXT_ATTACHMENT_CHAR_THRESHOLD = 500
 const TEXT_ATTACHMENT_LINE_THRESHOLD = 10
+const CLIPBOARD_IMAGE_EXTENSION_BY_TYPE: Record<string, string> = {
+  'image/gif': '.gif',
+  'image/heic': '.heic',
+  'image/heif': '.heif',
+  'image/jpeg': '.jpg',
+  'image/jpg': '.jpg',
+  'image/png': '.png',
+  'image/svg+xml': '.svg',
+  'image/webp': '.webp',
+}
 
 export function shouldConvertToTextAttachment(text: string): boolean {
   if (text.length >= TEXT_ATTACHMENT_CHAR_THRESHOLD) return true
@@ -115,6 +125,44 @@ export function getAttachmentFingerprint(file: File) {
 
 export function isSupportedAttachment(file: File) {
   return file.type === 'application/pdf' || file.type.startsWith('image/')
+}
+
+export function extractClipboardImageFiles(
+  clipboardData: Pick<DataTransfer, 'files' | 'items'>,
+): File[] {
+  const filesFromItems = Array.from(clipboardData.items ?? [])
+    .flatMap((item, index) => {
+      if (item.kind !== 'file' || !item.type.startsWith('image/')) {
+        return []
+      }
+
+      const file = item.getAsFile()
+      if (!file) {
+        return []
+      }
+
+      return [normalizeClipboardImageFile(file, index)]
+    })
+
+  if (filesFromItems.length > 0) {
+    return filesFromItems
+  }
+
+  return Array.from(clipboardData.files ?? [])
+    .filter((file) => file.type.startsWith('image/'))
+    .map((file, index) => normalizeClipboardImageFile(file, index))
+}
+
+function normalizeClipboardImageFile(file: File, index: number): File {
+  if (file.name.trim()) {
+    return file
+  }
+
+  const extension = CLIPBOARD_IMAGE_EXTENSION_BY_TYPE[file.type] ?? '.png'
+  return new File([file], `pasted-image-${index + 1}${extension}`, {
+    type: file.type || 'image/png',
+    lastModified: file.lastModified || Date.now(),
+  })
 }
 
 export function getProjectMention(
