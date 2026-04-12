@@ -44,7 +44,6 @@ export function useThreads() {
   }, [])
 
   useEffect(() => {
-    if (!liveThreads.length) return
     const normalized = liveThreads.map(normalizeThread)
     setCachedThreads(normalized)
     void cacheThreads(normalized)
@@ -54,7 +53,7 @@ export function useThreads() {
     const source = liveThreads.length ? liveThreads.map(normalizeThread) : cachedThreads
     return [...source].sort((left, right) => {
       if (left.pinned !== right.pinned) return left.pinned ? -1 : 1
-      return right.createdAt - left.createdAt
+      return right.updatedAt - left.updatedAt
     })
   }, [cachedThreads, liveThreads])
 
@@ -76,4 +75,3 @@ export function useThreads() {
     ),
   }
 }
-

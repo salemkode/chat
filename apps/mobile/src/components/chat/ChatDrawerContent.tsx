@@ -1,30 +1,101 @@
 import { Ionicons } from '@expo/vector-icons'
+import { FlashList } from '@shopify/flash-list'
 import type { DrawerContentComponentProps } from '@react-navigation/drawer'
-import { useRouter } from 'expo-router'
-import { useMemo, useState } from 'react'
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native'
+import { usePathname, useRouter } from 'expo-router'
+import { useDeferredValue, useMemo, useState } from 'react'
+import { Pressable, Text, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useProjects } from '../../mobile-data/use-projects'
 import { useThreads } from '../../mobile-data/use-threads'
 
 export function ChatDrawerContent({ navigation }: DrawerContentComponentProps) {
   const router = useRouter()
+  const pathname = usePathname()
   const { threads } = useThreads()
   const { projects } = useProjects()
   const [searchValue, setSearchValue] = useState('')
-  const activeRoute = navigation.getState().routes[navigation.getState().index]
-  const routeParams = (activeRoute?.params ?? {}) as { id?: string }
-  const activeThreadId =
-    activeRoute?.name === 'chat/[id]' && typeof routeParams.id === 'string'
-      ? routeParams.id
-      : null
-  const isNewChatActive = activeRoute?.name === 'chats'
+  const deferredSearchValue = useDeferredValue(searchValue)
+  const activeThreadId = useMemo(() => {
+    if (!pathname.startsWith('/chat/')) {
+      return null
+    }
+    return decodeURIComponent(pathname.slice('/chat/'.length))
+  }, [pathname])
+  const isNewChatActive = pathname === '/chats'
 
   const filteredThreads = useMemo(() => {
-    const query = searchValue.trim().toLowerCase()
+    const query = deferredSearchValue.trim().toLowerCase()
     if (!query) return threads
     return threads.filter((thread) => (thread.title || 'Untitled chat').toLowerCase().includes(query))
-  }, [searchValue, threads])
+  }, [deferredSearchValue, threads])
+
+  const header = (
+    <View>
+      <Text
+        className="mb-3 font-sans text-[13px] uppercase tracking-[1.2px] text-foreground-secondary"
+        style={{ fontFamily: 'Inter_500Medium' }}
+      >
+        Projects
+      </Text>
+
+      {projects.length ? (
+        <View className="mb-6 gap-1">
+          {projects.map((project) => (
+            <Pressable
+              key={project.id}
+              onPress={() => {
+                navigation.closeDrawer()
+                router.push(`/project/${project.id}`)
+              }}
+              className="flex-row items-center justify-between rounded-2xl px-2 py-3 active:bg-card"
+            >
+              <View className="flex-row items-center gap-3">
+                <View className="size-8 items-center justify-center rounded-full bg-card">
+                  <Ionicons name="folder-open-outline" size={16} color="#f5f5f5" />
+                </View>
+                <Text className="font-sans text-[18px] text-foreground">{project.name}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color="#5b5d63" />
+            </Pressable>
+          ))}
+        </View>
+      ) : (
+        <Text className="mb-6 font-sans text-[15px] text-foreground-secondary">No projects yet.</Text>
+      )}
+
+      <Text
+        className="mb-3 font-sans text-[13px] uppercase tracking-[1.2px] text-foreground-secondary"
+        style={{ fontFamily: 'Inter_500Medium' }}
+      >
+        Chats
+      </Text>
+    </View>
+  )
+
+  const footer = (
+    <View className="mt-2 flex-row gap-2 border-t border-border pt-3">
+      <Pressable
+        onPress={() => {
+          navigation.closeDrawer()
+          router.push('/projects')
+        }}
+        className="flex-1 flex-row items-center justify-center gap-2 rounded-2xl border border-border bg-card px-3 py-3 active:bg-elevated"
+      >
+        <Ionicons name="folder-open-outline" size={16} color="#f5f5f5" />
+        <Text className="font-sans text-[15px] text-foreground">Projects</Text>
+      </Pressable>
+      <Pressable
+        onPress={() => {
+          navigation.closeDrawer()
+          router.push('/profile')
+        }}
+        className="flex-1 flex-row items-center justify-center gap-2 rounded-2xl border border-border bg-card px-3 py-3 active:bg-elevated"
+      >
+        <Ionicons name="person-outline" size={16} color="#f5f5f5" />
+        <Text className="font-sans text-[15px] text-foreground">Profile</Text>
+      </Pressable>
+    </View>
+  )
 
   return (
     <SafeAreaView
@@ -59,100 +130,38 @@ export function ChatDrawerContent({ navigation }: DrawerContentComponentProps) {
         </Pressable>
       </View>
 
-      <ScrollView
+      <FlashList
         className="flex-1"
+        data={filteredThreads}
+        keyExtractor={(item) => item.id}
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 24 }}
-      >
-        <Text
-          className="mb-3 font-sans text-[13px] uppercase tracking-[1.2px] text-foreground-secondary"
-          style={{ fontFamily: 'Inter_500Medium' }}
-        >
-          Projects
-        </Text>
-
-        {projects.length ? (
-          <View className="mb-6 gap-1">
-            {projects.map((project) => (
-              <Pressable
-                key={project.id}
-                onPress={() => {
-                  navigation.closeDrawer()
-                  router.push(`/project/${project.id}`)
-                }}
-                className="flex-row items-center justify-between rounded-2xl px-2 py-3 active:bg-card"
-              >
-                <View className="flex-row items-center gap-3">
-                  <View className="size-8 items-center justify-center rounded-full bg-card">
-                    <Ionicons name="folder-open-outline" size={16} color="#f5f5f5" />
-                  </View>
-                  <Text className="font-sans text-[18px] text-foreground">{project.name}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={16} color="#5b5d63" />
-              </Pressable>
-            ))}
-          </View>
-        ) : (
-          <Text className="mb-6 font-sans text-[15px] text-foreground-secondary">No projects yet.</Text>
-        )}
-
-        <Text
-          className="mb-3 font-sans text-[13px] uppercase tracking-[1.2px] text-foreground-secondary"
-          style={{ fontFamily: 'Inter_500Medium' }}
-        >
-          Chats
-        </Text>
-
-        {filteredThreads.length ? (
-          <View className="gap-1">
-            {filteredThreads.map((thread) => {
-              const isActive = thread.id === activeThreadId
-              return (
-                <Pressable
-                  key={thread.id}
-                  onPress={() => {
-                    navigation.closeDrawer()
-                    router.replace(`/chat/${thread.id}`)
-                  }}
-                  className={`flex-row items-center gap-2 rounded-2xl px-2 py-2.5 active:bg-card ${isActive ? 'bg-card' : ''}`}
-                >
-                  {thread.pinned ? <Ionicons name="bookmark" size={14} color="#9a9ca3" /> : null}
-                  <Text numberOfLines={1} className="flex-1 font-sans text-[18px] text-foreground">
-                    {thread.title || 'Untitled chat'}
-                  </Text>
-                </Pressable>
-              )
-            })}
-          </View>
-        ) : (
+        ListHeaderComponent={header}
+        ListFooterComponent={footer}
+        ListEmptyComponent={
           <Text className="font-sans text-[15px] text-foreground-secondary">
             {searchValue.trim() ? 'No matching chats.' : 'No chats yet.'}
           </Text>
-        )}
-      </ScrollView>
-
-      <View className="mt-2 flex-row gap-2 border-t border-border pt-3">
-        <Pressable
-          onPress={() => {
-            navigation.closeDrawer()
-            router.push('/projects')
-          }}
-          className="flex-1 flex-row items-center justify-center gap-2 rounded-2xl border border-border bg-card px-3 py-3 active:bg-elevated"
-        >
-          <Ionicons name="folder-open-outline" size={16} color="#f5f5f5" />
-          <Text className="font-sans text-[15px] text-foreground">Projects</Text>
-        </Pressable>
-        <Pressable
-          onPress={() => {
-            navigation.closeDrawer()
-            router.push('/profile')
-          }}
-          className="flex-1 flex-row items-center justify-center gap-2 rounded-2xl border border-border bg-card px-3 py-3 active:bg-elevated"
-        >
-          <Ionicons name="person-outline" size={16} color="#f5f5f5" />
-          <Text className="font-sans text-[15px] text-foreground">Profile</Text>
-        </Pressable>
-      </View>
+        }
+        renderItem={({ item: thread }) => {
+          const isActive = thread.id === activeThreadId
+          return (
+            <Pressable
+              onPress={() => {
+                navigation.closeDrawer()
+                router.replace(`/chat/${thread.id}`)
+              }}
+              className={`mb-1 flex-row items-center gap-2 rounded-2xl px-2 py-2.5 active:bg-card ${isActive ? 'bg-card' : ''}`}
+            >
+              {thread.pinned ? <Ionicons name="bookmark" size={14} color="#9a9ca3" /> : null}
+              <Text numberOfLines={1} className="flex-1 font-sans text-[18px] text-foreground">
+                {thread.title || 'Untitled chat'}
+              </Text>
+            </Pressable>
+          )
+        }}
+      />
     </SafeAreaView>
   )
 }

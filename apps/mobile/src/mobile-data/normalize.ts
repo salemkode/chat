@@ -22,7 +22,7 @@ export function normalizeThread(thread: any): MobileOfflineThreadRecord {
     projectName: project?.name,
     pinned: thread.metadata?.sortOrder === 1,
     createdAt: thread._creationTime,
-    updatedAt: thread._creationTime,
+    updatedAt: thread.lastMessageAt ?? thread._creationTime,
   }
 }
 

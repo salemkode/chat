@@ -37,6 +37,7 @@ type ChatOptimisticSendState = {
   markFailed: (clientSendId: string, errorText: string) => void
   clearRequest: (clientSendId: string) => void
   clearFailedForThread: (threadId: string) => void
+  clearDeliveredForThread: (threadId: string, liveMessages: ChatRenderableMessage[]) => void
   getPendingSendByMessageId: (messageId: string) => PendingSendRecord | null
 }
 
@@ -49,16 +50,89 @@ function toOptimisticAttachments(attachments: LocalAttachment[]): ChatRenderable
   }))
 }
 
+function getMessageSortValue(message: Pick<ChatRenderableMessage, 'order' | 'createdAt'>) {
+  if (typeof message.order === 'number') {
+    return message.order
+  }
+  if (typeof message.createdAt === 'number') {
+    return message.createdAt
+  }
+  return Number.POSITIVE_INFINITY
+}
+
+function sortRenderableMessages(messages: ChatRenderableMessage[]) {
+  return messages
+    .slice()
+    .sort(
+      (left, right) =>
+        getMessageSortValue(left) - getMessageSortValue(right) || left.id.localeCompare(right.id),
+    )
+}
+
+function getAttachmentFingerprints(
+  attachments: ChatRenderableAttachment[] | undefined,
+) {
+  return (attachments ?? [])
+    .map((attachment) => `${attachment.filename ?? ''}:${attachment.mediaType}`)
+    .sort()
+}
+
+function hasLiveHandoffMatch(record: PendingSendRecord, liveMessages: ChatRenderableMessage[]) {
+  const pendingAttachments = getAttachmentFingerprints(toOptimisticAttachments(record.attachments))
+
+  for (let index = liveMessages.length - 1; index >= 0; index -= 1) {
+    const message = liveMessages[index]
+    if (!message || message.role !== 'user') {
+      continue
+    }
+    if (message.text !== record.prompt) {
+      continue
+    }
+
+    const liveAttachments = getAttachmentFingerprints(message.attachments)
+    if (pendingAttachments.length > 0) {
+      if (liveAttachments.length !== pendingAttachments.length) {
+        continue
+      }
+      if (liveAttachments.some((value, attachmentIndex) => value !== pendingAttachments[attachmentIndex])) {
+        continue
+      }
+    }
+
+    for (let assistantIndex = index + 1; assistantIndex < liveMessages.length; assistantIndex += 1) {
+      const assistant = liveMessages[assistantIndex]
+      if (assistant?.role !== 'assistant') {
+        continue
+      }
+
+      if (assistant.status === 'streaming' || assistant.status === 'pending' || assistant.status === 'success') {
+        return true
+      }
+    }
+  }
+
+  return false
+}
+
 export function selectRenderableForThread(
   state: ChatOptimisticSendState,
   threadId?: string,
+  liveMessages: ChatRenderableMessage[] = [],
 ): ChatRenderableMessage[] {
   if (!threadId) return []
 
   const rows: ChatRenderableMessage[] = []
-  for (const record of Object.values(state.pendingSends)) {
+  const records = Object.values(state.pendingSends)
+    .filter((record) => record.threadId === threadId)
+    .sort((left, right) => left.createdAt - right.createdAt)
+
+  for (const record of records) {
     if (record.threadId !== threadId) continue
     const attachments = toOptimisticAttachments(record.attachments)
+
+    if (record.status === 'handoff' && hasLiveHandoffMatch(record, liveMessages)) {
+      continue
+    }
 
     if (record.status === 'failed') {
       rows.push({
@@ -106,9 +180,31 @@ export function selectRenderableForThread(
         requestId: record.clientSendId,
       })
     }
+
+    if (record.status === 'handoff') {
+      rows.push({
+        id: `${record.clientSendId}-user`,
+        role: 'user',
+        text: record.prompt,
+        attachments,
+        status: 'success',
+        createdAt: record.createdAt,
+        local: true,
+        requestId: record.clientSendId,
+      })
+      rows.push({
+        id: `${record.clientSendId}-assistant`,
+        role: 'assistant',
+        text: '',
+        status: 'streaming',
+        createdAt: record.createdAt + 1,
+        local: true,
+        requestId: record.clientSendId,
+      })
+    }
   }
 
-  return rows.sort((left, right) => (right.createdAt ?? 0) - (left.createdAt ?? 0))
+  return sortRenderableMessages(rows)
 }
 
 export const useChatOptimisticSendStore = create<ChatOptimisticSendState>((set, get) => ({
@@ -207,6 +303,18 @@ export const useChatOptimisticSendStore = create<ChatOptimisticSendState>((set, 
         Object.entries(state.pendingSends).filter(
           ([, record]) => !(record.threadId === threadId && record.status === 'failed'),
         ),
+      ),
+    }))
+  },
+  clearDeliveredForThread: (threadId, liveMessages) => {
+    set((state) => ({
+      pendingSends: Object.fromEntries(
+        Object.entries(state.pendingSends).filter(([, record]) => {
+          if (record.threadId !== threadId || record.status !== 'handoff') {
+            return true
+          }
+          return !hasLiveHandoffMatch(record, liveMessages)
+        }),
       ),
     }))
   },

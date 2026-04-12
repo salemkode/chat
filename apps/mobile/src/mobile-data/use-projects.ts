@@ -96,7 +96,6 @@ export function useProjects() {
   }, [])
 
   useEffect(() => {
-    if (!liveProjects.length) return
     const normalized = liveProjects.map(normalizeProject)
     setCachedProjects(normalized)
     void cacheProjects(normalized)

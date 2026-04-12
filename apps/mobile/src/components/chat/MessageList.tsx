@@ -1,21 +1,39 @@
+import { useEffect, useMemo, useRef } from 'react'
 import { FlashList } from '@shopify/flash-list'
 import { Text, View } from 'react-native'
-import { useMessages } from '../../mobile-data/use-message-list'
 import { CHAT_FG, CHAT_FG_MUTED } from './constants'
 import { MessageRow } from './MessageRow'
 import type { ChatRenderableMessage } from './types'
 
 export function MessageList({
-  threadId,
+  messages,
   title,
   onRetryFailedMessage,
 }: {
-  threadId?: string
+  messages: ChatRenderableMessage[]
   title: string
   onRetryFailedMessage?: (messageId: string) => void
 }) {
-  const { messages } = useMessages(threadId)
-  const list = messages as ChatRenderableMessage[]
+  const listRef = useRef<any>(null)
+  const lastMessageSignature = useMemo(() => {
+    const lastMessage = messages[messages.length - 1]
+    return lastMessage
+      ? `${lastMessage.id}:${lastMessage.status ?? ''}:${lastMessage.text ?? ''}:${lastMessage.attachments?.length ?? 0}`
+      : ''
+  }, [messages])
+
+  useEffect(() => {
+    if (messages.length === 0) {
+      return
+    }
+
+    const timeoutId = setTimeout(() => {
+      listRef.current?.scrollToEnd({ animated: true })
+    }, 0)
+
+    return () => clearTimeout(timeoutId)
+  }, [lastMessageSignature, messages.length])
+
   const emptyWelcome = (
     <View
       style={{
@@ -52,15 +70,18 @@ export function MessageList({
 
   return (
     <FlashList
-      data={list}
+      ref={listRef}
+      data={messages}
       keyExtractor={(item) => item.id}
       style={{ flex: 1 }}
+      keyboardShouldPersistTaps="handled"
       contentContainerStyle={{
         paddingHorizontal: 12,
         paddingTop: 8,
+        paddingBottom: 12,
         flexGrow: 1,
       }}
-      ListEmptyComponent={list.length === 0 ? emptyWelcome : null}
+      ListEmptyComponent={messages.length === 0 ? emptyWelcome : null}
       ListFooterComponent={<View style={{ height: 12 }} />}
       renderItem={({ item }) => (
         <MessageRow message={item} onRetry={onRetryFailedMessage} />

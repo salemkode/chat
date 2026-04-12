@@ -1,5 +1,5 @@
 import { useUIMessages } from '@convex-dev/agent/react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import type { ChatRenderableAttachment, ChatRenderableMessage } from '../components/chat/types'
 import { api } from '../lib/convexApi'
@@ -61,17 +61,47 @@ function normalizeMessage(
   }
 }
 
+function getMessageSortValue(message: Pick<ChatRenderableMessage, 'order' | 'createdAt'>) {
+  if (typeof message.order === 'number') {
+    return message.order
+  }
+  if (typeof message.createdAt === 'number') {
+    return message.createdAt
+  }
+  return Number.POSITIVE_INFINITY
+}
+
+function sortMessages<T extends ChatRenderableMessage>(messages: T[]) {
+  return messages
+    .slice()
+    .sort(
+      (left, right) =>
+        getMessageSortValue(left) - getMessageSortValue(right) || left.id.localeCompare(right.id),
+    )
+}
+
 export function useMessages(threadId?: string) {
   const hasLocalThreadId = isLocalThreadId(threadId)
   const queryArgs = threadId && !hasLocalThreadId ? { threadId } : 'skip'
   const { results, status } = useUIMessages(api.chat.listMessages as never, queryArgs as never, {
     initialNumItems: 30,
   })
-  const localMessages = useChatOptimisticSendStore(
-    useShallow((state) => selectRenderableForThread(state, threadId)),
-  )
+  const clearDeliveredForThread = useChatOptimisticSendStore((state) => state.clearDeliveredForThread)
   const [cachedMessages, setCachedMessages] = useState<MobileOfflineMessageRecord[]>([])
   const lastLiveSnapshotRef = useRef('')
+
+  const liveMessages = useMemo(
+    () =>
+      threadId && !hasLocalThreadId && results?.length
+        ? sortMessages(
+            results.map((message: any, index: number) => normalizeMessage(message, threadId, index)),
+          )
+        : [],
+    [hasLocalThreadId, results, threadId],
+  )
+  const localMessages = useChatOptimisticSendStore(
+    useShallow((state) => selectRenderableForThread(state, threadId, liveMessages)),
+  )
 
   useEffect(() => {
     if (!threadId || hasLocalThreadId) {
@@ -83,10 +113,7 @@ export function useMessages(threadId?: string) {
 
   useEffect(() => {
     if (!threadId || hasLocalThreadId || !results?.length) return
-    const normalized = results.map((message: any, index: number) =>
-      normalizeMessage(message, threadId, index),
-    )
-    const snapshotSignature = normalized
+    const snapshotSignature = liveMessages
       .map((message) =>
         [
           message.id,
@@ -102,18 +129,21 @@ export function useMessages(threadId?: string) {
       return
     }
     lastLiveSnapshotRef.current = snapshotSignature
-    setCachedMessages(normalized)
-    void cacheMessages(threadId, normalized)
-  }, [hasLocalThreadId, results, threadId])
+    setCachedMessages(liveMessages)
+    void cacheMessages(threadId, liveMessages)
+  }, [hasLocalThreadId, liveMessages, results, threadId])
 
-  const liveMessages =
-    threadId && !hasLocalThreadId && results?.length
-      ? results.map((message: any, index: number) => normalizeMessage(message, threadId, index))
-      : []
+  useEffect(() => {
+    if (!threadId || liveMessages.length === 0) {
+      return
+    }
+    clearDeliveredForThread(threadId, liveMessages)
+  }, [clearDeliveredForThread, liveMessages, threadId])
 
   const persistedMessages = liveMessages.length ? liveMessages : cachedMessages
-  const mergedMessages = [...localMessages, ...persistedMessages].sort(
-    (left, right) => (right.createdAt ?? 0) - (left.createdAt ?? 0),
+  const mergedMessages = useMemo(
+    () => sortMessages([...localMessages, ...persistedMessages]),
+    [localMessages, persistedMessages],
   )
 
   return {

@@ -46,7 +46,7 @@ export function ChatPage({
       >
         <View style={{ flex: 1, minHeight: 0, backgroundColor: c.bg }}>
           <MessageList
-            threadId={c.messageList.threadId}
+            messages={c.messageList.messages}
             title={c.messageList.title}
             onRetryFailedMessage={c.messageList.onRetryFailedMessage}
           />

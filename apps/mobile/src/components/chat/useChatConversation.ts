@@ -80,7 +80,6 @@ export function useChatConversation({
   const moveThreadKey = useChatOptimisticSendStore((state) => state.moveThreadKey)
   const markHandoff = useChatOptimisticSendStore((state) => state.markHandoff)
   const markFailed = useChatOptimisticSendStore((state) => state.markFailed)
-  const clearRequest = useChatOptimisticSendStore((state) => state.clearRequest)
   const clearFailedForThread = useChatOptimisticSendStore((state) => state.clearFailedForThread)
   const getPendingSendByMessageId = useChatOptimisticSendStore(
     (state) => state.getPendingSendByMessageId,
@@ -211,7 +210,6 @@ export function useChatConversation({
           markHandoff(pending.clientSendId)
         },
       })
-      clearRequest(pending.clientSendId)
 
       if (result.threadId) {
         clearFailedForThread(result.threadId)
@@ -434,10 +432,10 @@ export function useChatConversation({
       title,
       activeProjectName: activeProject?.name,
       onRemoveProject:
-        activeThreadId !== undefined
+        contextThreadId !== undefined
           ? () => {
               setSelectedProjectId(undefined)
-              void removeThreadFromProject(activeThreadId)
+              void removeThreadFromProject(contextThreadId)
             }
           : undefined,
     },
@@ -445,6 +443,7 @@ export function useChatConversation({
     messageList: {
       threadId: activeThreadId,
       title,
+      messages,
       onRetryFailedMessage: handleRetryFailedMessage,
     },
     composer: {
