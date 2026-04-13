@@ -2,9 +2,7 @@ import type { OptimisticLocalStore } from 'convex/browser'
 import type { FunctionReturnType } from 'convex/server'
 import { api } from '@convex/_generated/api'
 
-type ThreadsWithMetadata = FunctionReturnType<
-  typeof api.agents.listThreadsWithMetadata
->
+type ThreadsWithMetadata = FunctionReturnType<typeof api.agents.listThreadsWithMetadata>
 
 type CreateChatThreadArgs = {
   title?: string
@@ -19,10 +17,7 @@ function normalizeThreadTitle(title?: string) {
   return cleaned ? cleaned.slice(0, 60) : 'New chat'
 }
 
-function resolveProjectName(
-  localStore: OptimisticLocalStore,
-  projectId?: string,
-) {
+function resolveProjectName(localStore: OptimisticLocalStore, projectId?: string) {
   if (!projectId) {
     return undefined
   }
@@ -39,9 +34,7 @@ export function isOptimisticThreadId(threadId?: string | null) {
   return Boolean(threadId && threadId.startsWith(OPTIMISTIC_THREAD_PREFIX))
 }
 
-export function filterPersistableThreads(
-  threads: ThreadsWithMetadata,
-): ThreadsWithMetadata {
+export function filterPersistableThreads(threads: ThreadsWithMetadata): ThreadsWithMetadata {
   return threads.filter((thread) => !isOptimisticThreadId(thread._id))
 }
 
@@ -72,9 +65,5 @@ export function applyOptimisticCreateThread(
       : null,
   }
 
-  localStore.setQuery(api.agents.listThreadsWithMetadata, {}, [
-    optimisticRow,
-    ...current,
-  ])
+  localStore.setQuery(api.agents.listThreadsWithMetadata, {}, [optimisticRow, ...current])
 }
-

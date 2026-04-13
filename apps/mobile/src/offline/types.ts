@@ -39,6 +39,7 @@ export interface MobileOfflineModelRecord {
   modelId: string
   displayName: string
   description?: string
+  capabilities?: string[]
   sortOrder: number
   isFavorite: boolean
 }

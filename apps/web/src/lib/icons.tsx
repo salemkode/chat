@@ -10,10 +10,7 @@ export type AppIcon = React.ComponentType<{
 
 const phosphorModule: IconModule = phosphorIcons
 
-function pickIcon(
-  phosphorNames: string[],
-  fallback = 'Sparkle',
-): AppIcon {
+function pickIcon(phosphorNames: string[], fallback = 'Sparkle'): AppIcon {
   for (const name of phosphorNames) {
     const icon = phosphorModule[name]
     if (icon) {
@@ -63,7 +60,10 @@ export const MoreHorizontalIcon = MoreHorizontal
 export const MinusIcon = pickIcon(['Minus'], 'Minus')
 export const MessageCircle = pickIcon(['ChatCircle'], 'MessageCircle')
 export const MessageSquare = pickIcon(['ChatText'], 'MessageSquare')
-export const MessageSquareText = pickIcon(['ChatTeardropText', 'ChatCircleText'], 'MessageSquareText')
+export const MessageSquareText = pickIcon(
+  ['ChatTeardropText', 'ChatCircleText'],
+  'MessageSquareText',
+)
 export const MoveRight = pickIcon(['ArrowRight'], 'MoveRight')
 export const RefreshCcw = pickIcon(['ArrowsClockwise'], 'RefreshCcw')
 export const RefreshCw = RefreshCcw

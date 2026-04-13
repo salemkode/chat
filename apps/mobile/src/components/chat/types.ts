@@ -18,7 +18,7 @@ export type ChatRenderableMessage = {
   local?: boolean
   requestId?: string
   errorText?: string
-  retryable?: boolean
+  replayable?: boolean
 }
 
 export type LocalAttachment = {

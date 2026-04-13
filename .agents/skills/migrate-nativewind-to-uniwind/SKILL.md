@@ -14,6 +14,7 @@ Uniwind replaces NativeWind with better performance and stability. It requires *
 ## Pre-Migration Checklist
 
 Before starting, read the project's existing config files to understand the current setup:
+
 - `package.json` (NativeWind version, dependencies)
 - `tailwind.config.js` / `tailwind.config.ts`
 - `metro.config.js`
@@ -27,6 +28,7 @@ Before starting, read the project's existing config files to understand the curr
 ## Step 1: Remove NativeWind and Related Packages
 
 Uninstall ALL of these packages (if present):
+
 ```bash
 npm uninstall nativewind react-native-css-interop
 # or
@@ -36,6 +38,7 @@ bun remove nativewind react-native-css-interop
 ```
 
 **CRITICAL**: `react-native-css-interop` is a NativeWind dependency that must be removed. It is commonly missed during migration. Search the entire codebase for any imports from it:
+
 ```bash
 rg "react-native-css-interop" -g "*.{ts,tsx,js,jsx}"
 ```
@@ -57,6 +60,7 @@ Ensure `tailwindcss` is version 4+.
 ## Step 3: Update babel.config.js
 
 Remove the NativeWind babel preset:
+
 ```js
 // REMOVE this line from presets array:
 // 'nativewind/babel'
@@ -69,23 +73,25 @@ No Uniwind babel preset is needed.
 Replace NativeWind's metro config with Uniwind's. `withUniwindConfig` must be the **outermost wrapper**.
 
 **Before (NativeWind):**
+
 ```js
-const { withNativeWind } = require('nativewind/metro');
-module.exports = withNativeWind(config, { input: './global.css' });
+const { withNativeWind } = require('nativewind/metro')
+module.exports = withNativeWind(config, { input: './global.css' })
 ```
 
 **After (Uniwind):**
-```js
-const { getDefaultConfig } = require('expo/metro-config');
-// For bare RN: const { getDefaultConfig } = require('@react-native/metro-config');
-const { withUniwindConfig } = require('uniwind/metro');
 
-const config = getDefaultConfig(__dirname);
+```js
+const { getDefaultConfig } = require('expo/metro-config')
+// For bare RN: const { getDefaultConfig } = require('@react-native/metro-config');
+const { withUniwindConfig } = require('uniwind/metro')
+
+const config = getDefaultConfig(__dirname)
 
 module.exports = withUniwindConfig(config, {
   cssEntryFile: './global.css',
   polyfills: { rem: 14 },
-});
+})
 ```
 
 `cssEntryFile` must be a **relative path string** from project root (e.g. `./global.css` or `./app/global.css`).
@@ -108,10 +114,11 @@ module.exports = withUniwindConfig(config, {
   cssEntryFile: './global.css',
   polyfills: { rem: 14 },
   extraThemes: ['ocean', 'sunset', 'premium'],
-});
+})
 ```
 
 Options:
+
 - `cssEntryFile` (required): relative path string to CSS entry file (from project root)
 - `polyfills.rem` (required for migration): set to `14` to match NativeWind's rem base
 - `extraThemes` (required if project has custom themes): array of custom theme names — do NOT include `light`/`dark`
@@ -123,6 +130,7 @@ Options:
 Replace NativeWind's Tailwind 3 directives with Tailwind 4 imports:
 
 **Before:**
+
 ```css
 @tailwind base;
 @tailwind components;
@@ -130,6 +138,7 @@ Replace NativeWind's Tailwind 3 directives with Tailwind 4 imports:
 ```
 
 **After:**
+
 ```css
 @import 'tailwindcss';
 @import 'uniwind';
@@ -150,6 +159,7 @@ Remove `tailwind.config.js` / `tailwind.config.ts` entirely. All theme config mo
 Migrate custom theme values to `global.css`:
 
 **Before (tailwind.config.js):**
+
 ```js
 module.exports = {
   theme: {
@@ -164,10 +174,11 @@ module.exports = {
       },
     },
   },
-};
+}
 ```
 
 **After (global.css):**
+
 ```css
 @import 'tailwindcss';
 @import 'uniwind';
@@ -193,19 +204,21 @@ rg "cssInterop|remapProps" -g "*.{ts,tsx,js,jsx}"
 Replace every `cssInterop()` / `remapProps()` call with Uniwind's `withUniwind()`:
 
 **Before (NativeWind):**
-```tsx
-import { cssInterop } from 'react-native-css-interop';
-import { Image } from 'expo-image';
 
-cssInterop(Image, { className: 'style' });
+```tsx
+import { cssInterop } from 'react-native-css-interop'
+import { Image } from 'expo-image'
+
+cssInterop(Image, { className: 'style' })
 ```
 
 **After (Uniwind):**
-```tsx
-import { withUniwind } from 'uniwind';
-import { Image as ExpoImage } from 'expo-image';
 
-export const Image = withUniwind(ExpoImage);
+```tsx
+import { withUniwind } from 'uniwind'
+import { Image as ExpoImage } from 'expo-image'
+
+export const Image = withUniwind(ExpoImage)
 ```
 
 `withUniwind` automatically maps `className` → `style` and other common props. For custom prop mappings:
@@ -216,37 +229,41 @@ const StyledProgressBar = withUniwind(ProgressBar, {
     fromClassName: 'widthClassName',
     styleProperty: 'width',
   },
-});
+})
 ```
 
 Define wrapped components at **module level** (not inside render functions). Each component should only be wrapped once:
 
 - **Used in one file only** — define the wrapped component in that same file:
+
   ```tsx
   // screens/ProfileScreen.tsx
-  import { withUniwind } from 'uniwind';
-  import { BlurView as RNBlurView } from '@react-native-community/blur';
+  import { withUniwind } from 'uniwind'
+  import { BlurView as RNBlurView } from '@react-native-community/blur'
 
-  const BlurView = withUniwind(RNBlurView);
+  const BlurView = withUniwind(RNBlurView)
 
   export function ProfileScreen() {
-    return <BlurView className="flex-1" />;
+    return <BlurView className="flex-1" />
   }
   ```
 
 - **Used across multiple files** — wrap once in a shared module and re-export:
+
   ```tsx
   // components/styled.ts
-  import { withUniwind } from 'uniwind';
-  import { Image as ExpoImage } from 'expo-image';
-  import { LinearGradient as RNLinearGradient } from 'expo-linear-gradient';
+  import { withUniwind } from 'uniwind'
+  import { Image as ExpoImage } from 'expo-image'
+  import { LinearGradient as RNLinearGradient } from 'expo-linear-gradient'
 
-  export const Image = withUniwind(ExpoImage);
-  export const LinearGradient = withUniwind(RNLinearGradient);
+  export const Image = withUniwind(ExpoImage)
+  export const LinearGradient = withUniwind(RNLinearGradient)
   ```
+
   Then import from the shared module everywhere:
+
   ```tsx
-  import { Image, LinearGradient } from '@/components/styled';
+  import { Image, LinearGradient } from '@/components/styled'
   ```
 
 Never call `withUniwind` on the same component in multiple files — wrap once, import everywhere.
@@ -282,6 +299,7 @@ Rule: `className` accepts any Tailwind utility for style-based props. For non-st
 ## Step 10: Migrate NativeWind Theme Variables
 
 **Before (NativeWind JS themes with `vars()`):**
+
 ```tsx
 import { vars } from 'nativewind';
 
@@ -301,6 +319,7 @@ export const themes = {
 ```
 
 **After (Uniwind CSS themes):**
+
 ```css
 @layer theme {
   :root {
@@ -321,16 +340,18 @@ export const themes = {
 No ThemeProvider wrapper needed. Remove the NativeWind `<ThemeProvider>` or `vars()` wrapper from JSX. Keep React Navigation's `<ThemeProvider>` if used.
 
 If the project used nested theme wrappers to preview or force a theme for a specific subtree (for example a demo card, settings preview, or side-by-side theme comparison), use Uniwind Pro's `ScopedTheme` instead of changing the global theme:
-```tsx
-import { ScopedTheme } from 'uniwind';
 
-<ScopedTheme theme="dark">
+```tsx
+import { ScopedTheme } from 'uniwind'
+;<ScopedTheme theme="dark">
   <PreviewCard />
 </ScopedTheme>
 ```
 
 If the project has **custom themes beyond light/dark** (e.g. `ocean`, `premium`), you must:
+
 1. Define them in CSS using `@variant`:
+
 ```css
 @layer theme {
   :root {
@@ -341,13 +362,15 @@ If the project has **custom themes beyond light/dark** (e.g. `ocean`, `premium`)
   }
 }
 ```
+
 2. Register them in metro.config.js via `extraThemes` (skip `light`/`dark` — they are auto-added):
+
 ```js
 module.exports = withUniwindConfig(config, {
   cssEntryFile: './global.css',
   polyfills: { rem: 14 },
   extraThemes: ['ocean', 'premium'],
-});
+})
 ```
 
 ## Step 11: Migrate Safe Area Utilities
@@ -355,23 +378,21 @@ module.exports = withUniwindConfig(config, {
 NativeWind's safe area classes need explicit setup in Uniwind:
 
 ```tsx
-import { SafeAreaProvider, SafeAreaListener } from 'react-native-safe-area-context';
-import { Uniwind } from 'uniwind';
+import { SafeAreaProvider, SafeAreaListener } from 'react-native-safe-area-context'
+import { Uniwind } from 'uniwind'
 
 export default function App() {
   return (
     <SafeAreaProvider>
       <SafeAreaListener
         onChange={({ insets }) => {
-          Uniwind.updateInsets(insets);
+          Uniwind.updateInsets(insets)
         }}
       >
-        <View className="pt-safe px-safe">
-          {/* content */}
-        </View>
+        <View className="pt-safe px-safe">{/* content */}</View>
       </SafeAreaListener>
     </SafeAreaProvider>
-  );
+  )
 }
 ```
 
@@ -384,6 +405,7 @@ NativeWind uses 14px as the base rem, Uniwind defaults to 16px. Step 4 already s
 Uniwind does NOT auto-deduplicate conflicting classNames (NativeWind did). If your codebase relies on override patterns like ``className={`p-4 ${overrideClass}`}``, set up a `cn` utility.
 
 First, check if the project already has a `cn` helper (common in shadcn/ui projects):
+
 ```bash
 rg "export function cn|export const cn" -g "*.{ts,tsx,js}"
 ```
@@ -395,16 +417,18 @@ npm install tailwind-merge clsx
 ```
 
 Create `lib/cn.ts` (or wherever utils live in the project):
+
 ```ts
-import { type ClassValue, clsx } from 'clsx';
-import { twMerge } from 'tailwind-merge';
+import { type ClassValue, clsx } from 'clsx'
+import { twMerge } from 'tailwind-merge'
 
 export function cn(...inputs: ClassValue[]) {
-    return twMerge(clsx(inputs));
+  return twMerge(clsx(inputs))
 }
 ```
 
 Usage:
+
 ```tsx
 import { cn } from '@/lib/cn';
 
@@ -419,6 +443,7 @@ Use `cn` instead of raw `twMerge` — it handles conditional classes, arrays, an
 If the project used NativeWind `animated-*` / transition class patterns, migrate those to explicit `react-native-reanimated` usage. Uniwind OSS does not provide NativeWind-style animated class behavior.
 
 Use this migration guide section as the source of truth:
+
 - https://docs.uniwind.dev/migration-from-nativewind
 
 ## Step 15: Clean Up Remaining NativeWind References
@@ -430,6 +455,7 @@ rg "nativewind|NativeWind|native-wind" -g "*.{ts,tsx,js,jsx,json,css}"
 ```
 
 Check for:
+
 - NativeWind imports in any file
 - `nativewind` in `package.json` (devDependencies too)
 - `react-native-css-interop` in `package.json`
@@ -446,9 +472,9 @@ Check for:
 Docs: https://docs.uniwind.dev/api/use-uniwind
 
 ```tsx
-import { useUniwind } from 'uniwind';
+import { useUniwind } from 'uniwind'
 
-const { theme, hasAdaptiveThemes } = useUniwind();
+const { theme, hasAdaptiveThemes } = useUniwind()
 // theme: current theme name — "light", "dark", "system", or custom
 // hasAdaptiveThemes: true if app follows system color scheme
 ```
@@ -458,10 +484,11 @@ Use for: displaying theme name in UI, conditional rendering by theme, side effec
 ### Uniwind Static API — Theme Access (no re-render)
 
 Access theme info without causing re-renders:
-```tsx
-import { Uniwind } from 'uniwind';
 
-Uniwind.currentTheme    // "light", "dark", "system", or custom
+```tsx
+import { Uniwind } from 'uniwind'
+
+Uniwind.currentTheme // "light", "dark", "system", or custom
 Uniwind.hasAdaptiveThemes // true if following system color scheme
 ```
 
@@ -474,12 +501,12 @@ Docs: https://docs.uniwind.dev/api/use-resolve-class-names
 Converts Tailwind classes into React Native style objects. Use when working with components that don't support `className` and can't be wrapped with `withUniwind` (e.g. react-navigation theme config):
 
 ```tsx
-import { useResolveClassNames } from 'uniwind';
+import { useResolveClassNames } from 'uniwind'
 
-const headerStyle = useResolveClassNames('bg-blue-500');
-const cardStyle = useResolveClassNames('bg-white dark:bg-gray-900');
+const headerStyle = useResolveClassNames('bg-blue-500')
+const cardStyle = useResolveClassNames('bg-white dark:bg-gray-900')
 
-<Stack.Navigator
+;<Stack.Navigator
   screenOptions={{
     headerStyle: headerStyle,
     cardStyle: cardStyle,
@@ -494,10 +521,10 @@ Docs: https://docs.uniwind.dev/api/use-css-variable
 Retrieve CSS variable values programmatically. Variable must be prefixed with `--` and match a variable defined in `global.css`:
 
 ```tsx
-import { useCSSVariable } from 'uniwind';
+import { useCSSVariable } from 'uniwind'
 
-const primaryColor = useCSSVariable('--color-primary');
-const spacing = useCSSVariable('--spacing-4');
+const primaryColor = useCSSVariable('--color-primary')
+const spacing = useCSSVariable('--spacing-4')
 ```
 
 Use for: animations, third-party library configs, calculations with design tokens.
@@ -509,10 +536,18 @@ Docs: https://docs.uniwind.dev/api/css-functions
 Define custom utilities using device-aware CSS functions like `hairlineWidth()`, `fontScale()`, `pixelRatio()`. These can be used everywhere (custom CSS classes, `@utility`, etc.) — but NOT inside `@theme {}` (which only accepts static values). Use `@utility` to create reusable Tailwind-style classes:
 
 ```css
-@utility w-hairline { width: hairlineWidth(); }
-@utility h-hairline { height: hairlineWidth(); }
-@utility border-hairline { border-width: hairlineWidth(); }
-@utility text-scaled { font-size: fontScale(); }
+@utility w-hairline {
+  width: hairlineWidth();
+}
+@utility h-hairline {
+  height: hairlineWidth();
+}
+@utility border-hairline {
+  border-width: hairlineWidth();
+}
+@utility text-scaled {
+  font-size: fontScale();
+}
 ```
 
 Then use as: `<View className="w-hairline h-hairline" />`
@@ -525,9 +560,7 @@ Apply styles conditionally per platform using `ios:`, `android:`, `web:`, `nativ
 
 ```tsx
 <View className="ios:bg-red-500 android:bg-blue-500 web:bg-green-500">
-  <Text className="ios:text-white android:text-white web:text-black">
-    Platform-specific styles
-  </Text>
+  <Text className="ios:text-white android:text-white web:text-black">Platform-specific styles</Text>
 </View>
 ```
 
@@ -538,12 +571,12 @@ Docs: https://docs.uniwind.dev/theming/basics
 By default Uniwind follows the system color scheme (adaptive themes). To switch themes programmatically:
 
 ```tsx
-import { Uniwind } from 'uniwind';
+import { Uniwind } from 'uniwind'
 
-Uniwind.setTheme('dark');     // force dark
-Uniwind.setTheme('light');    // force light
-Uniwind.setTheme('system');   // follow system (default)
-Uniwind.setTheme('ocean');    // custom theme (must be in extraThemes)
+Uniwind.setTheme('dark') // force dark
+Uniwind.setTheme('light') // force light
+Uniwind.setTheme('system') // follow system (default)
+Uniwind.setTheme('ocean') // custom theme (must be in extraThemes)
 ```
 
 ### ScopedTheme — Theme a Subtree Only
@@ -553,9 +586,8 @@ Docs: https://docs.uniwind.dev/api/scoped-themes
 Use `ScopedTheme` when the project needs a different theme for only part of the UI (component previews, themed sections, nested demos) without changing the app-wide theme:
 
 ```tsx
-import { ScopedTheme } from 'uniwind';
-
-<View className="gap-3">
+import { ScopedTheme } from 'uniwind'
+;<View className="gap-3">
   <PreviewCard />
 
   <ScopedTheme theme="light">
@@ -569,6 +601,7 @@ import { ScopedTheme } from 'uniwind';
 ```
 
 Important behavior:
+
 - Nearest `ScopedTheme` wins (nested scopes are supported)
 - Hooks like `useUniwind`, `useResolveClassNames`, and `useCSSVariable` resolve against the nearest scoped theme
 - `withUniwind`-wrapped third-party components inside the scope also resolve themed values from that scope
@@ -579,20 +612,27 @@ Important behavior:
 Docs: https://docs.uniwind.dev/theming/style-based-on-themes
 
 **Prefer using CSS variable-based classes over explicit dark:/light: variants.** Instead of:
+
 ```tsx
 // Avoid this pattern
 <View className="light:bg-white dark:bg-black" />
 ```
 
 Define a CSS variable and use it directly:
+
 ```css
 @layer theme {
   :root {
-    @variant light { --color-background: #ffffff; }
-    @variant dark { --color-background: #000000; }
+    @variant light {
+      --color-background: #ffffff;
+    }
+    @variant dark {
+      --color-background: #000000;
+    }
   }
 }
 ```
+
 ```tsx
 // Preferred — automatically adapts to theme
 <View className="bg-background" />
@@ -607,13 +647,13 @@ Docs: https://docs.uniwind.dev/theming/update-css-variables
 Update theme variables at runtime, e.g. based on user preferences or API responses:
 
 ```tsx
-import { Uniwind } from 'uniwind';
+import { Uniwind } from 'uniwind'
 
 // Preconfigure theme based on user input or API response
 Uniwind.updateCSSVariables('light', {
   '--color-primary': '#ff6600',
   '--color-background': '#1a1a2e',
-});
+})
 ```
 
 This pattern should be used only when the app has real runtime theming needs (for example, user-selected brand colors or API-driven themes).
@@ -625,7 +665,7 @@ Docs: https://docs.uniwind.dev/tailwind-basics#advanced-pattern-variants-and-com
 For component variants and compound variants, use the `tailwind-variants` library:
 
 ```tsx
-import { tv } from 'tailwind-variants';
+import { tv } from 'tailwind-variants'
 
 const button = tv({
   base: 'px-4 py-2 rounded-lg',
@@ -639,9 +679,9 @@ const button = tv({
       lg: 'text-lg px-6 py-3',
     },
   },
-});
+})
 
-<Pressable className={button({ color: 'primary', size: 'lg' })} />
+;<Pressable className={button({ color: 'primary', size: 'lg' })} />
 ```
 
 ### Monorepo Support
@@ -662,17 +702,25 @@ If the project is a monorepo, add `@source` directives in `global.css` so Tailwi
 Docs: https://docs.uniwind.dev/faq
 
 **Custom Fonts**: Uniwind maps className to font-family only — font files must be loaded separately (expo-font plugin in `app.json` or `react-native-asset` for bare RN). Font family names in `@theme` must exactly match filenames (without extension). Use `@variant` for per-platform fonts (must be inside `@layer theme { :root { } }`):
+
 ```css
 @layer theme {
   :root {
-    @variant ios { --font-sans: 'SF Pro Text'; }
-    @variant android { --font-sans: 'Roboto-Regular'; }
-    @variant web { --font-sans: 'system-ui'; }
+    @variant ios {
+      --font-sans: 'SF Pro Text';
+    }
+    @variant android {
+      --font-sans: 'Roboto-Regular';
+    }
+    @variant web {
+      --font-sans: 'system-ui';
+    }
   }
 }
 ```
 
 **Data Selectors**: Use `data-[prop=value]:utility` for prop-based styling. Only equality checks supported:
+
 ```tsx
 <View data-state={isOpen ? 'open' : 'closed'} className="data-[state=open]:bg-muted/50" />
 ```
@@ -688,14 +736,19 @@ Docs: https://docs.uniwind.dev/faq
 **Serialization Errors** (`Failed to serialize javascript object`): Clear caches: `watchman watch-del-all 2>/dev/null; rm -rf node_modules/.cache && npx expo start --clear`. Common causes: complex `@theme` configs, circular CSS variable references.
 
 **Metro unstable_enablePackageExports Conflicts**: Some apps (crypto etc.) disable this, breaking Uniwind. Use selective resolver:
+
 ```js
-config.resolver.unstable_enablePackageExports = false;
+config.resolver.unstable_enablePackageExports = false
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (['uniwind', 'culori'].some((prefix) => moduleName.startsWith(prefix))) {
-    return context.resolveRequest({ ...context, unstable_enablePackageExports: true }, moduleName, platform);
+    return context.resolveRequest(
+      { ...context, unstable_enablePackageExports: true },
+      moduleName,
+      platform,
+    )
   }
-  return context.resolveRequest(context, moduleName, platform);
-};
+  return context.resolveRequest(context, moduleName, platform)
+}
 ```
 
 **Safe Area Classes**: `p-safe`, `pt-safe`, `pb-safe`, `px-safe`, `py-safe`, `m-safe`, `mt-safe`, etc. Also supports `-or-{value}` (min spacing) and `-offset-{value}` (extra spacing) variants.
@@ -708,12 +761,13 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
 
 ## Known Issues & Gotchas
 
-1. **data-* attributes**: Uniwind supports `data-[prop=value]:utility` syntax for conditional styling, similar to NativeWind.
+1. **data-\* attributes**: Uniwind supports `data-[prop=value]:utility` syntax for conditional styling, similar to NativeWind.
 2. **Animated styles**: Migrate NativeWind animated classes to `react-native-reanimated` directly. Uniwind Pro has built-in Reanimated support.
 
 ## Verification
 
 After migration, verify:
+
 1. `npx react-native start --reset-cache` (clear Metro cache) or with expo `npx expo start -c`
 2. All screens render correctly on iOS and Android
 3. Theme switching works (light/dark)

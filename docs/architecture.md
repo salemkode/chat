@@ -79,27 +79,27 @@ Chat architecture follows the repo rule set:
 
 - route files compose chat using reusable components instead of owning the whole screen
 - model dialog modules live in `apps/mobile/src/components/dialog`
-- message presentation is shared through `apps/mobile/src/components/chat/MessageRow.tsx`
+- message presentation is shared through `apps/mobile/src/components/chat/message-row.tsx`
 
 Current chat composition:
 
 - `apps/mobile/app/(app)/chats.tsx`: new chat route
 - `apps/mobile/app/(app)/chat/[id].tsx`: existing thread route
-- both routes render `apps/mobile/src/components/chat/ChatPage.tsx`
+- both routes render `apps/mobile/src/components/chat/chat-page.tsx`
 - `ChatPage` composes `ChatHeader`, `MessageList`, `ChatComposer`, `OfflineBanner`, and `ModelPickerDialog`
-- `useChatConversation.ts` assembles UI state, draft state, model state, project selection, send/retry logic, and inline error feedback
+- `use-chat-conversation.ts` assembles UI state, draft state, model state, project selection, send/replay logic, and inline error feedback
 
 Mobile data and offline layer:
 
 - `apps/mobile/src/mobile-data/*`: Convex-facing hooks for threads, messages, models, drafts, projects, and sending
 - `apps/mobile/src/offline/*`: SQLite-backed cache and offline record types
-- `apps/mobile/src/store/chat-optimistic-send.ts`: local optimistic send state and retry recovery
+- `apps/mobile/src/store/chat-optimistic-send.ts`: local optimistic send state and replay-based recovery
 
 Important mobile rule already implemented:
 
 - optimistic updates are attached to Convex mutations with `.withOptimisticUpdate(...)`
 - optimistic behavior is not added to actions
-- failures surface as inline non-blocking UI errors through composer state
+- optimistic mutation failures surface as inline non-blocking failed assistant responses with replay actions
 
 ### 2. Web App
 
@@ -110,7 +110,7 @@ Entry and shell:
 - `apps/web/src/main.tsx`: client bootstrap
 - `apps/web/src/router.tsx`: router creation and root Convex provider wiring
 - `apps/web/src/routes/__root.tsx`: HTML shell, Clerk provider, theme provider, Convex client provider
-- `apps/web/src/components/ConvexClientProvider.tsx`: auth-aware Convex client setup plus query cache provider
+- `apps/web/src/components/convex-client-provider.tsx`: auth-aware Convex client setup plus query cache provider
 
 Web feature areas:
 
@@ -173,7 +173,7 @@ Mobile:
 Web:
 
 - `@clerk/react-router`
-- custom auth token wiring inside `ConvexClientProvider.tsx`
+- custom auth token wiring inside `convex-client-provider.tsx`
 
 Backend:
 
@@ -191,7 +191,7 @@ Backend:
 5. `ChatComposer` submits through `useSendMessage`.
 6. `useSendMessage` optionally creates a thread, uploads attachments, and calls Convex generation mutations.
 7. Optimistic UI is inserted locally for thread and message rows.
-8. If a mutation fails, the optimistic state rolls back and composer-level inline error text is shown.
+8. If a mutation fails, a failed assistant response is shown inline with error text and a replay action.
 
 ### Web
 
@@ -217,7 +217,7 @@ This gives the mobile client:
 
 - offline readback of cached threads/messages
 - temporary local conversation continuity before server thread resolution
-- inline retry recovery for failed sends
+- inline failed response recovery via replay actions
 
 ### Web
 

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Request, status
+from fastapi import APIRouter, Depends, Request, status
 from fastapi.responses import JSONResponse
+
+from app.auth import require_api_key
 
 router = APIRouter(tags=["health"])
 
@@ -20,3 +22,22 @@ def readyz(request: Request) -> JSONResponse:
             content={"status": "not_ready"},
         )
     return JSONResponse(status_code=status.HTTP_200_OK, content={"status": "ready"})
+
+
+@router.get(
+    "/capabilities",
+    dependencies=[Depends(require_api_key)],
+)
+def capabilities() -> dict[str, object]:
+    return {
+        "service": "router-agent",
+        "contract": "auto-model-router-v1",
+        "auth": "bearer",
+        "endpoints": {
+            "health": "/healthz",
+            "ready": "/readyz",
+            "models": "/models",
+            "models_update": "/models/update",
+            "route": "/route",
+        },
+    }

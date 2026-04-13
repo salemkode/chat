@@ -22,11 +22,7 @@ type LinkedProject = {
 }
 
 const memorySearchInputSchema = z.object({
-  query: z
-    .string()
-    .min(1)
-    .max(500)
-    .describe('What saved memory to search for.'),
+  query: z.string().min(1).max(500).describe('What saved memory to search for.'),
   scope: z
     .enum(['all', 'user', 'thread', 'project'])
     .optional()
@@ -50,9 +46,7 @@ const memorySearchInputSchema = z.object({
 })
 
 const memoryAddInputSchema = z.object({
-  scope: z
-    .enum(['user', 'thread', 'project'])
-    .describe('Where to store the memory.'),
+  scope: z.enum(['user', 'thread', 'project']).describe('Where to store the memory.'),
   title: z.string().min(1).max(120),
   content: z.string().min(1).max(1000),
   category: z.string().min(1).max(80).optional(),
@@ -65,10 +59,7 @@ const memoryAddInputSchema = z.object({
 
 const memoryUpdateInputSchema = z.object({
   scope: z.enum(['user', 'thread', 'project']),
-  memoryId: z
-    .string()
-    .min(1)
-    .describe('The `memoryId` returned by `memory_search`.'),
+  memoryId: z.string().min(1).describe('The `memoryId` returned by `memory_search`.'),
   title: z.string().min(1).max(120).optional(),
   content: z.string().min(1).max(1000).optional(),
   category: z.string().max(80).optional(),
@@ -77,10 +68,7 @@ const memoryUpdateInputSchema = z.object({
 
 const memoryDeleteInputSchema = z.object({
   scope: z.enum(['user', 'thread', 'project']),
-  memoryId: z
-    .string()
-    .min(1)
-    .describe('The `memoryId` returned by `memory_search`.'),
+  memoryId: z.string().min(1).describe('The `memoryId` returned by `memory_search`.'),
 })
 
 function errorToMessage(error: unknown) {
@@ -110,13 +98,10 @@ function getThreadId(ctx: ToolCtx) {
 async function getLinkedProjects(ctx: ToolCtx) {
   const userId = getUserId(ctx)
   const threadId = getThreadId(ctx)
-  return (await ctx.runQuery(
-    internal.functions.memoryInternal.listProjectsForThread,
-    {
-      userId,
-      threadId,
-    },
-  )) as LinkedProject[]
+  return (await ctx.runQuery(internal.functions.memoryInternal.listProjectsForThread, {
+    userId,
+    threadId,
+  })) as LinkedProject[]
 }
 
 async function resolveProjectId(
@@ -130,13 +115,9 @@ async function resolveProjectId(
   }
 
   if (requestedProjectId) {
-    const match = linkedProjects.find(
-      (project) => project._id.toString() === requestedProjectId,
-    )
+    const match = linkedProjects.find((project) => project._id.toString() === requestedProjectId)
     if (!match) {
-      throw new Error(
-        `Project ${requestedProjectId} is not linked to the current thread`,
-      )
+      throw new Error(`Project ${requestedProjectId} is not linked to the current thread`)
     }
     return match._id
   }
@@ -227,12 +208,9 @@ async function searchMemoryHits(
         })
       : Promise.resolve([]),
     idsByScope.project.length
-      ? ctx.runQuery(
-          internal.functions.memoryInternal.getProjectMemoriesByIds,
-          {
-            ids: idsByScope.project,
-          },
-        )
+      ? ctx.runQuery(internal.functions.memoryInternal.getProjectMemoriesByIds, {
+          ids: idsByScope.project,
+        })
       : Promise.resolve([]),
   ])
 
@@ -241,16 +219,10 @@ async function searchMemoryHits(
     memoryMap.set(`user:${memory._id.toString()}`, formatMemory('user', memory))
   }
   for (const memory of threadDocs) {
-    memoryMap.set(
-      `thread:${memory._id.toString()}`,
-      formatMemory('thread', memory),
-    )
+    memoryMap.set(`thread:${memory._id.toString()}`, formatMemory('thread', memory))
   }
   for (const memory of projectDocs) {
-    memoryMap.set(
-      `project:${memory._id.toString()}`,
-      formatMemory('project', memory),
-    )
+    memoryMap.set(`project:${memory._id.toString()}`, formatMemory('project', memory))
   }
 
   const categorySet = args.categories?.length ? new Set(args.categories) : null
@@ -262,23 +234,17 @@ async function searchMemoryHits(
           ? (entry.metadata as Record<string, unknown>)
           : undefined
       const entryScope =
-        metadata?.scope === 'user' ||
-        metadata?.scope === 'thread' ||
-        metadata?.scope === 'project'
+        metadata?.scope === 'user' || metadata?.scope === 'thread' || metadata?.scope === 'project'
           ? metadata.scope
           : undefined
-      const memoryId =
-        typeof metadata?.memoryId === 'string' ? metadata.memoryId : undefined
+      const memoryId = typeof metadata?.memoryId === 'string' ? metadata.memoryId : undefined
 
       if (!entryScope || !memoryId) return null
 
       const memory = memoryMap.get(`${entryScope}:${memoryId}`)
       if (!memory) return null
 
-      if (
-        categorySet &&
-        (!memory.category || !categorySet.has(memory.category))
-      ) {
+      if (categorySet && (!memory.category || !categorySet.has(memory.category))) {
         return null
       }
 
@@ -324,8 +290,7 @@ export const memoryTools = {
     },
   }),
   memory_add: createTool({
-    description:
-      'Save explicit durable information the user asked to remember.',
+    description: 'Save explicit durable information the user asked to remember.',
     inputSchema: memoryAddInputSchema,
     execute: async (ctx, input) => {
       try {
@@ -334,25 +299,20 @@ export const memoryTools = {
         const userId = getUserId(ctx)
         const threadId = getThreadId(ctx)
         const projectId =
-          input.scope === 'project'
-            ? await resolveProjectId(ctx, input.projectId)
-            : undefined
+          input.scope === 'project' ? await resolveProjectId(ctx, input.projectId) : undefined
 
-        const memory = await ctx.runAction(
-          internal.functions.memoryInternal.createMemoryInScope,
-          {
-            scope: input.scope,
-            userId,
-            threadId: input.scope === 'thread' ? threadId : undefined,
-            projectId,
-            title: input.title,
-            content: input.content,
-            category: input.category,
-            tags: input.tags,
-            source: 'manual',
-            originThreadId: threadId,
-          },
-        )
+        const memory = await ctx.runAction(internal.functions.memoryInternal.createMemoryInScope, {
+          scope: input.scope,
+          userId,
+          threadId: input.scope === 'thread' ? threadId : undefined,
+          projectId,
+          title: input.title,
+          content: input.content,
+          category: input.category,
+          tags: input.tags,
+          source: 'manual',
+          originThreadId: threadId,
+        })
 
         return {
           ok: true,
@@ -378,29 +338,19 @@ export const memoryTools = {
 
         const userId = getUserId(ctx)
 
-        const updated = await ctx.runAction(
-          internal.functions.memoryInternal.updateMemoryInScope,
-          {
-            scope: input.scope,
-            userId,
-            userMemoryId:
-              input.scope === 'user'
-                ? (input.memoryId as Id<'userMemories'>)
-                : undefined,
-            threadMemoryId:
-              input.scope === 'thread'
-                ? (input.memoryId as Id<'threadMemories'>)
-                : undefined,
-            projectMemoryId:
-              input.scope === 'project'
-                ? (input.memoryId as Id<'projectMemories'>)
-                : undefined,
-            title: input.title,
-            content: input.content,
-            category: input.category,
-            tags: input.tags,
-          },
-        )
+        const updated = await ctx.runAction(internal.functions.memoryInternal.updateMemoryInScope, {
+          scope: input.scope,
+          userId,
+          userMemoryId: input.scope === 'user' ? (input.memoryId as Id<'userMemories'>) : undefined,
+          threadMemoryId:
+            input.scope === 'thread' ? (input.memoryId as Id<'threadMemories'>) : undefined,
+          projectMemoryId:
+            input.scope === 'project' ? (input.memoryId as Id<'projectMemories'>) : undefined,
+          title: input.title,
+          content: input.content,
+          category: input.category,
+          tags: input.tags,
+        })
 
         return {
           ok: true,
@@ -424,25 +374,15 @@ export const memoryTools = {
       try {
         const userId = getUserId(ctx)
 
-        await ctx.runAction(
-          internal.functions.memoryInternal.deleteMemoryInScope,
-          {
-            scope: input.scope,
-            userId,
-            userMemoryId:
-              input.scope === 'user'
-                ? (input.memoryId as Id<'userMemories'>)
-                : undefined,
-            threadMemoryId:
-              input.scope === 'thread'
-                ? (input.memoryId as Id<'threadMemories'>)
-                : undefined,
-            projectMemoryId:
-              input.scope === 'project'
-                ? (input.memoryId as Id<'projectMemories'>)
-                : undefined,
-          },
-        )
+        await ctx.runAction(internal.functions.memoryInternal.deleteMemoryInScope, {
+          scope: input.scope,
+          userId,
+          userMemoryId: input.scope === 'user' ? (input.memoryId as Id<'userMemories'>) : undefined,
+          threadMemoryId:
+            input.scope === 'thread' ? (input.memoryId as Id<'threadMemories'>) : undefined,
+          projectMemoryId:
+            input.scope === 'project' ? (input.memoryId as Id<'projectMemories'>) : undefined,
+        })
 
         return {
           ok: true,

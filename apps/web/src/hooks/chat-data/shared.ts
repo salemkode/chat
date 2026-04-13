@@ -28,9 +28,7 @@ const DRAFT_PREFIX = 'chat-draft:'
 
 type ViewerRecord = FunctionReturnType<typeof api.users.viewer>
 type SettingsRecord = FunctionReturnType<typeof api.users.getSettings>
-type ThreadsRecord = FunctionReturnType<
-  typeof api.agents.listThreadsWithMetadata
->
+type ThreadsRecord = FunctionReturnType<typeof api.agents.listThreadsWithMetadata>
 type ThreadRecord = ThreadsRecord[number]
 type ThreadWithProject = ThreadRecord & {
   project?: {
@@ -39,9 +37,7 @@ type ThreadWithProject = ThreadRecord & {
     description?: string
   } | null
 }
-type ModelsWithProvidersRecord = FunctionReturnType<
-  typeof api.admin.listModelsWithProviders
-> & {
+type ModelsWithProvidersRecord = FunctionReturnType<typeof api.admin.listModelsWithProviders> & {
   collections?: Array<{
     _id: string
     name: string
@@ -52,9 +48,7 @@ type ModelsWithProvidersRecord = FunctionReturnType<
   }>
 }
 type ModelRecord = ModelsWithProvidersRecord['models'][number]
-type ModelCollectionRecord = NonNullable<
-  ModelsWithProvidersRecord['collections']
->[number]
+type ModelCollectionRecord = NonNullable<ModelsWithProvidersRecord['collections']>[number]
 type ProjectRecord = {
   id: string
   name: string
@@ -119,11 +113,7 @@ export interface ThreadSummary {
 }
 
 export function useOfflineCacheVersion() {
-  return useSyncExternalStore(
-    subscribeOfflineCache,
-    getOfflineCacheVersion,
-    () => 0,
-  )
+  return useSyncExternalStore(subscribeOfflineCache, getOfflineCacheVersion, () => 0)
 }
 
 export function useConvexUserIdForCache() {
@@ -192,12 +182,8 @@ export function normalizeModel(model: ModelRecord): OfflineModelRecord {
     description: model.description,
     capabilities: model.capabilities,
     supportsReasoning:
-      typeof model.supportsReasoning === 'boolean'
-        ? model.supportsReasoning
-        : undefined,
-    reasoningLevels: model.reasoningLevels as
-      | Array<'low' | 'medium' | 'high'>
-      | undefined,
+      typeof model.supportsReasoning === 'boolean' ? model.supportsReasoning : undefined,
+    reasoningLevels: model.reasoningLevels as Array<'low' | 'medium' | 'high'> | undefined,
     defaultReasoningLevel: model.defaultReasoningLevel as
       | 'off'
       | 'low'
@@ -251,10 +237,7 @@ export function cacheThreadsToLocal(userId: string, threads: ThreadsRecord) {
   writeThreadsCache(userId, summaries)
 }
 
-export function cacheModelsToLocal(
-  userId: string,
-  data: ModelsWithProvidersRecord,
-) {
+export function cacheModelsToLocal(userId: string, data: ModelsWithProvidersRecord) {
   const models = Array.isArray(data.models) ? data.models : []
   const collections = Array.isArray(data.collections) ? data.collections : []
   const payload: OfflineModelPickerCacheRecord = {
@@ -268,10 +251,7 @@ export function cacheProjectsToLocal(userId: string, projects: ProjectsRecord) {
   writeProjectsCache(userId, projects.map(normalizeProject))
 }
 
-export function cacheSettingsToLocal(
-  userId: string,
-  settings: SettingsRecord | null | undefined,
-) {
+export function cacheSettingsToLocal(userId: string, settings: SettingsRecord | null | undefined) {
   if (!settings) {
     return
   }
@@ -280,11 +260,7 @@ export function cacheSettingsToLocal(
     image: settings.image,
     bio: settings.bio,
     reasoningEnabled: settings.reasoningEnabled,
-    reasoningLevel: settings.reasoningLevel as
-      | 'low'
-      | 'medium'
-      | 'high'
-      | undefined,
+    reasoningLevel: settings.reasoningLevel as 'low' | 'medium' | 'high' | undefined,
     updatedAt: settings.updatedAt,
   })
 }
@@ -310,11 +286,7 @@ export function cacheViewerToLocal(
   cacheSettingsToLocal(viewer._id, settings || viewer.settings)
 }
 
-export function cacheMessagesToLocal(
-  userId: string,
-  threadId: string,
-  messages: ChatMessage[],
-) {
+export function cacheMessagesToLocal(userId: string, threadId: string, messages: ChatMessage[]) {
   const versionBase = Date.now()
   const normalizedMessages = messages.map((message, index) => ({
     id: message.id,
@@ -330,8 +302,7 @@ export function cacheMessagesToLocal(
       message.failureMode === 'replace' || message.failureMode === 'clarify'
         ? message.failureMode
         : undefined,
-    failureNote:
-      typeof message.failureNote === 'string' ? message.failureNote : undefined,
+    failureNote: typeof message.failureNote === 'string' ? message.failureNote : undefined,
     createdAt: message.order ?? index,
     updatedAt: versionBase + index,
     version: versionBase + index,

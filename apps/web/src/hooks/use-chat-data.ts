@@ -1,7 +1,4 @@
-export type {
-  ChatMessage,
-  ThreadSummary,
-} from '@/hooks/chat-data/shared'
+export type { ChatMessage, ThreadSummary } from '@/hooks/chat-data/shared'
 export type { UseMessagesResult } from '@/hooks/chat-data/messages'
 
 export { useCachedSessionStatus, useRoleContext, useViewer } from '@/hooks/chat-data/session'

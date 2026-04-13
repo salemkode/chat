@@ -2,9 +2,7 @@ export type MemoryContextHit = {
   contentHash: string
 }
 
-export function dedupeMemoryHitsByPriority<T extends MemoryContextHit>(
-  groups: T[][],
-) {
+export function dedupeMemoryHitsByPriority<T extends MemoryContextHit>(groups: T[][]) {
   const seenContentHashes = new Set<string>()
 
   return groups.map((group) =>

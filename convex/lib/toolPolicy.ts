@@ -4,14 +4,7 @@ const AUTO_METADATA_STALE_AFTER_MS = 5 * 60 * 1000
 const AUTO_METADATA_COOLDOWN_MS = 30 * 60 * 1000
 
 const PLACEHOLDER_TITLES = new Set(['new chat', 'untitled', 'untitled chat'])
-const WEAK_TITLES = new Set([
-  'chat',
-  'question',
-  'help',
-  'discussion',
-  'conversation',
-  'project',
-])
+const WEAK_TITLES = new Set(['chat', 'question', 'help', 'discussion', 'conversation', 'project'])
 
 export const TOOL_POLICY_VERSION = 'phase1-memory-metadata-v1'
 
@@ -30,9 +23,7 @@ export type ToolPolicyDetectedIntent =
   | 'metadata_refresh'
   | 'none'
 
-export type ToolPolicyAutomaticAction =
-  | 'metadata_update_applied'
-  | 'metadata_update_failed'
+export type ToolPolicyAutomaticAction = 'metadata_update_applied' | 'metadata_update_failed'
 
 export type ToolPolicyEvaluation = {
   detectedIntent: ToolPolicyDetectedIntent
@@ -87,10 +78,7 @@ function hasMeaningfulTitleCandidate(text: string) {
   return normalized.split(/\s+/).length >= 4
 }
 
-function isPlaceholderThreadTitle(
-  title: string | undefined,
-  firstUserMessage: string,
-) {
+function isPlaceholderThreadTitle(title: string | undefined, firstUserMessage: string) {
   const normalizedTitle = title?.trim().toLowerCase()
   if (!normalizedTitle) return true
 
@@ -98,11 +86,7 @@ function isPlaceholderThreadTitle(
     return true
   }
 
-  const firstSnippet = firstUserMessage
-    .trim()
-    .replace(/\s+/g, ' ')
-    .slice(0, 30)
-    .toLowerCase()
+  const firstSnippet = firstUserMessage.trim().replace(/\s+/g, ' ').slice(0, 30).toLowerCase()
 
   return firstSnippet.length > 0 && normalizedTitle === firstSnippet
 }
@@ -116,10 +100,7 @@ function isWeakThreadTitle(title: string | undefined) {
 }
 
 function deriveThreadTitleCandidate(text: string) {
-  const normalized = normalizeWhitespace(
-    text
-      .split(/[\n.!?]/)[0] ?? text,
-  )
+  const normalized = normalizeWhitespace(text.split(/[\n.!?]/)[0] ?? text)
     .replace(/^["'`]+|["'`]+$/g, '')
     .replace(/[,:;]+$/g, '')
 
@@ -157,9 +138,7 @@ function detectMemoryIntent(prompt: string) {
   const normalized = normalizeLower(prompt)
 
   if (
-    /\b(what|anything) do you remember( about me| about [^?!.]+)?\b/.test(
-      normalized,
-    ) ||
+    /\b(what|anything) do you remember( about me| about [^?!.]+)?\b/.test(normalized) ||
     /\bdo you remember\b/.test(normalized) ||
     /\bwhat did i tell you about\b/.test(normalized) ||
     /\bsearch (my )?memory\b/.test(normalized)
@@ -284,8 +263,7 @@ export function runThreadMetadataPolicy(args: {
   const normalizedCurrentTitle = normalizeLower(args.currentTitle ?? '')
   const normalizedCandidateTitle = normalizeLower(candidateTitle)
   const materiallyDifferentTitle =
-    normalizedCandidateTitle.length > 0 &&
-    normalizedCandidateTitle !== normalizedCurrentTitle
+    normalizedCandidateTitle.length > 0 && normalizedCandidateTitle !== normalizedCurrentTitle
 
   const shouldRefreshWeakStaleTitle =
     stale && isWeakThreadTitle(args.currentTitle) && materiallyDifferentTitle
@@ -349,10 +327,7 @@ export function evaluateToolPolicy(args: {
   })
 
   const requiredActions = Array.from(
-    new Set([
-      ...memoryIntent.requiredActions,
-      ...metadataDecision.requiredActions,
-    ]),
+    new Set([...memoryIntent.requiredActions, ...metadataDecision.requiredActions]),
   )
 
   const policyTrace = [
@@ -362,9 +337,7 @@ export function evaluateToolPolicy(args: {
     ...metadataDecision.policyTrace,
   ]
 
-  const systemAddendum = [memoryIntent.systemAddendum]
-    .filter(Boolean)
-    .join('\n')
+  const systemAddendum = [memoryIntent.systemAddendum].filter(Boolean).join('\n')
 
   const detectedIntent =
     memoryIntent.detectedIntent !== 'none'
@@ -389,8 +362,7 @@ export function extractObservedTools(parts: Array<Record<string, unknown>>) {
 
   for (const part of parts) {
     const type = typeof part.type === 'string' ? part.type : ''
-    const explicitToolName =
-      typeof part.toolName === 'string' ? part.toolName : undefined
+    const explicitToolName = typeof part.toolName === 'string' ? part.toolName : undefined
     const toolName =
       explicitToolName ||
       (type.startsWith('tool-') &&
@@ -477,9 +449,7 @@ export function finalizeToolPolicyEvaluation(args: {
     } satisfies ToolPolicyFinalization
   }
 
-  const missingActions = args.requiredActions.filter(
-    (action) => !satisfiedActions.includes(action),
-  )
+  const missingActions = args.requiredActions.filter((action) => !satisfiedActions.includes(action))
   if (missingActions.length > 0) {
     return {
       observedTools,

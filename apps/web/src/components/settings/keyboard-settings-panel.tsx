@@ -13,11 +13,7 @@ import {
 import { useHotkeys } from '@/components/hotkeys-provider'
 import { Button } from '@/components/ui/button'
 
-function KeyboardShortcutField({
-  actionId,
-}: {
-  actionId: HotkeyActionId
-}) {
+function KeyboardShortcutField({ actionId }: { actionId: HotkeyActionId }) {
   const definition = getHotkeyDefinition(actionId)
   const { bindings, resetBinding, updateBinding } = useHotkeys()
   const [isRecording, setIsRecording] = React.useState(false)
@@ -53,11 +49,7 @@ function KeyboardShortcutField({
       return
     }
 
-    const conflictActionId = getConflictingHotkeyAction(
-      actionId,
-      nextBinding,
-      bindings,
-    )
+    const conflictActionId = getConflictingHotkeyAction(actionId, nextBinding, bindings)
 
     if (conflictActionId) {
       const conflictDefinition = getHotkeyDefinition(conflictActionId)
@@ -80,9 +72,7 @@ function KeyboardShortcutField({
             </div>
             <div className="min-w-0">
               <p className="text-sm font-medium text-foreground">{definition.label}</p>
-              <p className="text-xs leading-5 text-muted-foreground">
-                {definition.description}
-              </p>
+              <p className="text-xs leading-5 text-muted-foreground">{definition.description}</p>
             </div>
           </div>
           {error ? (

@@ -10,10 +10,7 @@ function canWrite(ctx: AuthCtx): ctx is WritableAuthCtx {
 
 function getIdentityName(identity: UserIdentity) {
   if (identity.name) return identity.name
-  const fullName = [identity.givenName, identity.familyName]
-    .filter(Boolean)
-    .join(' ')
-    .trim()
+  const fullName = [identity.givenName, identity.familyName].filter(Boolean).join(' ').trim()
   return fullName || undefined
 }
 
@@ -52,9 +49,7 @@ export async function getAuthUserId(ctx: AuthCtx) {
       email,
       emailVerificationTime: identity.emailVerified ? Date.now() : undefined,
       phone,
-      phoneVerificationTime: identity.phoneNumberVerified
-        ? Date.now()
-        : undefined,
+      phoneVerificationTime: identity.phoneNumberVerified ? Date.now() : undefined,
       isAnonymous: false,
     })
   }

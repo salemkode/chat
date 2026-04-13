@@ -1,5 +1,9 @@
 import { create } from 'zustand'
-import type { ChatRenderableAttachment, ChatRenderableMessage, LocalAttachment } from '../components/chat/types'
+import type {
+  ChatRenderableAttachment,
+  ChatRenderableMessage,
+  LocalAttachment,
+} from '../components/chat/types'
 
 type PendingThreadKey = string
 type PendingSendStatus = 'pending' | 'handoff' | 'failed'
@@ -12,7 +16,7 @@ export type PendingSendRecord = {
   createdAt: number
   status: PendingSendStatus
   errorText?: string
-  retryPayload: {
+  replayPayload: {
     prompt: string
     attachments: LocalAttachment[]
     modelDocId?: string
@@ -71,17 +75,37 @@ function sortRenderableMessages(messages: ChatRenderableMessage[]) {
     )
 }
 
-function getAttachmentFingerprints(
-  attachments: ChatRenderableAttachment[] | undefined,
-) {
+function getAttachmentFingerprints(attachments: ChatRenderableAttachment[] | undefined) {
   return (attachments ?? [])
     .map((attachment) => `${attachment.filename ?? ''}:${attachment.mediaType}`)
     .sort()
 }
 
-function hasLiveHandoffMatch(record: PendingSendRecord, liveMessages: ChatRenderableMessage[]) {
-  const pendingAttachments = getAttachmentFingerprints(toOptimisticAttachments(record.attachments))
+/**
+ * Pending sends include local image/file metadata, but Convex `generateMessage` optimistic
+ * updates insert the user row with text-only `parts` until the mutation persists file parts.
+ * Treat "live has no files yet" as compatible so we hand off to the server list instead of
+ * merging duplicate user + assistant bubbles.
+ */
+function attachmentsMatchForHandoff(
+  record: PendingSendRecord,
+  live: ChatRenderableAttachment[] | undefined,
+) {
+  const pending = getAttachmentFingerprints(toOptimisticAttachments(record.attachments))
+  const liveFp = getAttachmentFingerprints(live)
+  if (pending.length === 0) {
+    return liveFp.length === 0
+  }
+  if (liveFp.length === 0) {
+    return true
+  }
+  if (pending.length !== liveFp.length) {
+    return false
+  }
+  return pending.every((value, index) => value === liveFp[index])
+}
 
+function hasLiveHandoffMatch(record: PendingSendRecord, liveMessages: ChatRenderableMessage[]) {
   for (let index = liveMessages.length - 1; index >= 0; index -= 1) {
     const message = liveMessages[index]
     if (!message || message.role !== 'user') {
@@ -91,23 +115,25 @@ function hasLiveHandoffMatch(record: PendingSendRecord, liveMessages: ChatRender
       continue
     }
 
-    const liveAttachments = getAttachmentFingerprints(message.attachments)
-    if (pendingAttachments.length > 0) {
-      if (liveAttachments.length !== pendingAttachments.length) {
-        continue
-      }
-      if (liveAttachments.some((value, attachmentIndex) => value !== pendingAttachments[attachmentIndex])) {
-        continue
-      }
+    if (!attachmentsMatchForHandoff(record, message.attachments)) {
+      continue
     }
 
-    for (let assistantIndex = index + 1; assistantIndex < liveMessages.length; assistantIndex += 1) {
+    for (
+      let assistantIndex = index + 1;
+      assistantIndex < liveMessages.length;
+      assistantIndex += 1
+    ) {
       const assistant = liveMessages[assistantIndex]
       if (assistant?.role !== 'assistant') {
         continue
       }
 
-      if (assistant.status === 'streaming' || assistant.status === 'pending' || assistant.status === 'success') {
+      if (
+        assistant.status === 'streaming' ||
+        assistant.status === 'pending' ||
+        assistant.status === 'success'
+      ) {
         return true
       }
     }
@@ -156,7 +182,7 @@ export function selectRenderableForThread(
         createdAt: record.createdAt + 1,
         local: true,
         requestId: record.clientSendId,
-        retryable: true,
+        replayable: true,
       })
       continue
     }
@@ -229,7 +255,7 @@ export const useChatOptimisticSendStore = create<ChatOptimisticSendState>((set, 
       attachments,
       createdAt: Date.now(),
       status: 'pending',
-      retryPayload: {
+      replayPayload: {
         prompt,
         attachments,
         modelDocId,
@@ -327,7 +353,8 @@ export const useChatOptimisticSendStore = create<ChatOptimisticSendState>((set, 
     return (
       Object.values(state.pendingSends).find(
         (record) =>
-          messageId === `${record.clientSendId}-assistant` || messageId === `${record.clientSendId}-user`,
+          messageId === `${record.clientSendId}-assistant` ||
+          messageId === `${record.clientSendId}-user`,
       ) ?? null
     )
   },

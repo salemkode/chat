@@ -42,10 +42,7 @@ type PendingSendContextValue = {
   markPendingFailed: (clientSendId: string, errorText: string) => void
   clearPendingSend: (clientSendId: string) => void
   clearFailedSendsForThread: (threadKey: PendingThreadKey) => void
-  selectPendingMessages: (
-    threadKey: PendingThreadKey,
-    liveMessages: ChatMessage[],
-  ) => ChatMessage[]
+  selectPendingMessages: (threadKey: PendingThreadKey, liveMessages: ChatMessage[]) => ChatMessage[]
 }
 
 const PendingSendContext = createContext<PendingSendContextValue | null>(null)
@@ -77,28 +74,41 @@ function getAttachmentFingerprints(parts: Array<Record<string, unknown>>) {
   return parts
     .filter((part) => part.type === 'file')
     .map((part) => {
-      const filename =
-        typeof part.filename === 'string' ? part.filename : undefined
+      const filename = typeof part.filename === 'string' ? part.filename : undefined
       const mediaType =
-        typeof part.mediaType === 'string'
-          ? part.mediaType
-          : 'application/octet-stream'
+        typeof part.mediaType === 'string' ? part.mediaType : 'application/octet-stream'
       return `${filename ?? ''}:${mediaType}`
     })
     .sort()
 }
 
-function hasLiveHandoffMatch(
-  record: PendingSendRecord,
-  liveMessages: ChatMessage[],
-) {
-  const pendingAttachments = record.attachments
+/**
+ * Pending sends include local file metadata, but Convex `generateMessage` optimistic
+ * updates may omit file parts on the user row until the mutation persists. Treat "live
+ * has no file parts yet" as compatible so we hand off to the server list instead of
+ * duplicating bubbles.
+ */
+function attachmentsMatchForHandoff(record: PendingSendRecord, liveParts: ChatMessage['parts']) {
+  const pending = record.attachments
     .map(
       (attachment) =>
         `${attachment.filename ?? ''}:${attachment.mediaType || 'application/octet-stream'}`,
     )
     .sort()
+  const live = getAttachmentFingerprints(liveParts)
+  if (pending.length === 0) {
+    return live.length === 0
+  }
+  if (live.length === 0) {
+    return true
+  }
+  if (pending.length !== live.length) {
+    return false
+  }
+  return pending.every((value, index) => value === live[index])
+}
 
+function hasLiveHandoffMatch(record: PendingSendRecord, liveMessages: ChatMessage[]) {
   for (let index = liveMessages.length - 1; index >= 0; index -= 1) {
     const message = liveMessages[index]
     if (!message || message.role !== 'user') {
@@ -108,19 +118,8 @@ function hasLiveHandoffMatch(
       continue
     }
 
-    const liveAttachments = getAttachmentFingerprints(message.parts)
-    if (pendingAttachments.length > 0) {
-      if (liveAttachments.length !== pendingAttachments.length) {
-        continue
-      }
-      if (
-        liveAttachments.some(
-          (fingerprint, attachmentIndex) =>
-            fingerprint !== pendingAttachments[attachmentIndex],
-        )
-      ) {
-        continue
-      }
+    if (!attachmentsMatchForHandoff(record, message.parts)) {
+      continue
     }
 
     for (
@@ -135,7 +134,8 @@ function hasLiveHandoffMatch(
 
       if (
         assistant.status === 'streaming' ||
-        assistant.status === 'pending'
+        assistant.status === 'pending' ||
+        assistant.status === 'success'
       ) {
         return true
       }
@@ -145,14 +145,8 @@ function hasLiveHandoffMatch(
   return false
 }
 
-export function PendingSendsProvider({
-  children,
-}: {
-  children: ReactNode
-}) {
-  const [pendingSends, setPendingSends] = useState<
-    Record<string, PendingSendRecord>
-  >({})
+export function PendingSendsProvider({ children }: { children: ReactNode }) {
+  const [pendingSends, setPendingSends] = useState<Record<string, PendingSendRecord>>({})
   const pendingSendsRef = useRef(pendingSends)
 
   useEffect(() => {
@@ -168,14 +162,8 @@ export function PendingSendsProvider({
   }, [])
 
   const createPendingSend = useCallback(
-    (payload: {
-      threadKey: PendingThreadKey
-      prompt: string
-      attachments: File[]
-    }) => {
-      const clientSendId = `pending-send-${Date.now()}-${Math.random()
-        .toString(36)
-        .slice(2, 8)}`
+    (payload: { threadKey: PendingThreadKey; prompt: string; attachments: File[] }) => {
+      const clientSendId = `pending-send-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
       const record: PendingSendRecord = {
         clientSendId,
         threadKey: payload.threadKey,
@@ -193,24 +181,21 @@ export function PendingSendsProvider({
     [],
   )
 
-  const movePendingSendToThread = useCallback(
-    (clientSendId: string, threadId: string) => {
-      setPendingSends((current) => {
-        const record = current[clientSendId]
-        if (!record) {
-          return current
-        }
-        return {
-          ...current,
-          [clientSendId]: {
-            ...record,
-            threadKey: threadId,
-          },
-        }
-      })
-    },
-    [],
-  )
+  const movePendingSendToThread = useCallback((clientSendId: string, threadId: string) => {
+    setPendingSends((current) => {
+      const record = current[clientSendId]
+      if (!record) {
+        return current
+      }
+      return {
+        ...current,
+        [clientSendId]: {
+          ...record,
+          threadKey: threadId,
+        },
+      }
+    })
+  }, [])
 
   const markPendingHandoff = useCallback((clientSendId: string) => {
     setPendingSends((current) => {
@@ -228,25 +213,22 @@ export function PendingSendsProvider({
     })
   }, [])
 
-  const markPendingFailed = useCallback(
-    (clientSendId: string, errorText: string) => {
-      setPendingSends((current) => {
-        const record = current[clientSendId]
-        if (!record) {
-          return current
-        }
-        return {
-          ...current,
-          [clientSendId]: {
-            ...record,
-            phase: 'failed',
-            errorText,
-          },
-        }
-      })
-    },
-    [],
-  )
+  const markPendingFailed = useCallback((clientSendId: string, errorText: string) => {
+    setPendingSends((current) => {
+      const record = current[clientSendId]
+      if (!record) {
+        return current
+      }
+      return {
+        ...current,
+        [clientSendId]: {
+          ...record,
+          phase: 'failed',
+          errorText,
+        },
+      }
+    })
+  }, [])
 
   const clearPendingSend = useCallback((clientSendId: string) => {
     setPendingSends((current) => {
@@ -264,8 +246,7 @@ export function PendingSendsProvider({
     setPendingSends((current) => {
       let changed = false
       const nextEntries = Object.entries(current).filter(([, record]) => {
-        const shouldRemove =
-          record.threadKey === threadKey && record.phase === 'failed'
+        const shouldRemove = record.threadKey === threadKey && record.phase === 'failed'
         if (shouldRemove) {
           changed = true
           revokeAttachments(record.attachments)
@@ -290,10 +271,7 @@ export function PendingSendsProvider({
         .sort((left, right) => left.createdAt - right.createdAt)
 
       for (const record of records) {
-        if (
-          record.phase === 'handoff' &&
-          hasLiveHandoffMatch(record, liveMessages)
-        ) {
+        if (record.phase === 'handoff' && hasLiveHandoffMatch(record, liveMessages)) {
           continue
         }
 
@@ -367,11 +345,7 @@ export function PendingSendsProvider({
     ],
   )
 
-  return (
-    <PendingSendContext.Provider value={value}>
-      {children}
-    </PendingSendContext.Provider>
-  )
+  return <PendingSendContext.Provider value={value}>{children}</PendingSendContext.Provider>
 }
 
 export function usePendingSends() {

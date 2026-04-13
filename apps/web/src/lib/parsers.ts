@@ -17,14 +17,10 @@ export type RedirectSearch = {
 }
 
 export function parseTheme(value: unknown, fallback: Theme = 'system'): Theme {
-  return value === 'dark' || value === 'light' || value === 'system'
-    ? value
-    : fallback
+  return value === 'dark' || value === 'light' || value === 'system' ? value : fallback
 }
 
-export function parseRouteSearchRedirects(
-  search: Record<string, unknown>,
-): RedirectSearch {
+export function parseRouteSearchRedirects(search: Record<string, unknown>): RedirectSearch {
   return {
     redirect: getOptionalString(search.redirect),
     redirect_url: getOptionalString(search.redirect_url),
@@ -71,10 +67,7 @@ export function readFileReaderResultAsString(result: string | ArrayBuffer | null
   return result
 }
 
-export function getRequiredEnv(
-  env: Record<string, string | undefined>,
-  key: string,
-): string {
+export function getRequiredEnv(env: Record<string, string | undefined>, key: string): string {
   const value = env[key]
   if (!value) {
     throw new Error(`Missing ${key} environment variable`)
@@ -115,9 +108,7 @@ export function parseRateLimitPolicy(value: unknown): RateLimitPolicy | undefine
   return value
 }
 
-export function parseRateLimitScope(
-  value: unknown,
-): RateLimitPolicy['scope'] {
+export function parseRateLimitScope(value: unknown): RateLimitPolicy['scope'] {
   if (!isRateLimitScope(value)) {
     throw new Error('Invalid rate limit scope')
   }
@@ -133,9 +124,7 @@ export function parseRateLimitKind(value: unknown): RateLimitPolicy['kind'] {
   return value
 }
 
-export function toTypedRouteSearch(
-  search: Record<string, string>,
-): RedirectSearch | undefined {
+export function toTypedRouteSearch(search: Record<string, string>): RedirectSearch | undefined {
   const parsed = parseRouteSearchRedirects(search)
   return parsed.redirect || parsed.redirect_url ? parsed : undefined
 }

@@ -1,11 +1,8 @@
 import type { FunctionReturnType } from 'convex/server'
 import type { Value } from 'convex/values'
-import { insertAtPosition, useMutation } from 'convex/react'
+import { insertAtPosition, useAction, useMutation } from 'convex/react'
 import { useCallback, useRef } from 'react'
-import {
-  createClientRequestId,
-  createClientThreadKey,
-} from '@chat/shared/logic/client-keys'
+import { createClientRequestId, createClientThreadKey } from '@chat/shared/logic/client-keys'
 import { api, type Id } from '../lib/convexApi'
 import { writeDraft } from '../offline/cache'
 import { useNetworkStatus } from '../utils/network-status'
@@ -19,9 +16,7 @@ import { isLocalThreadId } from './local-thread-id'
 import { toModelId, toProjectId } from './normalize'
 import { type ThreadsWithMetadata, withOptimisticThreads } from './optimistic'
 
-type ListMessagesPageItem = FunctionReturnType<
-  typeof api.chat.listMessages
->['page'][number]
+type ListMessagesPageItem = FunctionReturnType<typeof api.chat.listMessages>['page'][number]
 
 function getErrorMessage(error: unknown) {
   if (error instanceof Error) {
@@ -29,6 +24,14 @@ function getErrorMessage(error: unknown) {
   }
   if (typeof error === 'string') {
     return error
+  }
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof error.message === 'string'
+  ) {
+    return error.message
   }
   return ''
 }
@@ -42,10 +45,55 @@ function isExtraFieldValidationError(error: unknown, fieldName: string) {
   )
 }
 
+function buildAttachmentSummary(
+  attachments: LocalAsset[],
+): { imageCount: number; fileCount: number; totalCount: number } | undefined {
+  if (attachments.length === 0) {
+    return undefined
+  }
+
+  let imageCount = 0
+  let fileCount = 0
+  for (const attachment of attachments) {
+    if (attachment.mimeType.startsWith('image/')) {
+      imageCount += 1
+    } else {
+      fileCount += 1
+    }
+  }
+
+  return {
+    imageCount,
+    fileCount,
+    totalCount: imageCount + fileCount,
+  }
+}
+
 export function useSendMessage() {
   const { isOnline } = useNetworkStatus()
   const supportsClientThreadKeyRef = useRef(true)
   const supportsClientRequestIdRef = useRef(true)
+  const supportsSearchModeRef = useRef(true)
+  const selectAutoModel = useAction(
+    (
+      api as typeof api & {
+        modelRouter: {
+          selectAutoModel: unknown
+          selectAutoModelForPromptMessage: unknown
+        }
+      }
+    ).modelRouter.selectAutoModel as never,
+  )
+  const selectAutoModelForPromptMessage = useAction(
+    (
+      api as typeof api & {
+        modelRouter: {
+          selectAutoModel: unknown
+          selectAutoModelForPromptMessage: unknown
+        }
+      }
+    ).modelRouter.selectAutoModelForPromptMessage as never,
+  )
   const createThreadMutation = useMutation(api.agents.createChatThread).withOptimisticUpdate(
     (
       localStore,
@@ -70,31 +118,45 @@ export function useSendMessage() {
       })
     },
   )
-  const generateMessageMutation = useMutation(api.agents.generateMessage as never).withOptimisticUpdate(
-    (localStore, args: { threadId: string; prompt: string }) => {
+  const generateMessageMutation = useMutation(
+    api.agents.generateMessage as never,
+  ).withOptimisticUpdate(
+    (localStore, args: { threadId: string; prompt: string; clientRequestId?: string }) => {
       const now = Date.now()
-      const { threadId, prompt } = args
+      const { threadId, prompt, clientRequestId } = args
+      const idSuffix = clientRequestId?.trim() || now
+      const queries = localStore.getAllQueries(api.chat.listMessages)
+      let maxOrder = -1
+      for (const query of queries) {
+        if (query.args.threadId !== threadId || query.args.streamArgs) {
+          continue
+        }
+        for (const message of query.value?.page ?? []) {
+          maxOrder = Math.max(maxOrder, message.order)
+        }
+      }
+      const order = maxOrder + 1
       const sortKeyFromItem = (el: ListMessagesPageItem): Value | Value[] => [
         el.order,
         el.stepOrder,
       ]
       const assistant: ListMessagesPageItem = {
-        id: `optimistic-assistant-${now}`,
+        id: `optimistic-assistant-${idSuffix}`,
         role: 'assistant',
-        key: `${threadId}-${now + 1}-0`,
+        key: `${threadId}-${order}-1`,
         text: '',
-        order: now + 1,
-        stepOrder: 0,
+        order,
+        stepOrder: 1,
         status: 'streaming',
         _creationTime: now,
         parts: [],
       }
       const user: ListMessagesPageItem = {
-        id: `optimistic-user-${now}`,
+        id: `optimistic-user-${idSuffix}`,
         role: 'user',
-        key: `${threadId}-${now}-0`,
+        key: `${threadId}-${order}-0`,
         text: prompt,
-        order: now,
+        order,
         stepOrder: 0,
         status: 'success',
         _creationTime: now,
@@ -169,12 +231,10 @@ export function useSendMessage() {
       }
 
       try {
-        return await createThreadMutation(
-          {
-            ...baseArgs,
-            clientThreadKey,
-          } as never,
-        )
+        return await createThreadMutation({
+          ...baseArgs,
+          clientThreadKey,
+        } as never)
       } catch (error) {
         if (!isExtraFieldValidationError(error, 'clientThreadKey')) {
           throw error
@@ -236,10 +296,6 @@ export function useSendMessage() {
       if (!isOnline) {
         return { threadId: threadId ?? null, disabledReason: 'offline' as const }
       }
-      if (!modelDocId) {
-        throw new Error('No model selected')
-      }
-
       const hasAttachments = attachments.length > 0
       if (!prompt.trim() && !hasAttachments) {
         throw new Error('Message cannot be empty')
@@ -260,6 +316,25 @@ export function useSendMessage() {
       }
       if (!resolvedThreadId) {
         throw new Error('Failed to create thread')
+      }
+
+      let routerDecisionId: string | undefined
+      let resolvedModelDocId = modelDocId
+      if (!resolvedModelDocId) {
+        const attachmentSummary = buildAttachmentSummary(attachments)
+        const routed = (await selectAutoModel({
+          prompt,
+          threadId: resolvedThreadId,
+          searchEnabled,
+          reasoningEnabled: false,
+          requiresImageInput: (attachmentSummary?.imageCount ?? 0) > 0,
+          attachmentSummary,
+        } as never)) as { decisionId?: string; selectedModelDocId: string }
+        resolvedModelDocId = routed.selectedModelDocId
+        routerDecisionId = routed.decisionId
+      }
+      if (!resolvedModelDocId) {
+        throw new Error('No model selected')
       }
 
       const uploaded = []
@@ -285,36 +360,84 @@ export function useSendMessage() {
       }
 
       await onBeforeGenerate?.()
+      const resolvedSearchMode = searchEnabled ? (searchMode ?? 'required') : undefined
       const sendPayload = {
         threadId: resolvedThreadId,
         prompt,
-        modelId: toModelId(modelDocId),
+        modelId: toModelId(resolvedModelDocId),
+        ...(routerDecisionId ? { routerDecisionId } : {}),
         projectId: toProjectId(projectId),
         searchEnabled,
-        searchMode: searchEnabled ? (searchMode ?? 'required') : 'auto',
+        ...(resolvedSearchMode ? { searchMode: resolvedSearchMode } : {}),
         attachments: uploaded,
       }
-      if (supportsClientRequestIdRef.current) {
-        try {
-          await generateMessageMutation({
-            ...sendPayload,
-            clientRequestId: createClientRequestId(),
-          } as never)
-        } catch (error) {
-          if (!isExtraFieldValidationError(error, 'clientRequestId')) {
-            throw error
+      const initialClientRequestId = supportsClientRequestIdRef.current
+        ? createClientRequestId()
+        : undefined
+      const executeSendMutation = async (
+        payload: Record<string, unknown>,
+        clientRequestId?: string,
+      ) => {
+        if (clientRequestId) {
+          try {
+            await generateMessageMutation({
+              ...payload,
+              clientRequestId,
+            } as never)
+            return
+          } catch (error) {
+            if (!isExtraFieldValidationError(error, 'clientRequestId')) {
+              throw error
+            }
+            supportsClientRequestIdRef.current = false
           }
-          supportsClientRequestIdRef.current = false
-          await generateMessageMutation(sendPayload as never)
         }
-      } else {
-        await generateMessageMutation(sendPayload as never)
+        await generateMessageMutation(payload as never)
+      }
+      const payloadWithCompat = supportsSearchModeRef.current
+        ? sendPayload
+        : (({ searchMode: _searchMode, ...rest }) => rest)(sendPayload)
+      try {
+        await executeSendMutation(payloadWithCompat, initialClientRequestId)
+      } catch (error) {
+        if (!supportsSearchModeRef.current || !isExtraFieldValidationError(error, 'searchMode')) {
+          throw error
+        }
+        supportsSearchModeRef.current = false
+        const payloadWithoutSearchMode = (({ searchMode: _searchMode, ...rest }) => rest)(
+          sendPayload,
+        )
+        await executeSendMutation(payloadWithoutSearchMode, initialClientRequestId)
       }
       await writeDraft(resolvedThreadId, '')
       await writeDraft('new', '')
       return { threadId: resolvedThreadId, disabledReason: null }
     },
-    [createThread, generateMessageMutation, generateUploadUrlMutation, isOnline],
+    [createThread, generateMessageMutation, generateUploadUrlMutation, isOnline, selectAutoModel],
+  )
+
+  const resolveAutoModelDecisionForPromptMessage = useCallback(
+    async ({
+      threadId,
+      promptMessageId,
+      searchEnabled,
+    }: {
+      threadId: string
+      promptMessageId: string
+      searchEnabled: boolean
+    }) => {
+      const routed = (await selectAutoModelForPromptMessage({
+        threadId,
+        promptMessageId,
+        searchEnabled,
+        reasoningEnabled: false,
+      } as never)) as { decisionId?: string; selectedModelDocId: string }
+      return {
+        decisionId: routed.decisionId,
+        modelDocId: routed.selectedModelDocId,
+      }
+    },
+    [selectAutoModelForPromptMessage],
   )
 
   return {
@@ -340,33 +463,65 @@ export function useSendMessage() {
         if (!isOnline) {
           return { disabledReason: 'offline' as const }
         }
+        let routerDecisionId: string | undefined
+        let resolvedModelDocId = modelDocId
+        if (!resolvedModelDocId) {
+          const routed = await resolveAutoModelDecisionForPromptMessage({
+            threadId,
+            promptMessageId,
+            searchEnabled,
+          })
+          resolvedModelDocId = routed.modelDocId
+          routerDecisionId = routed.decisionId
+        }
+        if (!resolvedModelDocId) {
+          throw new Error('No model selected')
+        }
+        const resolvedSearchMode = searchEnabled ? (searchMode ?? 'required') : undefined
         const regeneratePayload = {
           threadId,
           promptMessageId,
-          modelId: toModelId(modelDocId),
+          modelId: toModelId(resolvedModelDocId),
+          ...(routerDecisionId ? { routerDecisionId } : {}),
           projectId: toProjectId(projectId),
           searchEnabled,
-          searchMode: searchEnabled ? (searchMode ?? 'required') : 'auto',
+          ...(resolvedSearchMode ? { searchMode: resolvedSearchMode } : {}),
         }
-        if (supportsClientRequestIdRef.current) {
-          try {
-            await regenerateMessageMutation({
-              ...regeneratePayload,
-              clientRequestId: createClientRequestId(),
-            } as never)
-          } catch (error) {
-            if (!isExtraFieldValidationError(error, 'clientRequestId')) {
-              throw error
+        const executeRegenerateMutation = async (payload: Record<string, unknown>) => {
+          if (supportsClientRequestIdRef.current) {
+            try {
+              await regenerateMessageMutation({
+                ...payload,
+                clientRequestId: createClientRequestId(),
+              } as never)
+              return
+            } catch (error) {
+              if (!isExtraFieldValidationError(error, 'clientRequestId')) {
+                throw error
+              }
+              supportsClientRequestIdRef.current = false
             }
-            supportsClientRequestIdRef.current = false
-            await regenerateMessageMutation(regeneratePayload as never)
           }
-        } else {
-          await regenerateMessageMutation(regeneratePayload as never)
+          await regenerateMessageMutation(payload as never)
+        }
+        const payloadWithCompat = supportsSearchModeRef.current
+          ? regeneratePayload
+          : (({ searchMode: _searchMode, ...rest }) => rest)(regeneratePayload)
+        try {
+          await executeRegenerateMutation(payloadWithCompat)
+        } catch (error) {
+          if (!supportsSearchModeRef.current || !isExtraFieldValidationError(error, 'searchMode')) {
+            throw error
+          }
+          supportsSearchModeRef.current = false
+          const payloadWithoutSearchMode = (({ searchMode: _searchMode, ...rest }) => rest)(
+            regeneratePayload,
+          )
+          await executeRegenerateMutation(payloadWithoutSearchMode)
         }
         return { disabledReason: null }
       },
-      [isOnline, regenerateMessageMutation],
+      [isOnline, regenerateMessageMutation, resolveAutoModelDecisionForPromptMessage],
     ),
     pickImageAttachments: useCallback(async () => pickImages(), []),
     pickDocumentAttachments: useCallback(async () => pickDocuments(), []),

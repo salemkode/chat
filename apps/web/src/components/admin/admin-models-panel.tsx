@@ -4,20 +4,11 @@ import { Eye, EyeOff } from '@/lib/icons'
 import { api } from '@convex/_generated/api'
 import type { AdminOutletContext } from '@/components/admin/admin-outlet-context'
 import { EntityIcon } from '@/components/admin/entity-icon'
-import {
-  formatCompactNumber,
-  getProviderName,
-} from '@/components/admin/admin-utils'
+import { formatCompactNumber, getProviderName } from '@/components/admin/admin-utils'
 import type { AdminModel, IconType } from '@/components/admin/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
 import {
   Table,
@@ -28,15 +19,9 @@ import {
   TableRow,
 } from '@/components/ui/table'
 
-type AdminModelsPanelProps = Pick<
-  AdminOutletContext,
-  'dashboard' | 'onOpenModelDialog'
->
+type AdminModelsPanelProps = Pick<AdminOutletContext, 'dashboard' | 'onOpenModelDialog'>
 
-export function AdminModelsPanel({
-  dashboard,
-  onOpenModelDialog,
-}: AdminModelsPanelProps) {
+export function AdminModelsPanel({ dashboard, onOpenModelDialog }: AdminModelsPanelProps) {
   const toggleModelEnabled = useMutation(api.admin.toggleModelEnabled)
   const deleteModel = useMutation(api.admin.deleteModel)
   const providers = dashboard.providers
@@ -48,8 +33,7 @@ export function AdminModelsPanel({
         <CardHeader>
           <CardTitle>Models</CardTitle>
           <CardDescription>
-            Show or hide models, set icons per model, and tune custom per-model
-            limits.
+            Show or hide models, set icons per model, and tune custom per-model limits.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -85,9 +69,7 @@ export function AdminModelsPanel({
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>
-                    {getProviderName(providers, model.providerId)}
-                  </TableCell>
+                  <TableCell>{getProviderName(providers, model.providerId)}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Switch
@@ -99,9 +81,7 @@ export function AdminModelsPanel({
                           })
                         }
                       />
-                      <Badge
-                        variant={model.isEnabled ? 'default' : 'secondary'}
-                      >
+                      <Badge variant={model.isEnabled ? 'default' : 'secondary'}>
                         {model.isEnabled ? (
                           <>
                             <Eye className="mr-1 size-3.5" />
@@ -124,11 +104,7 @@ export function AdminModelsPanel({
                   <TableCell>{model.favorites}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onOpenModelDialog(model)}
-                      >
+                      <Button variant="outline" size="sm" onClick={() => onOpenModelDialog(model)}>
                         Edit
                       </Button>
                       <Button

@@ -56,10 +56,8 @@ export default function ProfileTabScreen() {
   }
 
   const displayName =
-    [user?.firstName, user?.lastName].filter(Boolean).join(' ') ||
-    user?.username ||
-    'Account';
-  const email = user?.emailAddresses.find(e => e.emailAddress)?.emailAddress;
+    [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.username || 'Account'
+  const email = user?.emailAddresses.find((e) => e.emailAddress)?.emailAddress
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <View className="flex-row items-center justify-between border-b border-border-subtle px-4 py-3">
@@ -70,10 +68,7 @@ export default function ProfileTabScreen() {
         >
           <Ionicons name="chevron-back" size={26} color={foregroundColor} />
         </Pressable>
-        <Text
-          className="text-[17px] text-foreground"
-          style={{ fontFamily: 'Inter_600SemiBold' }}
-        >
+        <Text className="text-[17px] text-foreground" style={{ fontFamily: 'Inter_600SemiBold' }}>
           Account
         </Text>
         <View className="size-10" />
@@ -137,10 +132,7 @@ export default function ProfileTabScreen() {
             <View className="size-9 items-center justify-center rounded-full bg-danger-surface">
               <Ionicons name="log-out-outline" size={20} color={dangerColor} />
             </View>
-            <Text
-              className="text-[17px] text-danger"
-              style={{ fontFamily: 'Inter_500Medium' }}
-            >
+            <Text className="text-[17px] text-danger" style={{ fontFamily: 'Inter_500Medium' }}>
               Sign out
             </Text>
           </Pressable>

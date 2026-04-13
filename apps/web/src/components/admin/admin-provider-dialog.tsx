@@ -28,16 +28,10 @@ import {
   mergeReducer,
 } from '@/components/admin/admin-form-state'
 import { getParsedJsonRecord, safeJsonStringify } from '@/components/admin/admin-json'
-import {
-  RateLimitEditor,
-  type RateLimitPolicy,
-} from '@/components/admin/rate-limit-editor'
+import { RateLimitEditor, type RateLimitPolicy } from '@/components/admin/rate-limit-editor'
 import type { AdminProvider, IconType } from '@/components/admin/types'
 import { Button } from '@/components/ui/button'
-import {
-  DialogHeader,
-  DialogFooter,
-} from '@/components/ui/dialog'
+import { DialogHeader, DialogFooter } from '@/components/ui/dialog'
 import {
   ResponsiveModal,
   ResponsiveModalContent,
@@ -105,313 +99,300 @@ export function AdminProviderDialog({ state, actions }: AdminProviderDialogProps
         Add provider
       </Button>
       <ResponsiveModal open={open} onOpenChange={onOpenChange}>
-      <ResponsiveModalContent size="page" className="max-h-[90vh] overflow-hidden">
-        <DialogHeader>
-          <ResponsiveModalTitle>
-            {editingProvider ? 'Edit provider' : 'Add provider'}
-          </ResponsiveModalTitle>
-          <ResponsiveModalDescription>
-            Configure API access, icon handling, discovery settings, and optional
-            provider-level limits.
-          </ResponsiveModalDescription>
-        </DialogHeader>
+        <ResponsiveModalContent size="page" className="max-h-[90vh] overflow-hidden">
+          <DialogHeader>
+            <ResponsiveModalTitle>
+              {editingProvider ? 'Edit provider' : 'Add provider'}
+            </ResponsiveModalTitle>
+            <ResponsiveModalDescription>
+              Configure API access, icon handling, discovery settings, and optional provider-level
+              limits.
+            </ResponsiveModalDescription>
+          </DialogHeader>
 
-        <ScrollArea className="max-h-[70vh] pr-6">
-          <div className="py-4">
-            <Tabs defaultValue="configuration" className="grid gap-4">
-              <TabsList className="grid w-full grid-cols-2 gap-1 sm:grid-cols-4">
-                <TabsTrigger value="configuration">Configuration</TabsTrigger>
-                <TabsTrigger value="advanced">Advanced</TabsTrigger>
-                <TabsTrigger value="icon">Icon</TabsTrigger>
-                <TabsTrigger value="limitation">Limitation</TabsTrigger>
-              </TabsList>
+          <ScrollArea className="max-h-[70vh] pr-6">
+            <div className="py-4">
+              <Tabs defaultValue="configuration" className="grid gap-4">
+                <TabsList className="grid w-full grid-cols-2 gap-1 sm:grid-cols-4">
+                  <TabsTrigger value="configuration">Configuration</TabsTrigger>
+                  <TabsTrigger value="advanced">Advanced</TabsTrigger>
+                  <TabsTrigger value="icon">Icon</TabsTrigger>
+                  <TabsTrigger value="limitation">Limitation</TabsTrigger>
+                </TabsList>
 
-              <TabsContent value="configuration" className="mt-0">
-                <div className="grid gap-4 rounded-2xl bg-muted/10 p-4 md:grid-cols-2">
-                  <div className="grid gap-2">
-                    <Label htmlFor={ids.providerName}>Name</Label>
-                    <Input
-                      id={ids.providerName}
-                      value={providerForm.name}
-                      onChange={(event) =>
-                        setProviderForm((current) => ({
-                          ...current,
-                          name: event.target.value,
-                        }))
-                      }
-                      placeholder="Primary OpenRouter"
-                    />
-                  </div>
+                <TabsContent value="configuration" className="mt-0">
+                  <div className="grid gap-4 rounded-2xl bg-muted/10 p-4 md:grid-cols-2">
+                    <div className="grid gap-2">
+                      <Label htmlFor={ids.providerName}>Name</Label>
+                      <Input
+                        id={ids.providerName}
+                        value={providerForm.name}
+                        onChange={(event) =>
+                          setProviderForm((current) => ({
+                            ...current,
+                            name: event.target.value,
+                          }))
+                        }
+                        placeholder="Primary OpenRouter"
+                      />
+                    </div>
 
-                  <div className="grid gap-2">
-                    <Label htmlFor={ids.providerType}>Provider type</Label>
-                    <Select
-                      value={providerForm.providerType}
-                      onValueChange={(value) => {
-                        const nextType = value as ProviderType
-                        setProviderForm((current) => {
-                          if (editingProvider) {
+                    <div className="grid gap-2">
+                      <Label htmlFor={ids.providerType}>Provider type</Label>
+                      <Select
+                        value={providerForm.providerType}
+                        onValueChange={(value) => {
+                          const nextType = value as ProviderType
+                          setProviderForm((current) => {
+                            if (editingProvider) {
+                              return {
+                                ...current,
+                                providerType: nextType,
+                              }
+                            }
+                            const prevDefault = defaultBaseURL(current.providerType)
+                            const url = current.baseURL.trim()
+                            const shouldApplyDefault = !url || url === prevDefault.trim()
                             return {
                               ...current,
                               providerType: nextType,
+                              baseURL: shouldApplyDefault
+                                ? defaultBaseURL(nextType)
+                                : current.baseURL,
                             }
-                          }
-                          const prevDefault = defaultBaseURL(current.providerType)
-                          const url = current.baseURL.trim()
-                          const shouldApplyDefault =
-                            !url || url === prevDefault.trim()
-                          return {
+                          })
+                        }}
+                      >
+                        <SelectTrigger id={ids.providerType}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PROVIDER_TYPES.map((provider) => (
+                            <SelectItem key={provider.value} value={provider.value}>
+                              {provider.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="grid gap-2 md:col-span-2">
+                      <Label>Description</Label>
+                      <Textarea
+                        value={providerForm.description}
+                        onChange={(event) =>
+                          setProviderForm((current) => ({
                             ...current,
-                            providerType: nextType,
-                            baseURL: shouldApplyDefault
-                              ? defaultBaseURL(nextType)
-                              : current.baseURL,
-                          }
-                        })
-                      }}
-                    >
-                      <SelectTrigger id={ids.providerType}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PROVIDER_TYPES.map((provider) => (
-                          <SelectItem key={provider.value} value={provider.value}>
-                            {provider.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                            description: event.target.value,
+                          }))
+                        }
+                        placeholder="Primary provider used for curated paid models."
+                      />
+                    </div>
 
-                  <div className="grid gap-2 md:col-span-2">
-                    <Label>Description</Label>
-                    <Textarea
-                      value={providerForm.description}
-                      onChange={(event) =>
-                        setProviderForm((current) => ({
-                          ...current,
-                          description: event.target.value,
-                        }))
-                      }
-                      placeholder="Primary provider used for curated paid models."
-                    />
-                  </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor={ids.providerApiKey}>API key</Label>
+                      <Input
+                        id={ids.providerApiKey}
+                        type="password"
+                        value={providerForm.apiKey}
+                        onChange={(event) =>
+                          setProviderForm((current) => ({
+                            ...current,
+                            apiKey: event.target.value,
+                          }))
+                        }
+                        placeholder={hints.apiKeyPlaceholder}
+                      />
+                    </div>
 
-                  <div className="grid gap-2">
-                    <Label htmlFor={ids.providerApiKey}>API key</Label>
-                    <Input
-                      id={ids.providerApiKey}
-                      type="password"
-                      value={providerForm.apiKey}
-                      onChange={(event) =>
-                        setProviderForm((current) => ({
-                          ...current,
-                          apiKey: event.target.value,
-                        }))
-                      }
-                      placeholder={hints.apiKeyPlaceholder}
-                    />
-                  </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor={ids.providerBaseUrl}>Base URL</Label>
+                      <Input
+                        id={ids.providerBaseUrl}
+                        value={providerForm.baseURL}
+                        onChange={(event) =>
+                          setProviderForm((current) => ({
+                            ...current,
+                            baseURL: event.target.value,
+                          }))
+                        }
+                        placeholder={hints.baseURLPlaceholder}
+                      />
+                      {hints.baseURLNote ? (
+                        <p className="text-xs text-muted-foreground">{hints.baseURLNote}</p>
+                      ) : null}
+                    </div>
 
-                  <div className="grid gap-2">
-                    <Label htmlFor={ids.providerBaseUrl}>Base URL</Label>
-                    <Input
-                      id={ids.providerBaseUrl}
-                      value={providerForm.baseURL}
-                      onChange={(event) =>
-                        setProviderForm((current) => ({
-                          ...current,
-                          baseURL: event.target.value,
-                        }))
-                      }
-                      placeholder={hints.baseURLPlaceholder}
-                    />
-                    {hints.baseURLNote ? (
-                      <p className="text-xs text-muted-foreground">
-                        {hints.baseURLNote}
-                      </p>
-                    ) : null}
-                  </div>
+                    <div className="grid gap-2">
+                      <Label>Sort order</Label>
+                      <Input
+                        type="number"
+                        value={providerForm.sortOrder}
+                        onChange={(event) =>
+                          setProviderForm((current) => ({
+                            ...current,
+                            sortOrder: Number(event.target.value) || 0,
+                          }))
+                        }
+                      />
+                    </div>
 
-                  <div className="grid gap-2">
-                    <Label>Sort order</Label>
-                    <Input
-                      type="number"
-                      value={providerForm.sortOrder}
-                      onChange={(event) =>
-                        setProviderForm((current) => ({
-                          ...current,
-                          sortOrder: Number(event.target.value) || 0,
-                        }))
-                      }
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-3 pt-6">
-                    <Switch
-                      checked={providerForm.isEnabled}
-                      onCheckedChange={(checked) =>
-                        setProviderForm((current) => ({
-                          ...current,
-                          isEnabled: checked,
-                        }))
-                      }
-                    />
-                    <div className="grid gap-1">
-                      <Label>Provider enabled</Label>
-                      <p className="text-xs text-muted-foreground">
-                        Disabled providers stay in admin, but their models
-                        disappear from chat.
-                      </p>
+                    <div className="flex items-center gap-3 pt-6">
+                      <Switch
+                        checked={providerForm.isEnabled}
+                        onCheckedChange={(checked) =>
+                          setProviderForm((current) => ({
+                            ...current,
+                            isEnabled: checked,
+                          }))
+                        }
+                      />
+                      <div className="grid gap-1">
+                        <Label>Provider enabled</Label>
+                        <p className="text-xs text-muted-foreground">
+                          Disabled providers stay in admin, but their models disappear from chat.
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </TabsContent>
+                </TabsContent>
 
-              <TabsContent value="advanced" className="mt-0">
-                <div className="grid gap-4 rounded-2xl bg-muted/10 p-4 md:grid-cols-2">
-                  <p className="text-sm text-muted-foreground md:col-span-2">
-                    Optional settings for{' '}
-                    <span className="font-medium text-foreground">OpenAI</span>{' '}
-                    routing (organization and project IDs), plus custom headers
-                    or query parameters sent with every request to this
-                    provider.
-                  </p>
-                  <div className="grid gap-2">
-                    <Label>OpenAI organization ID</Label>
-                    <Input
-                      value={providerForm.organization}
-                      onChange={(event) =>
+                <TabsContent value="advanced" className="mt-0">
+                  <div className="grid gap-4 rounded-2xl bg-muted/10 p-4 md:grid-cols-2">
+                    <p className="text-sm text-muted-foreground md:col-span-2">
+                      Optional settings for{' '}
+                      <span className="font-medium text-foreground">OpenAI</span> routing
+                      (organization and project IDs), plus custom headers or query parameters sent
+                      with every request to this provider.
+                    </p>
+                    <div className="grid gap-2">
+                      <Label>OpenAI organization ID</Label>
+                      <Input
+                        value={providerForm.organization}
+                        onChange={(event) =>
+                          setProviderForm((current) => ({
+                            ...current,
+                            organization: event.target.value,
+                          }))
+                        }
+                        placeholder="org_... (optional)"
+                      />
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label>OpenAI project ID</Label>
+                      <Input
+                        value={providerForm.project}
+                        onChange={(event) =>
+                          setProviderForm((current) => ({
+                            ...current,
+                            project: event.target.value,
+                          }))
+                        }
+                        placeholder="proj_... (optional)"
+                      />
+                    </div>
+
+                    <div className="grid gap-2 md:col-span-2">
+                      <Label>Headers JSON</Label>
+                      <Textarea
+                        value={providerForm.headersJson}
+                        onChange={(event) =>
+                          setProviderForm((current) => ({
+                            ...current,
+                            headersJson: event.target.value,
+                          }))
+                        }
+                        placeholder={'{\n  "HTTP-Referer": "https://example.com"\n}'}
+                      />
+                    </div>
+
+                    <div className="grid gap-2 md:col-span-2">
+                      <Label>Query params JSON</Label>
+                      <Textarea
+                        value={providerForm.queryParamsJson}
+                        onChange={(event) =>
+                          setProviderForm((current) => ({
+                            ...current,
+                            queryParamsJson: event.target.value,
+                          }))
+                        }
+                        placeholder={'{\n  "api-version": "2024-10-01-preview"\n}'}
+                      />
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="icon" className="mt-0">
+                  <div className="rounded-2xl border border-border bg-muted/10 p-4">
+                    <IconPickerField
+                      label="Provider icon"
+                      icon={providerForm.icon}
+                      iconType={providerForm.iconType}
+                      iconId={providerForm.iconId}
+                      iconUrl={providerIconPreviewUrl}
+                      onChange={(value) =>
                         setProviderForm((current) => ({
                           ...current,
-                          organization: event.target.value,
+                          icon: value.icon,
+                          iconType: value.iconType,
+                          iconId: value.iconId,
                         }))
                       }
-                      placeholder="org_... (optional)"
+                      onUpload={actions.onIconUpload}
                     />
                   </div>
+                </TabsContent>
 
-                  <div className="grid gap-2">
-                    <Label>OpenAI project ID</Label>
-                    <Input
-                      value={providerForm.project}
-                      onChange={(event) =>
+                <TabsContent value="limitation" className="mt-0">
+                  <div className="rounded-2xl border border-border bg-muted/10 p-4">
+                    <RateLimitEditor
+                      label="Provider rate limit"
+                      description="Apply limits to every request routed through this provider."
+                      value={providerForm.rateLimit}
+                      onChange={(value) =>
                         setProviderForm((current) => ({
                           ...current,
-                          project: event.target.value,
+                          rateLimit: value,
                         }))
-                      }
-                      placeholder="proj_... (optional)"
-                    />
-                  </div>
-
-                  <div className="grid gap-2 md:col-span-2">
-                    <Label>Headers JSON</Label>
-                    <Textarea
-                      value={providerForm.headersJson}
-                      onChange={(event) =>
-                        setProviderForm((current) => ({
-                          ...current,
-                          headersJson: event.target.value,
-                        }))
-                      }
-                      placeholder={
-                        '{\n  "HTTP-Referer": "https://example.com"\n}'
                       }
                     />
                   </div>
+                </TabsContent>
+              </Tabs>
+            </div>
+          </ScrollArea>
 
-                  <div className="grid gap-2 md:col-span-2">
-                    <Label>Query params JSON</Label>
-                    <Textarea
-                      value={providerForm.queryParamsJson}
-                      onChange={(event) =>
-                        setProviderForm((current) => ({
-                          ...current,
-                          queryParamsJson: event.target.value,
-                        }))
-                      }
-                      placeholder={
-                        '{\n  "api-version": "2024-10-01-preview"\n}'
-                      }
-                    />
-                  </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="icon" className="mt-0">
-                <div className="rounded-2xl border border-border bg-muted/10 p-4">
-                  <IconPickerField
-                    label="Provider icon"
-                    icon={providerForm.icon}
-                    iconType={providerForm.iconType}
-                    iconId={providerForm.iconId}
-                    iconUrl={providerIconPreviewUrl}
-                    onChange={(value) =>
-                      setProviderForm((current) => ({
-                        ...current,
-                        icon: value.icon,
-                        iconType: value.iconType,
-                        iconId: value.iconId,
-                      }))
-                    }
-                    onUpload={actions.onIconUpload}
-                  />
-                </div>
-              </TabsContent>
-
-              <TabsContent value="limitation" className="mt-0">
-                <div className="rounded-2xl border border-border bg-muted/10 p-4">
-                  <RateLimitEditor
-                    label="Provider rate limit"
-                    description="Apply limits to every request routed through this provider."
-                    value={providerForm.rateLimit}
-                    onChange={(value) =>
-                      setProviderForm((current) => ({
-                        ...current,
-                        rateLimit: value,
-                      }))
-                    }
-                  />
-                </div>
-              </TabsContent>
-            </Tabs>
-          </div>
-        </ScrollArea>
-
-        <DialogFooter className="justify-between">
-          <Button
-            variant="outline"
-            onClick={() => void actions.onInspectDraft()}
-            disabled={discoveringProviderId === 'draft'}
-          >
-            {discoveringProviderId === 'draft' ? (
-              <Loader2 className="mr-2 size-4 animate-spin" />
-            ) : (
-              <WandSparkles className="mr-2 size-4" />
-            )}
-            Inspect API
-          </Button>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+          <DialogFooter className="justify-between">
+            <Button
+              variant="outline"
+              onClick={() => void actions.onInspectDraft()}
+              disabled={discoveringProviderId === 'draft'}
+            >
+              {discoveringProviderId === 'draft' ? (
+                <Loader2 className="mr-2 size-4 animate-spin" />
+              ) : (
+                <WandSparkles className="mr-2 size-4" />
+              )}
+              Inspect API
             </Button>
-            <Button onClick={() => void actions.onSave()}>
-              {editingProvider ? 'Update provider' : 'Create provider'}
-            </Button>
-          </div>
-        </DialogFooter>
-      </ResponsiveModalContent>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button onClick={() => void actions.onSave()}>
+                {editingProvider ? 'Update provider' : 'Create provider'}
+              </Button>
+            </div>
+          </DialogFooter>
+        </ResponsiveModalContent>
       </ResponsiveModal>
     </>
   )
 }
 
-export function useAdminProviderDialog({
-  providers,
-}: {
-  providers: AdminProvider[]
-}) {
+export function useAdminProviderDialog({ providers }: { providers: AdminProvider[] }) {
   const discovery = useAdminDiscovery()
   const [dialogState, updateDialog] = useReducer(
     mergeReducer<ProviderDialogState>,
@@ -433,10 +414,7 @@ export function useAdminProviderDialog({
   const setProviderForm = (update: StateUpdate<ProviderFormData>) =>
     updateDialog((current) => ({
       ...current,
-      form:
-        typeof update === 'function'
-          ? update(current.form)
-          : { ...current.form, ...update },
+      form: typeof update === 'function' ? update(current.form) : { ...current.form, ...update },
     }))
 
   const openProviderDialog = useCallback(
@@ -448,9 +426,7 @@ export function useAdminProviderDialog({
           name: provider.name,
           providerType: provider.providerType as ProviderType,
           apiKey: provider.apiKey,
-          baseURL:
-            provider.baseURL ??
-            defaultBaseURL(provider.providerType as ProviderType),
+          baseURL: provider.baseURL ?? defaultBaseURL(provider.providerType as ProviderType),
           description: provider.description ?? '',
           isEnabled: provider.isEnabled,
           sortOrder: provider.sortOrder,
@@ -473,16 +449,19 @@ export function useAdminProviderDialog({
     [nextProviderSortOrder],
   )
 
-  const uploadIcon = useCallback(async (file: File) => {
-    const uploadUrl = await generateUploadUrl({})
-    const response = await fetch(uploadUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': file.type },
-      body: file,
-    })
-    const body = (await response.json()) as { storageId: string }
-    return body.storageId
-  }, [generateUploadUrl])
+  const uploadIcon = useCallback(
+    async (file: File) => {
+      const uploadUrl = await generateUploadUrl({})
+      const response = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': file.type },
+        body: file,
+      })
+      const body = (await response.json()) as { storageId: string }
+      return body.storageId
+    },
+    [generateUploadUrl],
+  )
 
   const handleProviderIconUpload = useCallback(
     async (file: File) => {
@@ -518,20 +497,14 @@ export function useAdminProviderDialog({
       })
       return
     }
-    const headersResult = getParsedJsonRecord(
-      providerForm.headersJson,
-      'Headers',
-    )
+    const headersResult = getParsedJsonRecord(providerForm.headersJson, 'Headers')
     if (headersResult.error) {
       toast.error(headersResult.error, {
         duration: ADMIN_MUTATION_ERROR_TOAST_DURATION_MS,
       })
       return
     }
-    const queryParamsResult = getParsedJsonRecord(
-      providerForm.queryParamsJson,
-      'Query params',
-    )
+    const queryParamsResult = getParsedJsonRecord(providerForm.queryParamsJson, 'Query params')
     if (queryParamsResult.error) {
       toast.error(queryParamsResult.error, {
         duration: ADMIN_MUTATION_ERROR_TOAST_DURATION_MS,
@@ -548,23 +521,15 @@ export function useAdminProviderDialog({
       description: providerForm.description.trim() || undefined,
       isEnabled: providerForm.isEnabled,
       sortOrder: providerForm.sortOrder,
-      icon:
-        providerForm.iconType === 'upload'
-          ? undefined
-          : providerForm.icon?.trim() || undefined,
+      icon: providerForm.iconType === 'upload' ? undefined : providerForm.icon?.trim() || undefined,
       iconType: providerForm.iconType,
       iconId:
         providerForm.iconType === 'upload'
           ? (providerForm.iconId as Id<'_storage'> | undefined)
           : undefined,
-      rateLimit: providerForm.rateLimit?.enabled
-        ? providerForm.rateLimit
-        : undefined,
+      rateLimit: providerForm.rateLimit?.enabled ? providerForm.rateLimit : undefined,
       config:
-        providerForm.organization ||
-        providerForm.project ||
-        headers ||
-        queryParams
+        providerForm.organization || providerForm.project || headers || queryParams
           ? {
               organization: providerForm.organization.trim() || undefined,
               project: providerForm.project.trim() || undefined,
@@ -589,13 +554,7 @@ export function useAdminProviderDialog({
           duration: ADMIN_MUTATION_ERROR_TOAST_DURATION_MS,
         })
       })
-  }, [
-    addProvider,
-    editingProvider,
-    nextProviderSortOrder,
-    providerForm,
-    updateProvider,
-  ])
+  }, [addProvider, editingProvider, nextProviderSortOrder, providerForm, updateProvider])
 
   const dialogProps: AdminProviderDialogProps = {
     state: {

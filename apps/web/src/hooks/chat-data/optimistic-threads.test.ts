@@ -6,8 +6,10 @@ import {
   isOptimisticThreadId,
 } from './optimistic-threads'
 
+type ThreadsWithMetadata = Parameters<typeof filterPersistableThreads>[0]
+
 function createMockLocalStore(args?: {
-  threads?: any[]
+  threads?: ThreadsWithMetadata
   projects?: Array<{ id: string; name: string }>
 }) {
   let threads = args?.threads
@@ -27,7 +29,11 @@ function createMockLocalStore(args?: {
       return undefined
     },
     setQuery(_query: unknown, _queryArgs: unknown, value: unknown) {
-      threads = value as any[]
+      if (!Array.isArray(value)) {
+        threads = undefined
+        return
+      }
+      threads = value as ThreadsWithMetadata
       setCalled = true
     },
   } as unknown as OptimisticLocalStore
@@ -98,7 +104,7 @@ describe('optimistic thread helpers', () => {
     expect(isOptimisticThreadId('optimistic-thread-a')).toBe(true)
     expect(isOptimisticThreadId('thread-a')).toBe(false)
 
-    const filtered = filterPersistableThreads([
+    const snapshot: ThreadsWithMetadata = [
       {
         _id: 'optimistic-thread-a',
         _creationTime: 1,
@@ -115,9 +121,10 @@ describe('optimistic thread helpers', () => {
         metadata: null,
         project: null,
       },
-    ] as any)
+    ]
+    const filtered = filterPersistableThreads(snapshot)
 
     expect(filtered.map((thread) => thread._id)).toEqual(['thread-b'])
-    expect(filterPersistableThreads([] as any)).toEqual([])
+    expect(filterPersistableThreads([])).toEqual([])
   })
 })

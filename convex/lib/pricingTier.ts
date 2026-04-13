@@ -24,9 +24,7 @@ export function resolvePricingRates(
   if (!tiers?.length) {
     return { inputPer1M: pricing.inputPer1M, outputPer1M: pricing.outputPer1M }
   }
-  const sorted = [...tiers].sort(
-    (a, b) => a.maxContextTokens - b.maxContextTokens,
-  )
+  const sorted = [...tiers].sort((a, b) => a.maxContextTokens - b.maxContextTokens)
   for (const tier of sorted) {
     if (estimatedInputTokens <= tier.maxContextTokens) {
       return { inputPer1M: tier.inputPer1M, outputPer1M: tier.outputPer1M }
@@ -44,7 +42,6 @@ export function estimateCostFromProfile(
   if (!pricing) return null
   const rates = resolvePricingRates(pricing, inputTokens)
   return (
-    (inputTokens / 1_000_000) * rates.inputPer1M +
-    (outputTokens / 1_000_000) * rates.outputPer1M
+    (inputTokens / 1_000_000) * rates.inputPer1M + (outputTokens / 1_000_000) * rates.outputPer1M
   )
 }

@@ -15,10 +15,13 @@ import { generateObject } from 'ai'
 import { z } from 'zod'
 import { getAuthUserId } from './lib/auth'
 import { extractMessageText } from './functions/memoryShared'
+import {
+  ensureProjectOwnerMembership,
+  listAccessibleProjectIds,
+  requireProjectRole,
+} from './lib/projectAccess'
 
-async function requireUserId(
-  ctx: QueryCtx | MutationCtx,
-): Promise<Id<'users'> | null> {
+async function requireUserId(ctx: QueryCtx | MutationCtx): Promise<Id<'users'> | null> {
   const userId = await getAuthUserId(ctx)
   if (!userId) {
     return null
@@ -26,17 +29,22 @@ async function requireUserId(
   return userId
 }
 
-async function getOwnedProject(
+async function getAccessibleProject(
   ctx: QueryCtx | MutationCtx,
   projectId: Id<'projects'>,
   userId: Id<'users'> | null,
+  minimumRole: 'owner' | 'editor' | 'viewer' = 'viewer',
 ) {
   if (!userId) return null
-  const project = await ctx.db.get(projectId)
-  if (!project || project.userId !== userId) {
+  try {
+    return await requireProjectRole(ctx, {
+      projectId,
+      userId,
+      minimumRole,
+    })
+  } catch {
     return null
   }
-  return project
 }
 
 async function getOwnedThreadMetadata(
@@ -103,7 +111,7 @@ function fallbackProjectNameFromMentionQuery(query: string): string {
   const normalized = query
     .trim()
     .replace(/\s+/g, ' ')
-    .replace(/^new\s*[:\-]?\s*/i, '')
+    .replace(/^new\s*[:-]?\s*/i, '')
     .trim()
 
   if (!normalized) {
@@ -113,19 +121,11 @@ function fallbackProjectNameFromMentionQuery(query: string): string {
   return normalized.slice(0, PROJECT_NAME_MAX_LENGTH)
 }
 
-function fallbackSuggestion(args: {
-  mentionQuery?: string
-  draft: string
-  reason: string
-}) {
+function fallbackSuggestion(args: { mentionQuery?: string; draft: string; reason: string }) {
   const normalizedDraft = args.draft.replace(/\s+/g, ' ').trim()
-  const description = normalizedDraft
-    ? summarizeLine(normalizedDraft, 160)
-    : undefined
+  const description = normalizedDraft ? summarizeLine(normalizedDraft, 160) : undefined
   return {
-    name: normalizeProjectName(
-      fallbackProjectNameFromMentionQuery(args.mentionQuery ?? ''),
-    ),
+    name: normalizeProjectName(fallbackProjectNameFromMentionQuery(args.mentionQuery ?? '')),
     description: normalizeProjectDescription(description),
     source: 'fallback' as const,
     reason: args.reason,
@@ -243,12 +243,9 @@ export const suggestProjectFromContext = action({
     reason: v.optional(v.string()),
   }),
   handler: async (ctx: ActionCtx, args) => {
-    const suggestionContext = await ctx.runQuery(
-      (internal as any).projects.getProjectSuggestionContext,
-      {
-        threadId: args.threadId,
-      },
-    )
+    const suggestionContext = await ctx.runQuery(internal.projects.getProjectSuggestionContext, {
+      threadId: args.threadId,
+    })
 
     const mentionQuery = args.mentionQuery?.trim() || ''
     const normalizedDraft = args.draft.replace(/\s+/g, ' ').trim()
@@ -261,10 +258,9 @@ export const suggestProjectFromContext = action({
       })
     }
 
-    const modelId = await ctx.runQuery(
-      (internal as any).projects.resolveProjectSuggestionModel,
-      { modelId: args.modelId },
-    )
+    const modelId = await ctx.runQuery(internal.projects.resolveProjectSuggestionModel, {
+      modelId: args.modelId,
+    })
 
     const prompt = [
       'Suggest a concise project name and optional description for this chat context.',
@@ -273,9 +269,7 @@ export const suggestProjectFromContext = action({
       'Avoid quotes, emojis, and generic names when context is specific.',
       mentionQuery ? `Mention query: ${mentionQuery}` : '',
       normalizedDraft ? `Current draft: ${normalizedDraft}` : '',
-      suggestionContext.threadTitle
-        ? `Current thread title: ${suggestionContext.threadTitle}`
-        : '',
+      suggestionContext.threadTitle ? `Current thread title: ${suggestionContext.threadTitle}` : '',
       suggestionContext.recentTranscript
         ? `Recent thread transcript:\n${suggestionContext.recentTranscript}`
         : '',
@@ -336,11 +330,21 @@ export const createProject = mutation({
     const id = await ctx.db.insert('projects', {
       name,
       description: args.description?.trim() || undefined,
+      ownerUserId: userId,
       userId,
+      visibility: 'private',
       threadIds: [],
       createdAt: now,
       updatedAt: now,
     })
+
+    const createdProject = await ctx.db.get(id)
+    if (createdProject) {
+      await ensureProjectOwnerMembership(ctx, {
+        project: createdProject,
+        userId,
+      })
+    }
 
     return { id: id.toString() }
   },
@@ -351,35 +355,38 @@ export const listProjects = query({
     const userId = await requireUserId(ctx)
     if (!userId) return []
 
-    const [projects, metadata] = await Promise.all([
-      ctx.db
-        .query('projects')
-        .withIndex('by_user', (q) => q.eq('userId', userId))
-        .order('desc')
-        .collect(),
+    const [projectIds, metadata] = await Promise.all([
+      listAccessibleProjectIds(ctx, userId),
       ctx.db
         .query('threadMetadata')
         .withIndex('by_userId', (q) => q.eq('userId', userId))
         .collect(),
     ])
+    const projects = (await Promise.all(projectIds.map((projectId) => ctx.db.get(projectId))))
+      .filter((project): project is NonNullable<typeof project> => project !== null)
+      .sort((left, right) => right.updatedAt - left.updatedAt)
 
     const counts = new Map<string, number>()
     for (const item of metadata) {
       if (!item.projectId) continue
-      counts.set(
-        item.projectId.toString(),
-        (counts.get(item.projectId.toString()) ?? 0) + 1,
-      )
+      counts.set(item.projectId.toString(), (counts.get(item.projectId.toString()) ?? 0) + 1)
     }
 
-    return projects.map((project) => ({
-      id: project._id.toString(),
-      name: project.name,
-      description: project.description,
-      threadCount: counts.get(project._id.toString()) ?? 0,
-      createdAt: project.createdAt,
-      updatedAt: project.updatedAt,
-    }))
+    return await Promise.all(
+      projects.map(async (project) => {
+        const role = await getAccessibleProject(ctx, project._id, userId, 'viewer')
+        return {
+          id: project._id.toString(),
+          name: project.name,
+          description: project.description,
+          visibility: project.visibility ?? 'private',
+          role: role?.role ?? 'viewer',
+          threadCount: counts.get(project._id.toString()) ?? 0,
+          createdAt: project.createdAt,
+          updatedAt: project.updatedAt,
+        }
+      }),
+    )
   },
 })
 
@@ -393,8 +400,9 @@ export const updateProject = mutation({
     const userId = await requireUserId(ctx)
     if (!userId) return null
 
-    const project = await getOwnedProject(ctx, args.projectId, userId)
-    if (!project) return null
+    const projectAccess = await getAccessibleProject(ctx, args.projectId, userId, 'owner')
+    if (!projectAccess) return null
+    const project = projectAccess.project
 
     const patch: {
       name?: string
@@ -429,8 +437,9 @@ export const deleteProject = mutation({
     const userId = await requireUserId(ctx)
     if (!userId) return null
 
-    const project = await getOwnedProject(ctx, args.projectId, userId)
-    if (!project) return null
+    const projectAccess = await getAccessibleProject(ctx, args.projectId, userId, 'owner')
+    if (!projectAccess) return null
+    const project = projectAccess.project
 
     const [projectMemories, linkedThreads] = await Promise.all([
       ctx.db
@@ -468,26 +477,30 @@ export const assignThreadToProject = mutation({
 
     const [metadata, project] = await Promise.all([
       getOwnedThreadMetadata(ctx, args.threadId, userId),
-      getOwnedProject(ctx, args.projectId, userId),
+      getAccessibleProject(ctx, args.projectId, userId, 'viewer'),
     ])
 
     if (!metadata || !project) return null
+    const projectDoc = project.project
 
     const now = Date.now()
     const previousProjectId = metadata.projectId
 
     await ctx.db.patch(metadata._id, {
-      projectId: project._id,
+      projectId: projectDoc._id,
     })
 
-    await ctx.db.patch(project._id, {
+    await ctx.db.patch(projectDoc._id, {
       updatedAt: now,
     })
 
-    if (previousProjectId && previousProjectId !== project._id) {
+    if (previousProjectId && previousProjectId !== projectDoc._id) {
       const previousProject = await ctx.db.get(previousProjectId)
-      if (previousProject?.userId === userId) {
-        await ctx.db.patch(previousProject._id, {
+      const previousProjectAccess = previousProject
+        ? await getAccessibleProject(ctx, previousProject._id, userId, 'viewer')
+        : null
+      if (previousProjectAccess) {
+        await ctx.db.patch(previousProjectAccess.project._id, {
           updatedAt: now,
         })
       }
@@ -515,9 +528,9 @@ export const removeThreadFromProject = mutation({
     })
 
     if (projectId) {
-      const project = await ctx.db.get(projectId)
-      if (project?.userId === userId) {
-        await ctx.db.patch(project._id, {
+      const project = await getAccessibleProject(ctx, projectId, userId, 'viewer')
+      if (project) {
+        await ctx.db.patch(project.project._id, {
           updatedAt: Date.now(),
         })
       }
@@ -552,17 +565,17 @@ export const getProjectForThread = query({
       return null
     }
 
-    const project = await ctx.db.get(metadata.projectId)
-    if (!project || project.userId !== userId) {
+    const project = await getAccessibleProject(ctx, metadata.projectId, userId, 'viewer')
+    if (!project) {
       return null
     }
 
     return {
-      id: project._id.toString(),
-      name: project.name,
-      description: project.description,
-      createdAt: project.createdAt,
-      updatedAt: project.updatedAt,
+      id: project.project._id.toString(),
+      name: project.project.name,
+      description: project.project.description,
+      createdAt: project.project.createdAt,
+      updatedAt: project.project.updatedAt,
     }
   },
 })
@@ -575,7 +588,7 @@ export const listThreadsByProject = query({
     const userId = await requireUserId(ctx)
     if (!userId) return []
 
-    const project = await getOwnedProject(ctx, args.projectId, userId)
+    const project = await getAccessibleProject(ctx, args.projectId, userId, 'viewer')
     if (!project) return []
 
     const metadata = await ctx.db
@@ -613,15 +626,19 @@ export const migrateLegacyThreadProjectAssignments = mutation({
     const userId = await requireUserId(ctx)
     if (!userId) return { migrated: 0, conflicts: 0 }
 
-    const projects = await ctx.db
-      .query('projects')
-      .withIndex('by_user', (q) => q.eq('userId', userId))
-      .collect()
+    const projectIds = await listAccessibleProjectIds(ctx, userId)
+    const projects = (
+      await Promise.all(projectIds.map((projectId) => ctx.db.get(projectId)))
+    ).filter((project): project is NonNullable<typeof project> => project !== null)
 
     const preferredProjectByThreadId = new Map<string, Id<'projects'>>()
     let conflicts = 0
 
     for (const project of projects) {
+      await ensureProjectOwnerMembership(ctx, {
+        project,
+        userId: project.ownerUserId ?? project.userId ?? userId,
+      })
       for (const threadId of project.threadIds ?? []) {
         const existingProjectId = preferredProjectByThreadId.get(threadId)
         if (!existingProjectId) {
@@ -655,5 +672,65 @@ export const migrateLegacyThreadProjectAssignments = mutation({
     }
 
     return { migrated, conflicts }
+  },
+})
+
+export const migrateProjectOwnership = mutation({
+  args: {},
+  returns: v.object({
+    updatedProjects: v.number(),
+    ensuredMemberships: v.number(),
+  }),
+  handler: async (ctx) => {
+    const userId = await requireUserId(ctx)
+    if (!userId) {
+      return {
+        updatedProjects: 0,
+        ensuredMemberships: 0,
+      }
+    }
+
+    const projectIds = await listAccessibleProjectIds(ctx, userId)
+    const projects = (
+      await Promise.all(projectIds.map((projectId) => ctx.db.get(projectId)))
+    ).filter((project): project is NonNullable<typeof project> => project !== null)
+
+    let updatedProjects = 0
+    let ensuredMemberships = 0
+    for (const project of projects) {
+      const ownerUserId = project.ownerUserId ?? project.userId
+      if (!ownerUserId) {
+        continue
+      }
+
+      const needsProjectPatch =
+        project.ownerUserId === undefined ||
+        project.userId === undefined ||
+        project.visibility === undefined
+
+      if (needsProjectPatch) {
+        await ctx.db.patch(project._id, {
+          ownerUserId,
+          userId: project.userId ?? ownerUserId,
+          visibility: project.visibility ?? 'private',
+          updatedAt: Date.now(),
+        })
+        updatedProjects += 1
+      }
+
+      await ensureProjectOwnerMembership(ctx, {
+        project: {
+          ...project,
+          ownerUserId,
+        },
+        userId: ownerUserId,
+      })
+      ensuredMemberships += 1
+    }
+
+    return {
+      updatedProjects,
+      ensuredMemberships,
+    }
   },
 })

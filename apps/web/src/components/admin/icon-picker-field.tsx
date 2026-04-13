@@ -56,9 +56,7 @@ export function IconPickerField({
     }
 
     const query = search.toLowerCase()
-    return ICON_NAMES.filter((iconName) =>
-      iconName.toLowerCase().includes(query),
-    )
+    return ICON_NAMES.filter((iconName) => iconName.toLowerCase().includes(query))
   }, [search])
 
   return (
@@ -71,12 +69,7 @@ export function IconPickerField({
           </p>
         </div>
         <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2">
-          <EntityIcon
-            icon={icon}
-            iconType={iconType}
-            iconUrl={iconUrl}
-            className="size-5"
-          />
+          <EntityIcon icon={icon} iconType={iconType} iconUrl={iconUrl} className="size-5" />
           <span className="text-xs text-muted-foreground">
             {iconType === 'upload'
               ? iconId
@@ -168,19 +161,17 @@ export function IconPickerField({
             placeholder="✨"
           />
           <div className="flex flex-wrap gap-2">
-            {['✨', '🤖', '🧠', '⚡', '🌐', '🛡️', '📊', '🧪', '🔍', '💎'].map(
-              (emoji) => (
-                <Button
-                  key={emoji}
-                  type="button"
-                  variant={icon === emoji && iconType === 'emoji' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => onChange({ icon: emoji, iconType: 'emoji' })}
-                >
-                  {emoji}
-                </Button>
-              ),
-            )}
+            {['✨', '🤖', '🧠', '⚡', '🌐', '🛡️', '📊', '🧪', '🔍', '💎'].map((emoji) => (
+              <Button
+                key={emoji}
+                type="button"
+                variant={icon === emoji && iconType === 'emoji' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => onChange({ icon: emoji, iconType: 'emoji' })}
+              >
+                {emoji}
+              </Button>
+            ))}
           </div>
         </TabsContent>
 

@@ -28,11 +28,7 @@ const SUPPORTED_AUDIO_MIME_TYPES = [
 ] as const
 
 function voiceError(
-  code:
-    | 'unauthorized'
-    | 'unsupported_format'
-    | 'file_too_large'
-    | 'transcription_failed',
+  code: 'unauthorized' | 'unsupported_format' | 'file_too_large' | 'transcription_failed',
   message: string,
 ) {
   return new ConvexError({ code, message })
@@ -48,13 +44,8 @@ function isSupportedAudioMimeType(mimeType: string) {
 function ensureVoiceApiKey() {
   const apiKey = process.env.VOICE_TRANSCRIPTION_API_KEY?.trim()
   if (!apiKey) {
-    console.error(
-      '[voice-transcription] missing VOICE_TRANSCRIPTION_API_KEY environment variable',
-    )
-    throw voiceError(
-      'transcription_failed',
-      'Voice transcription is unavailable right now.',
-    )
+    console.error('[voice-transcription] missing VOICE_TRANSCRIPTION_API_KEY environment variable')
+    throw voiceError('transcription_failed', 'Voice transcription is unavailable right now.')
   }
   return apiKey
 }
@@ -109,22 +100,13 @@ export const transcribeAudio = action({
       ])
 
       if (!blob || !metadata) {
-        console.error(
-          '[voice-transcription] uploaded audio was missing',
-          args.storageId,
-        )
-        throw voiceError(
-          'transcription_failed',
-          'Voice transcription failed. Try again.',
-        )
+        console.error('[voice-transcription] uploaded audio was missing', args.storageId)
+        throw voiceError('transcription_failed', 'Voice transcription failed. Try again.')
       }
 
       const sizeBytes = metadata.size ?? blob.size
       if (sizeBytes > MAX_AUDIO_BYTES) {
-        throw voiceError(
-          'file_too_large',
-          'Voice recording is too large to transcribe.',
-        )
+        throw voiceError('file_too_large', 'Voice recording is too large to transcribe.')
       }
 
       const apiKey = ensureVoiceApiKey()
@@ -150,15 +132,8 @@ export const transcribeAudio = action({
 
       if (!response.ok) {
         const failureText = await response.text()
-        console.error(
-          '[voice-transcription] provider status',
-          response.status,
-          failureText,
-        )
-        throw voiceError(
-          'transcription_failed',
-          'Voice transcription failed. Try again.',
-        )
+        console.error('[voice-transcription] provider status', response.status, failureText)
+        throw voiceError('transcription_failed', 'Voice transcription failed. Try again.')
       }
 
       const payload = (await response.json()) as {
@@ -170,10 +145,7 @@ export const transcribeAudio = action({
       const text = payload.text?.trim()
       if (!text) {
         console.error('[voice-transcription] provider returned empty transcript')
-        throw voiceError(
-          'transcription_failed',
-          'Voice transcription failed. Try again.',
-        )
+        throw voiceError('transcription_failed', 'Voice transcription failed. Try again.')
       }
 
       return {
@@ -187,19 +159,12 @@ export const transcribeAudio = action({
       }
 
       console.error('[voice-transcription] transcription_failed', error)
-      throw voiceError(
-        'transcription_failed',
-        'Voice transcription failed. Try again.',
-      )
+      throw voiceError('transcription_failed', 'Voice transcription failed. Try again.')
     } finally {
       try {
         await ctx.storage.delete(args.storageId)
       } catch (error) {
-        console.warn(
-          '[voice-transcription] failed to delete temp audio',
-          args.storageId,
-          error,
-        )
+        console.warn('[voice-transcription] failed to delete temp audio', args.storageId, error)
       }
     }
   },

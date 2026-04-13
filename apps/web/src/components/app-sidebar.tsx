@@ -12,7 +12,5 @@ export const AppSidebar = memo(function AppSidebar({
   selectedThreadId,
   className,
 }: AppSidebarProps) {
-  return (
-    <NewAppSidebar selectedThreadId={selectedThreadId} className={className} />
-  )
+  return <NewAppSidebar selectedThreadId={selectedThreadId} className={className} />
 })

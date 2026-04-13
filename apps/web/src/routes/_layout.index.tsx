@@ -1,5 +1,5 @@
-import { ChatMessageList } from '@/components/ChatMessageList'
-import { ChatThreadHeader } from '@/components/chat/ChatThreadHeader'
+import { ChatMessageList } from '@/components/chat-message-list'
+import { ChatThreadHeader } from '@/components/chat/chat-thread-header'
 import { useMessages } from '@/hooks/use-chat-data'
 
 export default function NewChatIndex() {

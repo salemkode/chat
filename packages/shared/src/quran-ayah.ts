@@ -30,11 +30,7 @@ export function getQuranAyahCardFromParts(
       }
     }
 
-    if (
-      partType === 'quran-ayah' ||
-      partType === 'ayah' ||
-      partType === 'data-quran-ayah'
-    ) {
+    if (partType === 'quran-ayah' || partType === 'ayah' || partType === 'data-quran-ayah') {
       const customPart = extractQuranAyahCard(part)
       if (customPart) {
         return customPart
@@ -89,9 +85,7 @@ function extractQuranAyahCard(value: unknown): QuranAyahCardData | null {
 
   const verseKey = getString(record.verseKey) || getString(record.verse_key)
   const sourceUrl =
-    getString(record.sourceUrl) ||
-    getString(record.source_url) ||
-    getResultUrl(record.results)
+    getString(record.sourceUrl) || getString(record.source_url) || getResultUrl(record.results)
   const audioUrl = getAudioUrl(record)
 
   return {
@@ -129,9 +123,7 @@ function extractNestedAyahCard(value: unknown): QuranAyahCardData | null {
 
 function getAudioUrl(record: UnknownRecord) {
   const directAudioUrl =
-    getString(record.audioUrl) ||
-    getString(record.audio_url) ||
-    getString(record.audioURL)
+    getString(record.audioUrl) || getString(record.audio_url) || getString(record.audioURL)
   if (directAudioUrl) {
     return directAudioUrl
   }
@@ -151,8 +143,7 @@ function getAudioUrl(record: UnknownRecord) {
   }
 
   const urls =
-    getFirstStringFromArray(record.audioUrls) ||
-    getFirstStringFromArray(record.audio_urls)
+    getFirstStringFromArray(record.audioUrls) || getFirstStringFromArray(record.audio_urls)
   if (urls) {
     return urls
   }
@@ -210,7 +201,5 @@ function asRecord(value: unknown): UnknownRecord | null {
 }
 
 function getString(value: unknown) {
-  return typeof value === 'string' && value.trim().length > 0
-    ? value.trim()
-    : undefined
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined
 }

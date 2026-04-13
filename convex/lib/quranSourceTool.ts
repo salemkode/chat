@@ -25,7 +25,10 @@ function errorToMessage(error: unknown): string {
 }
 
 function stripHtml(value: string) {
-  return value.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
+  return value
+    .replace(/<[^>]+>/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 function buildVerseUrl(verseKey: string) {
@@ -66,9 +69,7 @@ function getWordTranslationText(words: unknown) {
         'translation' in word && word.translation && typeof word.translation === 'object'
           ? word.translation
           : null
-      return translation &&
-        'text' in translation &&
-        typeof translation.text === 'string'
+      return translation && 'text' in translation && typeof translation.text === 'string'
         ? translation.text
         : ''
     })
@@ -86,11 +87,9 @@ async function fetchJson(path: string, abortSignal?: AbortSignal) {
     if (abortSignal.aborted) {
       controller.abort(abortSignal.reason)
     } else {
-      abortSignal.addEventListener(
-        'abort',
-        () => controller.abort(abortSignal.reason),
-        { once: true },
-      )
+      abortSignal.addEventListener('abort', () => controller.abort(abortSignal.reason), {
+        once: true,
+      })
     }
   }
 
@@ -113,10 +112,7 @@ async function fetchJson(path: string, abortSignal?: AbortSignal) {
   }
 }
 
-async function fetchVerseAudioUrl(
-  verseKey: string,
-  abortSignal?: AbortSignal,
-) {
+async function fetchVerseAudioUrl(verseKey: string, abortSignal?: AbortSignal) {
   const data = (await fetchJson(
     `/recitations/${DEFAULT_RECITATION_ID}/by_ayah/${encodeURIComponent(verseKey)}`,
     abortSignal,
@@ -179,9 +175,7 @@ export const quranSourceTool = createTool({
     'Fetch verified Quran content from the Quran.com API. Use this for ayahs, verse lookups, topical Quran search, verse text, and translations. Do not answer Quran content questions from memory when this tool should be used.',
   inputSchema: quranSourceInputSchema,
   execute: async (_ctx, args, options) => {
-    const translations = args.translations?.length
-      ? args.translations
-      : DEFAULT_TRANSLATIONS
+    const translations = args.translations?.length ? args.translations : DEFAULT_TRANSLATIONS
     const resolvedVerseKey = args.verseKey ?? getVerseKeyFromLooseInput(args.query)
 
     try {
@@ -225,14 +219,9 @@ export const quranSourceTool = createTool({
 
         const primaryTranslation = verse.translations?.[0]
         const translationText =
-          typeof primaryTranslation?.text === 'string'
-            ? stripHtml(primaryTranslation.text)
-            : ''
+          typeof primaryTranslation?.text === 'string' ? stripHtml(primaryTranslation.text) : ''
         const wordTranslationText = getWordTranslationText(verse.words)
-        const snippet = [translationText, wordTranslationText]
-          .filter(Boolean)
-          .join(' ')
-          .trim()
+        const snippet = [translationText, wordTranslationText].filter(Boolean).join(' ').trim()
         const sourceUrl = buildVerseUrl(verse.verse_key)
 
         return {
@@ -274,10 +263,7 @@ export const quranSourceTool = createTool({
         language,
       })
 
-      const data = (await fetchJson(
-        `/search?${params.toString()}`,
-        options.abortSignal,
-      )) as {
+      const data = (await fetchJson(`/search?${params.toString()}`, options.abortSignal)) as {
         search?: {
           query?: string
           results?: Array<{
@@ -297,9 +283,7 @@ export const quranSourceTool = createTool({
           if (!verseKey) return null
           const primaryTranslation = result.translations?.[0]
           const translationText =
-            typeof primaryTranslation?.text === 'string'
-              ? stripHtml(primaryTranslation.text)
-              : ''
+            typeof primaryTranslation?.text === 'string' ? stripHtml(primaryTranslation.text) : ''
 
           return {
             verseKey,

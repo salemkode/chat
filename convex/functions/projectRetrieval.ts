@@ -1,22 +1,12 @@
-import { v, ConvexError } from 'convex/values'
-import {
-  action,
-  internalAction,
-  internalQuery,
-  query,
-} from '../_generated/server'
+import { v } from 'convex/values'
+import { action, internalAction, internalQuery, query } from '../_generated/server'
 import type { Id } from '../_generated/dataModel'
-import { internal } from '../_generated/api'
+import { api, internal } from '../_generated/api'
 import { getAuthUserId } from '../lib/auth'
 import { requireProjectRole } from '../lib/projectAccess'
 
 function normalizeQueryTerms(query: string) {
-  return query
-    .toLowerCase()
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 10)
+  return query.toLowerCase().trim().split(/\s+/).filter(Boolean).slice(0, 10)
 }
 
 function scoreSnippet(args: { text: string; terms: string[] }) {
@@ -113,18 +103,14 @@ export const searchProjectContext = internalQuery({
       .withIndex('by_project', (q) => q.eq('projectId', args.projectId))
       .collect()
 
-    const explicitIds = new Set(
-      (args.explicitArtifactIds ?? []).map((id) => id.toString()),
-    )
+    const explicitIds = new Set((args.explicitArtifactIds ?? []).map((id) => id.toString()))
     const terms = normalizeQueryTerms(args.query)
 
     const contents = await ctx.db
       .query('projectArtifactContents')
       .withIndex('by_project', (q) => q.eq('projectId', args.projectId))
       .collect()
-    const contentByArtifact = new Map(
-      contents.map((item) => [item.artifactId.toString(), item]),
-    )
+    const contentByArtifact = new Map(contents.map((item) => [item.artifactId.toString(), item]))
 
     const scored = artifacts
       .filter((artifact) => artifact.status !== 'archived')
@@ -139,12 +125,8 @@ export const searchProjectContext = internalQuery({
           .filter(Boolean)
           .join('\n')
         const isExplicit = explicitIds.has(artifact._id.toString())
-        const keywordScore =
-          terms.length > 0 ? scoreSnippet({ text: haystack, terms }) : 0
-        const base =
-          (artifact.pinned ? 3 : 0) +
-          (artifact.includeInContext ? 2 : 0) +
-          keywordScore
+        const keywordScore = terms.length > 0 ? scoreSnippet({ text: haystack, terms }) : 0
+        const base = (artifact.pinned ? 3 : 0) + (artifact.includeInContext ? 2 : 0) + keywordScore
         const score = (isExplicit ? 100 : 0) + base
         return {
           artifactId: artifact._id,
@@ -195,16 +177,13 @@ export const buildPromptProjectContext = internalAction({
       }
     }
 
-    const hits = await ctx.runQuery(
-      internal.functions.projectRetrieval.searchProjectContext,
-      {
-        projectId: args.projectId,
-        userId: args.userId,
-        query: args.prompt,
-        explicitArtifactIds: args.explicitArtifactIds,
-        maxResults: 8,
-      },
-    )
+    const hits = await ctx.runQuery(internal.functions.projectRetrieval.searchProjectContext, {
+      projectId: args.projectId,
+      userId: args.userId,
+      query: args.prompt,
+      explicitArtifactIds: args.explicitArtifactIds,
+      maxResults: 8,
+    })
 
     if (!hits.length) {
       return {
@@ -312,21 +291,12 @@ export const getProjectArtifact = action({
     }),
   ),
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx)
-    if (!userId) {
-      throw new ConvexError({
-        code: 'UNAUTHORIZED',
-        message: 'You must be logged in to load artifacts',
-      })
-    }
+    const userId = await ctx.runMutation(api.users.ensureCurrentUser, {})
 
-    return await ctx.runQuery(
-      internal.functions.projectRetrieval.getArtifactByIdForProject,
-      {
-        projectId: args.projectId,
-        artifactId: args.artifactId,
-        userId,
-      },
-    )
+    return await ctx.runQuery(internal.functions.projectRetrieval.getArtifactByIdForProject, {
+      projectId: args.projectId,
+      artifactId: args.artifactId,
+      userId,
+    })
   },
 })

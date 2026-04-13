@@ -9,9 +9,7 @@ import { api } from '@convex/_generated/api'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import {
-  formatCompactNumber,
-} from '@/components/admin/admin-utils'
+import { formatCompactNumber } from '@/components/admin/admin-utils'
 import type { DashboardData } from '@/components/admin/types'
 import { useQuery } from '@/lib/convex-query-cache'
 
@@ -32,10 +30,7 @@ export function useAdminOverviewUserControls({
   const setUserAppPlan = useMutation(api.admin.setUserAppPlan)
   const searchedUsers = useQuery(
     api.admin.searchUsersForAdmin,
-    isAuthenticated &&
-      isUserReady &&
-      isAdmin &&
-      userSearchQuery.trim().length >= 2
+    isAuthenticated && isUserReady && isAdmin && userSearchQuery.trim().length >= 2
       ? { query: userSearchQuery, limit: 8 }
       : 'skip',
   )
@@ -61,11 +56,7 @@ export function useAdminOverviewUserControls({
           toast.success(`User plan set to ${nextAppPlan.toUpperCase()}`)
         })
         .catch((error) => {
-          toast.error(
-            error instanceof Error
-              ? error.message
-              : 'Failed to update user plan',
-          )
+          toast.error(error instanceof Error ? error.message : 'Failed to update user plan')
         })
         .finally(() => {
           setIsUpdatingUserPlan(false)
@@ -85,9 +76,7 @@ export function useAdminOverviewUserControls({
   }
 }
 
-export type AdminOverviewUserControls = ReturnType<
-  typeof useAdminOverviewUserControls
->
+export type AdminOverviewUserControls = ReturnType<typeof useAdminOverviewUserControls>
 
 interface AdminOverviewSectionProps {
   summary: DashboardData['summary'] | undefined
@@ -95,11 +84,7 @@ interface AdminOverviewSectionProps {
   controls: AdminOverviewUserControls
 }
 
-export function AdminOverviewSection({
-  summary,
-  users,
-  controls,
-}: AdminOverviewSectionProps) {
+export function AdminOverviewSection({ summary, users, controls }: AdminOverviewSectionProps) {
   const {
     userSearchQuery,
     setUserSearchQuery,
@@ -112,13 +97,8 @@ export function AdminOverviewSection({
 
   const selectedUser =
     searchedUsers.find(
-      (user: AdminOverviewUserControls['searchedUsers'][number]) =>
-        user.userId === selectedUserId,
-    ) ??
-    users.find(
-      (user: DashboardData['users'][number]) =>
-        user.userId === selectedUserId,
-    )
+      (user: AdminOverviewUserControls['searchedUsers'][number]) => user.userId === selectedUserId,
+    ) ?? users.find((user: DashboardData['users'][number]) => user.userId === selectedUserId)
 
   return (
     <>
@@ -168,24 +148,25 @@ export function AdminOverviewSection({
                 searchedUsers.length > 0 ? (
                   <div className="grid gap-2">
                     {searchedUsers.map(
-                      (
-                        user: AdminOverviewUserControls['searchedUsers'][number],
-                      ) => (
-                      <button
-                        key={user.userId}
-                        type="button"
-                        onClick={() => setSelectedUserId(user.userId)}
-                        className="flex items-center justify-between rounded-xl border border-border bg-background px-3 py-2 text-left hover:bg-muted/40"
-                      >
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">{user.name}</p>
-                          <p className="truncate text-xs text-muted-foreground">
-                            {user.email || 'No email'}
+                      (user: AdminOverviewUserControls['searchedUsers'][number]) => (
+                        <button
+                          key={user.userId}
+                          type="button"
+                          onClick={() => setSelectedUserId(user.userId)}
+                          className="flex items-center justify-between rounded-xl border border-border bg-background px-3 py-2 text-left hover:bg-muted/40"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium">{user.name}</p>
+                            <p className="truncate text-xs text-muted-foreground">
+                              {user.email || 'No email'}
+                            </p>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {user.appPlan.toUpperCase()}
                           </p>
-                        </div>
-                        <p className="text-xs text-muted-foreground">{user.appPlan.toUpperCase()}</p>
-                      </button>
-                    ))}
+                        </button>
+                      ),
+                    )}
                   </div>
                 ) : (
                   <p className="text-xs text-muted-foreground">No matching users.</p>
@@ -196,9 +177,7 @@ export function AdminOverviewSection({
             {selectedUser ? (
               <div className="rounded-xl border border-border bg-muted/40 px-4 py-3">
                 <p className="font-medium">{selectedUser.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {selectedUser.email || 'No email'}
-                </p>
+                <p className="text-xs text-muted-foreground">{selectedUser.email || 'No email'}</p>
                 <p className="mt-2 text-xs text-muted-foreground">
                   Current plan: {selectedUser.appPlan.toUpperCase()}
                 </p>

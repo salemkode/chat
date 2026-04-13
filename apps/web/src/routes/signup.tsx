@@ -1,17 +1,11 @@
-import {
-  ClerkLoaded,
-  ClerkLoading,
-  Show,
-  SignUp,
-} from '@clerk/react-router'
+import { ClerkLoaded, ClerkLoading, Show, SignUp } from '@clerk/react-router'
 import { Navigate, useSearchParams } from 'react-router'
 import { AuthLoadingScreen } from '@/components/auth/auth-loading-screen'
 import { getPostLoginRedirectTarget } from '@/lib/auth-redirect'
 
 export default function SignupPage() {
   const [searchParams] = useSearchParams()
-  const redirect =
-    searchParams.get('redirect') ?? searchParams.get('redirect_url') ?? undefined
+  const redirect = searchParams.get('redirect') ?? searchParams.get('redirect_url') ?? undefined
   const targetAfterSignup = getPostLoginRedirectTarget(redirect)
   const redirectProps = redirect
     ? {
@@ -36,12 +30,7 @@ export default function SignupPage() {
 
         <Show when="signed-out">
           <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-            <SignUp
-              path="/signup"
-              routing="path"
-              signInUrl="/login"
-              {...redirectProps}
-            />
+            <SignUp path="/signup" routing="path" signInUrl="/login" {...redirectProps} />
           </div>
         </Show>
       </ClerkLoaded>

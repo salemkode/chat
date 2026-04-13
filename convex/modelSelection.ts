@@ -403,8 +403,7 @@ export const selectModel = mutation({
     const context = args.requestContext ?? {}
     const taskType = normalizeTaskType(context)
     const requiresTools = args.requiresTools?.enabled ?? context.requiresTools === true
-    const requiresReasoning =
-      args.requiresReasoning?.enabled ?? context.requiresReasoning === true
+    const requiresReasoning = args.requiresReasoning?.enabled ?? context.requiresReasoning === true
     const needsLongContext = context.needsLongContext === true
     const estimated = estimateTokens(context)
     const complexityScore = computeComplexityScore({
@@ -417,7 +416,10 @@ export const selectModel = mutation({
     })
 
     const [models, providers, profiles, tierPolicies, taskPolicies] = await Promise.all([
-      ctx.db.query('models').withIndex('by_enabled', (q) => q.eq('isEnabled', true)).collect(),
+      ctx.db
+        .query('models')
+        .withIndex('by_enabled', (q) => q.eq('isEnabled', true))
+        .collect(),
       ctx.db
         .query('providers')
         .withIndex('by_enabled', (q) => q.eq('isEnabled', true))
@@ -736,11 +738,7 @@ export const ingestTrainingExamples = mutation({
   args: {
     examples: v.array(
       v.object({
-        source: v.union(
-          v.literal('benchmark'),
-          v.literal('production'),
-          v.literal('synthetic'),
-        ),
+        source: v.union(v.literal('benchmark'), v.literal('production'), v.literal('synthetic')),
         taskType: selectionTaskTypeValidator,
         tier: v.optional(selectionTierValidator),
         promptHash: v.string(),
@@ -751,9 +749,7 @@ export const ingestTrainingExamples = mutation({
         costLabel: v.optional(v.number()),
         latencyLabel: v.optional(v.number()),
         successLabel: v.optional(v.boolean()),
-        split: v.optional(
-          v.union(v.literal('train'), v.literal('validation'), v.literal('test')),
-        ),
+        split: v.optional(v.union(v.literal('train'), v.literal('validation'), v.literal('test'))),
         metadata: v.optional(v.record(v.string(), v.string())),
       }),
     ),

@@ -34,9 +34,7 @@ export function findPromptMessageId(
 }
 
 /** O(n) prompt ids: index i gets the latest user message id strictly before i. */
-export function buildPromptMessageIdsByIndex(
-  messages: ChatMessage[],
-): (string | undefined)[] {
+export function buildPromptMessageIdsByIndex(messages: ChatMessage[]): (string | undefined)[] {
   const result: (string | undefined)[] = new Array(messages.length)
   let lastUserId: string | undefined
   for (let i = 0; i < messages.length; i += 1) {
@@ -112,13 +110,11 @@ export function dequeueQueuedMessage(queue: QueuedMessage[]) {
   }
 }
 
-export function getMessageFailurePresentation(message: ChatMessage):
-  | {
-      kind: MessageFailureKind
-      mode: MessageFailureMode
-      note: string
-    }
-  | null {
+export function getMessageFailurePresentation(message: ChatMessage): {
+  kind: MessageFailureKind
+  mode: MessageFailureMode
+  note: string
+} | null {
   if (message.status !== 'failed') {
     return null
   }

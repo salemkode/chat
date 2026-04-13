@@ -36,6 +36,7 @@ import { threadMetadataValidator } from './lib/validators'
 import { isModelUsableForPlan } from './lib/appPlan'
 import { resolveEffectiveAppPlan } from './lib/billing'
 import { getModelOfferAccessFlags } from './lib/modelOffersAccess'
+import { canViewProject, getProjectRole, requireProjectRole } from './lib/projectAccess'
 import {
   evaluateToolPolicy,
   finalizeToolPolicyEvaluation,
@@ -44,6 +45,7 @@ import {
   type ToolPolicyAutomaticAction,
   type ToolPolicyRequiredAction,
 } from './lib/toolPolicy'
+import { projectContextTools } from './lib/projectContextTools'
 
 // Random emoji picker for new chats
 const CHAT_EMOJIS = [
@@ -78,11 +80,7 @@ const SUPPORTED_CHAT_ATTACHMENT_TYPES = ['application/pdf'] as const
 export const GENERATION_STOPPED_BY_USER = 'GENERATION_STOPPED_BY_USER'
 const GENERATION_FAILED_FALLBACK_MESSAGE = 'The model could not complete this response.'
 const GENERATION_REPLACED_BY_RESEND = 'Regenerating response.'
-const reasoningLevelValidator = v.union(
-  v.literal('low'),
-  v.literal('medium'),
-  v.literal('high'),
-)
+const reasoningLevelValidator = v.union(v.literal('low'), v.literal('medium'), v.literal('high'))
 const reasoningConfigValidator = v.object({
   enabled: v.boolean(),
   level: v.optional(reasoningLevelValidator),
@@ -134,6 +132,18 @@ function summarizeForPrompt(text: string, maxLength = 240) {
   return `${normalized.slice(0, maxLength - 1).trimEnd()}…`
 }
 
+function isInvalidThreadIdError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false
+  }
+  const message = error.message
+  return (
+    message.includes('does not match the table name in validator') ||
+    (message.includes('Value does not match validator') &&
+      message.includes('Validator: v.id("threads")'))
+  )
+}
+
 async function getConversationSnapshot(
   ctx: Pick<import('./_generated/server').ActionCtx, 'runQuery'>,
   threadId: string,
@@ -145,19 +155,16 @@ async function getConversationSnapshot(
   const recentMessages: Array<{ role: string; text: string }> = []
 
   while (true) {
-    const batch = (await ctx.runQuery(
-      components.agent.messages.listMessagesByThreadId,
-      {
-        threadId,
-        order: 'asc',
-        excludeToolMessages: true,
-        statuses: ['success'],
-        paginationOpts: {
-          cursor,
-          numItems: 100,
-        },
+    const batch = (await ctx.runQuery(components.agent.messages.listMessagesByThreadId, {
+      threadId,
+      order: 'asc',
+      excludeToolMessages: true,
+      statuses: ['success'],
+      paginationOpts: {
+        cursor,
+        numItems: 100,
       },
-    )) as {
+    })) as {
       continueCursor: string
       isDone: boolean
       page: Array<{
@@ -210,10 +217,7 @@ async function getConversationSnapshot(
     messageCount,
     firstUserMessage,
     recentTranscript: recentMessages
-      .map(
-        (message) =>
-          `${message.role}: ${summarizeForPrompt(message.text, 180)}`,
-      )
+      .map((message) => `${message.role}: ${summarizeForPrompt(message.text, 180)}`)
       .join('\n'),
   }
 }
@@ -318,10 +322,9 @@ async function resolvePromptOrder(
     return undefined
   }
 
-  const [promptMessage] = await ctx.runQuery(
-    components.agent.messages.getMessagesByIds,
-    { messageIds: [args.promptMessageId] },
-  )
+  const [promptMessage] = await ctx.runQuery(components.agent.messages.getMessagesByIds, {
+    messageIds: [args.promptMessageId],
+  })
   return promptMessage?.order
 }
 
@@ -332,18 +335,15 @@ async function resolvePendingOrder(
     targetOrder?: number
   },
 ) {
-  const pendingMessages = await ctx.runQuery(
-    components.agent.messages.listMessagesByThreadId,
-    {
-      threadId: args.threadId,
-      statuses: ['pending'],
-      order: 'desc',
-      paginationOpts: {
-        cursor: null,
-        numItems: 20,
-      },
+  const pendingMessages = await ctx.runQuery(components.agent.messages.listMessagesByThreadId, {
+    threadId: args.threadId,
+    statuses: ['pending'],
+    order: 'desc',
+    paginationOpts: {
+      cursor: null,
+      numItems: 20,
     },
-  )
+  })
 
   const fallbackOrder = pendingMessages.page[0]?.order
   return args.targetOrder ?? fallbackOrder
@@ -357,18 +357,15 @@ async function failPendingMessagesByOrder(
     error: string
   },
 ) {
-  const pendingMessages = await ctx.runQuery(
-    components.agent.messages.listMessagesByThreadId,
-    {
-      threadId: args.threadId,
-      statuses: ['pending'],
-      order: 'desc',
-      paginationOpts: {
-        cursor: null,
-        numItems: 20,
-      },
+  const pendingMessages = await ctx.runQuery(components.agent.messages.listMessagesByThreadId, {
+    threadId: args.threadId,
+    statuses: ['pending'],
+    order: 'desc',
+    paginationOpts: {
+      cursor: null,
+      numItems: 20,
     },
-  )
+  })
 
   const matchingPendingMessages = pendingMessages.page.filter(
     (message: (typeof pendingMessages.page)[number]) => message.order === args.order,
@@ -380,15 +377,14 @@ async function failPendingMessagesByOrder(
       order: args.order,
       reason: args.error || GENERATION_FAILED_FALLBACK_MESSAGE,
     }),
-    ...matchingPendingMessages.map(
-      (message: (typeof matchingPendingMessages)[number]) =>
-        ctx.runMutation(components.agent.messages.finalizeMessage, {
-          messageId: message._id,
-          result: {
-            status: 'failed',
-            error: args.error || GENERATION_FAILED_FALLBACK_MESSAGE,
-          },
-        }),
+    ...matchingPendingMessages.map((message: (typeof matchingPendingMessages)[number]) =>
+      ctx.runMutation(components.agent.messages.finalizeMessage, {
+        messageId: message._id,
+        result: {
+          status: 'failed',
+          error: args.error || GENERATION_FAILED_FALLBACK_MESSAGE,
+        },
+      }),
     ),
   ])
 
@@ -535,6 +531,14 @@ const threadListItemValidator = v.object({
   ),
 })
 
+const threadLastMessageItemValidator = v.object({
+  threadId: v.string(),
+  messageId: v.string(),
+  role: v.union(v.literal('user'), v.literal('assistant')),
+  text: v.string(),
+  createdAt: v.number(),
+})
+
 export const getThreadPresentation = internalQuery({
   args: {
     threadId: v.string(),
@@ -561,10 +565,7 @@ export const getThreadPresentation = internalQuery({
       icon: metadata?.icon,
       userId: metadata?.userId || thread?.userId,
       lastLabelUpdateAt:
-        metadata?.lastLabelUpdateAt ??
-        metadata?._creationTime ??
-        thread?._creationTime ??
-        0,
+        metadata?.lastLabelUpdateAt ?? metadata?._creationTime ?? thread?._creationTime ?? 0,
     }
   },
 })
@@ -614,8 +615,7 @@ export const getThreadContextMeter = query({
         .first(),
     ])
 
-    const contextWindow =
-      profile?.contextWindow ?? model?.contextWindow ?? null
+    const contextWindow = profile?.contextWindow ?? model?.contextWindow ?? null
 
     const latest = await ctx.db
       .query('modelUsageEvents')
@@ -687,14 +687,9 @@ export const applyThreadMetadataUpdate = internalMutation({
     const nextIcon = args.icon?.trim() || undefined
     const now = Date.now()
 
-    const titleChanged = Boolean(
-      nextTitle && nextTitle !== (thread?.title || undefined),
-    )
-    const emojiChanged = Boolean(
-      nextEmoji && nextEmoji !== (metadata?.emoji || '💬'),
-    )
-    const iconChanged =
-      args.icon !== undefined && nextIcon !== (metadata?.icon || undefined)
+    const titleChanged = Boolean(nextTitle && nextTitle !== (thread?.title || undefined))
+    const emojiChanged = Boolean(nextEmoji && nextEmoji !== (metadata?.emoji || '💬'))
+    const iconChanged = args.icon !== undefined && nextIcon !== (metadata?.icon || undefined)
 
     if (titleChanged) {
       await ctx.runMutation(components.agent.threads.updateThread, {
@@ -759,9 +754,7 @@ function supportsReasoningForModel(model: {
     return true
   }
   return Boolean(
-    model.capabilities?.some(
-      (capability) => capability.trim().toLowerCase() === 'reasoning',
-    ),
+    model.capabilities?.some((capability) => capability.trim().toLowerCase() === 'reasoning'),
   )
 }
 
@@ -789,8 +782,7 @@ function resolveReasoningConfigForModel(
       ? model.reasoningLevels
       : (['low', 'medium', 'high'] as const)
   const defaultLevel = model.defaultReasoningLevel ?? 'medium'
-  const requestedLevel =
-    input?.enabled === false ? 'off' : (input?.level ?? defaultLevel)
+  const requestedLevel = input?.enabled === false ? 'off' : (input?.level ?? defaultLevel)
 
   if (requestedLevel === 'off') {
     return {
@@ -806,9 +798,7 @@ function resolveReasoningConfigForModel(
     }
   }
 
-  const fallbackLevel = supportedLevels.includes('medium')
-    ? 'medium'
-    : supportedLevels[0]
+  const fallbackLevel = supportedLevels.includes('medium') ? 'medium' : supportedLevels[0]
 
   return {
     enabled: true,
@@ -957,8 +947,15 @@ async function resolveGenerationDependencies(
   let resolvedProjectId = metadata.projectId
 
   if (args.projectId) {
+    const access = await getProjectRole(ctx, args.projectId, userId)
+    if (!canViewProject(access)) {
+      throw new ConvexError({
+        code: 'NOT_FOUND',
+        message: 'Project not found',
+      })
+    }
     const project = await ctx.db.get(args.projectId)
-    if (!project || project.userId !== userId) {
+    if (!project) {
       throw new ConvexError({
         code: 'NOT_FOUND',
         message: 'Project not found',
@@ -976,7 +973,11 @@ async function resolveGenerationDependencies(
 
       if (metadata.projectId) {
         const previousProject = await ctx.db.get(metadata.projectId)
-        if (previousProject?.userId === userId) {
+        const previousRole =
+          previousProject && metadata.projectId
+            ? await getProjectRole(ctx, metadata.projectId, userId)
+            : null
+        if (previousProject && canViewProject(previousRole)) {
           await ctx.db.patch(previousProject._id, {
             updatedAt: now,
           })
@@ -1025,10 +1026,7 @@ async function resolveRequestReasoning(
           enabled: false,
         }
 
-  return resolveReasoningConfigForModel(
-    args.model,
-    args.reasoning ?? userDefault,
-  )
+  return resolveReasoningConfigForModel(args.model, args.reasoning ?? userDefault)
 }
 
 async function deleteResponseStepsForPrompt(
@@ -1043,15 +1041,12 @@ async function deleteResponseStepsForPrompt(
   let startStepOrder = args.promptStepOrder + 1
 
   while (true) {
-    const result = await ctx.runMutation(
-      components.agent.messages.deleteByOrder,
-      {
-        threadId: args.threadId,
-        startOrder,
-        startStepOrder,
-        endOrder: args.promptOrder + 1,
-      },
-    )
+    const result = await ctx.runMutation(components.agent.messages.deleteByOrder, {
+      threadId: args.threadId,
+      startOrder,
+      startStepOrder,
+      endOrder: args.promptOrder + 1,
+    })
 
     if (result.isDone) {
       return
@@ -1091,13 +1086,10 @@ async function registerChatAttachments(
     }
 
     const filename = attachment.filename?.trim() || undefined
-    const existing = await ctx.runMutation(
-      components.agent.files.useExistingFile,
-      {
-        hash: metadata.sha256,
-        filename,
-      },
-    )
+    const existing = await ctx.runMutation(components.agent.files.useExistingFile, {
+      hash: metadata.sha256,
+      filename,
+    })
 
     const fileId =
       existing?.fileId ??
@@ -1110,8 +1102,7 @@ async function registerChatAttachments(
         })
       ).fileId
 
-    const storageId = (existing?.storageId ||
-      attachment.storageId) as Id<'_storage'>
+    const storageId = (existing?.storageId || attachment.storageId) as Id<'_storage'>
     if (!(await ctx.storage.getUrl(storageId))) {
       throw new ConvexError({
         code: 'NOT_FOUND',
@@ -1128,6 +1119,41 @@ async function registerChatAttachments(
   }
 
   return registered
+}
+
+async function recordMessageArtifactContextLinks(
+  ctx: MutationCtx,
+  args: {
+    userId: Id<'users'>
+    threadId: string
+    messageId?: string
+    projectId?: Id<'projects'>
+    artifactIds?: Id<'projectArtifacts'>[]
+  },
+) {
+  if (!args.messageId || !args.projectId || !args.artifactIds?.length) {
+    return
+  }
+
+  const access = await getProjectRole(ctx, args.projectId, args.userId)
+  if (!canViewProject(access)) {
+    return
+  }
+
+  for (const artifactId of args.artifactIds) {
+    const artifact = await ctx.db.get(artifactId)
+    if (!artifact || artifact.projectId !== args.projectId) {
+      continue
+    }
+
+    await ctx.db.insert('messageArtifactContextLinks', {
+      userId: args.userId,
+      threadId: args.threadId,
+      messageId: args.messageId,
+      artifactId: artifact._id,
+      createdAt: Date.now(),
+    })
+  }
 }
 
 type ClientMutationKind = 'generateMessage' | 'regenerateMessage'
@@ -1221,6 +1247,7 @@ export const streamMessage = internalAction({
     promptMessageId: v.optional(v.string()),
     threadId: v.string(),
     projectId: v.optional(v.id('projects')),
+    contextArtifactIds: v.optional(v.array(v.id('projectArtifacts'))),
     searchEnabled: v.optional(v.boolean()),
     searchMode: v.optional(searchModeValidator),
     reasoning: v.optional(reasoningConfigValidator),
@@ -1231,6 +1258,7 @@ export const streamMessage = internalAction({
     providerDocId: v.id('providers'),
     providerName: v.string(),
     modelName: v.string(),
+    routerDecisionId: v.optional(v.string()),
     config: v.optional(
       v.object({
         organization: v.optional(v.string()),
@@ -1252,12 +1280,9 @@ export const streamMessage = internalAction({
       let resolvedPrompt = args.prompt?.trim() || ''
 
       if (args.promptMessageId && !resolvedPrompt) {
-        const [promptMessage] = await ctx.runQuery(
-          components.agent.messages.getMessagesByIds,
-          {
-            messageIds: [args.promptMessageId],
-          },
-        )
+        const [promptMessage] = await ctx.runQuery(components.agent.messages.getMessagesByIds, {
+          messageIds: [args.promptMessageId],
+        })
 
         resolvedPrompt = promptMessage?.text?.trim() || ''
       }
@@ -1302,9 +1327,7 @@ export const streamMessage = internalAction({
         .with('openai-compatible', () => {
           // Generic OpenAI-compatible provider
           if (!args.customUrl || !args.apiKey) {
-            throw new Error(
-              'OpenAI-compatible provider requires customUrl and apiKey',
-            )
+            throw new Error('OpenAI-compatible provider requires customUrl and apiKey')
           }
           const customProvider = createOpenAICompatible({
             name: 'openai-compatible',
@@ -1420,9 +1443,7 @@ export const streamMessage = internalAction({
           const qwenProvider = createOpenAICompatible({
             name: 'qwen',
             apiKey: args.apiKey,
-            baseURL:
-              args.customUrl ||
-              'https://dashscope.aliyuncs.com/compatible-mode/v1',
+            baseURL: args.customUrl || 'https://dashscope.aliyuncs.com/compatible-mode/v1',
             includeUsage: true,
           })
           return qwenProvider(args.modelId)
@@ -1441,9 +1462,7 @@ export const streamMessage = internalAction({
           return stepfunProvider(args.modelId)
         })
         .with('replicate', () => {
-          throw new Error(
-            'Replicate provider not yet implemented - requires different SDK',
-          )
+          throw new Error('Replicate provider not yet implemented - requires different SDK')
         })
         .exhaustive()
 
@@ -1458,13 +1477,24 @@ export const streamMessage = internalAction({
         },
       )) as LinkedProject[]
       const linkedProject = linkedProjects[0] ?? null
+      const resolvedProjectId = args.projectId ?? linkedProject?._id
       const automaticMemoryContext = await ctx.runAction(
         internal.functions.memoryContext.buildPromptMemoryContext,
         {
           userId: args.userId,
           threadId: args.threadId,
           prompt: resolvedPrompt,
-          projectId: linkedProject?._id,
+          projectId: resolvedProjectId,
+        },
+      )
+      const projectArtifactContext = await ctx.runAction(
+        internal.functions.projectRetrieval.buildPromptProjectContext,
+        {
+          userId: args.userId,
+          threadId: args.threadId,
+          prompt: resolvedPrompt,
+          projectId: resolvedProjectId,
+          explicitArtifactIds: args.contextArtifactIds,
         },
       )
 
@@ -1501,30 +1531,24 @@ export const streamMessage = internalAction({
       toolPolicyRequiredActions = toolPolicy.requiredActions
 
       try {
-        toolPolicyEventId = await ctx.runMutation(
-          internal.agents.createToolPolicyEvent,
-          {
-            threadId: args.threadId,
-            userId: args.userId,
-            promptMessageId: args.promptMessageId,
-            policyVersion: TOOL_POLICY_VERSION,
-            detectedIntent: toolPolicy.detectedIntent,
-            requiredActions: toolPolicy.requiredActions,
-            automaticActions: policyAutomaticActions,
-            systemAddendum: toolPolicy.systemAddendum,
-            policyTrace: toolPolicy.policyTrace,
-            status: 'evaluated',
-            error: undefined,
-          },
-        )
+        toolPolicyEventId = await ctx.runMutation(internal.agents.createToolPolicyEvent, {
+          threadId: args.threadId,
+          userId: args.userId,
+          promptMessageId: args.promptMessageId,
+          policyVersion: TOOL_POLICY_VERSION,
+          detectedIntent: toolPolicy.detectedIntent,
+          requiredActions: toolPolicy.requiredActions,
+          automaticActions: policyAutomaticActions,
+          systemAddendum: toolPolicy.systemAddendum,
+          policyTrace: toolPolicy.policyTrace,
+          status: 'evaluated',
+          error: undefined,
+        })
       } catch (error) {
         console.error('Failed to create tool policy event:', error)
       }
 
-      if (
-        metadataPolicy.detectedIntent === 'metadata_refresh' &&
-        metadataPolicy.update
-      ) {
+      if (metadataPolicy.detectedIntent === 'metadata_refresh' && metadataPolicy.update) {
         try {
           await ctx.runMutation(internal.agents.applyThreadMetadataUpdate, {
             threadId: args.threadId,
@@ -1627,6 +1651,7 @@ export const streamMessage = internalAction({
 
       const system = [
         automaticMemoryContext.text,
+        projectArtifactContext.text,
         searchSystem,
         quranDocsSystem,
         reasoningSystem,
@@ -1638,6 +1663,7 @@ export const streamMessage = internalAction({
         .join('\n\n')
       const tools = {
         ...memoryTools,
+        ...projectContextTools,
         ...threadMetadataTools,
         quran_docs_search: quranDocsTool,
         quran_source_lookup: quranSourceTool,
@@ -1667,6 +1693,7 @@ export const streamMessage = internalAction({
               providerType: args.agent,
               providerName: args.providerName,
               modelName: args.modelName,
+              routerDecisionId: args.routerDecisionId,
               promptTokens: usageArgs.usage.inputTokens ?? 0,
               completionTokens: usageArgs.usage.outputTokens ?? 0,
               totalTokens: usageArgs.usage.totalTokens ?? 0,
@@ -1744,7 +1771,9 @@ export const generateMessage = mutation({
     clientRequestId: v.optional(v.string()),
     prompt: v.string(),
     modelId: v.id('models'),
+    routerDecisionId: v.optional(v.string()),
     projectId: v.optional(v.id('projects')),
+    contextArtifactIds: v.optional(v.array(v.id('projectArtifacts'))),
     searchEnabled: v.optional(v.boolean()),
     searchMode: v.optional(searchModeValidator),
     reasoning: v.optional(reasoningConfigValidator),
@@ -1777,10 +1806,7 @@ export const generateMessage = mutation({
     let promptMessageId: string | undefined
 
     if (args.attachments && args.attachments.length > 0) {
-      const registeredAttachments = await registerChatAttachments(
-        ctx,
-        args.attachments,
-      )
+      const registeredAttachments = await registerChatAttachments(ctx, args.attachments)
       const content: Array<TextPart | FilePart | ImagePart> = []
       const trimmedPrompt = args.prompt.trim()
 
@@ -1792,11 +1818,7 @@ export const generateMessage = mutation({
       }
 
       for (const attachment of registeredAttachments) {
-        const { filePart, imagePart } = await getFile(
-          ctx,
-          components.agent,
-          attachment.fileId,
-        )
+        const { filePart, imagePart } = await getFile(ctx, components.agent, attachment.fileId)
         content.push(imagePart ?? filePart)
       }
 
@@ -1838,6 +1860,14 @@ export const generateMessage = mutation({
       promptMessageId = saved.messageId
     }
 
+    await recordMessageArtifactContextLinks(ctx, {
+      userId,
+      threadId: args.threadId,
+      messageId: promptMessageId,
+      projectId: resolvedProjectId,
+      artifactIds: args.contextArtifactIds,
+    })
+
     const metadata = await ctx.db
       .query('threadMetadata')
       .withIndex('by_threadId', (q) => q.eq('threadId', args.threadId))
@@ -1855,6 +1885,7 @@ export const generateMessage = mutation({
       promptMessageId,
       threadId: args.threadId,
       projectId: resolvedProjectId,
+      contextArtifactIds: args.contextArtifactIds,
       searchEnabled: args.searchEnabled ?? false,
       searchMode: args.searchMode,
       reasoning: resolvedReasoning.enabled
@@ -1872,6 +1903,7 @@ export const generateMessage = mutation({
       providerDocId: provider._id,
       providerName: provider.name,
       modelName: model.displayName,
+      routerDecisionId: args.routerDecisionId,
       config: provider.config,
     })
     await recordClientMutationReceipt(ctx, {
@@ -1890,15 +1922,19 @@ export const regenerateMessage = mutation({
     clientRequestId: v.optional(v.string()),
     promptMessageId: v.string(),
     modelId: v.id('models'),
+    routerDecisionId: v.optional(v.string()),
     projectId: v.optional(v.id('projects')),
+    contextArtifactIds: v.optional(v.array(v.id('projectArtifacts'))),
     searchEnabled: v.optional(v.boolean()),
     searchMode: v.optional(searchModeValidator),
     reasoning: v.optional(reasoningConfigValidator),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const { userId, model, provider, resolvedProjectId } =
-      await resolveGenerationDependencies(ctx, args)
+    const { userId, model, provider, resolvedProjectId } = await resolveGenerationDependencies(
+      ctx,
+      args,
+    )
     const existingReceipt = await getClientMutationReceipt(ctx, {
       userId,
       clientRequestId: args.clientRequestId,
@@ -1918,12 +1954,9 @@ export const regenerateMessage = mutation({
     })
     const now = Date.now()
 
-    const [promptMessage] = await ctx.runQuery(
-      components.agent.messages.getMessagesByIds,
-      {
-        messageIds: [args.promptMessageId],
-      },
-    )
+    const [promptMessage] = await ctx.runQuery(components.agent.messages.getMessagesByIds, {
+      messageIds: [args.promptMessageId],
+    })
 
     if (
       !promptMessage ||
@@ -1966,6 +1999,7 @@ export const regenerateMessage = mutation({
       promptMessageId: args.promptMessageId,
       threadId: args.threadId,
       projectId: resolvedProjectId,
+      contextArtifactIds: args.contextArtifactIds,
       searchEnabled: args.searchEnabled ?? false,
       searchMode: args.searchMode,
       reasoning: resolvedReasoning.enabled
@@ -1983,7 +2017,15 @@ export const regenerateMessage = mutation({
       providerDocId: provider._id,
       providerName: provider.name,
       modelName: model.displayName,
+      routerDecisionId: args.routerDecisionId,
       config: provider.config,
+    })
+    await recordMessageArtifactContextLinks(ctx, {
+      userId,
+      threadId: args.threadId,
+      messageId: args.promptMessageId,
+      projectId: resolvedProjectId,
+      artifactIds: args.contextArtifactIds,
     })
     await recordClientMutationReceipt(ctx, {
       userId,
@@ -2057,13 +2099,11 @@ export const createChatThread = mutation({
     }
 
     if (args.projectId) {
-      const project = await ctx.db.get(args.projectId)
-      if (!project || project.userId !== userId) {
-        throw new ConvexError({
-          code: 'NOT_FOUND',
-          message: 'Project not found',
-        })
-      }
+      await requireProjectRole(ctx, {
+        projectId: args.projectId,
+        userId,
+        minimumRole: 'viewer',
+      })
     }
 
     const normalizedClientThreadKey = args.clientThreadKey?.trim() || undefined
@@ -2071,9 +2111,7 @@ export const createChatThread = mutation({
       const existing = await ctx.db
         .query('threadMetadata')
         .withIndex('by_userId_clientThreadKey', (q) =>
-          q
-            .eq('userId', userId)
-            .eq('clientThreadKey', normalizedClientThreadKey),
+          q.eq('userId', userId).eq('clientThreadKey', normalizedClientThreadKey),
         )
         .first()
       if (existing?.threadId) {
@@ -2315,36 +2353,24 @@ export const listThreadsWithMetadata = query({
       }),
       ctx.db
         .query('threadMetadata')
-        .withIndex('by_userId_sortOrder_lastMessageAt', (q) =>
-          q.eq('userId', userId),
-        )
+        .withIndex('by_userId_sortOrder_lastMessageAt', (q) => q.eq('userId', userId))
         .order('desc')
         .collect(),
     ])
 
-    const threadsById = new Map(
-      threads.page.map((thread) => [thread._id, thread]),
-    )
-    const metadataByThreadId = new Map(
-      metadata.map((item) => [item.threadId, item]),
-    )
+    const threadsById = new Map(threads.page.map((thread) => [thread._id, thread]))
+    const metadataByThreadId = new Map(metadata.map((item) => [item.threadId, item]))
     const projectIds = Array.from(
       new Set(
         metadata
           .map((item) => item.projectId)
-          .filter(
-            (projectId): projectId is Id<'projects'> => projectId !== undefined,
-          ),
+          .filter((projectId): projectId is Id<'projects'> => projectId !== undefined),
       ),
     )
-    const projects = await Promise.all(
-      projectIds.map((projectId) => ctx.db.get(projectId)),
-    )
+    const projects = await Promise.all(projectIds.map((projectId) => ctx.db.get(projectId)))
     const projectMap = new Map(
       projects
-        .filter(
-          (project): project is NonNullable<typeof project> => project !== null,
-        )
+        .filter((project): project is NonNullable<typeof project> => project !== null)
         .map((project) => [project._id.toString(), project]),
     )
 
@@ -2359,6 +2385,10 @@ export const listThreadsWithMetadata = query({
       const project = itemMetadata.projectId
         ? projectMap.get(itemMetadata.projectId.toString())
         : null
+      const projectRole =
+        project && itemMetadata.projectId
+          ? await getProjectRole(ctx, itemMetadata.projectId, userId)
+          : null
 
       orderedResults.push({
         _id: thread._id,
@@ -2368,7 +2398,7 @@ export const listThreadsWithMetadata = query({
         userId: thread.userId,
         metadata: itemMetadata,
         project:
-          project && project.userId === userId
+          project && canViewProject(projectRole)
             ? {
                 id: project._id.toString(),
                 name: project.name,
@@ -2395,5 +2425,104 @@ export const listThreadsWithMetadata = query({
     }
 
     return orderedResults
+  },
+})
+
+export const listVisibleThreadLastMessages = query({
+  args: {
+    threadIds: v.array(v.string()),
+  },
+  returns: v.array(threadLastMessageItemValidator),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId || args.threadIds.length === 0) {
+      return []
+    }
+
+    const threadIds = Array.from(
+      new Set(
+        args.threadIds.map((threadId) => threadId.trim()).filter((threadId) => threadId.length > 0),
+      ),
+    ).slice(0, 40)
+    if (threadIds.length === 0) {
+      return []
+    }
+
+    const results = await Promise.all(
+      threadIds.map(async (threadId) => {
+        const metadata = await ctx.db
+          .query('threadMetadata')
+          .withIndex('by_threadId', (q) => q.eq('threadId', threadId))
+          .first()
+
+        if (metadata && metadata.userId !== userId) {
+          return null
+        }
+
+        if (!metadata) {
+          try {
+            const thread = await ctx.runQuery(components.agent.threads.getThread, {
+              threadId,
+            })
+            if (!thread || thread.userId !== userId) {
+              return null
+            }
+          } catch (error) {
+            if (isInvalidThreadIdError(error)) {
+              return null
+            }
+            throw error
+          }
+        }
+
+        const latest = (await ctx.runQuery(components.agent.messages.listMessagesByThreadId, {
+          threadId,
+          order: 'desc',
+          excludeToolMessages: true,
+          paginationOpts: {
+            cursor: null,
+            numItems: 1,
+          },
+        })) as {
+          page: Array<{
+            _id: string
+            _creationTime: number
+            order?: number
+            message?: {
+              role?: string
+              content?: unknown
+            }
+            text?: string
+          }>
+        }
+
+        const message = latest.page[0]
+        if (!message) {
+          return null
+        }
+
+        const role = message.message?.role
+        if (role !== 'user' && role !== 'assistant') {
+          return null
+        }
+
+        const text = extractMessageText(message)
+        if (!text) {
+          return null
+        }
+
+        return {
+          threadId,
+          messageId: message._id,
+          role,
+          text,
+          createdAt: typeof message.order === 'number' ? message.order : message._creationTime,
+        } satisfies Infer<typeof threadLastMessageItemValidator>
+      }),
+    )
+
+    return results.filter(
+      (item): item is Infer<typeof threadLastMessageItemValidator> => item !== null,
+    )
   },
 })

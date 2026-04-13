@@ -3,8 +3,8 @@ import { Link, useRouter } from 'expo-router'
 import { useState } from 'react'
 import { Pressable, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { AppleSignInButton } from '../../src/components/auth/AppleSignInButton'
-import { GoogleSignInButton } from '../../src/components/auth/GoogleSignInButton'
+import { AppleSignInButton } from '../../src/components/auth/apple-sign-in-button'
+import { GoogleSignInButton } from '../../src/components/auth/google-sign-in-button'
 import { logClerkError } from '../../src/lib/clerk-debug'
 
 export default function SignInScreen() {
@@ -42,7 +42,7 @@ export default function SignInScreen() {
 
       if (signIn.status === 'needs_client_trust') {
         const emailCodeFactor = signIn.supportedSecondFactors.find(
-          (factor) => factor.strategy === 'email_code'
+          (factor) => factor.strategy === 'email_code',
         )
 
         if (emailCodeFactor) {
@@ -114,7 +114,9 @@ export default function SignInScreen() {
           keyboardType="number-pad"
           className="rounded-[10px] border border-gray-300 px-3 py-2.5"
         />
-        {errors.fields.code ? <Text className="text-red-700">{errors.fields.code.message}</Text> : null}
+        {errors.fields.code ? (
+          <Text className="text-red-700">{errors.fields.code.message}</Text>
+        ) : null}
         {error ? <Text className="text-red-700">{error}</Text> : null}
         <Pressable
           onPress={() => void handleVerify()}
@@ -172,9 +174,7 @@ export default function SignInScreen() {
       </Pressable>
       <Link href="/(auth)/sign-up" asChild>
         <Pressable>
-          <Text className="text-center font-medium text-blue-600">
-          Need an account? Sign up
-          </Text>
+          <Text className="text-center font-medium text-blue-600">Need an account? Sign up</Text>
         </Pressable>
       </Link>
     </View>

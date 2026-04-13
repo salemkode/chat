@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { AUTO_MODEL_ID, isAutoModelSelection } from '@chat/shared'
 import { Check, ChevronDown, Search, Star } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { useModels } from '@/hooks/use-chat-data'
@@ -38,11 +39,10 @@ export function ModelSelector({
   onModelChange?: (modelId: string) => void
   className?: string
 }) {
-  const { models } = useModels()
+  const { models, autoModelAvailable } = useModels()
   const [open, setOpen] = useState(false)
-  const currentModel = models.find(
-    (model: OfflineModelRecord) => model.modelId === selectedModel,
-  )
+  const autoSelected = isAutoModelSelection(selectedModel)
+  const currentModel = models.find((model: OfflineModelRecord) => model.modelId === selectedModel)
 
   return (
     <div className={className}>
@@ -53,20 +53,22 @@ export function ModelSelector({
             variant="outline"
             className="h-9 max-w-full justify-start gap-2 rounded-full px-2.5 font-normal"
           >
-            {currentModel ? (
+            {autoSelected ? null : currentModel ? (
               <EntityIcon
                 icon={currentModel.icon || currentModel.provider?.icon}
-                iconType={(currentModel.iconType || currentModel.provider?.iconType) as
-                  | 'emoji'
-                  | 'phosphor'
-                  | 'upload'
-                  | undefined}
+                iconType={
+                  (currentModel.iconType || currentModel.provider?.iconType) as
+                    | 'emoji'
+                    | 'phosphor'
+                    | 'upload'
+                    | undefined
+                }
                 iconUrl={currentModel.iconUrl || currentModel.provider?.iconUrl}
                 className="size-4 shrink-0"
               />
             ) : null}
             <span className="min-w-0 flex-1 truncate text-left text-sm">
-              {currentModel?.displayName || 'Model'}
+              {autoSelected ? 'Auto' : currentModel?.displayName || 'Model'}
             </span>
             <ChevronDown className="size-4 shrink-0 opacity-50" />
           </ModelSelectorTrigger>
@@ -100,7 +102,7 @@ export function ModelSelectorPanel({
   onSelectModel,
   className,
 }: ModelSelectorPanelProps) {
-  const { models, setFavorite } = useModels()
+  const { models, setFavorite, autoModelAvailable } = useModels()
   const [searchQuery, setSearchQuery] = useState('')
   const [filterTab, setFilterTab] = useState<'all' | 'favorites'>('all')
 
@@ -144,9 +146,8 @@ export function ModelSelectorPanel({
     })
   }, [filteredModels])
 
-  const empty =
-    groupedModels.length === 0 ||
-    groupedModels.every(([, list]) => list.length === 0)
+  const empty = groupedModels.length === 0 || groupedModels.every(([, list]) => list.length === 0)
+  const autoSelected = isAutoModelSelection(selectedModel)
 
   return (
     <div className={cn('flex min-h-0 flex-col', className)}>
@@ -180,6 +181,33 @@ export function ModelSelectorPanel({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
+        {autoModelAvailable ? (
+          <div className="mb-4">
+            <div className={modelSectionLabelClass()}>Routing</div>
+            <div className={modelRowClass(autoSelected)}>
+              <Button
+                type="button"
+                variant="plain"
+                size="none"
+                onClick={() => onSelectModel?.(AUTO_MODEL_ID)}
+                className="flex min-w-0 flex-1 items-start gap-2 rounded-full px-1 py-0.5 text-left hover:bg-transparent"
+              >
+                <div className={modelIconTileClass(autoSelected)}>
+                  <span className="text-sm font-semibold">A</span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="truncate text-sm font-medium">Auto</span>
+                    {autoSelected ? <Check className="size-3.5 shrink-0 text-primary" /> : null}
+                  </div>
+                  <p className="truncate text-[11px] text-muted-foreground">
+                    Let the backend Python router choose the model.
+                  </p>
+                </div>
+              </Button>
+            </div>
+          </div>
+        ) : null}
         {empty ? (
           <p className="px-2 py-8 text-center text-sm text-muted-foreground">
             {filterTab === 'favorites' ? 'No favorites match.' : 'No models match.'}
@@ -203,11 +231,13 @@ export function ModelSelectorPanel({
                         <div className={modelIconTileClass(isSelected)}>
                           <EntityIcon
                             icon={model.icon || model.provider?.icon}
-                            iconType={(model.iconType || model.provider?.iconType) as
-                              | 'emoji'
-                              | 'phosphor'
-                              | 'upload'
-                              | undefined}
+                            iconType={
+                              (model.iconType || model.provider?.iconType) as
+                                | 'emoji'
+                                | 'phosphor'
+                                | 'upload'
+                                | undefined
+                            }
                             iconUrl={model.iconUrl || model.provider?.iconUrl}
                             className="size-4"
                           />
@@ -244,9 +274,7 @@ export function ModelSelectorPanel({
                         }}
                         aria-label={model.isFavorite ? 'Remove favorite' : 'Favorite'}
                       >
-                        <Star
-                          className={cn('size-3.5', model.isFavorite && 'fill-current')}
-                        />
+                        <Star className={cn('size-3.5', model.isFavorite && 'fill-current')} />
                       </Button>
                     </div>
                   )

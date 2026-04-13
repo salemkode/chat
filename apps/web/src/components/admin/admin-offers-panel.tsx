@@ -6,13 +6,7 @@ import type { AdminOutletContext } from '@/components/admin/admin-outlet-context
 import { formatDateTime } from '@/components/admin/admin-utils'
 import type { AdminModel } from '@/components/admin/types'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
@@ -95,12 +89,8 @@ export function AdminOffersPanel({ dashboard }: AdminOffersPanelProps) {
   const [saving, setSaving] = useState(false)
 
   const [formModelId, setFormModelId] = useState<string>('')
-  const [formKind, setFormKind] = useState<'free_access' | 'availability_window'>(
-    'free_access',
-  )
-  const [formStarts, setFormStarts] = useState(() =>
-    msToDatetimeLocal(Date.now()),
-  )
+  const [formKind, setFormKind] = useState<'free_access' | 'availability_window'>('free_access')
+  const [formStarts, setFormStarts] = useState(() => msToDatetimeLocal(Date.now()))
   const [formEnds, setFormEnds] = useState(() =>
     msToDatetimeLocal(Date.now() + 7 * 24 * 60 * 60 * 1000),
   )
@@ -212,9 +202,8 @@ export function AdminOffersPanel({ dashboard }: AdminOffersPanelProps) {
           <div>
             <CardTitle>Model offers</CardTitle>
             <CardDescription>
-              Time windows for <span className="font-medium">free access</span>{' '}
-              (free-tier users can use paid models) or{' '}
-              <span className="font-medium">availability</span> (model only
+              Time windows for <span className="font-medium">free access</span> (free-tier users can
+              use paid models) or <span className="font-medium">availability</span> (model only
               appears while the window is active).
             </CardDescription>
           </div>
@@ -244,32 +233,21 @@ export function AdminOffersPanel({ dashboard }: AdminOffersPanelProps) {
               <TableBody>
                 {offers.map((row) => {
                   const model = modelById.get(row.modelId)
-                  const active =
-                    row.isEnabled &&
-                    row.startsAt <= nowMs &&
-                    row.endsAt >= nowMs
+                  const active = row.isEnabled && row.startsAt <= nowMs && row.endsAt >= nowMs
                   return (
                     <TableRow key={row._id}>
                       <TableCell>
                         <div className="space-y-1">
-                          <p className="font-medium">
-                            {model?.displayName ?? row.modelId}
-                          </p>
+                          <p className="font-medium">{model?.displayName ?? row.modelId}</p>
                           {row.label ? (
-                            <p className="text-xs text-muted-foreground">
-                              {row.label}
-                            </p>
+                            <p className="text-xs text-muted-foreground">{row.label}</p>
                           ) : null}
                         </div>
                       </TableCell>
-                      <TableCell className="font-mono text-xs">
-                        {row.kind}
-                      </TableCell>
+                      <TableCell className="font-mono text-xs">{row.kind}</TableCell>
                       <TableCell className="text-sm">
                         <div>{formatDateTime(row.startsAt)}</div>
-                        <div className="text-muted-foreground">
-                          → {formatDateTime(row.endsAt)}
-                        </div>
+                        <div className="text-muted-foreground">→ {formatDateTime(row.endsAt)}</div>
                       </TableCell>
                       <TableCell>
                         {!row.isEnabled ? (
@@ -343,18 +321,14 @@ export function AdminOffersPanel({ dashboard }: AdminOffersPanelProps) {
               <Label>Kind</Label>
               <Select
                 value={formKind}
-                onValueChange={(v) =>
-                  setFormKind(v as 'free_access' | 'availability_window')
-                }
+                onValueChange={(v) => setFormKind(v as 'free_access' | 'availability_window')}
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="free_access">free_access</SelectItem>
-                  <SelectItem value="availability_window">
-                    availability_window
-                  </SelectItem>
+                  <SelectItem value="availability_window">availability_window</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -406,33 +380,15 @@ export function AdminOffersPanel({ dashboard }: AdminOffersPanelProps) {
             </div>
             <div className="flex items-center justify-between gap-2">
               <Label htmlFor="offer-enabled">Enabled</Label>
-              <Switch
-                id="offer-enabled"
-                checked={formEnabled}
-                onCheckedChange={setFormEnabled}
-              />
+              <Switch id="offer-enabled" checked={formEnabled} onCheckedChange={setFormEnabled} />
             </div>
           </div>
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setDialogOpen(false)}
-            >
+            <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
               Cancel
             </Button>
-            <Button
-              type="button"
-              onClick={() => void handleSave()}
-              disabled={saving}
-            >
-              {saving ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : editing ? (
-                'Save'
-              ) : (
-                'Create'
-              )}
+            <Button type="button" onClick={() => void handleSave()} disabled={saving}>
+              {saving ? <Loader2 className="size-4 animate-spin" /> : editing ? 'Save' : 'Create'}
             </Button>
           </DialogFooter>
         </DialogContent>

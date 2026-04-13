@@ -20,19 +20,15 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from '@/components/ui/drawer'
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
 type ResponsiveModalContextValue = {
   isMobile: boolean
 }
 
-const ResponsiveModalContext = React.createContext<
-  ResponsiveModalContextValue | undefined
->(undefined)
+const ResponsiveModalContext = React.createContext<ResponsiveModalContextValue | undefined>(
+  undefined,
+)
 
 function useResponsiveModalContext() {
   const context = React.useContext(ResponsiveModalContext)
@@ -47,9 +43,9 @@ type ResponsivePopupContextValue = {
   setOpen: (open: boolean) => void
 }
 
-const ResponsivePopupContext = React.createContext<
-  ResponsivePopupContextValue | undefined
->(undefined)
+const ResponsivePopupContext = React.createContext<ResponsivePopupContextValue | undefined>(
+  undefined,
+)
 
 function useResponsivePopupContext() {
   const context = React.useContext(ResponsivePopupContext)
@@ -68,10 +64,7 @@ const modalSizeClasses: Record<ResponsiveModalSize, string> = {
   wide: 'md:w-[min(56.25rem,calc(100vw-2rem))]',
 }
 
-function ResponsiveModal({
-  children,
-  ...props
-}: React.ComponentProps<typeof Dialog>) {
+function ResponsiveModal({ children, ...props }: React.ComponentProps<typeof Dialog>) {
   const { isMobile } = useResponsiveOverlayMode()
 
   return (
@@ -81,16 +74,12 @@ function ResponsiveModal({
   )
 }
 
-function ResponsiveModalTrigger({
-  ...props
-}: React.ComponentProps<typeof DialogTrigger>) {
+function ResponsiveModalTrigger({ ...props }: React.ComponentProps<typeof DialogTrigger>) {
   const { isMobile } = useResponsiveModalContext()
   return isMobile ? <DrawerTrigger {...props} /> : <DialogTrigger {...props} />
 }
 
-function ResponsiveModalClose({
-  ...props
-}: React.ComponentProps<typeof DialogClose>) {
+function ResponsiveModalClose({ ...props }: React.ComponentProps<typeof DialogClose>) {
   const { isMobile } = useResponsiveModalContext()
   return isMobile ? <DrawerClose {...props} /> : <DialogClose {...props} />
 }
@@ -144,10 +133,7 @@ function ResponsiveModalContent({
   )
 }
 
-function ResponsiveModalHeader({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
+function ResponsiveModalHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       className={cn(
@@ -159,32 +145,22 @@ function ResponsiveModalHeader({
   )
 }
 
-function ResponsiveModalBody({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('min-h-0 flex-1 overflow-y-auto px-5 py-4 md:px-6', className)} {...props} />
+function ResponsiveModalBody({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div className={cn('min-h-0 flex-1 overflow-y-auto px-5 py-4 md:px-6', className)} {...props} />
+  )
 }
 
-function ResponsiveModalFooter({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
+function ResponsiveModalFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn(
-        'mt-auto border-t border-border/80 px-5 py-4 md:px-6',
-        className,
-      )}
+      className={cn('mt-auto border-t border-border/80 px-5 py-4 md:px-6', className)}
       {...props}
     />
   )
 }
 
-function ResponsiveModalTitle({
-  className,
-  ...props
-}: React.ComponentProps<typeof DialogTitle>) {
+function ResponsiveModalTitle({ className, ...props }: React.ComponentProps<typeof DialogTitle>) {
   const { isMobile } = useResponsiveModalContext()
   return isMobile ? (
     <DrawerTitle className={cn('text-base font-semibold', className)} {...props} />
@@ -201,10 +177,7 @@ function ResponsiveModalDescription({
   return isMobile ? (
     <DrawerDescription className={cn('text-sm text-muted-foreground', className)} {...props} />
   ) : (
-    <DialogDescription
-      className={cn('text-sm text-muted-foreground', className)}
-      {...props}
-    />
+    <DialogDescription className={cn('text-sm text-muted-foreground', className)} {...props} />
   )
 }
 
@@ -267,9 +240,7 @@ function ResponsivePopup({
   )
 }
 
-function ResponsivePopupTrigger({
-  ...props
-}: React.ComponentProps<typeof PopoverTrigger>) {
+function ResponsivePopupTrigger({ ...props }: React.ComponentProps<typeof PopoverTrigger>) {
   const { isMobile } = useResponsivePopupContext()
   return isMobile ? <DrawerTrigger {...props} /> : <PopoverTrigger {...props} />
 }
@@ -326,10 +297,7 @@ function ResponsivePopupContent({
   )
 }
 
-function ResponsivePopupHeader({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
+function ResponsivePopupHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       className={cn(
@@ -341,10 +309,7 @@ function ResponsivePopupHeader({
   )
 }
 
-function ResponsivePopupTitle({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLHeadingElement>) {
+function ResponsivePopupTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
   return <h3 className={cn('text-sm font-semibold', className)} {...props} />
 }
 

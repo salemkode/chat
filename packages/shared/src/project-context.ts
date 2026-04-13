@@ -4,11 +4,7 @@ export type ProjectVisibility = 'private' | 'shared'
 
 export type ProjectSourceProvider = 'github' | 'gmail' | 'manual'
 
-export type ProjectSourceKind =
-  | 'github_repo'
-  | 'gmail_query'
-  | 'manual_uploads'
-  | 'manual_links'
+export type ProjectSourceKind = 'github_repo' | 'gmail_query' | 'manual_uploads' | 'manual_links'
 
 export type ProjectArtifactKind =
   | 'repo_file'

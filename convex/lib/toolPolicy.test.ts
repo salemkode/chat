@@ -34,9 +34,7 @@ describe('evaluateToolPolicy', () => {
     })
 
     expect(policy.detectedIntent).toBe('memory_search')
-    expect(policy.requiredActions).toEqual(
-      expect.arrayContaining(['memory_search_required']),
-    )
+    expect(policy.requiredActions).toEqual(expect.arrayContaining(['memory_search_required']))
   })
 
   it('requires memory_search before ambiguous deletes', () => {
@@ -83,8 +81,7 @@ describe('runThreadMetadataPolicy', () => {
       currentTitle: 'New Chat',
       currentEmoji: '💬',
       lastLabelUpdateAt: 0,
-      firstUserMessage:
-        'Please help me build a Convex memory policy for chat tools.',
+      firstUserMessage: 'Please help me build a Convex memory policy for chat tools.',
       messageCount: 1,
       now: 31 * 60 * 1000,
     })
@@ -100,8 +97,7 @@ describe('runThreadMetadataPolicy', () => {
       currentTitle: 'Convex Tool Policy',
       currentEmoji: '💻',
       lastLabelUpdateAt: 0,
-      firstUserMessage:
-        'Please help me build a Convex memory policy for chat tools.',
+      firstUserMessage: 'Please help me build a Convex memory policy for chat tools.',
       messageCount: 7,
       now: 31 * 60 * 1000,
     })
@@ -116,8 +112,7 @@ describe('runThreadMetadataPolicy', () => {
       currentTitle: 'New Chat',
       currentEmoji: '💬',
       lastLabelUpdateAt: 10 * 60 * 1000,
-      firstUserMessage:
-        'Please help me build a Convex memory policy for chat tools.',
+      firstUserMessage: 'Please help me build a Convex memory policy for chat tools.',
       messageCount: 7,
       now: 20 * 60 * 1000,
     })

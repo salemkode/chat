@@ -30,17 +30,9 @@ type HotkeysContextValue = {
 
 const HotkeysContext = React.createContext<HotkeysContextValue | null>(null)
 
-export function HotkeysProvider({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  const [bindings, setBindings] = React.useState<HotkeyBindings>(
-    getDefaultHotkeyBindings,
-  )
-  const handlersRef = React.useRef(
-    new Map<HotkeyActionId, Map<symbol, HotkeyActionHandler>>(),
-  )
+export function HotkeysProvider({ children }: { children: React.ReactNode }) {
+  const [bindings, setBindings] = React.useState<HotkeyBindings>(getDefaultHotkeyBindings)
+  const handlersRef = React.useRef(new Map<HotkeyActionId, Map<symbol, HotkeyActionHandler>>())
 
   React.useEffect(() => {
     if (typeof window === 'undefined') {
@@ -80,10 +72,7 @@ export function HotkeysProvider({
           continue
         }
 
-        if (
-          definition.allowInInput !== true &&
-          shouldIgnoreHotkeyTarget(event.target)
-        ) {
+        if (definition.allowInInput !== true && shouldIgnoreHotkeyTarget(event.target)) {
           return
         }
 
@@ -104,27 +93,24 @@ export function HotkeysProvider({
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [bindings])
 
-  const updateBinding = React.useCallback(
-    (actionId: HotkeyActionId, binding: HotkeyBinding) => {
-      let updated = false
+  const updateBinding = React.useCallback((actionId: HotkeyActionId, binding: HotkeyBinding) => {
+    let updated = false
 
-      setBindings((current) => {
-        const conflict = getConflictingHotkeyAction(actionId, binding, current)
-        if (conflict) {
-          return current
-        }
+    setBindings((current) => {
+      const conflict = getConflictingHotkeyAction(actionId, binding, current)
+      if (conflict) {
+        return current
+      }
 
-        updated = true
-        return {
-          ...current,
-          [actionId]: binding,
-        }
-      })
+      updated = true
+      return {
+        ...current,
+        [actionId]: binding,
+      }
+    })
 
-      return updated
-    },
-    [],
-  )
+    return updated
+  }, [])
 
   const resetBinding = React.useCallback((actionId: HotkeyActionId) => {
     setBindings((current) => ({
@@ -141,8 +127,7 @@ export function HotkeysProvider({
     () => ({
       bindings,
       registerAction: (actionId, token, handler) => {
-        const handlers =
-          handlersRef.current.get(actionId) ?? new Map<symbol, HotkeyActionHandler>()
+        const handlers = handlersRef.current.get(actionId) ?? new Map<symbol, HotkeyActionHandler>()
         handlers.set(token, handler)
         handlersRef.current.set(actionId, handlers)
 
@@ -161,11 +146,7 @@ export function HotkeysProvider({
     [bindings, resetAllBindings, resetBinding, updateBinding],
   )
 
-  return (
-    <HotkeysContext.Provider value={contextValue}>
-      {children}
-    </HotkeysContext.Provider>
-  )
+  return <HotkeysContext.Provider value={contextValue}>{children}</HotkeysContext.Provider>
 }
 
 export function useHotkeys() {

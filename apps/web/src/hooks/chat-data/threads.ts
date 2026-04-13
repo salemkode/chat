@@ -24,9 +24,7 @@ export function useThreads() {
   const liveThreads = useQuery(api.agents.listThreadsWithMetadata)
   const setThreadPinned = useMutation(api.agents.setThreadPinned)
   const deleteThreadMutation = useMutation(api.chat.deleteThread)
-  const [optimisticPinnedById, setOptimisticPinnedById] = useState<
-    Record<string, boolean>
-  >({})
+  const [optimisticPinnedById, setOptimisticPinnedById] = useState<Record<string, boolean>>({})
 
   const cachedThreads = useMemo(() => {
     if (!cacheUserId) {
@@ -67,8 +65,7 @@ export function useThreads() {
 
     const optimistic = normalized.map((thread) => {
       const optimisticPinned =
-        optimisticPinnedById[thread.serverId || thread.id] ??
-        optimisticPinnedById[thread.id]
+        optimisticPinnedById[thread.serverId || thread.id] ?? optimisticPinnedById[thread.id]
 
       if (optimisticPinned === undefined) {
         return thread
@@ -161,10 +158,7 @@ export function useThreads() {
 export function useThread(threadId?: string) {
   const cacheUserId = useConvexUserIdForCache()
   const cacheVersion = useOfflineCacheVersion()
-  const liveThread = useQuery(
-    api.chat.getThread,
-    threadId ? { threadId } : 'skip',
-  )
+  const liveThread = useQuery(api.chat.getThread, threadId ? { threadId } : 'skip')
 
   const cachedThread = useMemo(() => {
     if (!threadId || !cacheUserId) {

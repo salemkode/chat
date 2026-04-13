@@ -6,10 +6,7 @@ import type {
   ProviderCatalogResult,
 } from '@/components/admin/types'
 import type { AppPlan } from '@chat/shared/admin-types'
-import {
-  defaultBaseURL,
-  type ProviderType,
-} from '@/components/admin/admin-provider-catalog'
+import { defaultBaseURL, type ProviderType } from '@/components/admin/admin-provider-catalog'
 
 export interface ProviderFormData {
   name: string
@@ -97,6 +94,10 @@ export type SettingsState = {
   isOpeningBillingPortal: boolean
   appPlanDraft?: AppPlan
   globalRateLimitDraft?: RateLimitPolicy
+  autoModelRoutingEnabledDraft?: boolean
+  autoModelRouterUrlDraft?: string
+  autoModelRouterApiKeyDraft?: string
+  autoModelRouterPreferenceDraft?: 'balanced' | 'cost' | 'speed' | 'quality'
 }
 
 export function createProviderForm(sortOrder = 0): ProviderFormData {
@@ -142,9 +143,7 @@ export function createModelForm(providerId = '', sortOrder = 0): ModelFormData {
   }
 }
 
-export function createModelCollectionForm(
-  sortOrder = 0,
-): ModelCollectionFormData {
+export function createModelCollectionForm(sortOrder = 0): ModelCollectionFormData {
   return {
     name: '',
     description: '',
@@ -191,6 +190,10 @@ export const initialSettingsState: SettingsState = {
   isOpeningBillingPortal: false,
   appPlanDraft: undefined,
   globalRateLimitDraft: undefined,
+  autoModelRoutingEnabledDraft: undefined,
+  autoModelRouterUrlDraft: undefined,
+  autoModelRouterApiKeyDraft: undefined,
+  autoModelRouterPreferenceDraft: undefined,
 }
 
 export function mergeReducer<T extends object>(state: T, action: StateUpdate<T>) {

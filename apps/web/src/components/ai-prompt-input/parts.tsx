@@ -90,12 +90,7 @@ export function AttachmentGrid({
   }
 
   return (
-    <div
-      className={cn(
-        'grid w-full grid-cols-1 gap-2 sm:grid-cols-2',
-        mobile && 'sm:grid-cols-1',
-      )}
-    >
+    <div className={cn('grid w-full grid-cols-1 gap-2 sm:grid-cols-2', mobile && 'sm:grid-cols-1')}>
       {attachments.map((attachment) => (
         <div
           key={attachment.id}
@@ -190,9 +185,7 @@ function TextAttachmentCard({
           <FileText className="size-4" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-medium text-foreground">
-            {attachment.label}
-          </div>
+          <div className="truncate text-sm font-medium text-foreground">{attachment.label}</div>
           <div className="mt-0.5 text-xs text-muted-foreground">
             {charCount.toLocaleString()} chars · {lineCount.toLocaleString()}{' '}
             {lineCount === 1 ? 'line' : 'lines'}
@@ -207,11 +200,7 @@ function TextAttachmentCard({
             className="inline-flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             aria-label={expanded ? 'Collapse' : 'Expand'}
           >
-            {expanded ? (
-              <ChevronUp className="size-3.5" />
-            ) : (
-              <ChevronDown className="size-3.5" />
-            )}
+            {expanded ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
           </Button>
           <Button
             type="button"
@@ -314,9 +303,7 @@ export function ProjectMentionPopup({
             )
           })
         ) : (
-          <div className="px-2.5 py-3 text-sm text-muted-foreground">
-            No matching projects.
-          </div>
+          <div className="px-2.5 py-3 text-sm text-muted-foreground">No matching projects.</div>
         )}
       </div>
     </div>
@@ -342,6 +329,8 @@ export function ComposerActionRow({
   reasoningLevels,
   defaultReasoningLevel,
   onAttach,
+  imageAttachmentsSupported,
+  sendBlockedReason,
   contextMeter,
 }: {
   disabled: boolean
@@ -362,10 +351,13 @@ export function ComposerActionRow({
   reasoningLevels?: Array<'low' | 'medium' | 'high'>
   defaultReasoningLevel: 'off' | 'low' | 'medium' | 'high'
   onAttach: (files: FileList | null) => void
+  imageAttachmentsSupported: boolean
+  sendBlockedReason?: string
   contextMeter?: ReactNode
 }) {
-  const hasContent =
-    value.trim() || attachments.length > 0 || textAttachments.length > 0
+  const hasContent = value.trim() || attachments.length > 0 || textAttachments.length > 0
+  const attachmentAccept = imageAttachmentsSupported ? 'image/*,application/pdf' : 'application/pdf'
+
   return (
     <div
       className={cn(
@@ -378,13 +370,15 @@ export function ComposerActionRow({
         <Button
           type="submit"
           size={mobile ? 'icon-lg' : 'icon'}
-          disabled={disabled || isSubmitting || !hasContent}
+          disabled={disabled || isSubmitting || !hasContent || Boolean(sendBlockedReason)}
           aria-label={
             isSubmitting
               ? 'Sending message'
-              : hasContent
-                ? 'Send message'
-                : 'Message requires text or a supported file'
+              : sendBlockedReason
+                ? sendBlockedReason
+                : hasContent
+                  ? 'Send message'
+                  : 'Message requires text or a supported file'
           }
           className={cn(
             'inline-flex items-center justify-center bg-primary font-semibold text-primary-foreground transition-colors hover:bg-primary/90 active:bg-primary disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-primary disabled:active:bg-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
@@ -406,9 +400,7 @@ export function ComposerActionRow({
         <ModelSelector
           selectedModel={selectedModel}
           onModelChange={onModelChange}
-          className={cn(
-            mobile && 'min-w-0 flex-1 [&_button]:h-11 [&_button]:w-full',
-          )}
+          className={cn(mobile && 'min-w-0 flex-1 [&_button]:h-11 [&_button]:w-full')}
         />
 
         <Button
@@ -419,9 +411,7 @@ export function ComposerActionRow({
           aria-label={searchEnabled ? 'Disable search' : 'Enable search'}
           className={cn(
             'inline-flex items-center justify-center text-xs font-medium transition-colors hover:bg-muted/60 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
-            mobile
-              ? 'h-11 rounded-full border border-border/70 px-3.5'
-              : 'h-8 rounded-full px-2.5',
+            mobile ? 'h-11 rounded-full border border-border/70 px-3.5' : 'h-8 rounded-full px-2.5',
             searchEnabled
               ? 'bg-muted/60 text-foreground'
               : 'text-muted-foreground hover:text-foreground',
@@ -445,8 +435,8 @@ export function ComposerActionRow({
             {reasoningEnabled ? (
               <Select
                 value={reasoningLevel}
-                onValueChange={(value: string) =>
-                  onReasoningLevel(value as 'low' | 'medium' | 'high')
+                onValueChange={(nextLevel: string) =>
+                  onReasoningLevel(nextLevel as 'low' | 'medium' | 'high')
                 }
               >
                 <SelectTrigger className="h-7 w-[92px] rounded-full border-0 bg-transparent px-2 text-xs shadow-none">
@@ -471,11 +461,12 @@ export function ComposerActionRow({
 
         <Label
           htmlFor="composer-attachment-input"
+          title={
+            imageAttachmentsSupported ? 'Attach images or PDFs' : 'This model accepts PDFs only'
+          }
           className={cn(
             'inline-flex cursor-pointer items-center text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
-            mobile
-              ? 'h-11 rounded-full border border-border/70 px-3.5'
-              : 'h-8 rounded-full px-2.5',
+            mobile ? 'h-11 rounded-full border border-border/70 px-3.5' : 'h-8 rounded-full px-2.5',
           )}
           aria-label="Attach a file"
         >
@@ -483,7 +474,7 @@ export function ComposerActionRow({
           <Input
             id="composer-attachment-input"
             multiple
-            accept="image/*,application/pdf"
+            accept={attachmentAccept}
             className="sr-only"
             type="file"
             onChange={(event) => {
@@ -493,6 +484,9 @@ export function ComposerActionRow({
           />
           <Paperclip className="size-4" aria-hidden="true" />
         </Label>
+        {!imageAttachmentsSupported ? (
+          <span className="text-[10px] font-medium text-muted-foreground">PDF only</span>
+        ) : null}
       </div>
     </div>
   )

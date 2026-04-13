@@ -6,23 +6,15 @@ const WARN_THRESHOLD = 500
 const MAX_THRESHOLD = 700
 const strict = process.argv.includes('--strict')
 
-const excludes = [
-  'convex/_generated/',
-  'dist/',
-  '.output/',
-  'node_modules/',
-  't3code/',
-]
+const excludes = ['convex/_generated/', 'dist/', '.output/', 'node_modules/', 't3code/']
 const baselinePath = 'scripts/lint-loc-baseline.json'
 const baselineExcludes = existsSync(baselinePath)
   ? JSON.parse(readFileSync(baselinePath, 'utf8'))
   : []
 
-const rg = spawnSync(
-  'rg',
-  ['--files', '-g', '*.ts', '-g', '*.tsx', '-g', '!*.d.ts'],
-  { encoding: 'utf8' },
-)
+const rg = spawnSync('rg', ['--files', '-g', '*.ts', '-g', '*.tsx', '-g', '!*.d.ts'], {
+  encoding: 'utf8',
+})
 
 if (rg.status !== 0) {
   console.error('Failed to list files with rg.')

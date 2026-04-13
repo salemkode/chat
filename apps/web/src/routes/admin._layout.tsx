@@ -23,20 +23,11 @@ import { AdminPageHeader } from '@/components/admin/admin-page-header'
 import { useAdminProviderDialog } from '@/components/admin/admin-provider-dialog'
 import type { DashboardData } from '@/components/admin/types'
 import { AuthRedirect } from '@/components/auth-redirect'
-import {
-  Card,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useQuery } from '@/lib/convex-query-cache'
 import { cn } from '@/lib/utils'
 
-const adminNavLinkClass = ({
-  isActive,
-}: {
-  isActive: boolean
-}): string =>
+const adminNavLinkClass = ({ isActive }: { isActive: boolean }): string =>
   cn(
     'inline-flex h-8 items-center justify-center whitespace-nowrap rounded-sm px-3 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
     isActive
@@ -103,8 +94,7 @@ function AdminLayoutShell({
           <CardHeader>
             <CardTitle>Admin access required</CardTitle>
             <CardDescription>
-              This user is authenticated but not registered in the `admins`
-              table.
+              This user is authenticated but not registered in the `admins` table.
             </CardDescription>
           </CardHeader>
         </Card>
@@ -114,31 +104,27 @@ function AdminLayoutShell({
         </div>
       ) : (
         <>
-          <AdminOverviewSection
-            summary={summary}
-            users={users}
-            controls={overviewControls}
-          />
+          <AdminOverviewSection summary={summary} users={users} controls={overviewControls} />
           <nav
             className="grid h-auto w-full grid-cols-2 gap-1 rounded-md bg-muted p-1 sm:grid-cols-3 md:grid-cols-6 md:max-w-4xl"
             aria-label="Admin sections"
           >
-            <NavLink to="providers" className={adminNavLinkClass}>
+            <NavLink to="/admin/providers" className={adminNavLinkClass}>
               Providers
             </NavLink>
-            <NavLink to="models" className={adminNavLinkClass}>
+            <NavLink to="/admin/models" className={adminNavLinkClass}>
               Models
             </NavLink>
-            <NavLink to="collections" className={adminNavLinkClass}>
+            <NavLink to="/admin/collections" className={adminNavLinkClass}>
               Collections
             </NavLink>
-            <NavLink to="usage" className={adminNavLinkClass}>
+            <NavLink to="/admin/usage" className={adminNavLinkClass}>
               Usage
             </NavLink>
-            <NavLink to="offers" className={adminNavLinkClass}>
+            <NavLink to="/admin/offers" className={adminNavLinkClass}>
               Offers
             </NavLink>
-            <NavLink to="settings" className={adminNavLinkClass}>
+            <NavLink to="/admin/settings" className={adminNavLinkClass}>
               Settings
             </NavLink>
           </nav>
@@ -166,10 +152,7 @@ export default function AdminLayoutRoute() {
     updateSessionState({ initializedUserId: value })
   const isUserReady = isAuthenticated ? initializedUserId === userId : false
 
-  const isAdmin = useQuery(
-    api.admin.isAdmin,
-    isAuthenticated && isUserReady ? {} : 'skip',
-  )
+  const isAdmin = useQuery(api.admin.isAdmin, isAuthenticated && isUserReady ? {} : 'skip')
   const dashboard = useQuery(
     api.admin.getDashboardData,
     isAuthenticated && isUserReady && isAdmin ? {} : 'skip',

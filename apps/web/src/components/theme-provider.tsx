@@ -44,10 +44,7 @@ export function ThemeProvider({
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>('dark')
 
   useEffect(() => {
-    const resolved = applyThemeSettings(
-      window.document.documentElement,
-      themeSettings,
-    )
+    const resolved = applyThemeSettings(window.document.documentElement, themeSettings)
     setResolvedTheme(resolved)
     localStorage.setItem(storageKey, serializeThemeSettings(themeSettings))
   }, [storageKey, themeSettings])
@@ -59,9 +56,7 @@ export function ThemeProvider({
 
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
     const handleChange = () => {
-      setResolvedTheme(
-        applyThemeSettings(window.document.documentElement, themeSettings),
-      )
+      setResolvedTheme(applyThemeSettings(window.document.documentElement, themeSettings))
     }
 
     mediaQuery.addEventListener('change', handleChange)

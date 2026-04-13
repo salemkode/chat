@@ -1,12 +1,6 @@
 import { cn } from '@/lib/utils'
 import { ChevronDownIcon } from '@/lib/icons'
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from 'react'
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { Markdown } from './markdown'
 
 type ReasoningContextType = {
@@ -14,16 +8,12 @@ type ReasoningContextType = {
   onOpenChange: (open: boolean) => void
 }
 
-const ReasoningContext = createContext<ReasoningContextType | undefined>(
-  undefined,
-)
+const ReasoningContext = createContext<ReasoningContextType | undefined>(undefined)
 
 function useReasoningContext() {
   const context = useContext(ReasoningContext)
   if (!context) {
-    throw new Error(
-      'useReasoningContext must be used within a Reasoning provider',
-    )
+    throw new Error('useReasoningContext must be used within a Reasoning provider')
   }
   return context
 }
@@ -71,11 +61,7 @@ export type ReasoningTriggerProps = {
   className?: string
 } & React.HTMLAttributes<HTMLButtonElement>
 
-function ReasoningTrigger({
-  children,
-  className,
-  ...props
-}: ReasoningTriggerProps) {
+function ReasoningTrigger({ children, className, ...props }: ReasoningTriggerProps) {
   const { isOpen, onOpenChange } = useReasoningContext()
 
   return (
@@ -85,12 +71,7 @@ function ReasoningTrigger({
       {...props}
     >
       <span className="text-primary">{children}</span>
-      <div
-        className={cn(
-          'transform transition-transform',
-          isOpen ? 'rotate-180' : '',
-        )}
-      >
+      <div className={cn('transform transition-transform', isOpen ? 'rotate-180' : '')}>
         <ChevronDownIcon className="size-4" />
       </div>
     </button>
@@ -133,19 +114,12 @@ function ReasoningContent({
     return () => observer.disconnect()
   }, [isOpen])
 
-  const content = markdown ? (
-    <Markdown>{children as string}</Markdown>
-  ) : (
-    children
-  )
+  const content = markdown ? <Markdown>{children as string}</Markdown> : children
 
   return (
     <div
       ref={contentRef}
-      className={cn(
-        'overflow-hidden transition-[max-height] duration-150 ease-out',
-        className,
-      )}
+      className={cn('overflow-hidden transition-[max-height] duration-150 ease-out', className)}
       style={{
         maxHeight: isOpen ? contentRef.current?.scrollHeight : '0px',
       }}

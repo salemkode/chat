@@ -52,8 +52,8 @@ describe('buildActivitySteps', () => {
             ],
           },
         },
-      ] as any,
-      'done' as any,
+      ],
+      'done',
     )
 
     expect(steps).toHaveLength(2)
@@ -79,11 +79,8 @@ describe('buildActivitySteps', () => {
 
   it('prefers visible reasoning text over an earlier redacted placeholder', () => {
     const steps = buildActivitySteps(
-      [
-        { type: 'redacted-reasoning' },
-        { type: 'reasoning', text: 'Visible reasoning' },
-      ] as any,
-      'done' as any,
+      [{ type: 'redacted-reasoning' }, { type: 'reasoning', text: 'Visible reasoning' }],
+      'done',
     )
 
     expect(steps).toHaveLength(1)

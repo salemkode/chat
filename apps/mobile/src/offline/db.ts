@@ -43,12 +43,10 @@ async function ensureSchema(db: SQLite.SQLiteDatabase) {
 
 export async function getOfflineDb() {
   if (!dbPromise) {
-    dbPromise = SQLite.openDatabaseAsync('chat-mobile-cache.db').then(
-      async (db) => {
-        await ensureSchema(db)
-        return db
-      },
-    )
+    dbPromise = SQLite.openDatabaseAsync('chat-mobile-cache.db').then(async (db) => {
+      await ensureSchema(db)
+      return db
+    })
   }
   return await dbPromise
 }

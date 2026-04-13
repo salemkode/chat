@@ -5,13 +5,7 @@ import {
   formatTokenCount,
 } from '@/components/admin/admin-utils'
 import type { AdminModel, DashboardData } from '@/components/admin/types'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Table,
   TableBody,
@@ -51,8 +45,7 @@ export function AdminUsagePanel({ dashboard }: AdminUsagePanelProps) {
               {models
                 .slice()
                 .sort(
-                  (left: AdminModel, right: AdminModel) =>
-                    right.usage.tokens - left.usage.tokens,
+                  (left: AdminModel, right: AdminModel) => right.usage.tokens - left.usage.tokens,
                 )
                 .slice(0, 12)
                 .map((model: AdminModel) => (
@@ -60,19 +53,13 @@ export function AdminUsagePanel({ dashboard }: AdminUsagePanelProps) {
                     <TableCell>
                       <div className="space-y-1">
                         <p className="font-medium">{model.displayName}</p>
-                        <p className="font-mono text-xs text-muted-foreground">
-                          {model.modelId}
-                        </p>
+                        <p className="font-mono text-xs text-muted-foreground">{model.modelId}</p>
                       </div>
                     </TableCell>
-                    <TableCell>
-                      {formatCompactNumber(model.usage.requests)}
-                    </TableCell>
+                    <TableCell>{formatCompactNumber(model.usage.requests)}</TableCell>
                     <TableCell>{formatTokenCount(model.usage.tokens)}</TableCell>
                     <TableCell>{model.usage.users}</TableCell>
-                    <TableCell>
-                      {formatDateTime(model.usage.lastUsedAt)}
-                    </TableCell>
+                    <TableCell>{formatDateTime(model.usage.lastUsedAt)}</TableCell>
                   </TableRow>
                 ))}
             </TableBody>
@@ -98,25 +85,19 @@ export function AdminUsagePanel({ dashboard }: AdminUsagePanelProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users
-                .slice(0, 12)
-                .map((user: DashboardData['users'][number]) => (
-                  <TableRow key={user.userId}>
-                    <TableCell>
-                      <div className="space-y-1">
-                        <p className="font-medium">{user.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {user.email || 'No email'}
-                        </p>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {formatCompactNumber(user.requests)}
-                    </TableCell>
-                    <TableCell>{formatTokenCount(user.tokens)}</TableCell>
-                    <TableCell>{user.models}</TableCell>
-                  </TableRow>
-                ))}
+              {users.slice(0, 12).map((user: DashboardData['users'][number]) => (
+                <TableRow key={user.userId}>
+                  <TableCell>
+                    <div className="space-y-1">
+                      <p className="font-medium">{user.name}</p>
+                      <p className="text-xs text-muted-foreground">{user.email || 'No email'}</p>
+                    </div>
+                  </TableCell>
+                  <TableCell>{formatCompactNumber(user.requests)}</TableCell>
+                  <TableCell>{formatTokenCount(user.tokens)}</TableCell>
+                  <TableCell>{user.models}</TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         </CardContent>

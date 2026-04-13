@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { PushPinSimple } from '@phosphor-icons/react'
 import { Pin, X } from '@/lib/icons'
 import { Button } from '@/components/ui/button'
 import { SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar'
@@ -17,17 +18,22 @@ function IconActionButton({
   icon,
   label,
   onClick,
+  className,
 }: {
   icon: React.ReactNode
   label: string
   onClick: () => void
+  className?: string
 }) {
   return (
     <Button
       type="button"
       variant="ghost"
       size="icon-sm"
-      className="text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
+      className={cn(
+        'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground',
+        className,
+      )}
       aria-label={label}
       onClick={(event) => {
         event.preventDefault()
@@ -71,17 +77,25 @@ export function ThreadRow({
             onClick={onOpen}
           >
             <span className="shrink-0">{thread.emoji}</span>
-            <span className="truncate text-sm">
-              {thread.title || 'Untitled chat'}
-            </span>
+            <span className="truncate text-sm">{thread.title || 'Untitled chat'}</span>
           </Button>
-          <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover/thread:opacity-100">
+          <div
+            className={cn(
+              'flex items-center gap-1 transition-opacity',
+              thread.pinned ? 'opacity-100' : 'opacity-0 group-hover/thread:opacity-100',
+            )}
+          >
             <IconActionButton
               label={thread.pinned ? 'Unpin chat' : 'Pin chat'}
               onClick={onTogglePinned}
               icon={
-                <Pin className={cn('size-3.5', thread.pinned && 'fill-current')} />
+                thread.pinned ? (
+                  <PushPinSimple size={14} weight="fill" className="size-3.5" />
+                ) : (
+                  <Pin className="size-3.5" />
+                )
               }
+              className={thread.pinned ? 'text-foreground' : undefined}
             />
             {onRemoveFromProject ? (
               <IconActionButton
@@ -108,10 +122,7 @@ export function AnimatedThreadList<TThread extends BaseAnimatedThread>({
 }) {
   const rowRefs = React.useRef(new Map<string, HTMLDivElement>())
   const previousRects = React.useRef(new Map<string, DOMRect>())
-  const threadIds = React.useMemo(
-    () => threads.map((thread) => thread.id),
-    [threads],
-  )
+  const threadIds = React.useMemo(() => threads.map((thread) => thread.id), [threads])
 
   React.useLayoutEffect(() => {
     const currentRects = new Map<string, DOMRect>()
@@ -150,16 +161,10 @@ export function AnimatedThreadList<TThread extends BaseAnimatedThread>({
       const deltaY = previousRect.top - currentRect.top
       if (Math.abs(deltaY) < 1) continue
 
-      node.animate(
-        [
-          { transform: `translateY(${deltaY}px)` },
-          { transform: 'translateY(0px)' },
-        ],
-        {
-          duration: 220,
-          easing: 'cubic-bezier(.2,0,0,1)',
-        },
-      )
+      node.animate([{ transform: `translateY(${deltaY}px)` }, { transform: 'translateY(0px)' }], {
+        duration: 220,
+        easing: 'cubic-bezier(.2,0,0,1)',
+      })
     }
 
     previousRects.current = currentRects

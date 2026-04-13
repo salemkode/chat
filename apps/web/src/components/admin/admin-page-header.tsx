@@ -40,9 +40,8 @@ export function AdminPageHeader({
               Model and provider dashboard
             </h1>
             <p className="max-w-3xl text-sm text-muted-foreground md:text-base">
-              Manage provider APIs, sync model catalogs, tune per-model
-              visibility, assign icons, monitor account usage, and apply layered
-              rate limits.
+              Manage provider APIs, sync model catalogs, tune per-model visibility, assign icons,
+              monitor account usage, and apply layered rate limits.
             </p>
           </div>
         </div>
@@ -52,14 +51,8 @@ export function AdminPageHeader({
             <RefreshCcw className="mr-2 size-4" />
             Refresh
           </Button>
-          <AdminProviderDialog
-            state={providerDialog.state}
-            actions={providerDialog.actions}
-          />
-          <AdminModelDialog
-            state={modelDialog.state}
-            actions={modelDialog.actions}
-          />
+          <AdminProviderDialog state={providerDialog.state} actions={providerDialog.actions} />
+          <AdminModelDialog state={modelDialog.state} actions={modelDialog.actions} />
           <AdminCollectionDialog
             state={collectionDialog.state}
             actions={collectionDialog.actions}

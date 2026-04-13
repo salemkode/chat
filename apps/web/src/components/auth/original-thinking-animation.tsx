@@ -2,16 +2,17 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 
 const ANIMATION_CONFIG = {
-  particleCount: 64,
-  trailSpan: 0.38,
-  durationMs: 4600,
+  particleCount: 72,
+  trailSpan: 0.42,
+  durationMs: 5200,
   rotationDurationMs: 28000,
-  pulseDurationMs: 4200,
-  strokeWidth: 5.5,
-  baseRadius: 7,
-  detailAmplitude: 3,
+  pulseDurationMs: 4600,
+  strokeWidth: 5.2,
+  orbitRadius: 7,
+  detailAmplitude: 2.7,
   petalCount: 7,
   curveScale: 3.9,
+  rotate: true,
 } as const
 
 type OriginalThinkingAnimationProps = {
@@ -33,9 +34,7 @@ export function OriginalThinkingAnimation({
   const groupRef = useRef<SVGGElement | null>(null)
   const pathRef = useRef<SVGPathElement | null>(null)
   const particleRefs = useRef<Array<SVGCircleElement | null>>([])
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(
-    Boolean(reducedMotion),
-  )
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(Boolean(reducedMotion))
   const gradientId = useId().replace(/:/g, '')
   const glowId = useId().replace(/:/g, '')
   const resolvedReducedMotion = reducedMotion ?? prefersReducedMotion
@@ -75,10 +74,7 @@ export function OriginalThinkingAnimation({
         ? 0.17
         : (time % ANIMATION_CONFIG.durationMs) / ANIMATION_CONFIG.durationMs
 
-      group.setAttribute(
-        'transform',
-        `rotate(${getRotation(time, resolvedReducedMotion)} 50 50)`,
-      )
+      group.setAttribute('transform', `rotate(${getRotation(time, resolvedReducedMotion)} 50 50)`)
       path.setAttribute('d', buildPath(detailScale))
 
       particles.forEach((node, index) => {
@@ -129,30 +125,30 @@ export function OriginalThinkingAnimation({
         className="h-full w-full overflow-visible"
         aria-hidden="true"
       >
-        <defs>
-          {!isMinimal ? (
+        {!isMinimal ? (
+          <defs>
             <linearGradient id={gradientId} x1="18" y1="16" x2="82" y2="84">
               <stop offset="0%" stopColor="var(--color-foreground)" stopOpacity="0.92" />
               <stop offset="46%" stopColor="var(--color-primary)" stopOpacity="0.96" />
               <stop offset="100%" stopColor="var(--color-chart-2)" stopOpacity="0.72" />
             </linearGradient>
-          ) : null}
-          <filter
-            id={glowId}
-            x="-50%"
-            y="-50%"
-            width="200%"
-            height="200%"
-            colorInterpolationFilters="sRGB"
-          >
-            <feGaussianBlur stdDeviation="1.7" result="blur" />
-            <feColorMatrix
-              in="blur"
-              type="matrix"
-              values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.85 0"
-            />
-          </filter>
-        </defs>
+            <filter
+              id={glowId}
+              x="-50%"
+              y="-50%"
+              width="200%"
+              height="200%"
+              colorInterpolationFilters="sRGB"
+            >
+              <feGaussianBlur stdDeviation="1.7" result="blur" />
+              <feColorMatrix
+                in="blur"
+                type="matrix"
+                values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.85 0"
+              />
+            </filter>
+          </defs>
+        ) : null}
 
         {!isMinimal ? (
           <>
@@ -181,8 +177,8 @@ export function OriginalThinkingAnimation({
             stroke={isMinimal ? 'currentColor' : `url(#${gradientId})`}
             strokeLinecap="round"
             strokeLinejoin="round"
-            opacity={isMinimal ? '0.9' : '0.92'}
-            filter={`url(#${glowId})`}
+            opacity={isMinimal ? '0.1' : '0.92'}
+            filter={isMinimal ? undefined : `url(#${glowId})`}
           />
           {Array.from({ length: ANIMATION_CONFIG.particleCount }, (_, index) => (
             <circle
@@ -201,20 +197,13 @@ export function OriginalThinkingAnimation({
 
 function getPoint(progress: number, detailScale: number): CurvePoint {
   const t = progress * Math.PI * 2
-  const x =
-    ANIMATION_CONFIG.baseRadius * Math.cos(t) -
-    ANIMATION_CONFIG.detailAmplitude *
-      detailScale *
-      Math.cos(ANIMATION_CONFIG.petalCount * t)
-  const y =
-    ANIMATION_CONFIG.baseRadius * Math.sin(t) -
-    ANIMATION_CONFIG.detailAmplitude *
-      detailScale *
-      Math.sin(ANIMATION_CONFIG.petalCount * t)
+  const k = Math.round(ANIMATION_CONFIG.petalCount)
+  const r =
+    ANIMATION_CONFIG.orbitRadius - ANIMATION_CONFIG.detailAmplitude * detailScale * Math.cos(k * t)
 
   return {
-    x: 50 + x * ANIMATION_CONFIG.curveScale,
-    y: 50 + y * ANIMATION_CONFIG.curveScale,
+    x: 50 + Math.cos(t) * r * ANIMATION_CONFIG.curveScale,
+    y: 50 + Math.sin(t) * r * ANIMATION_CONFIG.curveScale,
   }
 }
 
@@ -248,12 +237,11 @@ function getDetailScale(time: number, pulseDurationMs: number) {
 }
 
 function getRotation(time: number, reducedMotion: boolean) {
-  if (reducedMotion) {
+  if (reducedMotion || !ANIMATION_CONFIG.rotate) {
     return 0
   }
 
-  return -((time % ANIMATION_CONFIG.rotationDurationMs) /
-    ANIMATION_CONFIG.rotationDurationMs) * 360
+  return -((time % ANIMATION_CONFIG.rotationDurationMs) / ANIMATION_CONFIG.rotationDurationMs) * 360
 }
 
 function normalizeProgress(progress: number) {

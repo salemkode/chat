@@ -24,11 +24,7 @@ export function useResponsiveOverlayMode(): {
   isMobile: boolean
   mode: ResponsiveOverlayMode
 } {
-  const isMobile = useSyncExternalStore(
-    subscribe,
-    getSnapshot,
-    getServerSnapshot,
-  )
+  const isMobile = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
 
   return {
     isMobile,

@@ -3,11 +3,7 @@ import { mutation, query } from './_generated/server'
 import { getAuthUserId } from './lib/auth'
 import { requireProjectRole } from './lib/projectAccess'
 
-const projectRoleValidator = v.union(
-  v.literal('owner'),
-  v.literal('editor'),
-  v.literal('viewer'),
-)
+const projectRoleValidator = v.union(v.literal('owner'), v.literal('editor'), v.literal('viewer'))
 
 export const listProjectMembers = query({
   args: {

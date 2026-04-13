@@ -1,24 +1,12 @@
 import { getAuthUserId } from './lib/auth'
 import { v } from 'convex/values'
-import {
-  internalMutation,
-  internalQuery,
-  mutation,
-  query,
-  QueryCtx,
-} from "./_generated/server";
-import { UserJSON } from "@clerk/backend";
+import { internalMutation, internalQuery, mutation, query, QueryCtx } from './_generated/server'
+import { UserJSON } from '@clerk/backend'
+import type { Doc } from './_generated/dataModel'
 import { DEFAULT_APP_PLAN } from './lib/appPlan'
 
-const reasoningLevelValidator = v.union(
-  v.literal('low'),
-  v.literal('medium'),
-  v.literal('high'),
-)
-const voiceTranscriptionModeValidator = v.union(
-  v.literal('cloud'),
-  v.literal('device'),
-)
+const reasoningLevelValidator = v.union(v.literal('low'), v.literal('medium'), v.literal('high'))
+const voiceTranscriptionModeValidator = v.union(v.literal('cloud'), v.literal('device'))
 
 const userSettingsValidator = v.object({
   _id: v.id('userSettings'),
@@ -44,9 +32,7 @@ export const getProfile = query({
 
       const user = await ctx.db
         .query('users')
-        .withIndex('by_tokenIdentifier', (q) =>
-          q.eq('tokenIdentifier', identity.tokenIdentifier),
-        )
+        .withIndex('by_tokenIdentifier', (q) => q.eq('tokenIdentifier', identity.tokenIdentifier))
         .unique()
 
       return user
@@ -144,76 +130,74 @@ export const updateSettings = mutation({
     const now = Date.now()
 
     if (existing) {
-      await ctx.db.patch(
-        existing._id,
-        {
-          ...(args.displayName !== undefined && {
-            displayName: args.displayName,
-          }),
-          ...(args.image !== undefined && { image: args.image }),
-          ...(args.bio !== undefined && { bio: args.bio }),
-          ...(args.reasoningEnabled !== undefined && {
-            reasoningEnabled: args.reasoningEnabled,
-          }),
-          ...(args.reasoningLevel !== undefined && {
-            reasoningLevel: args.reasoningLevel,
-          }),
-          ...(args.voiceTranscriptionMode !== undefined && {
-            voiceTranscriptionMode: args.voiceTranscriptionMode,
-          }),
-          updatedAt: now,
-        } as any,
-      )
+      const patch: Partial<Doc<'userSettings'>> = { updatedAt: now }
+      if (args.displayName !== undefined) patch.displayName = args.displayName
+      if (args.image !== undefined) patch.image = args.image
+      if (args.bio !== undefined) patch.bio = args.bio
+      if (args.reasoningEnabled !== undefined) {
+        patch.reasoningEnabled = args.reasoningEnabled
+      }
+      if (args.reasoningLevel !== undefined) {
+        patch.reasoningLevel = args.reasoningLevel
+      }
+      if (args.voiceTranscriptionMode !== undefined) {
+        patch.voiceTranscriptionMode = args.voiceTranscriptionMode
+      }
+
+      await ctx.db.patch(existing._id, patch)
     } else {
-      await ctx.db.insert(
-        'userSettings',
-        {
-          userId,
-          displayName: args.displayName,
-          image: args.image,
-          bio: args.bio,
-          reasoningEnabled: args.reasoningEnabled,
-          reasoningLevel: args.reasoningLevel,
-          voiceTranscriptionMode: args.voiceTranscriptionMode,
-          updatedAt: now,
-        } as any,
-      )
+      const creation: Omit<Doc<'userSettings'>, '_id' | '_creationTime'> = {
+        userId,
+        updatedAt: now,
+      }
+      if (args.displayName !== undefined) creation.displayName = args.displayName
+      if (args.image !== undefined) creation.image = args.image
+      if (args.bio !== undefined) creation.bio = args.bio
+      if (args.reasoningEnabled !== undefined) {
+        creation.reasoningEnabled = args.reasoningEnabled
+      }
+      if (args.reasoningLevel !== undefined) {
+        creation.reasoningLevel = args.reasoningLevel
+      }
+      if (args.voiceTranscriptionMode !== undefined) {
+        creation.voiceTranscriptionMode = args.voiceTranscriptionMode
+      }
+
+      await ctx.db.insert('userSettings', creation)
     }
 
     return { success: true }
   },
 })
 
-export async function userQuery(
-  ctx: QueryCtx,
-  clerkUserId: string
-) {
+export async function userQuery(ctx: QueryCtx, clerkUserId: string) {
   return await ctx.db
-    .query("users")
-    .withIndex("clerkUserId", (q) => q.eq("clerkUserId", clerkUserId))
-    .unique();
+    .query('users')
+    .withIndex('clerkUserId', (q) => q.eq('clerkUserId', clerkUserId))
+    .unique()
 }
 
 /** Get user by Clerk use id (AKA "subject" on auth)  */
 export const getUser = internalQuery({
   args: { subject: v.string() },
   async handler(ctx, args) {
-    return await userQuery(ctx, args.subject);
+    return await userQuery(ctx, args.subject)
   },
-});
+})
 
 /** Create a new Clerk user or update existing Clerk user data. */
 export const updateOrCreateUser = internalMutation({
   args: { clerkUser: v.any() }, // no runtime validation, trust Clerk
   async handler(ctx, { clerkUser }: { clerkUser: UserJSON }) {
-    const userRecord = await userQuery(ctx, clerkUser.id);
+    const userRecord = await userQuery(ctx, clerkUser.id)
 
     if (userRecord === null) {
       return await ctx.db.insert('users', {
         name: `${clerkUser.first_name} ${clerkUser.last_name}`,
         image: clerkUser.image_url,
         email: clerkUser.email_addresses[0].email_address,
-        emailVerificationTime: clerkUser.email_addresses[0].verification?.status === 'verified' ? Date.now() : undefined,
+        emailVerificationTime:
+          clerkUser.email_addresses[0].verification?.status === 'verified' ? Date.now() : undefined,
         isAnonymous: false,
         clerkUserId: clerkUser.id,
         appPlan: DEFAULT_APP_PLAN,
@@ -224,24 +208,25 @@ export const updateOrCreateUser = internalMutation({
       name: `${clerkUser.first_name} ${clerkUser.last_name}`,
       image: clerkUser.image_url,
       email: clerkUser.email_addresses[0].email_address,
-      emailVerificationTime: clerkUser.email_addresses[0].verification?.status === 'verified' ? Date.now() : undefined,
+      emailVerificationTime:
+        clerkUser.email_addresses[0].verification?.status === 'verified' ? Date.now() : undefined,
       clerkUserId: clerkUser.id,
     })
 
-    return userRecord?._id || null;
+    return userRecord?._id || null
   },
-});
+})
 
 /** Delete a user by clerk user ID. */
 export const deleteUser = internalMutation({
   args: { id: v.string() },
   async handler(ctx, { id }) {
-    const userRecord = await userQuery(ctx, id);
+    const userRecord = await userQuery(ctx, id)
 
     if (userRecord === null) {
-      console.warn("can't delete user, does not exist", id);
+      console.warn("can't delete user, does not exist", id)
     } else {
-      await ctx.db.delete(userRecord._id);
+      await ctx.db.delete(userRecord._id)
     }
   },
-});
+})

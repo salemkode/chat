@@ -1,0 +1,15 @@
+{
+  "name": "sandbox-server",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "node --watch src/server.cjs",
+    "start": "node src/server.cjs"
+  },
+  "dependencies": {
+    "vm2": "^3.9.19"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

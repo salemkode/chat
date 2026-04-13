@@ -1,9 +1,4 @@
-import {
-  ClerkLoaded,
-  ClerkLoading,
-  Show,
-  SignIn,
-} from '@clerk/react-router'
+import { ClerkLoaded, ClerkLoading, Show, SignIn } from '@clerk/react-router'
 import { Navigate, useSearchParams } from 'react-router'
 import { useEffect } from 'react'
 import { AuthLoadingScreen } from '@/components/auth/auth-loading-screen'
@@ -18,11 +13,8 @@ export default function LoginPage() {
   const isProduction = import.meta.env.PROD
   const redirect = searchParams.get('redirect') ?? undefined
   const targetAfterLogin = getPostLoginRedirectTarget(redirect)
-  const authFrontendBase = resolveAuthFrontendBaseUrl(
-    import.meta.env.VITE_AUTH_FRONTEND_URL,
-  )
-  const useExternalAuth =
-    isProduction && !isLocalhost && Boolean(authFrontendBase)
+  const authFrontendBase = resolveAuthFrontendBaseUrl(import.meta.env.VITE_AUTH_FRONTEND_URL)
+  const useExternalAuth = isProduction && !isLocalhost && Boolean(authFrontendBase)
   const redirectProps = redirect
     ? {
         forceRedirectUrl: targetAfterLogin,
@@ -47,12 +39,7 @@ export default function LoginPage() {
         <Show when="signed-out">
           {!useExternalAuth ? (
             <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-              <SignIn
-                path="/login"
-                routing="path"
-                signUpUrl="/signup"
-                {...redirectProps}
-              />
+              <SignIn path="/login" routing="path" signUpUrl="/signup" {...redirectProps} />
             </div>
           ) : null}
           {useExternalAuth && authFrontendBase ? (

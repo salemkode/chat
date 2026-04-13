@@ -1,9 +1,7 @@
 import type { FunctionReturnType } from 'convex/server'
 import type { api } from '@convex/_generated/api'
 
-export type MessageData = FunctionReturnType<
-  typeof api.chat.listMessages
->['page'][number]
+export type MessageData = FunctionReturnType<typeof api.chat.listMessages>['page'][number]
 
 export type MessageFilePart = {
   url: string
@@ -11,9 +9,7 @@ export type MessageFilePart = {
   filename?: string
 }
 
-export function getMessageFileParts(
-  parts: Array<Record<string, unknown>>,
-): MessageFilePart[] {
+export function getMessageFileParts(parts: Array<Record<string, unknown>>): MessageFilePart[] {
   const files: MessageFilePart[] = []
 
   for (const part of parts) {
@@ -23,10 +19,7 @@ export function getMessageFileParts(
 
     files.push({
       url: part.url,
-      mediaType:
-        typeof part.mediaType === 'string'
-          ? part.mediaType
-          : 'application/octet-stream',
+      mediaType: typeof part.mediaType === 'string' ? part.mediaType : 'application/octet-stream',
       filename: typeof part.filename === 'string' ? part.filename : undefined,
     })
   }

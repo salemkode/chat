@@ -1,10 +1,4 @@
-import {
-  action,
-  mutation,
-  query,
-  type ActionCtx,
-  type QueryCtx,
-} from '../_generated/server'
+import { action, mutation, query, type ActionCtx, type QueryCtx } from '../_generated/server'
 import { v, ConvexError } from 'convex/values'
 import { paginationOptsValidator } from 'convex/server'
 import { type AuthCtx, getAuthUserId } from '../lib/auth'
@@ -22,6 +16,11 @@ import {
   scopedMemorySourceValidator,
   userMemorySourceValidator,
 } from './memoryShared'
+import {
+  ensureProjectOwnerMembership,
+  listAccessibleProjectIds,
+  requireProjectRole,
+} from '../lib/projectAccess'
 
 type MemoryQueryCtx = QueryCtx
 type MemoryActionCtx = ActionCtx
@@ -97,14 +96,12 @@ async function assertProjectOwnership(
   ctx: MemoryActionCtx,
   args: { projectId: Id<'projects'>; userId: Id<'users'> },
 ) {
-  const project = await ctx.runQuery(
-    internal.functions.memoryInternal.getProjectById,
-    {
-      projectId: args.projectId,
-    },
-  )
-
-  if (!project || project.userId !== args.userId) {
+  const hasAccess = await ctx.runQuery(internal.functions.memoryInternal.hasProjectAccessForUser, {
+    projectId: args.projectId,
+    userId: args.userId,
+    minimumRole: 'viewer',
+  })
+  if (!hasAccess) {
     throw new ConvexError({
       code: 'NOT_FOUND',
       message: 'Project not found or you do not have access to it',
@@ -189,18 +186,15 @@ export const createUserMemory = action({
     ensureOpenRouterConfigured()
     const userId = await requireUserId(ctx)
 
-    return await ctx.runAction(
-      internal.functions.memoryInternal.createMemoryInScope,
-      {
-        scope: 'user',
-        userId,
-        title: args.title,
-        content: args.content,
-        category: args.category,
-        tags: args.tags,
-        source: 'manual',
-      },
-    )
+    return await ctx.runAction(internal.functions.memoryInternal.createMemoryInScope, {
+      scope: 'user',
+      userId,
+      title: args.title,
+      content: args.content,
+      category: args.category,
+      tags: args.tags,
+      source: 'manual',
+    })
   },
 })
 
@@ -218,19 +212,16 @@ export const createThreadMemory = action({
     const userId = await requireUserId(ctx)
     await assertThreadOwnership(ctx, { threadId: args.threadId, userId })
 
-    return await ctx.runAction(
-      internal.functions.memoryInternal.createMemoryInScope,
-      {
-        scope: 'thread',
-        userId,
-        threadId: args.threadId,
-        title: args.title,
-        content: args.content,
-        category: args.category,
-        tags: args.tags,
-        source: 'manual',
-      },
-    )
+    return await ctx.runAction(internal.functions.memoryInternal.createMemoryInScope, {
+      scope: 'thread',
+      userId,
+      threadId: args.threadId,
+      title: args.title,
+      content: args.content,
+      category: args.category,
+      tags: args.tags,
+      source: 'manual',
+    })
   },
 })
 
@@ -248,19 +239,16 @@ export const createProjectMemory = action({
     const userId = await requireUserId(ctx)
     await assertProjectOwnership(ctx, { projectId: args.projectId, userId })
 
-    return await ctx.runAction(
-      internal.functions.memoryInternal.createMemoryInScope,
-      {
-        scope: 'project',
-        userId,
-        projectId: args.projectId,
-        title: args.title,
-        content: args.content,
-        category: args.category,
-        tags: args.tags,
-        source: 'manual',
-      },
-    )
+    return await ctx.runAction(internal.functions.memoryInternal.createMemoryInScope, {
+      scope: 'project',
+      userId,
+      projectId: args.projectId,
+      title: args.title,
+      content: args.content,
+      category: args.category,
+      tags: args.tags,
+      source: 'manual',
+    })
   },
 })
 
@@ -348,8 +336,13 @@ export const listProjectMemories = query({
     const userId = await requireUserId(ctx)
 
     if (args.projectId) {
-      const project = await ctx.db.get(args.projectId)
-      if (!project || project.userId !== userId) {
+      try {
+        await requireProjectRole(ctx, {
+          projectId: args.projectId,
+          userId,
+          minimumRole: 'viewer',
+        })
+      } catch {
         throw new ConvexError({
           code: 'NOT_FOUND',
           message: 'Project not found',
@@ -390,13 +383,10 @@ export const updateMemory = action({
     ensureOpenRouterConfigured()
     const userId = await requireUserId(ctx)
 
-    return await ctx.runAction(
-      internal.functions.memoryInternal.updateMemoryInScope,
-      {
-        ...args,
-        userId,
-      },
-    )
+    return await ctx.runAction(internal.functions.memoryInternal.updateMemoryInScope, {
+      ...args,
+      userId,
+    })
   },
 })
 
@@ -411,13 +401,10 @@ export const deleteMemory = action({
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx)
 
-    return await ctx.runAction(
-      internal.functions.memoryInternal.deleteMemoryInScope,
-      {
-        ...args,
-        userId,
-      },
-    )
+    return await ctx.runAction(internal.functions.memoryInternal.deleteMemoryInScope, {
+      ...args,
+      userId,
+    })
   },
 })
 
@@ -433,11 +420,21 @@ export const createProject = mutation({
     const projectId = await ctx.db.insert('projects', {
       name: args.name.trim(),
       description: args.description?.trim() || undefined,
+      ownerUserId: userId,
       userId,
+      visibility: 'private',
       threadIds: [],
       createdAt: Date.now(),
       updatedAt: Date.now(),
     })
+
+    const project = await ctx.db.get(projectId)
+    if (project) {
+      await ensureProjectOwnerMembership(ctx, {
+        project,
+        userId,
+      })
+    }
 
     return { projectId: projectId.toString() }
   },
@@ -449,11 +446,10 @@ export const listProjects = query({
   handler: async (ctx) => {
     const userId = await requireUserId(ctx)
 
-    const projects = await ctx.db
-      .query('projects')
-      .withIndex('by_user', (q) => q.eq('userId', userId))
-      .order('desc')
-      .collect()
+    const projectIds = await listAccessibleProjectIds(ctx, userId)
+    const projects = (await Promise.all(projectIds.map((projectId) => ctx.db.get(projectId))))
+      .filter((project): project is NonNullable<typeof project> => project !== null)
+      .sort((left, right) => right.updatedAt - left.updatedAt)
 
     return projects.map((project) => ({
       id: project._id.toString(),
@@ -477,7 +473,9 @@ export const getProjectById = query({
       _creationTime: v.number(),
       name: v.string(),
       description: v.optional(v.string()),
-      userId: v.id('users'),
+      ownerUserId: v.id('users'),
+      userId: v.optional(v.id('users')),
+      visibility: v.union(v.literal('private'), v.literal('shared')),
       threadIds: v.optional(v.array(v.string())),
       createdAt: v.number(),
       updatedAt: v.number(),
@@ -485,7 +483,23 @@ export const getProjectById = query({
   ),
   handler: async (ctx, args) => {
     const project = await ctx.db.get(args.projectId)
-    return project ?? null
+    if (!project) {
+      return null
+    }
+
+    const ownerUserId = project.ownerUserId ?? project.userId
+    if (!ownerUserId) {
+      // Ignore malformed legacy rows that have no recoverable owner.
+      return null
+    }
+
+    return {
+      ...project,
+      ownerUserId,
+      userId: project.userId ?? ownerUserId,
+      visibility: project.visibility ?? 'private',
+      threadIds: project.threadIds ?? [],
+    }
   },
 })
 
@@ -497,12 +511,24 @@ export const addThreadToProject = mutation({
   returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx)
-    const project = await ctx.db.get(args.projectId)
-
-    if (!project || project.userId !== userId) {
+    try {
+      await requireProjectRole(ctx, {
+        projectId: args.projectId,
+        userId,
+        minimumRole: 'viewer',
+      })
+    } catch {
       throw new ConvexError({
         code: 'NOT_FOUND',
         message: 'Project not found or you do not have permission to update it',
+      })
+    }
+
+    const project = await ctx.db.get(args.projectId)
+    if (!project) {
+      throw new ConvexError({
+        code: 'NOT_FOUND',
+        message: 'Project not found',
       })
     }
 
@@ -646,46 +672,29 @@ export const searchMemory = action({
           })
         : Promise.resolve([]),
       idsByScope.thread.length
-        ? ctx.runQuery(
-            internal.functions.memoryInternal.getThreadMemoriesByIds,
-            {
-              ids: idsByScope.thread,
-            },
-          )
+        ? ctx.runQuery(internal.functions.memoryInternal.getThreadMemoriesByIds, {
+            ids: idsByScope.thread,
+          })
         : Promise.resolve([]),
       idsByScope.project.length
-        ? ctx.runQuery(
-            internal.functions.memoryInternal.getProjectMemoriesByIds,
-            {
-              ids: idsByScope.project,
-            },
-          )
+        ? ctx.runQuery(internal.functions.memoryInternal.getProjectMemoriesByIds, {
+            ids: idsByScope.project,
+          })
         : Promise.resolve([]),
     ])
 
     const memoryMap = new Map<string, ReturnType<typeof formatMemory>>()
     for (const memory of userDocs) {
-      memoryMap.set(
-        `user:${memory._id.toString()}`,
-        formatMemory('user', memory),
-      )
+      memoryMap.set(`user:${memory._id.toString()}`, formatMemory('user', memory))
     }
     for (const memory of threadDocs) {
-      memoryMap.set(
-        `thread:${memory._id.toString()}`,
-        formatMemory('thread', memory),
-      )
+      memoryMap.set(`thread:${memory._id.toString()}`, formatMemory('thread', memory))
     }
     for (const memory of projectDocs) {
-      memoryMap.set(
-        `project:${memory._id.toString()}`,
-        formatMemory('project', memory),
-      )
+      memoryMap.set(`project:${memory._id.toString()}`, formatMemory('project', memory))
     }
 
-    const categorySet = args.categories?.length
-      ? new Set(args.categories)
-      : null
+    const categorySet = args.categories?.length ? new Set(args.categories) : null
     const hits = entries
       .map((entry, index) => {
         const metadata =
@@ -698,18 +707,14 @@ export const searchMemory = action({
           metadata?.scope === 'project'
             ? metadata.scope
             : undefined
-        const memoryId =
-          typeof metadata?.memoryId === 'string' ? metadata.memoryId : undefined
+        const memoryId = typeof metadata?.memoryId === 'string' ? metadata.memoryId : undefined
 
         if (!entryScope || !memoryId) return null
 
         const memory = memoryMap.get(`${entryScope}:${memoryId}`)
         if (!memory) return null
 
-        if (
-          categorySet &&
-          (!memory.category || !categorySet.has(memory.category))
-        ) {
+        if (categorySet && (!memory.category || !categorySet.has(memory.category))) {
           return null
         }
 

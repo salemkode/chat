@@ -7,10 +7,7 @@ export const memoryScopeValidator = v.union(
   v.literal('project'),
 )
 
-export const publicMemoryScopeValidator = v.union(
-  memoryScopeValidator,
-  v.literal('all'),
-)
+export const publicMemoryScopeValidator = v.union(memoryScopeValidator, v.literal('all'))
 
 export const userMemorySourceValidator = v.union(
   v.literal('manual'),
@@ -18,10 +15,7 @@ export const userMemorySourceValidator = v.union(
   v.literal('system'),
 )
 
-export const scopedMemorySourceValidator = v.union(
-  v.literal('manual'),
-  v.literal('extracted'),
-)
+export const scopedMemorySourceValidator = v.union(v.literal('manual'), v.literal('extracted'))
 
 export const extractionStatusValidator = v.union(
   v.literal('idle'),
@@ -49,10 +43,7 @@ export type MemoryListItem = {
   updatedAt: number
 }
 
-export type AnyMemoryDoc =
-  | Doc<'userMemories'>
-  | Doc<'threadMemories'>
-  | Doc<'projectMemories'>
+export type AnyMemoryDoc = Doc<'userMemories'> | Doc<'threadMemories'> | Doc<'projectMemories'>
 
 export function normalizeMemoryContent(content: string) {
   return content.replace(/\r\n/g, '\n').trim()
@@ -82,9 +73,7 @@ export async function hashMemoryContent(content: string) {
   const normalized = normalizeMemoryContent(content).toLowerCase()
   const encoded = new TextEncoder().encode(normalized)
   const digest = await crypto.subtle.digest('SHA-256', encoded)
-  return Array.from(new Uint8Array(digest), (byte) =>
-    byte.toString(16).padStart(2, '0'),
-  ).join('')
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
 export function buildRagKey(scope: MemoryScope, memoryId: string) {
@@ -119,10 +108,7 @@ export function scopeToTable(scope: MemoryScope) {
   }
 }
 
-export function formatMemory(
-  scope: MemoryScope,
-  memory: AnyMemoryDoc,
-): MemoryListItem {
+export function formatMemory(scope: MemoryScope, memory: AnyMemoryDoc): MemoryListItem {
   return {
     memoryId: memory._id.toString(),
     scope,
@@ -158,10 +144,7 @@ export function matchesMemoryFilters(
     return false
   }
 
-  if (
-    args.tags?.length &&
-    !args.tags.every((tag) => memory.tags?.includes(tag.toLowerCase()))
-  ) {
+  if (args.tags?.length && !args.tags.every((tag) => memory.tags?.includes(tag.toLowerCase()))) {
     return false
   }
 
@@ -244,10 +227,7 @@ export function extractMessageText(
 const EPHEMERAL_PATTERN =
   /\b(today|tonight|tomorrow|right now|currently|for now|this week|this morning|this afternoon|this evening|temporarily)\b/i
 
-export function shouldSkipExtractedMemory(args: {
-  title: string
-  content: string
-}) {
+export function shouldSkipExtractedMemory(args: { title: string; content: string }) {
   const content = `${args.title} ${args.content}`.trim()
   if (content.length < 12) return true
   return EPHEMERAL_PATTERN.test(content)

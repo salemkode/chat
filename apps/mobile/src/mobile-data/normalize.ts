@@ -43,6 +43,7 @@ export function normalizeModel(model: any): MobileOfflineModelRecord {
     modelId: model.modelId,
     displayName: model.displayName,
     description: model.description,
+    capabilities: Array.isArray(model.capabilities) ? model.capabilities : undefined,
     sortOrder: model.sortOrder,
     isFavorite: Boolean(model.isFavorite),
   }

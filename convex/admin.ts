@@ -7,7 +7,7 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from './_generated/server'
-import { internal } from './_generated/api'
+import { api, internal } from './_generated/api'
 import { ConvexError, v } from 'convex/values'
 import { getAuthUserId } from './lib/auth'
 import { fetchProviderCatalog } from './lib/providerCatalog'
@@ -21,11 +21,7 @@ import {
   rateLimitPolicyValidator,
 } from './lib/validators'
 import type { Id } from './_generated/dataModel'
-import {
-  appPlanValidator,
-  DEFAULT_APP_PLAN,
-  isModelUsableForPlan,
-} from './lib/appPlan'
+import { appPlanValidator, DEFAULT_APP_PLAN, isModelUsableForPlan } from './lib/appPlan'
 import { getModelOfferAccessFlags } from './lib/modelOffersAccess'
 import {
   getAppBillingSubscription,
@@ -35,11 +31,7 @@ import {
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
-const reasoningLevelValidator = v.union(
-  v.literal('low'),
-  v.literal('medium'),
-  v.literal('high'),
-)
+const reasoningLevelValidator = v.union(v.literal('low'), v.literal('medium'), v.literal('high'))
 
 const modelReasoningDefaultValidator = v.union(
   v.literal('off'),
@@ -48,10 +40,13 @@ const modelReasoningDefaultValidator = v.union(
   v.literal('high'),
 )
 
-const userRoleValidator = v.union(
-  v.literal('owner'),
-  v.literal('admin'),
-  v.literal('member'),
+const userRoleValidator = v.union(v.literal('owner'), v.literal('admin'), v.literal('member'))
+
+const autoModelRouterPreferenceValidator = v.union(
+  v.literal('balanced'),
+  v.literal('cost'),
+  v.literal('speed'),
+  v.literal('quality'),
 )
 
 const adminSettingsValidator = v.object({
@@ -59,6 +54,10 @@ const adminSettingsValidator = v.object({
   key: v.string(),
   appPlan: appPlanValidator,
   defaultRateLimit: v.optional(rateLimitPolicyValidator),
+  autoModelRoutingEnabled: v.optional(v.boolean()),
+  autoModelRouterUrl: v.optional(v.string()),
+  autoModelRouterApiKey: v.optional(v.string()),
+  autoModelRouterPreference: v.optional(autoModelRouterPreferenceValidator),
   updatedAt: v.number(),
 })
 
@@ -267,10 +266,7 @@ const publicModelCollectionValidator = v.object({
   modelCount: v.number(),
 })
 
-const modelOfferKindValidator = v.union(
-  v.literal('free_access'),
-  v.literal('availability_window'),
-)
+const modelOfferKindValidator = v.union(v.literal('free_access'), v.literal('availability_window'))
 
 const modelOfferRowValidator = v.object({
   _id: v.id('modelOffers'),
@@ -285,10 +281,7 @@ const modelOfferRowValidator = v.object({
   updatedAt: v.number(),
 })
 
-async function hasAdminAccess(
-  ctx: MutationCtx | QueryCtx,
-  userId: Id<'users'>,
-) {
+async function hasAdminAccess(ctx: MutationCtx | QueryCtx, userId: Id<'users'>) {
   const [roleRecord, legacyAdmin] = await Promise.all([
     ctx.db
       .query('userRoles')
@@ -303,10 +296,7 @@ async function hasAdminAccess(
   return role === 'owner' || role === 'admin'
 }
 
-async function getRoleContextForUser(
-  ctx: MutationCtx | QueryCtx,
-  userId: Id<'users'> | null,
-) {
+async function getRoleContextForUser(ctx: MutationCtx | QueryCtx, userId: Id<'users'> | null) {
   if (!userId) {
     return { role: 'member' as const, isAdminLike: false }
   }
@@ -360,29 +350,58 @@ async function getCurrentAdminSettings(ctx: QueryCtx | MutationCtx) {
       key: 'global',
       appPlan: DEFAULT_APP_PLAN,
       defaultRateLimit: undefined,
+      autoModelRoutingEnabled: false,
+      autoModelRouterUrl: undefined,
+      autoModelRouterApiKey: undefined,
+      autoModelRouterPreference: 'balanced',
       updatedAt: 0,
     }
   )
 }
 
-function cleanUpdates<T extends Record<string, unknown>>(updates: T) {
-  return Object.fromEntries(
-    Object.entries(updates).filter(([, value]) => value !== undefined),
+function isAutoModelRoutingAvailable(settings: {
+  autoModelRoutingEnabled?: boolean
+  autoModelRouterUrl?: string
+  autoModelRouterApiKey?: string
+}) {
+  return (
+    settings.autoModelRoutingEnabled === true &&
+    Boolean(settings.autoModelRouterUrl?.trim()) &&
+    Boolean(settings.autoModelRouterApiKey?.trim())
   )
+}
+
+function normalizeRouterBaseUrl(rawUrl: string) {
+  try {
+    const url = new URL(rawUrl)
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      return null
+    }
+    return url
+  } catch {
+    return null
+  }
+}
+
+function withPath(baseUrl: URL, path: string) {
+  const next = new URL(baseUrl.toString())
+  next.pathname = path
+  next.search = ''
+  next.hash = ''
+  return next.toString()
+}
+
+function cleanUpdates<T extends Record<string, unknown>>(updates: T) {
+  return Object.fromEntries(Object.entries(updates).filter(([, value]) => value !== undefined))
 }
 
 function normalizeIsFree(modelId: string) {
   return modelId.includes(':free') || modelId.endsWith('-free')
 }
 
-async function normalizeCollectionModelIds(
-  ctx: MutationCtx,
-  modelIds: Id<'models'>[],
-) {
+async function normalizeCollectionModelIds(ctx: MutationCtx, modelIds: Id<'models'>[]) {
   const uniqueModelIds = [...new Set(modelIds)]
-  const models = await Promise.all(
-    uniqueModelIds.map((modelId) => ctx.db.get(modelId)),
-  )
+  const models = await Promise.all(uniqueModelIds.map((modelId) => ctx.db.get(modelId)))
   const missingModelId = uniqueModelIds.find((_, index) => !models[index])
 
   if (missingModelId) {
@@ -468,6 +487,10 @@ export const getAdminSettings = query({
         key: 'global',
         appPlan: DEFAULT_APP_PLAN,
         defaultRateLimit: undefined,
+        autoModelRoutingEnabled: false,
+        autoModelRouterUrl: undefined,
+        autoModelRouterApiKey: undefined,
+        autoModelRouterPreference: 'balanced',
         updatedAt: 0,
       }
 
@@ -479,6 +502,10 @@ export const updateAdminSettings = mutation({
   args: {
     appPlan: v.optional(appPlanValidator),
     defaultRateLimit: v.optional(rateLimitPolicyValidator),
+    autoModelRoutingEnabled: v.optional(v.boolean()),
+    autoModelRouterUrl: v.optional(v.string()),
+    autoModelRouterApiKey: v.optional(v.string()),
+    autoModelRouterPreference: v.optional(autoModelRouterPreferenceValidator),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
@@ -492,10 +519,24 @@ export const updateAdminSettings = mutation({
       .withIndex('by_key', (q) => q.eq('key', 'global'))
       .first()
 
+    const nextRouterUrl =
+      (args.autoModelRouterUrl ?? existing?.autoModelRouterUrl)?.trim() || undefined
+    const nextRouterApiKey =
+      (args.autoModelRouterApiKey ?? existing?.autoModelRouterApiKey)?.trim() || undefined
+    const autoEnableFromRouterUrlInput =
+      typeof args.autoModelRouterUrl === 'string' && args.autoModelRouterUrl.trim().length > 0
+
     const patch = {
       key: 'global',
       appPlan: args.appPlan ?? existing?.appPlan ?? DEFAULT_APP_PLAN,
       defaultRateLimit: args.defaultRateLimit,
+      autoModelRoutingEnabled: autoEnableFromRouterUrlInput
+        ? true
+        : (args.autoModelRoutingEnabled ?? existing?.autoModelRoutingEnabled),
+      autoModelRouterUrl: nextRouterUrl,
+      autoModelRouterApiKey: nextRouterApiKey,
+      autoModelRouterPreference:
+        args.autoModelRouterPreference ?? existing?.autoModelRouterPreference ?? 'balanced',
       updatedAt: Date.now(),
     }
 
@@ -505,6 +546,245 @@ export const updateAdminSettings = mutation({
     }
 
     return await ctx.db.insert('adminSettings', patch)
+  },
+})
+
+export const verifyAutoModelRouterConnection = action({
+  args: {
+    routerUrl: v.optional(v.string()),
+    routerApiKey: v.optional(v.string()),
+  },
+  returns: v.object({
+    ok: v.boolean(),
+    message: v.string(),
+    reachable: v.boolean(),
+    authenticated: v.boolean(),
+    contractMatched: v.boolean(),
+    expectedContract: v.string(),
+    healthStatus: v.optional(v.string()),
+  }),
+  handler: async (ctx, args) => {
+    const expectedContract = 'auto-model-router-v1'
+    const adminContext = await ctx.runQuery(internal.admin.getAdminContext, {})
+    if (!adminContext.isAdmin) {
+      return {
+        ok: false,
+        message: 'Admin access required',
+        reachable: false,
+        authenticated: false,
+        contractMatched: false,
+        expectedContract,
+        healthStatus: undefined,
+      }
+    }
+
+    const settings = await ctx.runQuery(api.admin.getAdminSettings, {})
+    const routerUrl = (args.routerUrl ?? settings.autoModelRouterUrl ?? '').trim()
+    const routerApiKey = (args.routerApiKey ?? settings.autoModelRouterApiKey ?? '').trim()
+
+    if (!routerUrl) {
+      return {
+        ok: false,
+        message: 'Router URL is required',
+        reachable: false,
+        authenticated: false,
+        contractMatched: false,
+        expectedContract,
+        healthStatus: undefined,
+      }
+    }
+
+    if (!routerApiKey) {
+      return {
+        ok: false,
+        message: 'Router API key is required',
+        reachable: false,
+        authenticated: false,
+        contractMatched: false,
+        expectedContract,
+        healthStatus: undefined,
+      }
+    }
+
+    const routerBaseUrl = normalizeRouterBaseUrl(routerUrl)
+    if (!routerBaseUrl) {
+      return {
+        ok: false,
+        message: 'Router URL must be a valid http(s) URL',
+        reachable: false,
+        authenticated: false,
+        contractMatched: false,
+        expectedContract,
+        healthStatus: undefined,
+      }
+    }
+
+    const healthUrl = withPath(routerBaseUrl, '/healthz')
+    const capabilitiesUrl = withPath(routerBaseUrl, '/capabilities')
+    const modelsUrl = withPath(routerBaseUrl, '/models')
+
+    try {
+      const healthResponse = await fetch(healthUrl, {
+        method: 'GET',
+      })
+      if (!healthResponse.ok) {
+        return {
+          ok: false,
+          message: `Router health check failed with ${healthResponse.status}`,
+          reachable: false,
+          authenticated: false,
+          contractMatched: false,
+          expectedContract,
+          healthStatus: undefined,
+        }
+      }
+
+      const healthPayload = (await healthResponse.json()) as {
+        status?: string
+      }
+      if (healthPayload.status !== 'ok') {
+        return {
+          ok: false,
+          message: 'Router health check did not return status=ok',
+          reachable: true,
+          authenticated: false,
+          contractMatched: false,
+          expectedContract,
+          healthStatus: healthPayload.status,
+        }
+      }
+
+      const authHeaders = {
+        authorization: `Bearer ${routerApiKey}`,
+      }
+
+      const capabilitiesResponse = await fetch(capabilitiesUrl, {
+        method: 'GET',
+        headers: authHeaders,
+      })
+      if (capabilitiesResponse.status === 401) {
+        return {
+          ok: false,
+          message: 'Router API key is invalid',
+          reachable: true,
+          authenticated: false,
+          contractMatched: false,
+          expectedContract,
+          healthStatus: healthPayload.status,
+        }
+      }
+      if (capabilitiesResponse.status === 404) {
+        return {
+          ok: false,
+          message:
+            'Router is reachable but missing /capabilities. Deploy the latest router-agent service.',
+          reachable: true,
+          authenticated: true,
+          contractMatched: false,
+          expectedContract,
+          healthStatus: healthPayload.status,
+        }
+      }
+      if (!capabilitiesResponse.ok) {
+        return {
+          ok: false,
+          message: `Router capabilities check failed with ${capabilitiesResponse.status}`,
+          reachable: true,
+          authenticated: true,
+          contractMatched: false,
+          expectedContract,
+          healthStatus: healthPayload.status,
+        }
+      }
+
+      const capabilitiesPayload = (await capabilitiesResponse.json()) as {
+        contract?: string
+      }
+      const contractMatched = capabilitiesPayload.contract === expectedContract
+      if (!contractMatched) {
+        return {
+          ok: false,
+          message: `Router contract mismatch. Expected ${expectedContract}.`,
+          reachable: true,
+          authenticated: true,
+          contractMatched: false,
+          expectedContract,
+          healthStatus: healthPayload.status,
+        }
+      }
+
+      const modelsResponse = await fetch(modelsUrl, {
+        method: 'GET',
+        headers: authHeaders,
+      })
+      if (modelsResponse.status === 401) {
+        return {
+          ok: false,
+          message: 'Router API key is invalid for model registry endpoint',
+          reachable: true,
+          authenticated: false,
+          contractMatched: true,
+          expectedContract,
+          healthStatus: healthPayload.status,
+        }
+      }
+      if (!modelsResponse.ok) {
+        return {
+          ok: false,
+          message: `Router models check failed with ${modelsResponse.status}`,
+          reachable: true,
+          authenticated: true,
+          contractMatched: true,
+          expectedContract,
+          healthStatus: healthPayload.status,
+        }
+      }
+
+      const modelsPayload = (await modelsResponse.json()) as {
+        version?: unknown
+        count?: unknown
+        models?: unknown
+      }
+      const modelsSchemaValid =
+        typeof modelsPayload.version === 'number' &&
+        typeof modelsPayload.count === 'number' &&
+        Array.isArray(modelsPayload.models)
+
+      if (!modelsSchemaValid) {
+        return {
+          ok: false,
+          message: 'Router /models response schema is invalid',
+          reachable: true,
+          authenticated: true,
+          contractMatched: true,
+          expectedContract,
+          healthStatus: healthPayload.status,
+        }
+      }
+
+      return {
+        ok: true,
+        message: 'Router connection verified successfully',
+        reachable: true,
+        authenticated: true,
+        contractMatched: true,
+        expectedContract,
+        healthStatus: healthPayload.status,
+      }
+    } catch (error) {
+      return {
+        ok: false,
+        message:
+          error instanceof Error
+            ? `Could not reach router: ${error.message}`
+            : 'Could not reach router',
+        reachable: false,
+        authenticated: false,
+        contractMatched: false,
+        expectedContract,
+        healthStatus: undefined,
+      }
+    }
   },
 })
 
@@ -648,9 +928,7 @@ export const listAllModels = query({
       ctx.db.query('models').collect(),
       ctx.db.query('providers').collect(),
     ])
-    const providerMap = new Map(
-      providers.map((provider) => [provider._id, provider]),
-    )
+    const providerMap = new Map(providers.map((provider) => [provider._id, provider]))
 
     return await Promise.all(
       models
@@ -691,15 +969,9 @@ export const listEnabledModels = query({
       getCurrentAdminSettings(ctx),
       ctx.db.get(userId),
     ])
-    const effectiveAppPlan = await resolveEffectiveAppPlan(
-      ctx,
-      settings,
-      user ?? undefined,
-    )
+    const effectiveAppPlan = await resolveEffectiveAppPlan(ctx, settings, user ?? undefined)
 
-    const enabledProviderIds = new Set(
-      providers.map((provider) => provider._id),
-    )
+    const enabledProviderIds = new Set(providers.map((provider) => provider._id))
 
     const nowMs = Date.now()
     const modelOffers = await ctx.db.query('modelOffers').collect()
@@ -726,6 +998,7 @@ export const listEnabledModels = query({
 export const listModelsWithProviders = query({
   args: {},
   returns: v.object({
+    autoModelAvailable: v.boolean(),
     collections: v.array(publicModelCollectionValidator),
     providers: v.array(providerSummaryValidator),
     favorites: v.array(modelWithProviderValidator),
@@ -734,42 +1007,39 @@ export const listModelsWithProviders = query({
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) {
-      return { collections: [], providers: [], favorites: [], models: [] }
+      return {
+        autoModelAvailable: false,
+        collections: [],
+        providers: [],
+        favorites: [],
+        models: [],
+      }
     }
 
-    const [models, providers, favorites, settings, user, collections] =
-      await Promise.all([
-        ctx.db
-          .query('models')
-          .withIndex('by_enabled', (q) => q.eq('isEnabled', true))
-          .collect(),
-        ctx.db
-          .query('providers')
-          .withIndex('by_enabled', (q) => q.eq('isEnabled', true))
-          .collect(),
-        ctx.db
-          .query('userFavoriteModels')
-          .withIndex('by_user', (q) => q.eq('userId', userId))
-          .collect(),
-        getCurrentAdminSettings(ctx),
-        ctx.db.get(userId),
-        ctx.db.query('modelCollections').collect(),
-      ])
-    const effectiveAppPlan = await resolveEffectiveAppPlan(
-      ctx,
-      settings,
-      user ?? undefined,
-    )
+    const [models, providers, favorites, settings, user, collections] = await Promise.all([
+      ctx.db
+        .query('models')
+        .withIndex('by_enabled', (q) => q.eq('isEnabled', true))
+        .collect(),
+      ctx.db
+        .query('providers')
+        .withIndex('by_enabled', (q) => q.eq('isEnabled', true))
+        .collect(),
+      ctx.db
+        .query('userFavoriteModels')
+        .withIndex('by_user', (q) => q.eq('userId', userId))
+        .collect(),
+      getCurrentAdminSettings(ctx),
+      ctx.db.get(userId),
+      ctx.db.query('modelCollections').collect(),
+    ])
+    const effectiveAppPlan = await resolveEffectiveAppPlan(ctx, settings, user ?? undefined)
 
     const nowMs = Date.now()
     const modelOffers = await ctx.db.query('modelOffers').collect()
 
-    const favoriteModelIds = new Set(
-      favorites.map((favorite) => favorite.modelId),
-    )
-    const providerMap = new Map(
-      providers.map((provider) => [provider._id, provider]),
-    )
+    const favoriteModelIds = new Set(favorites.map((favorite) => favorite.modelId))
+    const providerMap = new Map(providers.map((provider) => [provider._id, provider]))
 
     const modelsWithInfo = await Promise.all(
       models
@@ -834,9 +1104,7 @@ export const listModelsWithProviders = query({
     const visibleModelIds = new Set(modelsWithInfo.map((model) => model._id))
     const collectionRows = collections
       .map((collection) => {
-        const modelIds = collection.modelIds.filter((modelId) =>
-          visibleModelIds.has(modelId),
-        )
+        const modelIds = collection.modelIds.filter((modelId) => visibleModelIds.has(modelId))
 
         return {
           ...collection,
@@ -853,12 +1121,11 @@ export const listModelsWithProviders = query({
       })
 
     return {
+      autoModelAvailable: isAutoModelRoutingAvailable(settings),
       collections: collectionRows,
       providers: sortedProviders,
       favorites: modelsWithInfo.filter((model) => model.isFavorite),
-      models: modelsWithInfo.sort(
-        (left, right) => left.sortOrder - right.sortOrder,
-      ),
+      models: modelsWithInfo.sort((left, right) => left.sortOrder - right.sortOrder),
     }
   },
 })
@@ -873,9 +1140,7 @@ export const toggleFavoriteModel = mutation({
 
     const existing = await ctx.db
       .query('userFavoriteModels')
-      .withIndex('by_user_model', (q) =>
-        q.eq('userId', userId).eq('modelId', args.modelId),
-      )
+      .withIndex('by_user_model', (q) => q.eq('userId', userId).eq('modelId', args.modelId))
       .first()
 
     if (existing) {
@@ -906,9 +1171,7 @@ export const setFavoriteModel = mutation({
 
     const existing = await ctx.db
       .query('userFavoriteModels')
-      .withIndex('by_user_model', (q) =>
-        q.eq('userId', userId).eq('modelId', args.modelId),
-      )
+      .withIndex('by_user_model', (q) => q.eq('userId', userId).eq('modelId', args.modelId))
       .first()
 
     if (args.isFavorite) {
@@ -1257,9 +1520,7 @@ export const deleteModel = mutation({
         .filter((collection) => collection.modelIds.includes(args.id))
         .map((collection) =>
           ctx.db.patch(collection._id, {
-            modelIds: collection.modelIds.filter(
-              (modelId) => modelId !== args.id,
-            ),
+            modelIds: collection.modelIds.filter((modelId) => modelId !== args.id),
           }),
         ),
       ...favorites
@@ -1352,14 +1613,9 @@ export const importDiscoveredModels = mutation({
       .query('models')
       .withIndex('by_providerId', (q) => q.eq('providerId', args.providerId))
       .collect()
-    const existingByModelId = new Map(
-      existingModels.map((model) => [model.modelId, model]),
-    )
+    const existingByModelId = new Map(existingModels.map((model) => [model.modelId, model]))
     const nextSortOrder =
-      existingModels.reduce(
-        (max, model) => Math.max(max, model.sortOrder),
-        -1,
-      ) + 1
+      existingModels.reduce((max, model) => Math.max(max, model.sortOrder), -1) + 1
     const enableImportedModels = args.enableImportedModels ?? true
     let inserted = 0
     let updated = 0
@@ -1472,6 +1728,7 @@ export const recordModelUsage = internalMutation({
     providerType: v.string(),
     providerName: v.string(),
     modelName: v.string(),
+    routerDecisionId: v.optional(v.string()),
     promptTokens: v.number(),
     completionTokens: v.number(),
     totalTokens: v.number(),
@@ -1493,6 +1750,10 @@ export const getDashboardData = query({
           key: 'global',
           appPlan: DEFAULT_APP_PLAN,
           defaultRateLimit: undefined,
+          autoModelRoutingEnabled: false,
+          autoModelRouterUrl: undefined,
+          autoModelRouterApiKey: undefined,
+          autoModelRouterPreference: 'balanced',
           updatedAt: 0,
         },
         billing: {
@@ -1514,6 +1775,13 @@ export const getDashboardData = query({
           totalRequests30d: 0,
           totalTokens30d: 0,
           activeUsers30d: 0,
+        },
+        autoRouting: {
+          available: false,
+          totalDecisions30d: 0,
+          failedDecisions30d: 0,
+          topModels: [],
+          lastDecisionAt: undefined,
         },
         usageSeries: [],
         providers: [],
@@ -1531,6 +1799,10 @@ export const getDashboardData = query({
           key: 'global',
           appPlan: DEFAULT_APP_PLAN,
           defaultRateLimit: undefined,
+          autoModelRoutingEnabled: false,
+          autoModelRouterUrl: undefined,
+          autoModelRouterApiKey: undefined,
+          autoModelRouterPreference: 'balanced',
           updatedAt: 0,
         },
         billing: {
@@ -1552,6 +1824,13 @@ export const getDashboardData = query({
           totalRequests30d: 0,
           totalTokens30d: 0,
           activeUsers30d: 0,
+        },
+        autoRouting: {
+          available: false,
+          totalDecisions30d: 0,
+          failedDecisions30d: 0,
+          topModels: [],
+          lastDecisionAt: undefined,
         },
         usageSeries: [],
         providers: [],
@@ -1573,6 +1852,7 @@ export const getDashboardData = query({
       favorites,
       settings,
       usageEvents,
+      autoModelDecisions,
       billingSubscription,
     ] = await Promise.all([
       ctx.db.query('providers').collect(),
@@ -1585,22 +1865,20 @@ export const getDashboardData = query({
         .query('modelUsageEvents')
         .withIndex('by_createdAt', (q) => q.gte('createdAt', since30d))
         .collect(),
+      ctx.db
+        .query('autoModelDecisions')
+        .withIndex('by_createdAt', (q) => q.gte('createdAt', since30d))
+        .collect(),
       getAppBillingSubscription(ctx),
     ])
-    const hasActiveSubscription =
-      isStripeSubscriptionActive(billingSubscription)
+    const hasActiveSubscription = isStripeSubscriptionActive(billingSubscription)
     const effectiveAppPlan = hasActiveSubscription ? 'pro' : settings.appPlan
 
     const usageLast30d = usageEvents
-    const usageLast7d = usageEvents.filter(
-      (event) => event.createdAt >= since7d,
-    )
+    const usageLast7d = usageEvents.filter((event) => event.createdAt >= since7d)
     const favoritesByModelId = new Map<string, number>()
     for (const favorite of favorites) {
-      favoritesByModelId.set(
-        favorite.modelId,
-        (favoritesByModelId.get(favorite.modelId) ?? 0) + 1,
-      )
+      favoritesByModelId.set(favorite.modelId, (favoritesByModelId.get(favorite.modelId) ?? 0) + 1)
     }
 
     const usageByProviderId = new Map<
@@ -1641,10 +1919,7 @@ export const getDashboardData = query({
       providerUsage.requests += 1
       providerUsage.tokens += event.totalTokens
       providerUsage.users.add(event.userId)
-      providerUsage.lastUsedAt = Math.max(
-        providerUsage.lastUsedAt,
-        event.createdAt,
-      )
+      providerUsage.lastUsedAt = Math.max(providerUsage.lastUsedAt, event.createdAt)
       usageByProviderId.set(event.providerId, providerUsage)
 
       const modelUsage = usageByModelId.get(event.modelId) ?? {
@@ -1680,8 +1955,7 @@ export const getDashboardData = query({
       })
       const dayEnd = dayStart.getTime() + DAY_MS
       const dayEvents = usageLast7d.filter(
-        (event) =>
-          event.createdAt >= dayStart.getTime() && event.createdAt < dayEnd,
+        (event) => event.createdAt >= dayStart.getTime() && event.createdAt < dayEnd,
       )
       return {
         date: label,
@@ -1694,9 +1968,7 @@ export const getDashboardData = query({
       providers
         .sort((left, right) => left.sortOrder - right.sortOrder)
         .map(async (provider) => {
-          const providerModels = models.filter(
-            (model) => model.providerId === provider._id,
-          )
+          const providerModels = models.filter((model) => model.providerId === provider._id)
           const usage = usageByProviderId.get(provider._id)
           return {
             ...provider,
@@ -1704,8 +1976,7 @@ export const getDashboardData = query({
               ? ((await ctx.storage.getUrl(provider.iconId)) ?? undefined)
               : undefined,
             modelCount: providerModels.length,
-            enabledModelCount: providerModels.filter((model) => model.isEnabled)
-              .length,
+            enabledModelCount: providerModels.filter((model) => model.isEnabled).length,
             usage: {
               requests: usage?.requests ?? 0,
               tokens: usage?.tokens ?? 0,
@@ -1716,9 +1987,7 @@ export const getDashboardData = query({
         }),
     )
 
-    const providerMap = new Map(
-      providerRows.map((provider) => [provider._id, provider]),
-    )
+    const providerMap = new Map(providerRows.map((provider) => [provider._id, provider]))
 
     const modelRows = await Promise.all(
       models
@@ -1751,9 +2020,7 @@ export const getDashboardData = query({
       .map((collection) => {
         const collectionModels = collection.modelIds
           .map((modelId) => modelRowMap.get(modelId))
-          .filter((model): model is (typeof modelRows)[number] =>
-            Boolean(model),
-          )
+          .filter((model): model is (typeof modelRows)[number] => Boolean(model))
           .map((model) => ({
             _id: model._id,
             modelId: model.modelId,
@@ -1790,10 +2057,20 @@ export const getDashboardData = query({
       })
       .sort((left, right) => right.tokens - left.tokens)
 
-    const totalTokens = usageLast30d.reduce(
-      (sum, event) => sum + event.totalTokens,
-      0,
-    )
+    const totalTokens = usageLast30d.reduce((sum, event) => sum + event.totalTokens, 0)
+    const autoDecisionCounts = new Map<string, { name: string; count: number }>()
+    let lastAutoDecisionAt: number | undefined
+    for (const decision of autoModelDecisions) {
+      if (decision.selectedModelKey && decision.selectedModelName) {
+        const current = autoDecisionCounts.get(decision.selectedModelKey) ?? {
+          name: decision.selectedModelName,
+          count: 0,
+        }
+        current.count += 1
+        autoDecisionCounts.set(decision.selectedModelKey, current)
+      }
+      lastAutoDecisionAt = Math.max(lastAutoDecisionAt ?? 0, decision.createdAt)
+    }
 
     return {
       settings,
@@ -1813,14 +2090,28 @@ export const getDashboardData = query({
       },
       summary: {
         totalProviders: providers.length,
-        enabledProviders: providers.filter((provider) => provider.isEnabled)
-          .length,
+        enabledProviders: providers.filter((provider) => provider.isEnabled).length,
         totalModels: models.length,
         visibleModels: models.filter((model) => model.isEnabled).length,
         hiddenModels: models.filter((model) => !model.isEnabled).length,
         totalRequests30d: usageLast30d.length,
         totalTokens30d: totalTokens,
         activeUsers30d: usageByUserId.size,
+      },
+      autoRouting: {
+        available: isAutoModelRoutingAvailable(settings),
+        totalDecisions30d: autoModelDecisions.length,
+        failedDecisions30d: autoModelDecisions.filter((decision) => decision.status === 'failed')
+          .length,
+        topModels: [...autoDecisionCounts.entries()]
+          .map(([modelId, value]) => ({
+            modelId,
+            modelName: value.name,
+            count: value.count,
+          }))
+          .sort((left, right) => right.count - left.count)
+          .slice(0, 5),
+        lastDecisionAt: lastAutoDecisionAt,
       },
       usageSeries,
       providers: providerRows,
@@ -2061,9 +2352,7 @@ export const updateModelOffer = mutation({
       ...(args.startsAt !== undefined ? { startsAt: args.startsAt } : {}),
       ...(args.endsAt !== undefined ? { endsAt: args.endsAt } : {}),
       ...(args.label !== undefined ? { label: args.label } : {}),
-      ...(args.description !== undefined
-        ? { description: args.description }
-        : {}),
+      ...(args.description !== undefined ? { description: args.description } : {}),
       ...(args.isEnabled !== undefined ? { isEnabled: args.isEnabled } : {}),
       updatedAt: Date.now(),
     })

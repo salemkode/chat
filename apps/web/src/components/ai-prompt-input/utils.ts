@@ -130,19 +130,18 @@ export function isSupportedAttachment(file: File) {
 export function extractClipboardImageFiles(
   clipboardData: Pick<DataTransfer, 'files' | 'items'>,
 ): File[] {
-  const filesFromItems = Array.from(clipboardData.items ?? [])
-    .flatMap((item, index) => {
-      if (item.kind !== 'file' || !item.type.startsWith('image/')) {
-        return []
-      }
+  const filesFromItems = Array.from(clipboardData.items ?? []).flatMap((item, index) => {
+    if (item.kind !== 'file' || !item.type.startsWith('image/')) {
+      return []
+    }
 
-      const file = item.getAsFile()
-      if (!file) {
-        return []
-      }
+    const file = item.getAsFile()
+    if (!file) {
+      return []
+    }
 
-      return [normalizeClipboardImageFile(file, index)]
-    })
+    return [normalizeClipboardImageFile(file, index)]
+  })
 
   if (filesFromItems.length > 0) {
     return filesFromItems
@@ -196,9 +195,7 @@ export function buildMentionProjectOptions(args: {
       if (!needle) {
         return true
       }
-      return `${project.name}\n${project.description ?? ''}`
-        .toLowerCase()
-        .includes(needle)
+      return `${project.name}\n${project.description ?? ''}`.toLowerCase().includes(needle)
     })
     .slice(0, maxProjects)
     .map((project) => ({
@@ -237,10 +234,7 @@ export function buildPendingProjectDraft(args: {
 }): PendingProjectDraft {
   const suggestedName = args.suggestion?.name?.trim()
   const fallbackName = fallbackProjectNameFromMentionQuery(args.mentionQuery ?? '')
-  const fallbackDescription = args.draftWithoutMention
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 160)
+  const fallbackDescription = args.draftWithoutMention.replace(/\s+/g, ' ').trim().slice(0, 160)
   const normalizedDescription =
     args.suggestion?.description?.trim() || fallbackDescription || undefined
 

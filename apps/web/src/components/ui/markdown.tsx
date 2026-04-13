@@ -33,10 +33,7 @@ const INITIAL_COMPONENTS: Partial<Components> = {
     if (isInline) {
       return (
         <span
-          className={cn(
-            'bg-primary-foreground rounded-sm px-1 font-mono text-sm',
-            className,
-          )}
+          className={cn('bg-primary-foreground rounded-sm px-1 font-mono text-sm', className)}
           {...props}
         >
           {children}
@@ -66,10 +63,7 @@ const MemoizedMarkdownBlock = memo(
     components?: Partial<Components>
   }) {
     return (
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkBreaks]}
-        components={components}
-      >
+      <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={components}>
         {content}
       </ReactMarkdown>
     )

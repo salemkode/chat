@@ -5,11 +5,7 @@ import { api } from '@convex/_generated/api'
 import type { FunctionReturnType } from 'convex/server'
 import { useOnlineStatus } from '@/hooks/use-online-status'
 import { useQuery } from '@/lib/convex-query-cache'
-import {
-  readModelsCache,
-  readProjectsCache,
-  readSettings,
-} from '@/offline/local-cache'
+import { readModelsCache, readProjectsCache, readSettings } from '@/offline/local-cache'
 import {
   cacheModelsToLocal,
   cacheProjectsToLocal,
@@ -24,9 +20,7 @@ import {
   useOfflineCacheVersion,
 } from '@/hooks/chat-data/shared'
 
-type ModelsWithCollections = FunctionReturnType<
-  typeof api.admin.listModelsWithProviders
-> & {
+type ModelsWithCollections = FunctionReturnType<typeof api.admin.listModelsWithProviders> & {
   collections?: Array<{
     _id: string
     name: string
@@ -41,9 +35,7 @@ export function useModels() {
   const cacheUserId = useConvexUserIdForCache()
   const { isOnline } = useOnlineStatus()
   const cacheVersion = useOfflineCacheVersion()
-  const data = useQuery(api.admin.listModelsWithProviders) as
-    | ModelsWithCollections
-    | undefined
+  const data = useQuery(api.admin.listModelsWithProviders) as ModelsWithCollections | undefined
   const setFavoriteModel = useMutation(api.admin.setFavoriteModel)
 
   const cachedModelPicker = useMemo(() => {
@@ -94,7 +86,12 @@ export function useModels() {
     [isOnline, setFavoriteModel],
   )
 
-  return { models, collections, setFavorite }
+  return {
+    models,
+    collections,
+    setFavorite,
+    autoModelAvailable: data?.autoModelAvailable ?? false,
+  }
 }
 
 export function useProjects() {
@@ -113,8 +110,7 @@ export function useProjects() {
       }
     }
   ).projects
-  const liveProjects = (useQuery(projectsApi.listProjects as never) ||
-    []) as ProjectsRecord
+  const liveProjects = (useQuery(projectsApi.listProjects as never) || []) as ProjectsRecord
   const cachedProjects = useMemo(() => {
     if (!cacheUserId) {
       return []
@@ -125,12 +121,8 @@ export function useProjects() {
   const createProjectMutation = useMutation(projectsApi.createProject as never)
   const updateProjectMutation = useMutation(projectsApi.updateProject as never)
   const deleteProjectMutation = useMutation(projectsApi.deleteProject as never)
-  const assignThreadToProjectMutation = useMutation(
-    projectsApi.assignThreadToProject as never,
-  )
-  const removeThreadFromProjectMutation = useMutation(
-    projectsApi.removeThreadFromProject as never,
-  )
+  const assignThreadToProjectMutation = useMutation(projectsApi.assignThreadToProject as never)
+  const removeThreadFromProjectMutation = useMutation(projectsApi.removeThreadFromProject as never)
 
   useEffect(() => {
     if (liveProjects.length > 0 && cacheUserId) {
@@ -154,11 +146,7 @@ export function useProjects() {
   )
 
   const updateProject = useCallback(
-    async (values: {
-      projectId: Id<'projects'>
-      name?: string
-      description?: string
-    }) => {
+    async (values: { projectId: Id<'projects'>; name?: string; description?: string }) => {
       if (!isOnline) {
         return
       }

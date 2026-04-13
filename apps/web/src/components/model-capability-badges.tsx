@@ -41,9 +41,7 @@ export function ModelCapabilityBadges({
         )
       })}
       {overflow > 0 ? (
-        <span className="text-[10px] font-medium text-muted-foreground">
-          +{overflow}
-        </span>
+        <span className="text-[10px] font-medium text-muted-foreground">+{overflow}</span>
       ) : null}
     </div>
   )

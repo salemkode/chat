@@ -30,8 +30,22 @@ class MessageInput(StrictSchema):
         return value
 
 
+class AttachmentSummary(StrictSchema):
+    image_count: int = Field(default=0, ge=0)
+    file_count: int = Field(default=0, ge=0)
+    total_count: int = Field(default=0, ge=0)
+
+    @model_validator(mode="after")
+    def validate_totals(self) -> "AttachmentSummary":
+        if self.total_count < self.image_count + self.file_count:
+            raise ValueError("total_count must be >= image_count + file_count")
+        return self
+
+
 class UserInput(StrictSchema):
     preference: Preference = "balanced"
+    requires_image_input: bool = False
+    attachments: AttachmentSummary | None = None
 
 
 class ModelInput(StrictSchema):

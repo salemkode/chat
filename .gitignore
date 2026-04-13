@@ -21,3 +21,7 @@ todos.json
 .netlify
 
 local-notes
+
+# VitePress (docs site)
+docs/.vitepress/cache
+docs/.vitepress/dist

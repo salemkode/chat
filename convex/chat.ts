@@ -12,10 +12,9 @@ import {
 import { ConvexError } from 'convex/values'
 import { threadMetadataValidator } from './lib/validators'
 import { GENERATION_STOPPED_BY_USER } from './agents'
+import { canViewProject, getProjectRole } from './lib/projectAccess'
 
-type AgentThreadId = FunctionArgs<
-  typeof components.agent.threads.getThread
->['threadId']
+type AgentThreadId = FunctionArgs<typeof components.agent.threads.getThread>['threadId']
 
 const threadDetailValidator = v.union(
   v.null(),
@@ -37,10 +36,19 @@ const threadDetailValidator = v.union(
 )
 
 function isInvalidThreadIdError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false
+  }
+  const message = error.message
   return (
-    error instanceof Error &&
-    error.message.includes('does not match the table name in validator')
+    message.includes('does not match the table name in validator') ||
+    (message.includes('Value does not match validator') &&
+      message.includes('Validator: v.id("threads")'))
   )
+}
+
+function emptyMessagesPage() {
+  return { page: [], isDone: true, continueCursor: '', streams: [] }
 }
 
 export const listThreads = query({
@@ -97,15 +105,23 @@ export const listMessages = query({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId) {
-      return { page: [], isDone: true, continueCursor: '', streams: [] }
+      return emptyMessagesPage()
     }
 
     // If no threadId, return empty page structure
     if (!args.threadId) {
-      return { page: [], isDone: true, continueCursor: '', streams: [] }
+      return emptyMessagesPage()
     }
 
-    const paginated = await listAgentMessages(ctx, components.agent, args)
+    let paginated: Awaited<ReturnType<typeof listAgentMessages>>
+    try {
+      paginated = await listAgentMessages(ctx, components.agent, args)
+    } catch (error) {
+      if (isInvalidThreadIdError(error)) {
+        return emptyMessagesPage()
+      }
+      throw error
+    }
     const failedErrorsByOrder = new Map<number, string>()
 
     for (const message of paginated.page) {
@@ -119,10 +135,7 @@ export const listMessages = query({
         return message
       }
 
-      const failure = buildFailureMetadata(
-        failedErrorsByOrder.get(message.order),
-        message.text,
-      )
+      const failure = buildFailureMetadata(failedErrorsByOrder.get(message.order), message.text)
 
       return {
         ...message,
@@ -132,7 +145,15 @@ export const listMessages = query({
       }
     })
 
-    const streams = await syncStreams(ctx, components.agent, args)
+    let streams: Awaited<ReturnType<typeof syncStreams>>
+    try {
+      streams = await syncStreams(ctx, components.agent, args)
+    } catch (error) {
+      if (isInvalidThreadIdError(error)) {
+        return { ...paginated, page, streams: [] }
+      }
+      throw error
+    }
 
     return { ...paginated, page, streams }
   },
@@ -146,12 +167,9 @@ export const createThread = mutation({
       return ''
     }
 
-    const thread = await ctx.runMutation(
-      components.agent.threads.createThread,
-      {
-        userId,
-      },
-    )
+    const thread = await ctx.runMutation(components.agent.threads.createThread, {
+      userId,
+    })
 
     return thread._id
   },
@@ -193,9 +211,10 @@ export const getThread = query({
       .withIndex('by_threadId', (q) => q.eq('threadId', thread._id))
       .first()
 
-    const project = metadata?.projectId
-      ? await ctx.db.get(metadata.projectId)
-      : null
+    const project = metadata?.projectId ? await ctx.db.get(metadata.projectId) : null
+
+    const role =
+      project && metadata?.projectId ? await getProjectRole(ctx, metadata.projectId, userId) : null
 
     return {
       _id: thread._id,
@@ -204,7 +223,7 @@ export const getThread = query({
       userId: thread.userId,
       metadata: metadata ?? null,
       project:
-        project && project.userId === userId
+        project && canViewProject(role)
           ? {
               id: project._id.toString(),
               name: project.name,

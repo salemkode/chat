@@ -46,8 +46,7 @@ export class LRUCache<T> {
 
   private evictIfNeeded(incomingSize: number): void {
     while (
-      (this.cache.size >= this.maxEntries ||
-        this.totalSize + incomingSize > this.maxMemoryBytes) &&
+      (this.cache.size >= this.maxEntries || this.totalSize + incomingSize > this.maxMemoryBytes) &&
       this.cache.size > 0
     ) {
       const oldestKey = this.cache.keys().next().value

@@ -89,9 +89,7 @@ export const pruneOldCache = mutation({
       .withIndex('by_updated', (q) => q)
       .collect()
 
-    const toDelete = allCache.filter(
-      (entry) => !cache.some((cached) => cached._id === entry._id),
-    )
+    const toDelete = allCache.filter((entry) => !cache.some((cached) => cached._id === entry._id))
 
     for (const entry of toDelete) {
       await ctx.db.delete('memoryEmbeddingCache', entry._id)

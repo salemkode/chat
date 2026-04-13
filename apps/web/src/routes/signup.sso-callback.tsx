@@ -1,9 +1,4 @@
-import {
-  ClerkLoaded,
-  useClerk,
-  useSignIn,
-  useSignUp,
-} from '@clerk/react-router'
+import { ClerkLoaded, useClerk, useSignIn, useSignUp } from '@clerk/react-router'
 import { useNavigate } from 'react-router'
 import { useEffect } from 'react'
 import { Loader2 } from '@/lib/icons'
@@ -62,9 +57,7 @@ export default function SsoCallbackPage() {
       <ClerkLoaded>
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">
-            Completing authentication...
-          </p>
+          <p className="text-sm text-muted-foreground">Completing authentication...</p>
         </div>
       </ClerkLoaded>
     </div>

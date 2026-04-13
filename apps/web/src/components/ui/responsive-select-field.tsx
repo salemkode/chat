@@ -61,8 +61,7 @@ export function ResponsiveSelectField({
     )
   }
 
-  const currentLabel =
-    options.find((option) => option.value === value)?.label ?? placeholder
+  const currentLabel = options.find((option) => option.value === value)?.label ?? placeholder
 
   return (
     <ResponsiveModal open={open} onOpenChange={setOpen}>

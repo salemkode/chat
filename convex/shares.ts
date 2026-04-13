@@ -17,9 +17,14 @@ const sharedChatMessageValidator = v.object({
 })
 
 function isInvalidThreadIdError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false
+  }
+  const message = error.message
   return (
-    error instanceof Error &&
-    error.message.includes('does not match the table name in validator')
+    message.includes('does not match the table name in validator') ||
+    (message.includes('Value does not match validator') &&
+      message.includes('Validator: v.id("threads")'))
   )
 }
 
@@ -49,10 +54,7 @@ async function getOwnedThread(
   return thread
 }
 
-async function listShareableMessages(
-  ctx: Pick<MutationCtx, 'runQuery'>,
-  threadId: string,
-) {
+async function listShareableMessages(ctx: Pick<MutationCtx, 'runQuery'>, threadId: string) {
   const messages: Array<{
     order: number
     role: 'user' | 'assistant'

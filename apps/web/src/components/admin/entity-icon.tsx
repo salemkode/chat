@@ -18,13 +18,7 @@ export function EntityIcon({
   className?: string
 }) {
   if (iconType === 'upload' && iconUrl) {
-    return (
-      <img
-        src={iconUrl}
-        alt=""
-        className={cn('size-5 rounded-sm object-cover', className)}
-      />
-    )
+    return <img src={iconUrl} alt="" className={cn('size-5 rounded-sm object-cover', className)} />
   }
 
   if (icon && iconType === 'emoji') {

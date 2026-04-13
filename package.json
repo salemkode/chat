@@ -1,20 +1,21 @@
 {
   "name": "chat",
   "private": true,
-  "type": "module",
-  "packageManager": "pnpm@10.6.5",
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
+  "type": "module",
   "scripts": {
     "dev": "turbo run dev --filter=web",
     "dev:scan": "turbo run dev:scan --filter=web",
+    "dev:sandbox-server": "pnpm --filter sandbox-server run dev",
     "build": "turbo run build",
     "build:web": "turbo run build --filter=web",
     "start": "turbo run start --filter=web",
+    "start:sandbox-server": "pnpm --filter sandbox-server run start",
     "preview": "turbo run preview --filter=web",
-    "typecheck": "oxlint --type-check",
+    "typecheck": "turbo run typecheck",
     "typecheck:web": "turbo run typecheck --filter=web",
     "typecheck:convex": "tsc -p convex/tsconfig.json --noEmit",
     "test": "turbo run test --filter=web",
@@ -24,12 +25,18 @@
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
     "check": "pnpm run lint && pnpm run format:check",
+    "fix": "pnpm run lint:fix && pnpm run format",
+    "typecheck:all": "pnpm run typecheck:convex && pnpm run typecheck",
     "deploy:web:cloudflare": "pnpm --filter web run build && pnpm --filter web run deploy:cloudflare",
     "knip": "knip",
     "mobile:dev": "pnpm --filter mobile run dev",
     "ios": "pnpm --filter mobile run ios",
     "android": "pnpm --filter mobile run android",
-    "mobile:typecheck": "pnpm --filter mobile run typecheck"
+    "mobile:typecheck": "pnpm --filter mobile run typecheck",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs",
+    "ship": "node scripts/ship.mjs"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.31",
@@ -55,10 +62,15 @@
   "devDependencies": {
     "@types/node": "^25.0.9",
     "knip": "^5.81.0",
+    "mermaid": "^11.14.0",
     "oxfmt": "^0.41.0",
     "oxlint": "^1.42.0",
     "turbo": "^2.5.8",
     "typescript": "^5.9.3",
-    "vitest": "^3.0.5"
-  }
+    "vitepress": "^1.6.3",
+    "vitepress-plugin-mermaid": "^2.0.17",
+    "vitest": "^3.0.5",
+    "vue": "^3.5.13"
+  },
+  "packageManager": "pnpm@10.6.5"
 }

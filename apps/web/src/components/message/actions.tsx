@@ -1,19 +1,15 @@
 import type { Id } from '@convex/_generated/dataModel'
-import {
-  ExternalLink,
-  FileText,
-  RefreshCw,
-  RotateCcw,
-  Square,
-} from '@/lib/icons'
+import { isAutoModelSelection } from '@chat/shared'
+import { ExternalLink, FileText, RefreshCw, RotateCcw, Square } from '@/lib/icons'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useChatModel } from '@/components/chat-model-context'
-import { useModels, useSendMessage } from '@/hooks/use-chat-data'
+import { useModels, useSendMessage, useViewer } from '@/hooks/use-chat-data'
 import { cn } from '@/lib/utils'
 import { ModelSelectorPanel } from '@/components/model-selector'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
 import type { MessageFilePart } from '@/components/message/utils'
+import { getSelectionTierFromAppPlan } from '@/lib/model-routing'
 
 const LONG_PRESS_DELAY_MS = 450
 const HOVER_CLOSE_DELAY_MS = 120
@@ -74,6 +70,7 @@ export function RepeatButton({
 }) {
   const { models } = useModels()
   const { regenerate, disabledReason } = useSendMessage()
+  const viewer = useViewer()
   const { selectedModelId, setSelectedModelId } = useChatModel()
   const [open, setOpen] = useState(false)
   const [isRepeating, setIsRepeating] = useState(false)
@@ -82,18 +79,19 @@ export function RepeatButton({
   const longPressTriggeredRef = useRef(false)
 
   const selectedModelDocId = useMemo(
-    () =>
-      models.find((model) => model.modelId === selectedModelId)?.id as
-        | Id<'models'>
-        | undefined,
+    () => models.find((model) => model.modelId === selectedModelId)?.id as Id<'models'> | undefined,
     [models, selectedModelId],
   )
   const currentModel = useMemo(
     () => models.find((model) => model.modelId === selectedModelId),
     [models, selectedModelId],
   )
+  const selectionTier = getSelectionTierFromAppPlan(viewer?.appPlan)
   const canRepeat = Boolean(
-    promptMessageId && selectedModelDocId && !disabled && !isRepeating,
+    promptMessageId &&
+    !disabled &&
+    !isRepeating &&
+    (selectedModelDocId || isAutoModelSelection(selectedModelId)),
   )
 
   const clearCloseTimer = useCallback(() => {
@@ -130,7 +128,10 @@ export function RepeatButton({
       const modelDocId = models.find((model) => model.modelId === modelId)?.id as
         | Id<'models'>
         | undefined
-      if (!promptMessageId || !modelDocId || disabledReason !== null) {
+      if (!promptMessageId || disabledReason !== null) {
+        return
+      }
+      if (!modelDocId && !isAutoModelSelection(modelId)) {
         return
       }
 
@@ -142,6 +143,7 @@ export function RepeatButton({
           threadId,
           promptMessageId,
           modelDocId,
+          selectionTier,
         })
       } finally {
         setIsRepeating(false)
@@ -152,6 +154,7 @@ export function RepeatButton({
       models,
       promptMessageId,
       regenerate,
+      selectionTier,
       setSelectedModelId,
       threadId,
     ],
@@ -167,12 +170,18 @@ export function RepeatButton({
           disabled={!canRepeat || disabledReason !== null}
           className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
           aria-label={
-            currentModel
-              ? `Repeat with ${currentModel.displayName}`
-              : 'Repeat response'
+            selectedModelId && isAutoModelSelection(selectedModelId)
+              ? 'Repeat with Auto routing'
+              : currentModel
+                ? `Repeat with ${currentModel.displayName}`
+                : 'Repeat response'
           }
           title={
-            currentModel ? `Repeat with ${currentModel.displayName}` : 'Repeat'
+            selectedModelId && isAutoModelSelection(selectedModelId)
+              ? 'Repeat with Auto routing'
+              : currentModel
+                ? `Repeat with ${currentModel.displayName}`
+                : 'Repeat'
           }
           onClick={() => {
             if (longPressTriggeredRef.current || !selectedModelId) {
@@ -214,9 +223,7 @@ export function RepeatButton({
           onPointerCancel={clearLongPressTimer}
           onPointerLeave={clearLongPressTimer}
         >
-          <RefreshCw
-            className={isRepeating ? 'h-4 w-4 animate-spin' : 'h-4 w-4'}
-          />
+          <RefreshCw className={isRepeating ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
         </Button>
       </PopoverAnchor>
 
@@ -230,7 +237,10 @@ export function RepeatButton({
         <div className="border-b border-border px-3 py-2.5">
           <p className="text-sm font-medium">Repeat with model</p>
           <p className="text-xs text-muted-foreground">
-            Current: {currentModel?.displayName ?? '—'}
+            Current:{' '}
+            {selectedModelId && isAutoModelSelection(selectedModelId)
+              ? 'Auto'
+              : (currentModel?.displayName ?? '—')}
           </p>
         </div>
         <ModelSelectorPanel
@@ -293,15 +303,17 @@ export function ResendButton({
 }) {
   const { models } = useModels()
   const { regenerate, stop, disabledReason } = useSendMessage()
+  const viewer = useViewer()
   const { selectedModelId } = useChatModel()
   const [isResending, setIsResending] = useState(false)
 
   const selectedModelDocId = useMemo(
-    () =>
-      models.find((model) => model.modelId === selectedModelId)?.id as
-        | Id<'models'>
-        | undefined,
+    () => models.find((model) => model.modelId === selectedModelId)?.id as Id<'models'> | undefined,
     [models, selectedModelId],
+  )
+  const selectionTier = getSelectionTierFromAppPlan(viewer?.appPlan)
+  const canResend = Boolean(
+    promptMessageId && (selectedModelDocId || isAutoModelSelection(selectedModelId)),
   )
 
   return (
@@ -309,17 +321,16 @@ export function ResendButton({
       type="button"
       variant="ghost"
       size="icon-sm"
-      disabled={
-        !promptMessageId ||
-        !selectedModelDocId ||
-        disabledReason !== null ||
-        isResending
-      }
+      disabled={!canResend || disabledReason !== null || isResending}
       className="inline-flex items-center gap-1.5 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
       aria-label="Resend response"
       title="Resend response"
       onClick={async () => {
-        if (!promptMessageId || !selectedModelDocId || isResending) {
+        if (
+          !promptMessageId ||
+          (!selectedModelDocId && !isAutoModelSelection(selectedModelId)) ||
+          isResending
+        ) {
           return
         }
 
@@ -332,6 +343,7 @@ export function ResendButton({
             threadId,
             promptMessageId,
             modelDocId: selectedModelDocId,
+            selectionTier,
           })
         } finally {
           setIsResending(false)

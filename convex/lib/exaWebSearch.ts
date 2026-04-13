@@ -37,11 +37,7 @@ export const exaWebSearchTool = createTool({
   description:
     'Search the public web for up-to-date information and sources. Returns top results with URLs and short snippets.',
   inputSchema: z.object({
-    query: z
-      .string()
-      .min(1)
-      .max(500)
-      .describe('The search query to look up on the web.'),
+    query: z.string().min(1).max(500).describe('The search query to look up on the web.'),
     numResults: z
       .number()
       .int()
@@ -72,11 +68,7 @@ export const exaWebSearchTool = createTool({
       }
     }
 
-    const numResults = clampNumber(
-      args.numResults ?? DEFAULT_NUM_RESULTS,
-      1,
-      MAX_NUM_RESULTS,
-    )
+    const numResults = clampNumber(args.numResults ?? DEFAULT_NUM_RESULTS, 1, MAX_NUM_RESULTS)
 
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort('timeout'), TOOL_TIMEOUT_MS)
@@ -86,11 +78,9 @@ export const exaWebSearchTool = createTool({
       if (abortSignal.aborted) {
         controller.abort(abortSignal.reason)
       } else {
-        abortSignal.addEventListener(
-          'abort',
-          () => controller.abort(abortSignal.reason),
-          { once: true },
-        )
+        abortSignal.addEventListener('abort', () => controller.abort(abortSignal.reason), {
+          once: true,
+        })
       }
     }
 

@@ -8,9 +8,7 @@ export function AuthRedirect() {
   )
 
   const redirect_url =
-    typeof window !== 'undefined'
-      ? `${window.location.origin}${redirect}`
-      : undefined
+    typeof window !== 'undefined' ? `${window.location.origin}${redirect}` : undefined
 
   const searchParams = new URLSearchParams()
   searchParams.set('redirect', redirect)
@@ -18,7 +16,5 @@ export function AuthRedirect() {
     searchParams.set('redirect_url', redirect_url)
   }
 
-  return (
-    <Navigate to={`/login?${searchParams.toString()}`} replace />
-  )
+  return <Navigate to={`/login?${searchParams.toString()}`} replace />
 }

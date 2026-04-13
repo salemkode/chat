@@ -9,8 +9,7 @@ const MAX_NUM_RESULTS = 5
 const QURAN_DOC_PAGES = [
   {
     title: 'Getting Started',
-    description:
-      'Install and configure @quranjs/api and create a QuranClient.',
+    description: 'Install and configure @quranjs/api and create a QuranClient.',
     url: 'https://quranjs.com/docs',
   },
   {
@@ -187,11 +186,9 @@ async function fetchPageText(page: QuranDocPage, abortSignal?: AbortSignal) {
     if (abortSignal.aborted) {
       controller.abort(abortSignal.reason)
     } else {
-      abortSignal.addEventListener(
-        'abort',
-        () => controller.abort(abortSignal.reason),
-        { once: true },
-      )
+      abortSignal.addEventListener('abort', () => controller.abort(abortSignal.reason), {
+        once: true,
+      })
     }
   }
 
@@ -224,11 +221,7 @@ export const quranDocsTool = createTool({
   description:
     'Search the official QuranJS documentation for Quran.com API, QuranJS client usage, verses, chapters, search, audio, resources, and v1-to-v2 migration details. Only use this for Quran or QuranJS related requests.',
   inputSchema: z.object({
-    query: z
-      .string()
-      .min(1)
-      .max(500)
-      .describe('What to look up in the QuranJS documentation.'),
+    query: z.string().min(1).max(500).describe('What to look up in the QuranJS documentation.'),
     numResults: z
       .number()
       .int()
@@ -250,11 +243,7 @@ export const quranDocsTool = createTool({
     }
 
     const terms = getQueryTerms(query)
-    const numResults = clampNumber(
-      args.numResults ?? DEFAULT_NUM_RESULTS,
-      1,
-      MAX_NUM_RESULTS,
-    )
+    const numResults = clampNumber(args.numResults ?? DEFAULT_NUM_RESULTS, 1, MAX_NUM_RESULTS)
 
     try {
       const pages = await Promise.all(

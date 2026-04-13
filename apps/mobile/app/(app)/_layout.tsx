@@ -2,7 +2,7 @@ import { useAuth } from '@clerk/expo'
 import { Drawer } from 'expo-router/drawer'
 import { Redirect } from 'expo-router'
 import { ActivityIndicator, Dimensions, View } from 'react-native'
-import { ChatDrawerContent } from '../../src/components/chat/ChatDrawerContent'
+import { ChatDrawerContent } from '../../src/components/chat/chat-drawer-content'
 import { useClerkLoadDebug } from '../../src/lib/clerk-debug'
 
 export default function AppLayout() {

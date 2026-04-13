@@ -3,8 +3,8 @@ import { formatDistanceToNow } from 'date-fns'
 import { Loader2, MessageSquareText, MoveRight } from '@/lib/icons'
 import { useEffect } from 'react'
 import { api } from '@convex/_generated/api'
-import { SharedChatSidebar } from '@/components/chat/SharedChatSidebar'
-import { MarkdownContent } from '@/components/MarkdownContent'
+import { SharedChatSidebar } from '@/components/chat/shared-chat-sidebar'
+import { MarkdownContent } from '@/components/markdown-content'
 import { Button } from '@/components/ui/button'
 import { usePaginatedQuery, useQuery } from '@/lib/convex-query-cache'
 
@@ -42,9 +42,7 @@ export default function SharedChatPage() {
               <span>Shared chat</span>
             </div>
             <div>
-              <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-                {share.title}
-              </h1>
+              <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{share.title}</h1>
               <p className="mt-2 text-sm text-muted-foreground">
                 {share.messageCount} messages shared{' '}
                 {formatDistanceToNow(new Date(share.updatedAt), {
@@ -69,17 +67,11 @@ export default function SharedChatPage() {
                 {results.map((message) => (
                   <article
                     key={`${message.order}-${message.role}`}
-                    className={
-                      message.role === 'user'
-                        ? 'flex justify-end'
-                        : 'flex justify-start'
-                    }
+                    className={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}
                   >
                     {message.role === 'user' ? (
                       <div className="max-w-[85%] rounded-3xl rounded-br-md bg-secondary px-4 py-3 text-sm leading-relaxed text-secondary-foreground shadow-sm sm:max-w-[75%]">
-                        <p className="whitespace-pre-wrap break-words">
-                          {message.text}
-                        </p>
+                        <p className="whitespace-pre-wrap break-words">{message.text}</p>
                       </div>
                     ) : (
                       <div className="w-full rounded-3xl border border-border/60 bg-background px-4 py-4 shadow-xs">

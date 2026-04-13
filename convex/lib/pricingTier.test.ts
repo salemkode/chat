@@ -3,12 +3,10 @@ import { estimateCostFromProfile, resolvePricingRates } from './pricingTier'
 
 describe('resolvePricingRates', () => {
   it('uses flat rates when tiers are absent', () => {
-    expect(
-      resolvePricingRates(
-        { inputPer1M: 1, outputPer1M: 2 },
-        500_000,
-      ),
-    ).toEqual({ inputPer1M: 1, outputPer1M: 2 })
+    expect(resolvePricingRates({ inputPer1M: 1, outputPer1M: 2 }, 500_000)).toEqual({
+      inputPer1M: 1,
+      outputPer1M: 2,
+    })
   })
 
   it('picks first bracket where input is within maxContextTokens', () => {

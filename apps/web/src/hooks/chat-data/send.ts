@@ -1,10 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import {
-  createClientRequestId,
-  createClientThreadKey,
-} from '@chat/shared/logic/client-keys'
+import { createClientRequestId, createClientThreadKey } from '@chat/shared/logic/client-keys'
 import type { Id } from '@convex/_generated/dataModel'
-import { useMutation } from 'convex/react'
+import { useAction, useMutation } from 'convex/react'
 import { api } from '@convex/_generated/api'
 import { useOnlineStatus } from '@/hooks/use-online-status'
 import { parseUploadResponse } from '@/lib/parsers'
@@ -27,6 +24,14 @@ function getErrorMessage(error: unknown) {
   if (typeof error === 'string') {
     return error
   }
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof error.message === 'string'
+  ) {
+    return error.message
+  }
   return ''
 }
 
@@ -37,6 +42,30 @@ function isExtraFieldValidationError(error: unknown, fieldName: string) {
     message.includes('extra field') &&
     message.includes(fieldName)
   )
+}
+
+function buildAttachmentSummary(
+  attachments: File[] | undefined,
+): { imageCount: number; fileCount: number; totalCount: number } | undefined {
+  if (!attachments || attachments.length === 0) {
+    return undefined
+  }
+
+  let imageCount = 0
+  let fileCount = 0
+  for (const attachment of attachments) {
+    if (attachment.type.startsWith('image/')) {
+      imageCount += 1
+    } else {
+      fileCount += 1
+    }
+  }
+
+  return {
+    imageCount,
+    fileCount,
+    totalCount: imageCount + fileCount,
+  }
 }
 
 export function useDraft(threadId: string) {
@@ -66,19 +95,40 @@ export function useSendMessage() {
   const { isOnline } = useOnlineStatus()
   const supportsClientThreadKeyRef = useRef(true)
   const supportsClientRequestIdRef = useRef(true)
+  const supportsSearchModeRef = useRef(true)
+  const selectAutoModel = useAction(
+    (
+      api as typeof api & {
+        modelRouter: {
+          selectAutoModel: unknown
+          selectAutoModelForPromptMessage: unknown
+        }
+      }
+    ).modelRouter.selectAutoModel as never,
+  )
+  const selectAutoModelForPromptMessage = useAction(
+    (
+      api as typeof api & {
+        modelRouter: {
+          selectAutoModel: unknown
+          selectAutoModelForPromptMessage: unknown
+        }
+      }
+    ).modelRouter.selectAutoModelForPromptMessage as never,
+  )
   const createThread = useMutation(api.agents.createChatThread).withOptimisticUpdate(
     (localStore, args) => {
-      applyOptimisticCreateThread(localStore, args as {
-        title?: string
-        projectId?: string
-        clientThreadKey?: string
-      })
+      applyOptimisticCreateThread(
+        localStore,
+        args as {
+          title?: string
+          projectId?: string
+          clientThreadKey?: string
+        },
+      )
     },
   )
-  const selectModel = useMutation(api.modelSelection.selectModel)
-  const generateAttachmentUploadUrl = useMutation(
-    api.agents.generateAttachmentUploadUrl,
-  )
+  const generateAttachmentUploadUrl = useMutation(api.agents.generateAttachmentUploadUrl)
   const sendMessage = useMutation(api.agents.generateMessage).withOptimisticUpdate(
     (localStore, args) => {
       applyOptimisticGenerateMessage(
@@ -86,6 +136,7 @@ export function useSendMessage() {
         args.threadId,
         args.prompt,
         args.attachments,
+        args.clientRequestId,
       )
     },
   )
@@ -141,6 +192,76 @@ export function useSendMessage() {
     dispatchChatEvent(CHAT_FOLLOW_LATEST_EVENT, { threadId })
   }, [])
 
+  const resolveAutoModelDecision = useCallback(
+    async ({
+      text,
+      threadId,
+      searchEnabled,
+      reasoning,
+      requiresImageInput,
+      attachmentSummary,
+    }: {
+      text: string
+      threadId?: string
+      searchEnabled?: boolean
+      reasoning?: { enabled: boolean; level?: 'low' | 'medium' | 'high' }
+      requiresImageInput?: boolean
+      attachmentSummary?: {
+        imageCount: number
+        fileCount: number
+        totalCount: number
+      }
+    }) => {
+      const routed = (await selectAutoModel({
+        prompt: text,
+        threadId,
+        searchEnabled,
+        reasoningEnabled: reasoning?.enabled === true,
+        requiresImageInput: requiresImageInput === true,
+        attachmentSummary,
+      } as never)) as {
+        decisionId?: string
+        selectedModelDocId: Id<'models'>
+      }
+
+      return {
+        decisionId: routed.decisionId,
+        modelDocId: routed.selectedModelDocId,
+      }
+    },
+    [selectAutoModel],
+  )
+
+  const resolveAutoModelDecisionForPromptMessage = useCallback(
+    async ({
+      threadId,
+      promptMessageId,
+      searchEnabled,
+      reasoning,
+    }: {
+      threadId: string
+      promptMessageId: string
+      searchEnabled?: boolean
+      reasoning?: { enabled: boolean; level?: 'low' | 'medium' | 'high' }
+    }) => {
+      const routed = (await selectAutoModelForPromptMessage({
+        threadId,
+        promptMessageId,
+        searchEnabled,
+        reasoningEnabled: reasoning?.enabled === true,
+      } as never)) as {
+        decisionId?: string
+        selectedModelDocId: Id<'models'>
+      }
+
+      return {
+        decisionId: routed.decisionId,
+        modelDocId: routed.selectedModelDocId,
+      }
+    },
+    [selectAutoModelForPromptMessage],
+  )
+
   const send = useCallback(
     async ({
       text,
@@ -148,6 +269,7 @@ export function useSendMessage() {
       modelDocId,
       selectionTier,
       projectId,
+      contextArtifactIds,
       searchEnabled,
       searchMode,
       reasoning,
@@ -162,6 +284,7 @@ export function useSendMessage() {
       modelDocId?: Id<'models'>
       selectionTier?: 'free' | 'pro' | 'advanced'
       projectId?: Id<'projects'>
+      contextArtifactIds?: Id<'projectArtifacts'>[]
       searchEnabled?: boolean
       searchMode?: 'auto' | 'required'
       reasoning?: { enabled: boolean; level?: 'low' | 'medium' | 'high' }
@@ -211,34 +334,24 @@ export function useSendMessage() {
           throw new Error('Failed to create a chat thread')
         }
 
-        if (!threadId) {
-          writeDraft(resolvedThreadId, text)
-        }
         await onThreadReady?.(resolvedThreadId)
         followLatestMessage(resolvedThreadId)
         resumeMessageStreaming(resolvedThreadId)
 
+        let routerDecisionId: string | undefined
         let resolvedModelDocId = modelDocId
-        if (!resolvedModelDocId && selectionTier) {
-          const selection = await selectModel({
-            tier: selectionTier,
+        if (!resolvedModelDocId) {
+          const attachmentSummary = buildAttachmentSummary(attachments)
+          const routed = await resolveAutoModelDecision({
+            text,
             threadId: resolvedThreadId,
-            requestContext: {
-              prompt: text,
-              promptChars: text.length,
-              requiresTools: searchEnabled === true,
-              requiresReasoning: reasoning?.enabled === true,
-              needsLongContext: text.length > 8000,
-            },
-            requiresTools: {
-              enabled: searchEnabled === true,
-            },
-            requiresReasoning: {
-              enabled: reasoning?.enabled === true,
-              level: reasoning?.level,
-            },
-          } as never)
-          resolvedModelDocId = selection.selectedModel.modelDocId as Id<'models'>
+            searchEnabled,
+            reasoning,
+            requiresImageInput: (attachmentSummary?.imageCount ?? 0) > 0,
+            attachmentSummary,
+          })
+          resolvedModelDocId = routed.modelDocId
+          routerDecisionId = routed.decisionId
         }
         if (!resolvedModelDocId) {
           throw new Error('No model selected')
@@ -250,36 +363,62 @@ export function useSendMessage() {
         }
 
         const uploadedAttachments =
-          attachments && attachments.length > 0
-            ? await uploadAttachments(attachments)
-            : undefined
+          attachments && attachments.length > 0 ? await uploadAttachments(attachments) : undefined
 
         await onBeforeGenerate?.()
+        const resolvedSearchMode = searchEnabled === true ? (searchMode ?? 'required') : undefined
         const sendPayload = {
           threadId: resolvedThreadId,
           prompt: text,
           modelId: resolvedModelDocId,
+          ...(routerDecisionId ? { routerDecisionId } : {}),
           projectId,
+          contextArtifactIds,
           searchEnabled: searchEnabled ?? false,
-          searchMode: searchEnabled === true ? (searchMode ?? 'required') : 'auto',
+          ...(resolvedSearchMode ? { searchMode: resolvedSearchMode } : {}),
           reasoning,
           attachments: uploadedAttachments,
         }
-        if (supportsClientRequestIdRef.current) {
-          try {
-            await sendMessage({
-              ...sendPayload,
-              clientRequestId: createClientRequestId(),
-            } as never)
-          } catch (error) {
-            if (!isExtraFieldValidationError(error, 'clientRequestId')) {
-              throw error
+        const initialClientRequestId = supportsClientRequestIdRef.current
+          ? createClientRequestId()
+          : undefined
+        const executeSendMutation = async (
+          payload: Record<string, unknown>,
+          clientRequestId?: string,
+        ) => {
+          if (clientRequestId) {
+            try {
+              await sendMessage({
+                ...payload,
+                clientRequestId,
+              } as never)
+              return
+            } catch (error) {
+              if (!isExtraFieldValidationError(error, 'clientRequestId')) {
+                throw error
+              }
+              supportsClientRequestIdRef.current = false
             }
-            supportsClientRequestIdRef.current = false
-            await sendMessage(sendPayload as never)
           }
-        } else {
-          await sendMessage(sendPayload as never)
+
+          await sendMessage(payload as never)
+        }
+
+        const payloadWithCompat = supportsSearchModeRef.current
+          ? sendPayload
+          : (({ searchMode: _searchMode, ...rest }) => rest)(sendPayload)
+
+        try {
+          await executeSendMutation(payloadWithCompat, initialClientRequestId)
+        } catch (error) {
+          if (!supportsSearchModeRef.current || !isExtraFieldValidationError(error, 'searchMode')) {
+            throw error
+          }
+          supportsSearchModeRef.current = false
+          const payloadWithoutSearchMode = (({ searchMode: _searchMode, ...rest }) => rest)(
+            sendPayload,
+          )
+          await executeSendMutation(payloadWithoutSearchMode, initialClientRequestId)
         }
 
         writeDraft(threadId || 'new', '')
@@ -287,8 +426,7 @@ export function useSendMessage() {
 
         return { threadId: resolvedThreadId, disabledReason: null }
       } catch (error) {
-        const resolvedError =
-          error instanceof Error ? error : new Error('Failed to send message')
+        const resolvedError = error instanceof Error ? error : new Error('Failed to send message')
         if (resolvedThreadId) {
           writeDraft(resolvedThreadId, text)
         }
@@ -302,8 +440,8 @@ export function useSendMessage() {
       createThread,
       followLatestMessage,
       isOnline,
+      resolveAutoModelDecision,
       resumeMessageStreaming,
-      selectModel,
       sendMessage,
       uploadAttachments,
     ],
@@ -312,13 +450,7 @@ export function useSendMessage() {
   return {
     send,
     stop: useCallback(
-      async ({
-        threadId,
-        promptMessageId,
-      }: {
-        threadId: string
-        promptMessageId?: string
-      }) => {
+      async ({ threadId, promptMessageId }: { threadId: string; promptMessageId?: string }) => {
         if (!isOnline) {
           return { disabledReason: 'offline' as const, stopped: false }
         }
@@ -343,6 +475,7 @@ export function useSendMessage() {
         modelDocId,
         selectionTier,
         projectId,
+        contextArtifactIds,
         searchEnabled,
         searchMode,
         reasoning,
@@ -352,6 +485,7 @@ export function useSendMessage() {
         modelDocId?: Id<'models'>
         selectionTier?: 'free' | 'pro' | 'advanced'
         projectId?: Id<'projects'>
+        contextArtifactIds?: Id<'projectArtifacts'>[]
         searchEnabled?: boolean
         searchMode?: 'auto' | 'required'
         reasoning?: { enabled: boolean; level?: 'low' | 'medium' | 'high' }
@@ -360,60 +494,79 @@ export function useSendMessage() {
           return { disabledReason: 'offline' as const }
         }
 
+        let routerDecisionId: string | undefined
         let resolvedModelDocId = modelDocId
-        if (!resolvedModelDocId && selectionTier) {
-          const selection = await selectModel({
-            tier: selectionTier,
+        if (!resolvedModelDocId) {
+          const routed = await resolveAutoModelDecisionForPromptMessage({
             threadId,
-            requestContext: {
-              requiresTools: searchEnabled === true,
-              requiresReasoning: reasoning?.enabled === true,
-            },
-            requiresTools: {
-              enabled: searchEnabled === true,
-            },
-            requiresReasoning: {
-              enabled: reasoning?.enabled === true,
-              level: reasoning?.level,
-            },
-          } as never)
-          resolvedModelDocId = selection.selectedModel.modelDocId as Id<'models'>
+            promptMessageId,
+            searchEnabled,
+            reasoning,
+          })
+          resolvedModelDocId = routed.modelDocId
+          routerDecisionId = routed.decisionId
         }
-
         if (!resolvedModelDocId) {
           throw new Error('No model selected')
         }
 
+        const resolvedSearchMode = searchEnabled === true ? (searchMode ?? 'required') : undefined
         const regeneratePayload = {
           threadId,
           promptMessageId,
           modelId: resolvedModelDocId,
+          ...(routerDecisionId ? { routerDecisionId } : {}),
           projectId,
+          contextArtifactIds,
           searchEnabled: searchEnabled ?? false,
-          searchMode: searchEnabled === true ? (searchMode ?? 'required') : 'auto',
+          ...(resolvedSearchMode ? { searchMode: resolvedSearchMode } : {}),
           reasoning,
         }
-        if (supportsClientRequestIdRef.current) {
-          try {
-            await regenerateMessage({
-              ...regeneratePayload,
-              clientRequestId: createClientRequestId(),
-            } as never)
-          } catch (error) {
-            if (!isExtraFieldValidationError(error, 'clientRequestId')) {
-              throw error
+        const executeRegenerateMutation = async (payload: Record<string, unknown>) => {
+          if (supportsClientRequestIdRef.current) {
+            try {
+              await regenerateMessage({
+                ...payload,
+                clientRequestId: createClientRequestId(),
+              } as never)
+              return
+            } catch (error) {
+              if (!isExtraFieldValidationError(error, 'clientRequestId')) {
+                throw error
+              }
+              supportsClientRequestIdRef.current = false
             }
-            supportsClientRequestIdRef.current = false
-            await regenerateMessage(regeneratePayload as never)
           }
-        } else {
-          await regenerateMessage(regeneratePayload as never)
+
+          await regenerateMessage(payload as never)
+        }
+
+        const payloadWithCompat = supportsSearchModeRef.current
+          ? regeneratePayload
+          : (({ searchMode: _searchMode, ...rest }) => rest)(regeneratePayload)
+
+        try {
+          await executeRegenerateMutation(payloadWithCompat)
+        } catch (error) {
+          if (!supportsSearchModeRef.current || !isExtraFieldValidationError(error, 'searchMode')) {
+            throw error
+          }
+          supportsSearchModeRef.current = false
+          const payloadWithoutSearchMode = (({ searchMode: _searchMode, ...rest }) => rest)(
+            regeneratePayload,
+          )
+          await executeRegenerateMutation(payloadWithoutSearchMode)
         }
         resumeMessageStreaming(threadId)
 
         return { disabledReason: null }
       },
-      [isOnline, regenerateMessage, resumeMessageStreaming, selectModel],
+      [
+        isOnline,
+        regenerateMessage,
+        resolveAutoModelDecisionForPromptMessage,
+        resumeMessageStreaming,
+      ],
     ),
     disabledReason: isOnline ? null : 'offline',
   }

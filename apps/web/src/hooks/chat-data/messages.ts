@@ -51,32 +51,28 @@ export function useMessages(threadId?: string): UseMessagesResult {
     if (!Array.isArray(raw)) {
       return [] as ChatMessage[]
     }
-    return raw
-      .map(
-        (message) =>
-          ({
-            id: message.id,
-            role: message.role,
-            text: message.text,
-            parts: message.parts,
-            createdAt: message.createdAt,
-            failureKind: message.failureKind,
-            failureMode: message.failureMode,
-            failureNote: message.failureNote,
-            status:
-              message.status === 'streaming'
-                ? 'streaming'
-                : message.status === 'failed'
-                  ? 'failed'
-                  : 'success',
-          }) as ChatMessage,
-      )
+    return raw.map(
+      (message) =>
+        ({
+          id: message.id,
+          role: message.role,
+          text: message.text,
+          parts: message.parts,
+          createdAt: message.createdAt,
+          failureKind: message.failureKind,
+          failureMode: message.failureMode,
+          failureNote: message.failureNote,
+          status:
+            message.status === 'streaming'
+              ? 'streaming'
+              : message.status === 'failed'
+                ? 'failed'
+                : 'success',
+        }) as ChatMessage,
+    )
   }, [threadId, cacheUserId, cacheVersion])
 
-  const orderedCachedMessages = useMemo(
-    () => sortChatMessages(cachedMessages),
-    [cachedMessages],
-  )
+  const orderedCachedMessages = useMemo(() => sortChatMessages(cachedMessages), [cachedMessages])
 
   const liveMessages = useMemo(
     () =>
@@ -97,8 +93,7 @@ export function useMessages(threadId?: string): UseMessagesResult {
     () =>
       Boolean(
         liveMessages.some(
-          (message) =>
-            message.status === 'streaming' || message.status === 'pending',
+          (message) => message.status === 'streaming' || message.status === 'pending',
         ),
       ),
     [liveMessages],
@@ -189,12 +184,7 @@ export function useMessages(threadId?: string): UseMessagesResult {
   }, [cacheSignature, hasStreamingMessages, streamEnabled, threadId])
 
   useEffect(() => {
-    if (
-      !threadId ||
-      !cacheUserId ||
-      liveMessages.length === 0 ||
-      !cacheSignature
-    ) {
+    if (!threadId || !cacheUserId || liveMessages.length === 0 || !cacheSignature) {
       return
     }
 
@@ -226,8 +216,7 @@ export function useMessages(threadId?: string): UseMessagesResult {
     }
   }, [cacheSignature, cacheUserId, hasStreamingMessages, liveMessages, threadId])
 
-  const resolvedMessages =
-    liveMessages.length > 0 ? liveMessages : orderedCachedMessages
+  const resolvedMessages = liveMessages.length > 0 ? liveMessages : orderedCachedMessages
   const pendingMessages = useMemo(
     () => sortChatMessages(selectPendingMessages(threadKey, liveMessages)),
     [liveMessages, selectPendingMessages, threadKey],
@@ -248,10 +237,7 @@ export function useMessages(threadId?: string): UseMessagesResult {
 }
 
 export function useGenerationState(messages: ChatMessage[]) {
-  const activeGeneration = useMemo(
-    () => getLatestActiveAssistant(messages),
-    [messages],
-  )
+  const activeGeneration = useMemo(() => getLatestActiveAssistant(messages), [messages])
   const activeMessage = activeGeneration?.message
   const activeSignature = useMemo(
     () => (activeMessage ? buildMessageProgressSignature(activeMessage) : null),
@@ -298,10 +284,10 @@ export function useGenerationState(messages: ChatMessage[]) {
 
   const isStalled = Boolean(
     activeMessage &&
-      isGenerationStalled({
-        lastProgressAt,
-        now: tick,
-      }),
+    isGenerationStalled({
+      lastProgressAt,
+      now: tick,
+    }),
   )
 
   return {

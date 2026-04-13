@@ -28,10 +28,7 @@ export function getParsedJsonRecord(text: string, label: string) {
   } catch (error) {
     return {
       value: undefined,
-      error:
-        error instanceof Error
-          ? error.message
-          : `${label} must be valid JSON object text.`,
+      error: error instanceof Error ? error.message : `${label} must be valid JSON object text.`,
     }
   }
 }

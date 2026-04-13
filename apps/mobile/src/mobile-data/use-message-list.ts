@@ -6,7 +6,10 @@ import { api } from '../lib/convexApi'
 import { cacheMessages, readMessages } from '../offline/cache'
 import type { MobileOfflineMessageRecord } from '../offline/types'
 import { isLocalThreadId } from './local-thread-id'
-import { selectRenderableForThread, useChatOptimisticSendStore } from '../store/chat-optimistic-send'
+import {
+  selectRenderableForThread,
+  useChatOptimisticSendStore,
+} from '../store/chat-optimistic-send'
 
 function normalizeMessageAttachments(parts: unknown): ChatRenderableAttachment[] {
   if (!Array.isArray(parts)) {
@@ -86,7 +89,9 @@ export function useMessages(threadId?: string) {
   const { results, status } = useUIMessages(api.chat.listMessages as never, queryArgs as never, {
     initialNumItems: 30,
   })
-  const clearDeliveredForThread = useChatOptimisticSendStore((state) => state.clearDeliveredForThread)
+  const clearDeliveredForThread = useChatOptimisticSendStore(
+    (state) => state.clearDeliveredForThread,
+  )
   const [cachedMessages, setCachedMessages] = useState<MobileOfflineMessageRecord[]>([])
   const lastLiveSnapshotRef = useRef('')
 
@@ -94,7 +99,9 @@ export function useMessages(threadId?: string) {
     () =>
       threadId && !hasLocalThreadId && results?.length
         ? sortMessages(
-            results.map((message: any, index: number) => normalizeMessage(message, threadId, index)),
+            results.map((message: any, index: number) =>
+              normalizeMessage(message, threadId, index),
+            ),
           )
         : [],
     [hasLocalThreadId, results, threadId],

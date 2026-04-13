@@ -4,10 +4,5 @@ import type { AdminOutletContext } from '@/components/admin/admin-outlet-context
 
 export default function AdminModelsRoute() {
   const ctx = useOutletContext<AdminOutletContext>()
-  return (
-    <AdminModelsPanel
-      dashboard={ctx.dashboard}
-      onOpenModelDialog={ctx.onOpenModelDialog}
-    />
-  )
+  return <AdminModelsPanel dashboard={ctx.dashboard} onOpenModelDialog={ctx.onOpenModelDialog} />
 }

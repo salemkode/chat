@@ -32,17 +32,14 @@ export function useDraft(threadId: string) {
     }
   }, [threadId])
 
-  const setDraft = useCallback(
-    async (value: string, options?: SetDraftOptions) => {
-      setDraftState(value)
+  const setDraft = useCallback(async (value: string, options?: SetDraftOptions) => {
+    setDraftState(value)
 
-      const persistTargets = options?.persistTo ?? threadIdRef.current
-      const targetIds = Array.isArray(persistTargets) ? persistTargets : [persistTargets]
-      const uniqueTargetIds = [...new Set(targetIds.filter(Boolean))]
-      await Promise.all(uniqueTargetIds.map((targetId) => writeDraft(targetId, value)))
-    },
-    [],
-  )
+    const persistTargets = options?.persistTo ?? threadIdRef.current
+    const targetIds = Array.isArray(persistTargets) ? persistTargets : [persistTargets]
+    const uniqueTargetIds = [...new Set(targetIds.filter(Boolean))]
+    await Promise.all(uniqueTargetIds.map((targetId) => writeDraft(targetId, value)))
+  }, [])
 
   return { draft, setDraft }
 }

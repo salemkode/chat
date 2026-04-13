@@ -5,46 +5,40 @@ import { cacheProjects, readProjects } from '../offline/cache'
 import type { MobileOfflineProjectRecord } from '../offline/types'
 import { useNetworkStatus } from '../utils/network-status'
 import { normalizeProject } from './normalize'
-import {
-  type ProjectsList,
-  withOptimisticProjects,
-  withOptimisticThreads,
-} from './optimistic'
+import { type ProjectsList, withOptimisticProjects, withOptimisticThreads } from './optimistic'
 
 export function useProjects() {
   const { isOnline } = useNetworkStatus()
-  const liveProjects = (useQuery(api.projects.listProjects as never) ?? []) as any[]
+  const liveProjectsQuery = useQuery(api.projects.listProjects as never)
+  const liveProjects: ProjectsList = Array.isArray(liveProjectsQuery) ? liveProjectsQuery : []
   const [cachedProjects, setCachedProjects] = useState<MobileOfflineProjectRecord[]>([])
-  const createProjectMutation = useMutation(api.projects.createProject as never).withOptimisticUpdate(
-    (localStore, args: { name: string; description?: string }) => {
-      const now = Date.now()
-      withOptimisticProjects(localStore, (projects) => [
-        {
-          id: `optimistic-project-${now}`,
-          name: args.name,
-          description: args.description,
-          threadCount: 0,
-          createdAt: now,
-          updatedAt: now,
-        },
-        ...projects,
-      ])
-    },
-  )
-  const updateProjectMutation = useMutation(api.projects.updateProject as never).withOptimisticUpdate(
-    (
-      localStore,
-      args: { projectId: Id<'projects'>; name?: string; description?: string },
-    ) => {
+  const createProjectMutation = useMutation(
+    api.projects.createProject as never,
+  ).withOptimisticUpdate((localStore, args: { name: string; description?: string }) => {
+    const now = Date.now()
+    withOptimisticProjects(localStore, (projects) => [
+      {
+        id: `optimistic-project-${now}`,
+        name: args.name,
+        description: args.description,
+        threadCount: 0,
+        createdAt: now,
+        updatedAt: now,
+      },
+      ...projects,
+    ])
+  })
+  const updateProjectMutation = useMutation(
+    api.projects.updateProject as never,
+  ).withOptimisticUpdate(
+    (localStore, args: { projectId: Id<'projects'>; name?: string; description?: string }) => {
       withOptimisticProjects(localStore, (projects) =>
         projects.map((project: ProjectsList[number]) =>
           project.id === args.projectId
             ? {
                 ...project,
                 ...(args.name !== undefined ? { name: args.name } : {}),
-                ...(args.description !== undefined
-                  ? { description: args.description }
-                  : {}),
+                ...(args.description !== undefined ? { description: args.description } : {}),
                 updatedAt: Date.now(),
               }
             : project,
@@ -52,13 +46,13 @@ export function useProjects() {
       )
     },
   )
-  const deleteProjectMutation = useMutation(api.projects.deleteProject as never).withOptimisticUpdate(
-    (localStore, args: { projectId: Id<'projects'> }) => {
-      withOptimisticProjects(localStore, (projects) =>
-        projects.filter((project: ProjectsList[number]) => project.id !== args.projectId),
-      )
-    },
-  )
+  const deleteProjectMutation = useMutation(
+    api.projects.deleteProject as never,
+  ).withOptimisticUpdate((localStore, args: { projectId: Id<'projects'> }) => {
+    withOptimisticProjects(localStore, (projects) =>
+      projects.filter((project: ProjectsList[number]) => project.id !== args.projectId),
+    )
+  })
   const assignThreadToProjectMutation = useMutation(
     api.projects.assignThreadToProject as never,
   ).withOptimisticUpdate((localStore, args: { threadId: string; projectId: Id<'projects'> }) => {

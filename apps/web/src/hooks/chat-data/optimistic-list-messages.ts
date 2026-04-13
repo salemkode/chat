@@ -4,22 +4,22 @@ import type { OptimisticLocalStore } from 'convex/browser'
 import { insertAtPosition } from 'convex/react'
 import { api } from '@convex/_generated/api'
 
-type ListMessagesPageItem = FunctionReturnType<
-  typeof api.chat.listMessages
->['page'][number]
+type ListMessagesPageItem = FunctionReturnType<typeof api.chat.listMessages>['page'][number]
 
 function optimisticUserMessage(
   threadId: string,
   prompt: string,
+  order: number,
   now: number,
+  clientRequestId?: string,
   attachments?: Array<{
     filename?: string
     mediaType?: string
   }>,
 ): ListMessagesPageItem {
-  const order = now
+  const idSuffix = clientRequestId?.trim() || now
   return {
-    id: `optimistic-user-${now}`,
+    id: `optimistic-user-${idSuffix}`,
     role: 'user',
     key: `${threadId}-${order}-0`,
     text: prompt,
@@ -40,17 +40,20 @@ function optimisticUserMessage(
 
 function optimisticAssistantMessage(
   threadId: string,
+  order: number,
   now: number,
+  clientRequestId?: string,
 ): ListMessagesPageItem {
-  const order = now + 1
+  const idSuffix = clientRequestId?.trim() || now
   return {
-    id: `optimistic-assistant-${now}`,
+    id: `optimistic-assistant-${idSuffix}`,
     role: 'assistant',
-    key: `${threadId}-${order}-0`,
+    key: `${threadId}-${order}-1`,
     text: '',
     order,
-    stepOrder: 0,
-    status: 'streaming',
+    stepOrder: 1,
+    // Keep this pending so streamed server updates can auto-merge by order/step.
+    status: 'pending',
     _creationTime: now,
     parts: [],
   } as ListMessagesPageItem
@@ -86,14 +89,25 @@ export function applyOptimisticGenerateMessage(
     filename?: string
     mediaType?: string
   }>,
+  clientRequestId?: string,
 ) {
   const now = Date.now()
-  const assistant = optimisticAssistantMessage(threadId, now)
-  const user = optimisticUserMessage(threadId, prompt, now, attachments)
-  const sortKeyFromItem = (el: ListMessagesPageItem): Value | Value[] => [
-    el.order,
-    el.stepOrder,
-  ]
+  const queries = localStore.getAllQueries(api.chat.listMessages)
+  let maxOrder = -1
+
+  for (const query of queries) {
+    if (query.args.threadId !== threadId || query.args.streamArgs) {
+      continue
+    }
+    for (const message of query.value?.page ?? []) {
+      maxOrder = Math.max(maxOrder, message.order)
+    }
+  }
+
+  const order = maxOrder + 1
+  const assistant = optimisticAssistantMessage(threadId, order, now, clientRequestId)
+  const user = optimisticUserMessage(threadId, prompt, order, now, clientRequestId, attachments)
+  const sortKeyFromItem = (el: ListMessagesPageItem): Value | Value[] => [el.order, el.stepOrder]
 
   insertAtPosition({
     localQueryStore: localStore,

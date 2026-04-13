@@ -57,8 +57,7 @@
     try {
       const parsed = JSON.parse(value)
       const mode =
-        parsed &&
-        (parsed.mode === 'light' || parsed.mode === 'dark' || parsed.mode === 'system')
+        parsed && (parsed.mode === 'light' || parsed.mode === 'dark' || parsed.mode === 'system')
           ? parsed.mode
           : parsed && parsed.mode === 'custom'
             ? 'system'
@@ -88,8 +87,5 @@
   root.style.colorScheme = resolved
 
   root.style.setProperty('--custom-primary', settings.primaryColor)
-  root.style.setProperty(
-    '--custom-primary-foreground',
-    getContrastTextColor(settings.primaryColor),
-  )
+  root.style.setProperty('--custom-primary-foreground', getContrastTextColor(settings.primaryColor))
 })()

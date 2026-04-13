@@ -1,11 +1,11 @@
-export { ChatComposer } from './ChatComposer'
-export { ChatDrawerContent } from './ChatDrawerContent'
-export { ChatHeader } from './ChatHeader'
-export { ChatPage } from './ChatPage'
-export { ChatSuggestions } from './ChatSuggestions'
-export { MessageList } from './MessageList'
-export { MessageRow } from './MessageRow'
-export { useChatConversation } from './useChatConversation'
+export { ChatComposer } from './chat-composer'
+export { ChatDrawerContent } from './chat-drawer-content'
+export { ChatHeader } from './chat-header'
+export { ChatPage } from './chat-page'
+export { ChatSuggestions } from './chat-suggestions'
+export { MessageList } from './message-list'
+export { MessageRow } from './message-row'
+export { useChatConversation } from './use-chat-conversation'
 export type {
   ChatScreenMode,
   ChatRenderableAttachment,

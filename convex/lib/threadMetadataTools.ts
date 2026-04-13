@@ -3,32 +3,20 @@ import { z } from 'zod'
 import { internal } from '../_generated/api'
 import type { Id } from '../_generated/dataModel'
 
-const updateThreadMetadataInputSchema = z.object({
-  title: z
-    .string()
-    .min(3)
-    .max(60)
-    .optional()
-    .describe('A short replacement thread title.'),
-  emoji: z
-    .string()
-    .min(1)
-    .max(16)
-    .optional()
-    .describe('A single replacement emoji for the thread.'),
-  icon: z
-    .string()
-    .min(1)
-    .max(40)
-    .optional()
-    .describe('Optional replacement Lucide icon name.'),
-}).refine(
-  (value) =>
-    Boolean(value.title?.trim() || value.emoji?.trim() || value.icon?.trim()),
-  {
+const updateThreadMetadataInputSchema = z
+  .object({
+    title: z.string().min(3).max(60).optional().describe('A short replacement thread title.'),
+    emoji: z
+      .string()
+      .min(1)
+      .max(16)
+      .optional()
+      .describe('A single replacement emoji for the thread.'),
+    icon: z.string().min(1).max(40).optional().describe('Optional replacement Lucide icon name.'),
+  })
+  .refine((value) => Boolean(value.title?.trim() || value.emoji?.trim() || value.icon?.trim()), {
     message: 'Provide at least one of title, emoji, or icon.',
-  },
-)
+  })
 
 function errorToMessage(error: unknown) {
   if (error instanceof Error) return error.message
@@ -61,16 +49,13 @@ export const threadMetadataTools = {
     inputSchema: updateThreadMetadataInputSchema,
     execute: async (ctx, input) => {
       try {
-        const updated = await ctx.runMutation(
-          internal.agents.applyThreadMetadataUpdate,
-          {
-            threadId: getThreadId(ctx),
-            userId: getUserId(ctx),
-            title: input.title,
-            emoji: input.emoji,
-            icon: input.icon,
-          },
-        )
+        const updated = await ctx.runMutation(internal.agents.applyThreadMetadataUpdate, {
+          threadId: getThreadId(ctx),
+          userId: getUserId(ctx),
+          title: input.title,
+          emoji: input.emoji,
+          icon: input.icon,
+        })
 
         return {
           ok: true,

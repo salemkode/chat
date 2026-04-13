@@ -33,7 +33,7 @@ function failedAssistantMessage(args: {
     failureKind: args.failureKind,
     failureMode: args.failureMode,
     failureNote: args.failureNote,
-  } as any
+  }
 }
 
 describe('chat-generation failure presentation', () => {
@@ -117,9 +117,7 @@ describe('chat-generation queue behavior', () => {
   })
 
   it('rejects overflow when queue is full', () => {
-    const queue = Array.from({ length: QUEUE_CAPACITY }, (_, index) =>
-      queuedMessage(`q${index}`),
-    )
+    const queue = Array.from({ length: QUEUE_CAPACITY }, (_, index) => queuedMessage(`q${index}`))
 
     const next = enqueueQueuedMessage(queue, queuedMessage('overflow'))
 
@@ -146,7 +144,7 @@ describe('buildPromptMessageIdsByIndex', () => {
       { id: 'a1', role: 'assistant' },
       { id: 'u2', role: 'user' },
       { id: 'a2', role: 'assistant' },
-    ] as any[]
+    ]
 
     const byIndex = buildPromptMessageIdsByIndex(messages)
     for (let i = 0; i < messages.length; i += 1) {

@@ -12,6 +12,7 @@ Salemkode Chat is a pnpm + Turbo monorepo for a Convex-powered AI chat product w
 ## Main Docs
 
 - [Architecture overview](./docs/architecture.md)
+- [Research docs](./docs/research/README.md)
 - [Development setup](./DEVELOPMENT.md)
 - [Cloudflare Pages deploy](./docs/cloudflare-pages.md)
 

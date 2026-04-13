@@ -1,4 +1,1 @@
-export {
-  groupThreadsByProject,
-  type ThreadSummary,
-} from '@chat/shared/logic/thread-groups'
+export { groupThreadsByProject, type ThreadSummary } from '@chat/shared/logic/thread-groups'

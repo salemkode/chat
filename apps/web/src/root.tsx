@@ -1,23 +1,14 @@
-import {
-  isRouteErrorResponse,
-  Links,
-  Meta,
-  Outlet,
-  Scripts,
-  ScrollRestoration,
-} from 'react-router'
+import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration } from 'react-router'
 import { useEffect, useState } from 'react'
 import { ClerkProvider } from '@clerk/react-router'
 import { TanStackDevtools } from '@tanstack/react-devtools'
-import { ConvexClientProvider } from '@/components/ConvexClientProvider'
+import { ConvexClientProvider } from '@/components/convex-client-provider'
 import { HotkeysProvider } from '@/components/hotkeys-provider'
 import { ThemeProvider } from '@/components/theme-provider'
 import { getRequiredEnv } from '@/lib/parsers'
 import appCss from '@/styles.css?url'
 
-export const links = () => [
-  { rel: 'stylesheet', href: appCss },
-]
+export const links = () => [{ rel: 'stylesheet', href: appCss }]
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -29,11 +20,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
         />
         <meta name="description" content="Salemkode Chat" />
-        <meta
-          name="theme-color"
-          content="#0a0a0a"
-          media="(prefers-color-scheme: dark)"
-        />
+        <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="Salemkode Chat" />
@@ -68,9 +55,7 @@ export default function App() {
   }, [])
 
   return (
-    <ClerkProvider
-      publishableKey={getRequiredEnv(import.meta.env, 'VITE_CLERK_PUBLISHABLE_KEY')}
-    >
+    <ClerkProvider publishableKey={getRequiredEnv(import.meta.env, 'VITE_CLERK_PUBLISHABLE_KEY')}>
       <ThemeProvider>
         <HotkeysProvider>
           <ConvexClientProvider>
@@ -97,9 +82,7 @@ export function ErrorBoundary({ error }: { error: unknown }) {
   if (isRouteErrorResponse(error)) {
     message = error.status === 404 ? '404' : 'Error'
     details =
-      error.status === 404
-        ? 'The requested page could not be found.'
-        : error.statusText || details
+      error.status === 404 ? 'The requested page could not be found.' : error.statusText || details
   } else if (import.meta.env.DEV && error && error instanceof Error) {
     details = error.message
     stack = error.stack

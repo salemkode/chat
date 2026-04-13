@@ -29,18 +29,13 @@ import {
   SidebarSeparator,
 } from '@/components/ui/sidebar'
 import { Button } from '@/components/ui/button'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { SettingsDialog } from '@/components/settings-dialog'
 import { useOnlineStatus } from '@/hooks/use-online-status'
 import { useProjects, useThreads, useViewer } from '@/hooks/use-chat-data'
 import { writePendingNewChatProjectId } from '@/lib/project-selection'
-import { SidebarSearchDialog } from '@/components/sidebar/SidebarSearchDialog'
+import { SidebarSearchDialog } from '@/components/sidebar/sidebar-search-dialog'
 import { AnimatedThreadList, ThreadRow } from '@/components/sidebar/thread-list'
 import { useHotkeyAction } from '@/components/hotkeys-provider'
 import {
@@ -60,13 +55,10 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
   const navigate = useNavigate()
   const [settingsOpen, setSettingsOpen] = React.useState(false)
   const [settingsTab, setSettingsTab] = React.useState<SettingsTab>('general')
-  const [projectDialog, setProjectDialog] =
-    React.useState<ProjectDraftState | null>(null)
+  const [projectDialog, setProjectDialog] = React.useState<ProjectDraftState | null>(null)
   const [removeFromProjectDialog, setRemoveFromProjectDialog] =
     React.useState<RemoveFromProjectState | null>(null)
-  const [expandedProjectIds, setExpandedProjectIds] = React.useState<
-    Record<string, boolean>
-  >({})
+  const [expandedProjectIds, setExpandedProjectIds] = React.useState<Record<string, boolean>>({})
 
   const { threads, setPinned } = useThreads()
   const { projects, createProject, removeThreadFromProject } = useProjects()
@@ -105,9 +97,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
         return
       }
 
-      const currentIndex = selectedThreadId
-        ? orderedThreadIds.indexOf(selectedThreadId)
-        : -1
+      const currentIndex = selectedThreadId ? orderedThreadIds.indexOf(selectedThreadId) : -1
 
       const nextIndex =
         currentIndex < 0
@@ -130,6 +120,13 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
     (projectId: string) => {
       writePendingNewChatProjectId(projectId)
       navigate('/')
+    },
+    [navigate],
+  )
+
+  const handleOpenProjectWorkspace = React.useCallback(
+    (projectId: string) => {
+      navigate(generatePath('/projects/:projectId', { projectId }))
     },
     [navigate],
   )
@@ -180,20 +177,26 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
     setSettingsTab('general')
     setSettingsOpen(true)
   })
-  useHotkeyAction('nextChat', () => {
-    handleNavigateRelative(1)
-  }, orderedThreadIds.length > 0)
-  useHotkeyAction('previousChat', () => {
-    handleNavigateRelative(-1)
-  }, orderedThreadIds.length > 0)
+  useHotkeyAction(
+    'nextChat',
+    () => {
+      handleNavigateRelative(1)
+    },
+    orderedThreadIds.length > 0,
+  )
+  useHotkeyAction(
+    'previousChat',
+    () => {
+      handleNavigateRelative(-1)
+    },
+    orderedThreadIds.length > 0,
+  )
 
   return (
     <Sidebar className={cn('border-r border-sidebar-border', className)}>
       <SidebarHeader className="relative pb-2">
         <div className="flex items-center justify-center py-3">
-          <h1 className="text-lg font-semibold text-sidebar-foreground">
-            Chat
-          </h1>
+          <h1 className="text-lg font-semibold text-sidebar-foreground">Chat</h1>
         </div>
 
         <Button onClick={handleNewChat} className="w-full">
@@ -228,28 +231,33 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
             <SidebarGroupContent>
               <SidebarMenu className="gap-1">
                 {projects.map((project) => {
-                  const projectThreads =
-                    threadsByProjectId.get(project.id) ?? []
+                  const projectThreads = threadsByProjectId.get(project.id) ?? []
                   const expanded = expandedProjectIds[project.id] ?? true
 
                   return (
                     <React.Fragment key={project.id}>
                       <SidebarMenuItem className="group/project">
-                        <SidebarMenuButton
-                          asChild
-                          className="w-full justify-between"
-                        >
+                        <SidebarMenuButton asChild className="w-full justify-between">
                           <div>
                             <button
                               type="button"
-                              className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                              className="flex shrink-0 items-center"
                               onClick={() => toggleProjectExpanded(project.id)}
+                              aria-label={
+                                expanded ? `Collapse ${project.name}` : `Expand ${project.name}`
+                              }
                             >
                               {expanded ? (
                                 <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
                               ) : (
                                 <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
                               )}
+                            </button>
+                            <button
+                              type="button"
+                              className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                              onClick={() => handleOpenProjectWorkspace(project.id)}
+                            >
                               {expanded ? (
                                 <FolderOpen className="size-4 shrink-0 text-primary" />
                               ) : (
@@ -265,9 +273,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
                             <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover/project:opacity-100">
                               <IconActionButton
                                 label="New chat in project"
-                                onClick={() =>
-                                  handleNewChatInProject(project.id)
-                                }
+                                onClick={() => handleNewChatInProject(project.id)}
                                 icon={<Plus className="size-3.5" />}
                               />
                             </div>
@@ -301,8 +307,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
                                       setRemoveFromProjectDialog({
                                         projectName: project.name,
                                         threadId: thread.serverId!,
-                                        threadTitle:
-                                          thread.title || 'Untitled chat',
+                                        threadTitle: thread.title || 'Untitled chat',
                                       })
                                   : undefined
                               }
@@ -397,9 +402,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
                         {viewer?.name || clerkUser?.fullName || 'User'}
                       </span>
                       <span className="block truncate text-xs text-muted-foreground">
-                        {viewer?.email ||
-                          clerkUser?.primaryEmailAddress?.emailAddress ||
-                          ''}
+                        {viewer?.email || clerkUser?.primaryEmailAddress?.emailAddress || ''}
                       </span>
                     </div>
                     <Settings className="size-4 text-sidebar-foreground/70" />
@@ -410,7 +413,6 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-
           </>
         ) : (
           <Button
@@ -424,11 +426,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
         )}
       </SidebarFooter>
 
-      <SettingsDialog
-        open={settingsOpen}
-        onOpenChange={setSettingsOpen}
-        initialTab={settingsTab}
-      />
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} initialTab={settingsTab} />
 
       <ProjectCreateDialog
         open={projectDialog !== null}

@@ -1,13 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return -- Convex action results */
 import { useAction, useMutation } from 'convex/react'
 import type { Doc } from '@convex/_generated/dataModel'
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useReducer,
-} from 'react'
+import { createContext, useCallback, useContext, useMemo, useReducer } from 'react'
 import { toast } from 'sonner'
 import { api } from '@convex/_generated/api'
 import {
@@ -18,11 +12,7 @@ import {
 import type { ProviderFormData } from '@/components/admin/admin-form-state'
 import { parseJsonRecord } from '@/components/admin/admin-json'
 import type { ProviderType } from '@/components/admin/admin-provider-catalog'
-import type {
-  AdminModel,
-  AdminProvider,
-  ProviderCatalogResult,
-} from '@/components/admin/types'
+import type { AdminModel, AdminProvider, ProviderCatalogResult } from '@/components/admin/types'
 
 type InspectSource = {
   providerId: Doc<'providers'>['_id'] | undefined
@@ -49,9 +39,7 @@ type AdminDiscoveryContextValue = {
   clearDiscoveredModelSelection: () => void
 }
 
-const AdminDiscoveryContext = createContext<AdminDiscoveryContextValue | null>(
-  null,
-)
+const AdminDiscoveryContext = createContext<AdminDiscoveryContextValue | null>(null)
 
 export function AdminDiscoveryProvider({
   models,
@@ -60,10 +48,7 @@ export function AdminDiscoveryProvider({
   models: AdminModel[]
   children: React.ReactNode
 }) {
-  const [state, update] = useReducer(
-    mergeReducer<DiscoveryState>,
-    initialDiscoveryState,
-  )
+  const [state, update] = useReducer(mergeReducer<DiscoveryState>, initialDiscoveryState)
   const inspectProviderCatalog = useAction(api.admin.inspectProviderCatalog)
   const importDiscoveredModels = useMutation(api.admin.importDiscoveredModels)
 
@@ -75,15 +60,11 @@ export function AdminDiscoveryProvider({
 
   const setActiveDiscoveryProviderId = (activeProviderId: string | undefined) =>
     update({ activeProviderId })
-  const setDiscoveryResult = (result: ProviderCatalogResult | null) =>
-    update({ result })
-  const setDiscoveringProviderId = (
-    discoveringProviderId: string | undefined,
-  ) => update({ discoveringProviderId })
-  const setIsImportingDiscovery = (isImporting: boolean) =>
-    update({ isImporting })
-  const setSelectedDiscoveryModelIds = (selectedModelIds: string[]) =>
-    update({ selectedModelIds })
+  const setDiscoveryResult = (result: ProviderCatalogResult | null) => update({ result })
+  const setDiscoveringProviderId = (discoveringProviderId: string | undefined) =>
+    update({ discoveringProviderId })
+  const setIsImportingDiscovery = (isImporting: boolean) => update({ isImporting })
+  const setSelectedDiscoveryModelIds = (selectedModelIds: string[]) => update({ selectedModelIds })
 
   const existingDiscoveredModelIds = useMemo(
     () =>
@@ -91,8 +72,7 @@ export function AdminDiscoveryProvider({
         models
           .filter(
             (model: AdminModel) =>
-              !!activeDiscoveryProviderId &&
-              model.providerId === activeDiscoveryProviderId,
+              !!activeDiscoveryProviderId && model.providerId === activeDiscoveryProviderId,
           )
           .map((model: AdminModel) => model.modelId),
       ),
@@ -104,9 +84,8 @@ export function AdminDiscoveryProvider({
       return []
     }
     const selectedIds = new Set(selectedDiscoveryModelIds)
-    return discoveryResult.models.filter(
-      (model: ProviderCatalogResult['models'][number]) =>
-        selectedIds.has(model.modelId),
+    return discoveryResult.models.filter((model: ProviderCatalogResult['models'][number]) =>
+      selectedIds.has(model.modelId),
     )
   }, [discoveryResult, selectedDiscoveryModelIds])
 
@@ -131,11 +110,7 @@ export function AdminDiscoveryProvider({
           }
         })
         .catch((error) => {
-          toast.error(
-            error instanceof Error
-              ? error.message
-              : 'Failed to inspect provider',
-          )
+          toast.error(error instanceof Error ? error.message : 'Failed to inspect provider')
         })
         .finally(() => {
           setDiscoveringProviderId(undefined)
@@ -165,9 +140,7 @@ export function AdminDiscoveryProvider({
         headers = parseJsonRecord(form.headersJson, 'Headers')
         queryParams = parseJsonRecord(form.queryParamsJson, 'Query params')
       } catch (error) {
-        toast.error(
-          error instanceof Error ? error.message : 'Invalid provider JSON fields.',
-        )
+        toast.error(error instanceof Error ? error.message : 'Invalid provider JSON fields.')
         return
       }
 
@@ -206,33 +179,22 @@ export function AdminDiscoveryProvider({
       enableImportedModels: true,
     })
       .then((result) => {
-        toast.success(
-          `Imported ${result.inserted} new models, updated ${result.updated}.`,
-        )
+        toast.success(`Imported ${result.inserted} new models, updated ${result.updated}.`)
         setSelectedDiscoveryModelIds([])
       })
       .catch((error) => {
-        toast.error(
-          error instanceof Error ? error.message : 'Failed to import models',
-        )
+        toast.error(error instanceof Error ? error.message : 'Failed to import models')
       })
       .finally(() => {
         setIsImportingDiscovery(false)
       })
-  }, [
-    activeDiscoveryProviderId,
-    discoveryResult,
-    importDiscoveredModels,
-    selectedDiscoveredModels,
-  ])
+  }, [activeDiscoveryProviderId, discoveryResult, importDiscoveredModels, selectedDiscoveredModels])
 
   const toggleDiscoveryModelSelection = useCallback(
     (modelId: string) => {
       setSelectedDiscoveryModelIds(
         selectedDiscoveryModelIds.includes(modelId)
-          ? selectedDiscoveryModelIds.filter(
-              (selectedId) => selectedId !== modelId,
-            )
+          ? selectedDiscoveryModelIds.filter((selectedId) => selectedId !== modelId)
           : [...selectedDiscoveryModelIds, modelId],
       )
     },
@@ -287,19 +249,13 @@ export function AdminDiscoveryProvider({
     ],
   )
 
-  return (
-    <AdminDiscoveryContext.Provider value={value}>
-      {children}
-    </AdminDiscoveryContext.Provider>
-  )
+  return <AdminDiscoveryContext.Provider value={value}>{children}</AdminDiscoveryContext.Provider>
 }
 
 export function useAdminDiscovery(): AdminDiscoveryContextValue {
   const ctx = useContext(AdminDiscoveryContext)
   if (!ctx) {
-    throw new Error(
-      'useAdminDiscovery must be used within AdminDiscoveryProvider',
-    )
+    throw new Error('useAdminDiscovery must be used within AdminDiscoveryProvider')
   }
   return ctx
 }

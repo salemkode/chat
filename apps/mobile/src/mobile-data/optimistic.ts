@@ -2,13 +2,9 @@ import type { OptimisticLocalStore } from 'convex/browser'
 import type { FunctionReturnType } from 'convex/server'
 import { api } from '../lib/convexApi'
 
-export type ThreadsWithMetadata = FunctionReturnType<
-  typeof api.agents.listThreadsWithMetadata
->
+export type ThreadsWithMetadata = FunctionReturnType<typeof api.agents.listThreadsWithMetadata>
 export type ProjectsList = FunctionReturnType<typeof api.projects.listProjects>
-export type ModelsWithProviders = FunctionReturnType<
-  typeof api.admin.listModelsWithProviders
->
+export type ModelsWithProviders = FunctionReturnType<typeof api.admin.listModelsWithProviders>
 
 export function withOptimisticThreads(
   localStore: OptimisticLocalStore,

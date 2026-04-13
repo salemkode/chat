@@ -140,6 +140,7 @@ interface AIPromptInputProps {
   ) => Promise<void> | void
   disabled?: boolean
   selectedModel?: string
+  selectedModelLabel?: string
   onModelChange?: (modelId: string) => void
   value?: string
   onValueChange?: (value: string) => void
@@ -178,12 +179,15 @@ interface AIPromptInputProps {
   onConfirmCreateProject?: (values: { name: string; description?: string }) => Promise<void> | void
   onCancelCreateProject?: () => void
   creatingProject?: boolean
+  imageAttachmentsSupported?: boolean
+  textAttachmentCardsEnabled?: boolean
 }
 
 export function AIPromptInput({
   onSubmit,
   disabled = false,
   selectedModel,
+  selectedModelLabel,
   onModelChange,
   value: controlledValue,
   onValueChange,
@@ -207,6 +211,8 @@ export function AIPromptInput({
   onConfirmCreateProject,
   onCancelCreateProject,
   creatingProject = false,
+  imageAttachmentsSupported = true,
+  textAttachmentCardsEnabled = true,
 }: AIPromptInputProps) {
   const [internalValue, setInternalValue] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -229,6 +235,9 @@ export function AIPromptInput({
   const { bindings } = useHotkeys()
 
   const value = controlledValue ?? internalValue
+  const unsupportedImageMessage = `${
+    selectedModelLabel || 'Selected model'
+  } does not support image attachments. Remove images or choose a model with Vision support.`
   const selectedProject = projects.find((project) => project.id === selectedProjectId)
   const sendBinding = bindings.sendMessage
   const mentionOptions: MentionProjectOption[] = projectMention
@@ -282,12 +291,23 @@ export function AIPromptInput({
       return
     }
 
-    const unsupported = incoming.filter((file) => !isSupportedAttachment(file))
+    const modelBlockedImages = !imageAttachmentsSupported
+      ? incoming.filter((file) => file.type.startsWith('image/'))
+      : []
+    if (modelBlockedImages.length > 0) {
+      setSubmitError(unsupportedImageMessage)
+    }
+
+    const modelAllowed = imageAttachmentsSupported
+      ? incoming
+      : incoming.filter((file) => !file.type.startsWith('image/'))
+
+    const unsupported = modelAllowed.filter((file) => !isSupportedAttachment(file))
     if (unsupported.length > 0) {
       setSubmitError('Only images and PDFs are supported right now.')
     }
 
-    const supported = incoming.filter(isSupportedAttachment)
+    const supported = modelAllowed.filter(isSupportedAttachment)
     if (supported.length === 0) {
       return
     }
@@ -406,6 +426,14 @@ export function AIPromptInput({
 
   const handleSubmit = async (event?: React.FormEvent) => {
     event?.preventDefault()
+    const hasUnsupportedImageAttachments =
+      !imageAttachmentsSupported &&
+      attachments.some((attachment) => attachment.file.type.startsWith('image/'))
+    if (hasUnsupportedImageAttachments) {
+      setSubmitError(unsupportedImageMessage)
+      return
+    }
+
     const hasTextAttachments = textAttachments.length > 0
     if (
       (!value.trim() && attachments.length === 0 && !hasTextAttachments) ||
@@ -419,13 +447,23 @@ export function AIPromptInput({
     setIsSubmitting(true)
     setSubmitError(null)
 
+    const submittedValue = value
+    const submittedTextAttachments = textAttachments
+    const submittedFiles = attachments.map((attachment) => attachment.file)
+
+    setValue('')
+    clearAttachments()
+
     try {
-      const resolvedPrompt = combineTextAttachmentsWithPrompt(value, textAttachments)
+      const resolvedPrompt = combineTextAttachmentsWithPrompt(
+        submittedValue,
+        submittedTextAttachments,
+      )
       await onSubmit(resolvedPrompt, {
         searchEnabled,
         searchMode: searchEnabled ? 'required' : 'auto',
         projectId: selectedProjectId,
-        attachments: attachments.map((attachment) => attachment.file),
+        attachments: submittedFiles,
         reasoning: reasoningSupported
           ? {
               enabled: reasoningEnabled,
@@ -435,8 +473,6 @@ export function AIPromptInput({
               enabled: false,
             },
       })
-      setValue('')
-      clearAttachments()
     } catch (error) {
       setSubmitError(getComposerErrorMessage(error))
     } finally {
@@ -502,13 +538,7 @@ export function AIPromptInput({
         textAttachments.length === 0 &&
         !pendingProjectDraft,
     )
-  }, [
-    attachments.length,
-    onEmptyStateChange,
-    pendingProjectDraft,
-    textAttachments.length,
-    value,
-  ])
+  }, [attachments.length, onEmptyStateChange, pendingProjectDraft, textAttachments.length, value])
 
   useEffect(() => {
     setReasoningEnabled(userReasoningEnabled)
@@ -517,6 +547,19 @@ export function AIPromptInput({
   useEffect(() => {
     setReasoningLevel(userReasoningLevel)
   }, [userReasoningLevel])
+
+  useEffect(() => {
+    const hasUnsupportedImageAttachments =
+      !imageAttachmentsSupported &&
+      attachments.some((attachment) => attachment.file.type.startsWith('image/'))
+
+    if (hasUnsupportedImageAttachments) {
+      setSubmitError(unsupportedImageMessage)
+      return
+    }
+
+    setSubmitError((current) => (current === unsupportedImageMessage ? null : current))
+  }, [attachments, imageAttachmentsSupported, unsupportedImageMessage])
 
   useEffect(() => {
     if (!submitError) {
@@ -658,12 +701,20 @@ export function AIPromptInput({
               const pastedImages = extractClipboardImageFiles(event.clipboardData)
               if (pastedImages.length > 0) {
                 event.preventDefault()
+                if (!imageAttachmentsSupported) {
+                  setSubmitError(unsupportedImageMessage)
+                  return
+                }
                 addAttachments(pastedImages)
                 return
               }
 
               const pastedText = event.clipboardData.getData('text/plain')
-              if (pastedText && shouldConvertToTextAttachment(pastedText)) {
+              if (
+                textAttachmentCardsEnabled &&
+                pastedText &&
+                shouldConvertToTextAttachment(pastedText)
+              ) {
                 event.preventDefault()
                 setTextAttachments((current) => [...current, createTextAttachment(pastedText)])
               }
@@ -770,6 +821,13 @@ export function AIPromptInput({
           reasoningLevels={reasoningLevels}
           defaultReasoningLevel={defaultReasoningLevel}
           onAttach={addAttachments}
+          imageAttachmentsSupported={imageAttachmentsSupported}
+          sendBlockedReason={
+            !imageAttachmentsSupported &&
+            attachments.some((attachment) => attachment.file.type.startsWith('image/'))
+              ? unsupportedImageMessage
+              : undefined
+          }
           contextMeter={
             <ComposerContextMeter
               threadId={contextThreadId}

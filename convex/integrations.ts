@@ -1,7 +1,5 @@
-import { randomUUID } from 'crypto'
 import { ConvexError, v } from 'convex/values'
 import {
-  action,
   internalAction,
   internalMutation,
   internalQuery,
@@ -34,8 +32,7 @@ function resolveRedirectBaseUrl() {
   if (!fromEnv) {
     throw new ConvexError({
       code: 'VALIDATION_ERROR',
-      message:
-        'Missing CONVEX_SITE_URL or PUBLIC_APP_URL for OAuth redirect handling',
+      message: 'Missing CONVEX_SITE_URL or PUBLIC_APP_URL for OAuth redirect handling',
     })
   }
   return fromEnv.replace(/\/+$/, '')
@@ -46,10 +43,7 @@ function callbackUrlForProvider(provider: 'github' | 'google') {
   return `${base}/oauth/${provider}/callback`
 }
 
-function normalizeRedirectTo(args: {
-  redirectTo?: string
-  projectId?: Id<'projects'>
-}) {
+function normalizeRedirectTo(args: { redirectTo?: string; projectId?: Id<'projects'> }) {
   if (args.redirectTo?.trim()) {
     return args.redirectTo.trim()
   }
@@ -172,7 +166,7 @@ export const validateConnection = mutation({
     }
 
     const now = Date.now()
-    const nextStatus =
+    const nextStatus: 'active' | 'expired' | 'revoked' | 'error' =
       connection.status === 'revoked'
         ? 'revoked'
         : connection.expiresAt && connection.expiresAt <= now
@@ -219,7 +213,7 @@ export const getOAuthStartUrl = mutation({
       })
     }
 
-    const state = randomUUID()
+    const state = crypto.randomUUID()
     const now = Date.now()
     const redirectTo = normalizeRedirectTo({
       projectId: args.projectId,
@@ -243,7 +237,7 @@ export const getOAuthStartUrl = mutation({
       url.searchParams.set('redirect_uri', callbackUrlForProvider('github'))
       url.searchParams.set('scope', 'repo read:user user:email')
       url.searchParams.set('state', state)
-      return { url: url.toString(), provider: 'github' }
+      return { url: url.toString(), provider: 'github' as const }
     }
 
     const clientId = requireEnv('GOOGLE_CLIENT_ID')
@@ -259,7 +253,7 @@ export const getOAuthStartUrl = mutation({
     url.searchParams.set('include_granted_scopes', 'true')
     url.searchParams.set('prompt', 'consent')
     url.searchParams.set('state', state)
-    return { url: url.toString(), provider: 'google' }
+    return { url: url.toString(), provider: 'google' as const }
   },
 })
 
@@ -315,22 +309,19 @@ export const exchangeOAuthCode = internalAction({
     if (args.provider === 'github') {
       const clientId = requireEnv('GITHUB_CLIENT_ID')
       const clientSecret = requireEnv('GITHUB_CLIENT_SECRET')
-      const tokenResponse = await fetch(
-        'https://github.com/login/oauth/access_token',
-        {
-          method: 'POST',
-          headers: {
-            Accept: 'application/json',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            client_id: clientId,
-            client_secret: clientSecret,
-            code: args.code,
-            redirect_uri: callbackUrlForProvider('github'),
-          }),
+      const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
         },
-      )
+        body: JSON.stringify({
+          client_id: clientId,
+          client_secret: clientSecret,
+          code: args.code,
+          redirect_uri: callbackUrlForProvider('github'),
+        }),
+      })
 
       if (!tokenResponse.ok) {
         throw new Error('Failed to exchange GitHub OAuth code')
@@ -369,7 +360,7 @@ export const exchangeOAuthCode = internalAction({
       }
 
       return {
-        provider: 'github',
+        provider: 'github' as const,
         accountSubject: String(userJson.id),
         accountLabel: userJson.login || userJson.name || String(userJson.id),
         scopes: tokenJson.scope ? tokenJson.scope.split(',').map((scope) => scope.trim()) : [],
@@ -413,14 +404,11 @@ export const exchangeOAuthCode = internalAction({
       throw new Error('Google OAuth response missing access_token')
     }
 
-    const profileResponse = await fetch(
-      'https://www.googleapis.com/oauth2/v3/userinfo',
-      {
-        headers: {
-          Authorization: `Bearer ${tokenJson.access_token}`,
-        },
+    const profileResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: {
+        Authorization: `Bearer ${tokenJson.access_token}`,
       },
-    )
+    })
 
     if (!profileResponse.ok) {
       throw new Error('Failed to fetch Google account profile')
@@ -437,12 +425,10 @@ export const exchangeOAuthCode = internalAction({
     }
 
     return {
-      provider: 'google',
+      provider: 'google' as const,
       accountSubject: profileJson.sub,
       accountLabel: profileJson.email || profileJson.name || profileJson.sub,
-      scopes: tokenJson.scope
-        ? tokenJson.scope.split(' ').map((scope) => scope.trim())
-        : [],
+      scopes: tokenJson.scope ? tokenJson.scope.split(' ').map((scope) => scope.trim()) : [],
       accessToken: tokenJson.access_token,
       refreshToken: tokenJson.refresh_token,
       expiresAt:
@@ -477,16 +463,19 @@ export const upsertOAuthConnection = internalMutation({
       .unique()
 
     const now = Date.now()
+    const accessTokenCiphertext = await encryptSecret(args.accessToken)
+    const refreshTokenCiphertext = args.refreshToken
+      ? await encryptSecret(args.refreshToken)
+      : undefined
+
     const patch = {
       ownerUserId: args.userId,
       provider: args.provider,
       accountSubject: args.accountSubject,
       accountLabel: args.accountLabel,
       scopes: args.scopes,
-      accessTokenCiphertext: encryptSecret(args.accessToken),
-      refreshTokenCiphertext: args.refreshToken
-        ? encryptSecret(args.refreshToken)
-        : undefined,
+      accessTokenCiphertext,
+      refreshTokenCiphertext,
       expiresAt: args.expiresAt,
       status: 'active' as const,
       lastValidatedAt: now,

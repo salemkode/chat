@@ -56,6 +56,7 @@ const config = defineConfig({
       workbox: {
         cleanupOutdatedCaches: true,
         globPatterns: ['**/*.{css,html,ico,js,png,svg,woff2}'],
+        additionalManifestEntries: [{ url: '/index.html', revision: null }],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\b/, /^\/__/],

@@ -57,18 +57,14 @@ export function readSession(): OfflineSessionSnapshot | null {
   if (typeof window === 'undefined') {
     return null
   }
-  const parsed = readJson<OfflineSessionSnapshot>(
-    localStorage.getItem(SESSION_STORAGE_KEY),
-  )
+  const parsed = readJson<OfflineSessionSnapshot>(localStorage.getItem(SESSION_STORAGE_KEY))
   if (!parsed || typeof parsed.userId !== 'string' || !parsed.trusted) {
     return null
   }
   return parsed
 }
 
-export function storeTrustedSession(
-  session: Omit<OfflineSessionSnapshot, 'id'>,
-) {
+export function storeTrustedSession(session: Omit<OfflineSessionSnapshot, 'id'>) {
   if (typeof window === 'undefined') {
     return
   }
@@ -97,10 +93,7 @@ export function readSettings(): OfflineSettingsRecord | null {
   return parsed
 }
 
-export function writeSettingsForUser(
-  userId: string,
-  record: Omit<OfflineSettingsRecord, 'id'>,
-) {
+export function writeSettingsForUser(userId: string, record: Omit<OfflineSettingsRecord, 'id'>) {
   if (typeof window === 'undefined') {
     return
   }
@@ -158,10 +151,7 @@ export function writeMessagesCache(userId: string, threadId: string, messages: u
   if (typeof window === 'undefined') {
     return
   }
-  localStorage.setItem(
-    userKey(userId, `messages:${threadId}`),
-    JSON.stringify(messages),
-  )
+  localStorage.setItem(userKey(userId, `messages:${threadId}`), JSON.stringify(messages))
   notifyOfflineCacheUpdate()
 }
 
@@ -169,9 +159,7 @@ export function readMessagesCache<T>(userId: string, threadId: string): T | null
   if (typeof window === 'undefined') {
     return null
   }
-  return readJson<T>(
-    localStorage.getItem(userKey(userId, `messages:${threadId}`)),
-  )
+  return readJson<T>(localStorage.getItem(userKey(userId, `messages:${threadId}`)))
 }
 
 export function clearLocalOfflineCache() {

@@ -10,9 +10,7 @@ export const openRouter = createOpenRouter({
 })
 
 export const memoryRag = new RAG(components.rag, {
-  textEmbeddingModel: openRouter.textEmbeddingModel(
-    'openai/text-embedding-3-small',
-  ),
+  textEmbeddingModel: openRouter.textEmbeddingModel('openai/text-embedding-3-small'),
   embeddingDimension: 1536,
   filterNames: ['userId', 'threadId', 'projectId'],
 })

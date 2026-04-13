@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { isAutoModelSelection } from '@chat/shared'
 import { useMutation, useQuery } from 'convex/react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api, type Id } from '../lib/convexApi'
@@ -12,14 +13,15 @@ const MODEL_STORAGE_KEY = 'mobile:selected-model'
 
 export function useModels() {
   const { isOnline } = useNetworkStatus()
-  const data = useQuery(api.admin.listModelsWithProviders as never) as any
+  const data = useQuery(api.admin.listModelsWithProviders as never) as
+    | ModelsWithProviders
+    | undefined
   const setFavoriteModel = useMutation(api.admin.setFavoriteModel as never).withOptimisticUpdate(
     (localStore, args: { modelId: Id<'models'>; isFavorite: boolean }) => {
       withOptimisticModels(localStore, (current) => ({
         ...current,
-        models: (current.models ?? []).map(
-          (model: ModelsWithProviders['models'][number]) =>
-            model._id === args.modelId ? { ...model, isFavorite: args.isFavorite } : model,
+        models: (current.models ?? []).map((model: ModelsWithProviders['models'][number]) =>
+          model._id === args.modelId ? { ...model, isFavorite: args.isFavorite } : model,
         ),
       }))
     },
@@ -33,7 +35,7 @@ export function useModels() {
   }, [])
 
   useEffect(() => {
-    const models = (data?.models ?? []) as any[]
+    const models = data?.models ?? []
     if (!models.length) return
     const normalized = models.map(normalizeModel)
     setCachedModels(normalized)
@@ -41,7 +43,7 @@ export function useModels() {
   }, [data?.models])
 
   const models = useMemo(() => {
-    const source = data?.models?.length ? (data.models as any[]).map(normalizeModel) : cachedModels
+    const source = data?.models?.length ? data.models.map(normalizeModel) : cachedModels
     return [...source].sort((a, b) => {
       if (Number(b.isFavorite) !== Number(a.isFavorite)) {
         return Number(b.isFavorite) - Number(a.isFavorite)
@@ -51,7 +53,11 @@ export function useModels() {
   }, [cachedModels, data?.models])
 
   const resolvedSelectedModel = useMemo(() => {
-    if (selectedModelId && models.some((item) => item.modelId === selectedModelId)) {
+    if (
+      selectedModelId &&
+      (models.some((item) => item.modelId === selectedModelId) ||
+        (data?.autoModelAvailable === true && isAutoModelSelection(selectedModelId)))
+    ) {
       return selectedModelId
     }
     return models.find((item) => item.isFavorite)?.modelId ?? models[0]?.modelId ?? null
@@ -59,6 +65,7 @@ export function useModels() {
 
   return {
     models,
+    autoModelAvailable: data?.autoModelAvailable ?? false,
     selectedModelId: resolvedSelectedModel,
     setSelectedModelId: useCallback(async (modelId: string) => {
       setSelectedModelId(modelId)

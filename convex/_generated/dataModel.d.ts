@@ -13,8 +13,8 @@ import type {
   TableNamesInDataModel,
   SystemTableNames,
   AnyDataModel,
-} from "convex/server";
-import type { GenericId } from "convex/values";
+} from 'convex/server'
+import type { GenericId } from 'convex/values'
 
 /**
  * A type describing your Convex data model.
@@ -28,1308 +28,1697 @@ import type { GenericId } from "convex/values";
 
 export type DataModel = {
   admins: {
-    document: { userId: Id<"users">; _id: Id<"admins">; _creationTime: number };
-    fieldPaths: "_creationTime" | "_id" | "userId";
+    document: { userId: Id<'users'>; _id: Id<'admins'>; _creationTime: number }
+    fieldPaths: '_creationTime' | '_id' | 'userId'
     indexes: {
-      by_id: ["_id"];
-      by_creation_time: ["_creationTime"];
-      by_userId: ["userId", "_creationTime"];
-    };
-    searchIndexes: {};
-    vectorIndexes: {};
-  };
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_userId: ['userId', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
   adminSettings: {
     document: {
-      appPlan: "free" | "pro";
+      appPlan: 'free' | 'pro'
+      autoModelRouterApiKey?: string
+      autoModelRouterPreference?: 'balanced' | 'cost' | 'speed' | 'quality'
+      autoModelRouterUrl?: string
+      autoModelRoutingEnabled?: boolean
       defaultRateLimit?: {
-        capacity?: number;
-        enabled: boolean;
-        kind: "fixed window" | "token bucket";
-        period: number;
-        rate: number;
-        scope: "global" | "user";
-        shards?: number;
-      };
-      key: string;
-      updatedAt: number;
-      _id: Id<"adminSettings">;
-      _creationTime: number;
-    };
+        capacity?: number
+        enabled: boolean
+        kind: 'fixed window' | 'token bucket'
+        period: number
+        rate: number
+        scope: 'global' | 'user'
+        shards?: number
+      }
+      key: string
+      updatedAt: number
+      _id: Id<'adminSettings'>
+      _creationTime: number
+    }
     fieldPaths:
-      | "_creationTime"
-      | "_id"
-      | "appPlan"
-      | "defaultRateLimit"
-      | "defaultRateLimit.capacity"
-      | "defaultRateLimit.enabled"
-      | "defaultRateLimit.kind"
-      | "defaultRateLimit.period"
-      | "defaultRateLimit.rate"
-      | "defaultRateLimit.scope"
-      | "defaultRateLimit.shards"
-      | "key"
-      | "updatedAt";
+      | '_creationTime'
+      | '_id'
+      | 'appPlan'
+      | 'autoModelRouterApiKey'
+      | 'autoModelRouterPreference'
+      | 'autoModelRouterUrl'
+      | 'autoModelRoutingEnabled'
+      | 'defaultRateLimit'
+      | 'defaultRateLimit.capacity'
+      | 'defaultRateLimit.enabled'
+      | 'defaultRateLimit.kind'
+      | 'defaultRateLimit.period'
+      | 'defaultRateLimit.rate'
+      | 'defaultRateLimit.scope'
+      | 'defaultRateLimit.shards'
+      | 'key'
+      | 'updatedAt'
     indexes: {
-      by_id: ["_id"];
-      by_creation_time: ["_creationTime"];
-      by_key: ["key", "_creationTime"];
-    };
-    searchIndexes: {};
-    vectorIndexes: {};
-  };
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_key: ['key', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
+  autoModelDecisions: {
+    document: {
+      createdAt: number
+      decisionId: string
+      error?: string
+      latencyMs?: number
+      reasoningEnabled: boolean
+      requestChars: number
+      requestPreview?: string
+      routerPreference?: 'balanced' | 'cost' | 'speed' | 'quality'
+      routerUrl?: string
+      searchEnabled: boolean
+      selectedModelId?: Id<'models'>
+      selectedModelKey?: string
+      selectedModelName?: string
+      selectedProviderId?: Id<'providers'>
+      selectedProviderName?: string
+      status: 'success' | 'failed'
+      threadId?: string
+      userId?: Id<'users'>
+      _id: Id<'autoModelDecisions'>
+      _creationTime: number
+    }
+    fieldPaths:
+      | '_creationTime'
+      | '_id'
+      | 'createdAt'
+      | 'decisionId'
+      | 'error'
+      | 'latencyMs'
+      | 'reasoningEnabled'
+      | 'requestChars'
+      | 'requestPreview'
+      | 'routerPreference'
+      | 'routerUrl'
+      | 'searchEnabled'
+      | 'selectedModelId'
+      | 'selectedModelKey'
+      | 'selectedModelName'
+      | 'selectedProviderId'
+      | 'selectedProviderName'
+      | 'status'
+      | 'threadId'
+      | 'userId'
+    indexes: {
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_createdAt: ['createdAt', '_creationTime']
+      by_selectedModel_createdAt: ['selectedModelId', 'createdAt', '_creationTime']
+      by_status_createdAt: ['status', 'createdAt', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
   chatShareMessages: {
     document: {
-      order: number;
-      role: "user" | "assistant";
-      shareId: Id<"chatShares">;
-      text: string;
-      _id: Id<"chatShareMessages">;
-      _creationTime: number;
-    };
-    fieldPaths: "_creationTime" | "_id" | "order" | "role" | "shareId" | "text";
+      order: number
+      role: 'user' | 'assistant'
+      shareId: Id<'chatShares'>
+      text: string
+      _id: Id<'chatShareMessages'>
+      _creationTime: number
+    }
+    fieldPaths: '_creationTime' | '_id' | 'order' | 'role' | 'shareId' | 'text'
     indexes: {
-      by_id: ["_id"];
-      by_creation_time: ["_creationTime"];
-      by_share_order: ["shareId", "order", "_creationTime"];
-    };
-    searchIndexes: {};
-    vectorIndexes: {};
-  };
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_share_order: ['shareId', 'order', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
   chatShares: {
     document: {
-      createdAt: number;
-      messageCount: number;
-      ownerUserId: Id<"users">;
-      threadId: string;
-      title?: string;
-      token: string;
-      updatedAt: number;
-      _id: Id<"chatShares">;
-      _creationTime: number;
-    };
+      createdAt: number
+      messageCount: number
+      ownerUserId: Id<'users'>
+      threadId: string
+      title?: string
+      token: string
+      updatedAt: number
+      _id: Id<'chatShares'>
+      _creationTime: number
+    }
     fieldPaths:
-      | "_creationTime"
-      | "_id"
-      | "createdAt"
-      | "messageCount"
-      | "ownerUserId"
-      | "threadId"
-      | "title"
-      | "token"
-      | "updatedAt";
+      | '_creationTime'
+      | '_id'
+      | 'createdAt'
+      | 'messageCount'
+      | 'ownerUserId'
+      | 'threadId'
+      | 'title'
+      | 'token'
+      | 'updatedAt'
     indexes: {
-      by_id: ["_id"];
-      by_creation_time: ["_creationTime"];
-      by_thread_owner: ["threadId", "ownerUserId", "_creationTime"];
-      by_token: ["token", "_creationTime"];
-    };
-    searchIndexes: {};
-    vectorIndexes: {};
-  };
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_thread_owner: ['threadId', 'ownerUserId', '_creationTime']
+      by_token: ['token', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
   clientMutationReceipts: {
     document: {
-      clientRequestId: string;
-      createdAt: number;
-      kind: "generateMessage" | "regenerateMessage";
-      threadId: string;
-      userId: Id<"users">;
-      _id: Id<"clientMutationReceipts">;
-      _creationTime: number;
-    };
+      clientRequestId: string
+      createdAt: number
+      kind: 'generateMessage' | 'regenerateMessage'
+      threadId: string
+      userId: Id<'users'>
+      _id: Id<'clientMutationReceipts'>
+      _creationTime: number
+    }
     fieldPaths:
-      | "_creationTime"
-      | "_id"
-      | "clientRequestId"
-      | "createdAt"
-      | "kind"
-      | "threadId"
-      | "userId";
+      | '_creationTime'
+      | '_id'
+      | 'clientRequestId'
+      | 'createdAt'
+      | 'kind'
+      | 'threadId'
+      | 'userId'
     indexes: {
-      by_id: ["_id"];
-      by_creation_time: ["_creationTime"];
-      by_userId_clientRequestId: ["userId", "clientRequestId", "_creationTime"];
-    };
-    searchIndexes: {};
-    vectorIndexes: {};
-  };
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_userId_clientRequestId: ['userId', 'clientRequestId', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
+  integrationConnections: {
+    document: {
+      accessTokenCiphertext: string
+      accountLabel: string
+      accountSubject: string
+      createdAt: number
+      expiresAt?: number
+      lastError?: string
+      lastSyncAt?: number
+      lastValidatedAt?: number
+      ownerUserId: Id<'users'>
+      provider: 'github' | 'google'
+      refreshTokenCiphertext?: string
+      scopes: Array<string>
+      status: 'active' | 'expired' | 'revoked' | 'error'
+      updatedAt: number
+      _id: Id<'integrationConnections'>
+      _creationTime: number
+    }
+    fieldPaths:
+      | '_creationTime'
+      | '_id'
+      | 'accessTokenCiphertext'
+      | 'accountLabel'
+      | 'accountSubject'
+      | 'createdAt'
+      | 'expiresAt'
+      | 'lastError'
+      | 'lastSyncAt'
+      | 'lastValidatedAt'
+      | 'ownerUserId'
+      | 'provider'
+      | 'refreshTokenCiphertext'
+      | 'scopes'
+      | 'status'
+      | 'updatedAt'
+    indexes: {
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_account_owner: ['ownerUserId', 'provider', 'accountSubject', '_creationTime']
+      by_owner: ['ownerUserId', '_creationTime']
+      by_provider_owner: ['provider', 'ownerUserId', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
   memoryChunks: {
     document: {
-      agentId: string;
-      embedding: Array<number>;
-      endLine: number;
-      fileId: Id<"memoryFiles">;
-      hash: string;
-      model: string;
-      path: string;
-      source: "memory" | "sessions";
-      startLine: number;
-      text: string;
-      updatedAt: number;
-      _id: Id<"memoryChunks">;
-      _creationTime: number;
-    };
+      agentId: string
+      embedding: Array<number>
+      endLine: number
+      fileId: Id<'memoryFiles'>
+      hash: string
+      model: string
+      path: string
+      source: 'memory' | 'sessions'
+      startLine: number
+      text: string
+      updatedAt: number
+      _id: Id<'memoryChunks'>
+      _creationTime: number
+    }
     fieldPaths:
-      | "_creationTime"
-      | "_id"
-      | "agentId"
-      | "embedding"
-      | "endLine"
-      | "fileId"
-      | "hash"
-      | "model"
-      | "path"
-      | "source"
-      | "startLine"
-      | "text"
-      | "updatedAt";
+      | '_creationTime'
+      | '_id'
+      | 'agentId'
+      | 'embedding'
+      | 'endLine'
+      | 'fileId'
+      | 'hash'
+      | 'model'
+      | 'path'
+      | 'source'
+      | 'startLine'
+      | 'text'
+      | 'updatedAt'
     indexes: {
-      by_id: ["_id"];
-      by_creation_time: ["_creationTime"];
-      by_agent: ["agentId", "_creationTime"];
-      by_file: ["fileId", "_creationTime"];
-      by_path: ["path", "agentId", "_creationTime"];
-      by_source: ["source", "agentId", "_creationTime"];
-      by_updated: ["updatedAt", "_creationTime"];
-    };
-    searchIndexes: {};
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_agent: ['agentId', '_creationTime']
+      by_file: ['fileId', '_creationTime']
+      by_path: ['path', 'agentId', '_creationTime']
+      by_source: ['source', 'agentId', '_creationTime']
+      by_updated: ['updatedAt', '_creationTime']
+    }
+    searchIndexes: {}
     vectorIndexes: {
       by_embedding: {
-        vectorField: "embedding";
-        dimensions: number;
-        filterFields: "agentId" | "model" | "source";
-      };
-    };
-  };
+        vectorField: 'embedding'
+        dimensions: number
+        filterFields: 'agentId' | 'model' | 'source'
+      }
+    }
+  }
   memoryEmbeddingCache: {
     document: {
-      dims?: number;
-      embedding: Array<number>;
-      hash: string;
-      model: string;
-      provider: string;
-      providerKey: string;
-      updatedAt: number;
-      _id: Id<"memoryEmbeddingCache">;
-      _creationTime: number;
-    };
+      dims?: number
+      embedding: Array<number>
+      hash: string
+      model: string
+      provider: string
+      providerKey: string
+      updatedAt: number
+      _id: Id<'memoryEmbeddingCache'>
+      _creationTime: number
+    }
     fieldPaths:
-      | "_creationTime"
-      | "_id"
-      | "dims"
-      | "embedding"
-      | "hash"
-      | "model"
-      | "provider"
-      | "providerKey"
-      | "updatedAt";
+      | '_creationTime'
+      | '_id'
+      | 'dims'
+      | 'embedding'
+      | 'hash'
+      | 'model'
+      | 'provider'
+      | 'providerKey'
+      | 'updatedAt'
     indexes: {
-      by_id: ["_id"];
-      by_creation_time: ["_creationTime"];
-      by_composite: [
-        "provider",
-        "model",
-        "providerKey",
-        "hash",
-        "_creationTime",
-      ];
-      by_updated: ["updatedAt", "_creationTime"];
-    };
-    searchIndexes: {};
-    vectorIndexes: {};
-  };
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_composite: ['provider', 'model', 'providerKey', 'hash', '_creationTime']
+      by_updated: ['updatedAt', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
   memoryExtractionState: {
     document: {
-      error?: string;
-      lastProcessedOrder: number;
-      status?: "idle" | "running" | "error";
-      threadId: string;
-      updatedAt: number;
-      userId: Id<"users">;
-      _id: Id<"memoryExtractionState">;
-      _creationTime: number;
-    };
+      error?: string
+      lastProcessedOrder: number
+      status?: 'idle' | 'running' | 'error'
+      threadId: string
+      updatedAt: number
+      userId: Id<'users'>
+      _id: Id<'memoryExtractionState'>
+      _creationTime: number
+    }
     fieldPaths:
-      | "_creationTime"
-      | "_id"
-      | "error"
-      | "lastProcessedOrder"
-      | "status"
-      | "threadId"
-      | "updatedAt"
-      | "userId";
+      | '_creationTime'
+      | '_id'
+      | 'error'
+      | 'lastProcessedOrder'
+      | 'status'
+      | 'threadId'
+      | 'updatedAt'
+      | 'userId'
     indexes: {
-      by_id: ["_id"];
-      by_creation_time: ["_creationTime"];
-      by_thread: ["threadId", "_creationTime"];
-      by_user: ["userId", "_creationTime"];
-    };
-    searchIndexes: {};
-    vectorIndexes: {};
-  };
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_thread: ['threadId', '_creationTime']
+      by_user: ['userId', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
   memoryFiles: {
     document: {
-      agentId: string;
-      hash: string;
-      lastSyncedAt?: number;
-      mtime: number;
-      path: string;
-      size: number;
-      source: "memory" | "sessions";
-      _id: Id<"memoryFiles">;
-      _creationTime: number;
-    };
+      agentId: string
+      hash: string
+      lastSyncedAt?: number
+      mtime: number
+      path: string
+      size: number
+      source: 'memory' | 'sessions'
+      _id: Id<'memoryFiles'>
+      _creationTime: number
+    }
     fieldPaths:
-      | "_creationTime"
-      | "_id"
-      | "agentId"
-      | "hash"
-      | "lastSyncedAt"
-      | "mtime"
-      | "path"
-      | "size"
-      | "source";
+      | '_creationTime'
+      | '_id'
+      | 'agentId'
+      | 'hash'
+      | 'lastSyncedAt'
+      | 'mtime'
+      | 'path'
+      | 'size'
+      | 'source'
     indexes: {
-      by_id: ["_id"];
-      by_creation_time: ["_creationTime"];
-      by_agent: ["agentId", "_creationTime"];
-      by_mtime: ["mtime", "_creationTime"];
-      by_path: ["path", "agentId", "_creationTime"];
-      by_source: ["source", "agentId", "_creationTime"];
-    };
-    searchIndexes: {};
-    vectorIndexes: {};
-  };
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_agent: ['agentId', '_creationTime']
+      by_mtime: ['mtime', '_creationTime']
+      by_path: ['path', 'agentId', '_creationTime']
+      by_source: ['source', 'agentId', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
   memoryMeta: {
     document: {
-      agentId: string;
-      key: string;
-      value: string;
-      _id: Id<"memoryMeta">;
-      _creationTime: number;
-    };
-    fieldPaths: "_creationTime" | "_id" | "agentId" | "key" | "value";
+      agentId: string
+      key: string
+      value: string
+      _id: Id<'memoryMeta'>
+      _creationTime: number
+    }
+    fieldPaths: '_creationTime' | '_id' | 'agentId' | 'key' | 'value'
     indexes: {
-      by_id: ["_id"];
-      by_creation_time: ["_creationTime"];
-      by_key: ["key", "agentId", "_creationTime"];
-    };
-    searchIndexes: {};
-    vectorIndexes: {};
-  };
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_key: ['key', 'agentId', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
   memoryState: {
     document: {
-      errorMessage?: string;
-      lastSyncAt: number;
-      status: "idle" | "syncing" | "error";
-      userId: Id<"users">;
-      _id: Id<"memoryState">;
-      _creationTime: number;
-    };
-    fieldPaths:
-      | "_creationTime"
-      | "_id"
-      | "errorMessage"
-      | "lastSyncAt"
-      | "status"
-      | "userId";
+      errorMessage?: string
+      lastSyncAt: number
+      status: 'idle' | 'syncing' | 'error'
+      userId: Id<'users'>
+      _id: Id<'memoryState'>
+      _creationTime: number
+    }
+    fieldPaths: '_creationTime' | '_id' | 'errorMessage' | 'lastSyncAt' | 'status' | 'userId'
     indexes: {
-      by_id: ["_id"];
-      by_creation_time: ["_creationTime"];
-      by_user: ["userId", "_creationTime"];
-    };
-    searchIndexes: {};
-    vectorIndexes: {};
-  };
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_user: ['userId', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
   memorySyncState: {
     document: {
-      agentId: string;
-      dirty: boolean;
-      error?: string;
-      lastFullSync: number;
-      pendingFiles: Array<string>;
-      _id: Id<"memorySyncState">;
-      _creationTime: number;
-    };
+      agentId: string
+      dirty: boolean
+      error?: string
+      lastFullSync: number
+      pendingFiles: Array<string>
+      _id: Id<'memorySyncState'>
+      _creationTime: number
+    }
     fieldPaths:
-      | "_creationTime"
-      | "_id"
-      | "agentId"
-      | "dirty"
-      | "error"
-      | "lastFullSync"
-      | "pendingFiles";
+      | '_creationTime'
+      | '_id'
+      | 'agentId'
+      | 'dirty'
+      | 'error'
+      | 'lastFullSync'
+      | 'pendingFiles'
     indexes: {
-      by_id: ["_id"];
-      by_creation_time: ["_creationTime"];
-      by_agent: ["agentId", "_creationTime"];
-    };
-    searchIndexes: {};
-    vectorIndexes: {};
-  };
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_agent: ['agentId', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
+  messageArtifactContextLinks: {
+    document: {
+      artifactId: Id<'projectArtifacts'>
+      createdAt: number
+      messageId: string
+      threadId: string
+      userId: Id<'users'>
+      _id: Id<'messageArtifactContextLinks'>
+      _creationTime: number
+    }
+    fieldPaths:
+      | '_creationTime'
+      | '_id'
+      | 'artifactId'
+      | 'createdAt'
+      | 'messageId'
+      | 'threadId'
+      | 'userId'
+    indexes: {
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_artifact: ['artifactId', '_creationTime']
+      by_thread_message: ['threadId', 'messageId', '_creationTime']
+      by_user: ['userId', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
   messages: {
     document: {
-      body: string;
-      role: "user" | "assistant";
-      userId: Id<"users">;
-      _id: Id<"messages">;
-      _creationTime: number;
-    };
-    fieldPaths: "_creationTime" | "_id" | "body" | "role" | "userId";
+      body: string
+      role: 'user' | 'assistant'
+      userId: Id<'users'>
+      _id: Id<'messages'>
+      _creationTime: number
+    }
+    fieldPaths: '_creationTime' | '_id' | 'body' | 'role' | 'userId'
     indexes: {
-      by_id: ["_id"];
-      by_creation_time: ["_creationTime"];
-      by_userId: ["userId", "_creationTime"];
-    };
-    searchIndexes: {};
-    vectorIndexes: {};
-  };
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_userId: ['userId', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
   modelCollections: {
     document: {
-      description?: string;
-      modelIds: Array<Id<"models">>;
-      name: string;
-      sortOrder: number;
-      _id: Id<"modelCollections">;
-      _creationTime: number;
-    };
-    fieldPaths:
-      | "_creationTime"
-      | "_id"
-      | "description"
-      | "modelIds"
-      | "name"
-      | "sortOrder";
+      description?: string
+      modelIds: Array<Id<'models'>>
+      name: string
+      sortOrder: number
+      _id: Id<'modelCollections'>
+      _creationTime: number
+    }
+    fieldPaths: '_creationTime' | '_id' | 'description' | 'modelIds' | 'name' | 'sortOrder'
     indexes: {
-      by_id: ["_id"];
-      by_creation_time: ["_creationTime"];
-      by_sortOrder: ["sortOrder", "_creationTime"];
-    };
-    searchIndexes: {};
-    vectorIndexes: {};
-  };
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_sortOrder: ['sortOrder', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
   modelOffers: {
     document: {
-      description?: string;
-      endsAt: number;
-      isEnabled: boolean;
-      kind: "free_access" | "availability_window";
-      label?: string;
-      modelId: Id<"models">;
-      startsAt: number;
-      updatedAt: number;
-      _id: Id<"modelOffers">;
-      _creationTime: number;
-    };
+      description?: string
+      endsAt: number
+      isEnabled: boolean
+      kind: 'free_access' | 'availability_window'
+      label?: string
+      modelId: Id<'models'>
+      startsAt: number
+      updatedAt: number
+      _id: Id<'modelOffers'>
+      _creationTime: number
+    }
     fieldPaths:
-      | "_creationTime"
-      | "_id"
-      | "description"
-      | "endsAt"
-      | "isEnabled"
-      | "kind"
-      | "label"
-      | "modelId"
-      | "startsAt"
-      | "updatedAt";
+      | '_creationTime'
+      | '_id'
+      | 'description'
+      | 'endsAt'
+      | 'isEnabled'
+      | 'kind'
+      | 'label'
+      | 'modelId'
+      | 'startsAt'
+      | 'updatedAt'
     indexes: {
-      by_id: ["_id"];
-      by_creation_time: ["_creationTime"];
-      by_endsAt: ["endsAt", "_creationTime"];
-      by_modelId: ["modelId", "_creationTime"];
-    };
-    searchIndexes: {};
-    vectorIndexes: {};
-  };
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_endsAt: ['endsAt', '_creationTime']
+      by_modelId: ['modelId', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
   modelRoutingPolicies: {
     document: {
-      allowedModelIds?: Array<Id<"models">>;
-      contextWeight?: number;
-      costWeight?: number;
-      fallbackModelIds?: Array<Id<"models">>;
-      isEnabled: boolean;
-      maxCostPerRequest?: number;
-      maxLatencyMs?: number;
-      minQualityScore?: number;
-      qualityWeight?: number;
-      riskWeight?: number;
-      speedWeight?: number;
-      taskType?: "chat" | "coding" | "analysis" | "rewrite" | "qa";
-      tier: "free" | "pro" | "advanced" | "light" | "medium";
-      toolWeight?: number;
-      updatedAt: number;
-      _id: Id<"modelRoutingPolicies">;
-      _creationTime: number;
-    };
+      allowedModelIds?: Array<Id<'models'>>
+      contextWeight?: number
+      costWeight?: number
+      fallbackModelIds?: Array<Id<'models'>>
+      isEnabled: boolean
+      maxCostPerRequest?: number
+      maxLatencyMs?: number
+      minQualityScore?: number
+      qualityWeight?: number
+      riskWeight?: number
+      speedWeight?: number
+      taskType?: 'chat' | 'coding' | 'analysis' | 'rewrite' | 'qa'
+      tier: 'free' | 'pro' | 'advanced' | 'light' | 'medium'
+      toolWeight?: number
+      updatedAt: number
+      _id: Id<'modelRoutingPolicies'>
+      _creationTime: number
+    }
     fieldPaths:
-      | "_creationTime"
-      | "_id"
-      | "allowedModelIds"
-      | "contextWeight"
-      | "costWeight"
-      | "fallbackModelIds"
-      | "isEnabled"
-      | "maxCostPerRequest"
-      | "maxLatencyMs"
-      | "minQualityScore"
-      | "qualityWeight"
-      | "riskWeight"
-      | "speedWeight"
-      | "taskType"
-      | "tier"
-      | "toolWeight"
-      | "updatedAt";
+      | '_creationTime'
+      | '_id'
+      | 'allowedModelIds'
+      | 'contextWeight'
+      | 'costWeight'
+      | 'fallbackModelIds'
+      | 'isEnabled'
+      | 'maxCostPerRequest'
+      | 'maxLatencyMs'
+      | 'minQualityScore'
+      | 'qualityWeight'
+      | 'riskWeight'
+      | 'speedWeight'
+      | 'taskType'
+      | 'tier'
+      | 'toolWeight'
+      | 'updatedAt'
     indexes: {
-      by_id: ["_id"];
-      by_creation_time: ["_creationTime"];
-      by_tier: ["tier", "_creationTime"];
-      by_tier_taskType: ["tier", "taskType", "_creationTime"];
-    };
-    searchIndexes: {};
-    vectorIndexes: {};
-  };
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_tier: ['tier', '_creationTime']
+      by_tier_taskType: ['tier', 'taskType', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
   models: {
     document: {
-      capabilities?: Array<string>;
-      contextWindow?: number;
-      defaultReasoningLevel?: "off" | "low" | "medium" | "high";
-      description?: string;
-      discoveredAt?: number;
-      displayName: string;
-      icon?: string;
-      iconId?: Id<"_storage">;
-      iconType?: "emoji" | "lucide" | "phosphor" | "upload";
-      isEnabled: boolean;
-      isFree: boolean;
-      lastSyncedAt?: number;
-      maxOutputTokens?: number;
-      modalities?: { input: Array<string>; output: Array<string> };
-      modelId: string;
-      ownedBy?: string;
-      providerId: Id<"providers">;
+      capabilities?: Array<string>
+      contextWindow?: number
+      defaultReasoningLevel?: 'off' | 'low' | 'medium' | 'high'
+      description?: string
+      discoveredAt?: number
+      displayName: string
+      icon?: string
+      iconId?: Id<'_storage'>
+      iconType?: 'emoji' | 'lucide' | 'phosphor' | 'upload'
+      isEnabled: boolean
+      isFree: boolean
+      lastSyncedAt?: number
+      maxOutputTokens?: number
+      modalities?: { input: Array<string>; output: Array<string> }
+      modelId: string
+      ownedBy?: string
+      providerId: Id<'providers'>
       rateLimit?: {
-        capacity?: number;
-        enabled: boolean;
-        kind: "fixed window" | "token bucket";
-        period: number;
-        rate: number;
-        scope: "global" | "user";
-        shards?: number;
-      };
-      reasoningLevels?: Array<"low" | "medium" | "high">;
-      sortOrder: number;
-      supportsReasoning?: boolean;
-      _id: Id<"models">;
-      _creationTime: number;
-    };
+        capacity?: number
+        enabled: boolean
+        kind: 'fixed window' | 'token bucket'
+        period: number
+        rate: number
+        scope: 'global' | 'user'
+        shards?: number
+      }
+      reasoningLevels?: Array<'low' | 'medium' | 'high'>
+      sortOrder: number
+      supportsReasoning?: boolean
+      _id: Id<'models'>
+      _creationTime: number
+    }
     fieldPaths:
-      | "_creationTime"
-      | "_id"
-      | "capabilities"
-      | "contextWindow"
-      | "defaultReasoningLevel"
-      | "description"
-      | "discoveredAt"
-      | "displayName"
-      | "icon"
-      | "iconId"
-      | "iconType"
-      | "isEnabled"
-      | "isFree"
-      | "lastSyncedAt"
-      | "maxOutputTokens"
-      | "modalities"
-      | "modalities.input"
-      | "modalities.output"
-      | "modelId"
-      | "ownedBy"
-      | "providerId"
-      | "rateLimit"
-      | "rateLimit.capacity"
-      | "rateLimit.enabled"
-      | "rateLimit.kind"
-      | "rateLimit.period"
-      | "rateLimit.rate"
-      | "rateLimit.scope"
-      | "rateLimit.shards"
-      | "reasoningLevels"
-      | "sortOrder"
-      | "supportsReasoning";
+      | '_creationTime'
+      | '_id'
+      | 'capabilities'
+      | 'contextWindow'
+      | 'defaultReasoningLevel'
+      | 'description'
+      | 'discoveredAt'
+      | 'displayName'
+      | 'icon'
+      | 'iconId'
+      | 'iconType'
+      | 'isEnabled'
+      | 'isFree'
+      | 'lastSyncedAt'
+      | 'maxOutputTokens'
+      | 'modalities'
+      | 'modalities.input'
+      | 'modalities.output'
+      | 'modelId'
+      | 'ownedBy'
+      | 'providerId'
+      | 'rateLimit'
+      | 'rateLimit.capacity'
+      | 'rateLimit.enabled'
+      | 'rateLimit.kind'
+      | 'rateLimit.period'
+      | 'rateLimit.rate'
+      | 'rateLimit.scope'
+      | 'rateLimit.shards'
+      | 'reasoningLevels'
+      | 'sortOrder'
+      | 'supportsReasoning'
     indexes: {
-      by_id: ["_id"];
-      by_creation_time: ["_creationTime"];
-      by_enabled: ["isEnabled", "_creationTime"];
-      by_providerId: ["providerId", "_creationTime"];
-    };
-    searchIndexes: {};
-    vectorIndexes: {};
-  };
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_enabled: ['isEnabled', '_creationTime']
+      by_providerId: ['providerId', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
   modelSelectionProfiles: {
     document: {
-      benchmarkScores?: Record<string, number>;
-      capabilities?: Array<string>;
-      contextWindow?: number;
-      historicalSuccessRate?: number;
-      isExternal?: boolean;
-      latencyStats?: { p50Ms: number; p95Ms: number };
-      maxOutputTokens?: number;
-      modelId: Id<"models">;
+      benchmarkScores?: Record<string, number>
+      capabilities?: Array<string>
+      contextWindow?: number
+      historicalSuccessRate?: number
+      isExternal?: boolean
+      latencyStats?: { p50Ms: number; p95Ms: number }
+      maxOutputTokens?: number
+      modelId: Id<'models'>
       pricing?: {
-        currency?: string;
-        inputPer1M: number;
-        outputPer1M: number;
+        currency?: string
+        inputPer1M: number
+        outputPer1M: number
         tiers?: Array<{
-          inputPer1M: number;
-          maxContextTokens: number;
-          outputPer1M: number;
-        }>;
-      };
-      providerId: Id<"providers">;
-      riskScore?: number;
-      tierAllowed: Array<"free" | "pro" | "advanced" | "light" | "medium">;
-      toolCallReliability?: number;
-      updatedAt: number;
-      _id: Id<"modelSelectionProfiles">;
-      _creationTime: number;
-    };
+          inputPer1M: number
+          maxContextTokens: number
+          outputPer1M: number
+        }>
+      }
+      providerId: Id<'providers'>
+      riskScore?: number
+      tierAllowed: Array<'free' | 'pro' | 'advanced' | 'light' | 'medium'>
+      toolCallReliability?: number
+      updatedAt: number
+      _id: Id<'modelSelectionProfiles'>
+      _creationTime: number
+    }
     fieldPaths:
-      | "_creationTime"
-      | "_id"
-      | "benchmarkScores"
+      | '_creationTime'
+      | '_id'
+      | 'benchmarkScores'
       | `benchmarkScores.${string}`
-      | "capabilities"
-      | "contextWindow"
-      | "historicalSuccessRate"
-      | "isExternal"
-      | "latencyStats"
-      | "latencyStats.p50Ms"
-      | "latencyStats.p95Ms"
-      | "maxOutputTokens"
-      | "modelId"
-      | "pricing"
-      | "pricing.currency"
-      | "pricing.inputPer1M"
-      | "pricing.outputPer1M"
-      | "pricing.tiers"
-      | "providerId"
-      | "riskScore"
-      | "tierAllowed"
-      | "toolCallReliability"
-      | "updatedAt";
+      | 'capabilities'
+      | 'contextWindow'
+      | 'historicalSuccessRate'
+      | 'isExternal'
+      | 'latencyStats'
+      | 'latencyStats.p50Ms'
+      | 'latencyStats.p95Ms'
+      | 'maxOutputTokens'
+      | 'modelId'
+      | 'pricing'
+      | 'pricing.currency'
+      | 'pricing.inputPer1M'
+      | 'pricing.outputPer1M'
+      | 'pricing.tiers'
+      | 'providerId'
+      | 'riskScore'
+      | 'tierAllowed'
+      | 'toolCallReliability'
+      | 'updatedAt'
     indexes: {
-      by_id: ["_id"];
-      by_creation_time: ["_creationTime"];
-      by_modelId: ["modelId", "_creationTime"];
-      by_providerId: ["providerId", "_creationTime"];
-    };
-    searchIndexes: {};
-    vectorIndexes: {};
-  };
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_modelId: ['modelId', '_creationTime']
+      by_providerId: ['providerId', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
   modelUsageEvents: {
     document: {
-      completionTokens: number;
-      createdAt: number;
-      escalationDepth?: number;
-      estimatedCost?: number;
-      latencyMs?: number;
-      modelId: Id<"models">;
-      modelName: string;
-      promptTokens: number;
-      providerId: Id<"providers">;
-      providerName: string;
-      providerType: string;
-      routerDecisionId?: string;
-      threadId: string;
-      tier?: "free" | "pro" | "advanced" | "light" | "medium";
-      totalTokens: number;
-      userId: Id<"users">;
-      validationPassed?: boolean;
-      _id: Id<"modelUsageEvents">;
-      _creationTime: number;
-    };
+      completionTokens: number
+      createdAt: number
+      escalationDepth?: number
+      estimatedCost?: number
+      latencyMs?: number
+      modelId: Id<'models'>
+      modelName: string
+      promptTokens: number
+      providerId: Id<'providers'>
+      providerName: string
+      providerType: string
+      routerDecisionId?: string
+      threadId: string
+      tier?: 'free' | 'pro' | 'advanced' | 'light' | 'medium'
+      totalTokens: number
+      userId: Id<'users'>
+      validationPassed?: boolean
+      _id: Id<'modelUsageEvents'>
+      _creationTime: number
+    }
     fieldPaths:
-      | "_creationTime"
-      | "_id"
-      | "completionTokens"
-      | "createdAt"
-      | "escalationDepth"
-      | "estimatedCost"
-      | "latencyMs"
-      | "modelId"
-      | "modelName"
-      | "promptTokens"
-      | "providerId"
-      | "providerName"
-      | "providerType"
-      | "routerDecisionId"
-      | "threadId"
-      | "tier"
-      | "totalTokens"
-      | "userId"
-      | "validationPassed";
+      | '_creationTime'
+      | '_id'
+      | 'completionTokens'
+      | 'createdAt'
+      | 'escalationDepth'
+      | 'estimatedCost'
+      | 'latencyMs'
+      | 'modelId'
+      | 'modelName'
+      | 'promptTokens'
+      | 'providerId'
+      | 'providerName'
+      | 'providerType'
+      | 'routerDecisionId'
+      | 'threadId'
+      | 'tier'
+      | 'totalTokens'
+      | 'userId'
+      | 'validationPassed'
     indexes: {
-      by_id: ["_id"];
-      by_creation_time: ["_creationTime"];
-      by_createdAt: ["createdAt", "_creationTime"];
-      by_model_createdAt: ["modelId", "createdAt", "_creationTime"];
-      by_provider_createdAt: ["providerId", "createdAt", "_creationTime"];
-      by_thread_createdAt: ["threadId", "createdAt", "_creationTime"];
-      by_user_createdAt: ["userId", "createdAt", "_creationTime"];
-    };
-    searchIndexes: {};
-    vectorIndexes: {};
-  };
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_createdAt: ['createdAt', '_creationTime']
+      by_model_createdAt: ['modelId', 'createdAt', '_creationTime']
+      by_provider_createdAt: ['providerId', 'createdAt', '_creationTime']
+      by_thread_createdAt: ['threadId', 'createdAt', '_creationTime']
+      by_user_createdAt: ['userId', 'createdAt', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
+  oauthStates: {
+    document: {
+      codeVerifier?: string
+      createdAt: number
+      expiresAt: number
+      provider: 'github' | 'google'
+      redirectTo: string
+      state: string
+      userId: Id<'users'>
+      _id: Id<'oauthStates'>
+      _creationTime: number
+    }
+    fieldPaths:
+      | '_creationTime'
+      | '_id'
+      | 'codeVerifier'
+      | 'createdAt'
+      | 'expiresAt'
+      | 'provider'
+      | 'redirectTo'
+      | 'state'
+      | 'userId'
+    indexes: {
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_state: ['state', '_creationTime']
+      by_user: ['userId', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
+  projectArtifactChunks: {
+    document: {
+      artifactId: Id<'projectArtifacts'>
+      chunkIndex: number
+      embedding: Array<number>
+      kind:
+        | 'repo_file'
+        | 'pull_request'
+        | 'issue'
+        | 'commit'
+        | 'email_thread'
+        | 'email_message'
+        | 'email_attachment'
+        | 'uploaded_file'
+        | 'external_link'
+      projectId: Id<'projects'>
+      provider: 'github' | 'gmail' | 'manual'
+      text: string
+      updatedAt: number
+      _id: Id<'projectArtifactChunks'>
+      _creationTime: number
+    }
+    fieldPaths:
+      | '_creationTime'
+      | '_id'
+      | 'artifactId'
+      | 'chunkIndex'
+      | 'embedding'
+      | 'kind'
+      | 'projectId'
+      | 'provider'
+      | 'text'
+      | 'updatedAt'
+    indexes: {
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_artifact: ['artifactId', '_creationTime']
+      by_project: ['projectId', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {
+      by_embedding: {
+        vectorField: 'embedding'
+        dimensions: number
+        filterFields: 'kind' | 'projectId' | 'provider'
+      }
+    }
+  }
+  projectArtifactContents: {
+    document: {
+      artifactId: Id<'projectArtifacts'>
+      contentHash: string
+      error?: string
+      extractionStatus: 'pending' | 'ready' | 'error'
+      projectId: Id<'projects'>
+      text: string
+      updatedAt: number
+      _id: Id<'projectArtifactContents'>
+      _creationTime: number
+    }
+    fieldPaths:
+      | '_creationTime'
+      | '_id'
+      | 'artifactId'
+      | 'contentHash'
+      | 'error'
+      | 'extractionStatus'
+      | 'projectId'
+      | 'text'
+      | 'updatedAt'
+    indexes: {
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_artifact: ['artifactId', '_creationTime']
+      by_project: ['projectId', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
+  projectArtifacts: {
+    document: {
+      createdByUserId: Id<'users'>
+      externalId: string
+      firstSeenAt: number
+      includeInContext: boolean
+      kind:
+        | 'repo_file'
+        | 'pull_request'
+        | 'issue'
+        | 'commit'
+        | 'email_thread'
+        | 'email_message'
+        | 'email_attachment'
+        | 'uploaded_file'
+        | 'external_link'
+      lastSyncedAt?: number
+      metadataJson?: string
+      mimeType?: string
+      parentArtifactId?: Id<'projectArtifacts'>
+      pinned: boolean
+      projectId: Id<'projects'>
+      provider: 'github' | 'gmail' | 'manual'
+      selectionOrigin: 'manual' | 'rule'
+      sourceId: Id<'projectSources'>
+      status: 'active' | 'archived' | 'error'
+      storageId?: Id<'_storage'>
+      subtitle?: string
+      title: string
+      updatedAt: number
+      url?: string
+      _id: Id<'projectArtifacts'>
+      _creationTime: number
+    }
+    fieldPaths:
+      | '_creationTime'
+      | '_id'
+      | 'createdByUserId'
+      | 'externalId'
+      | 'firstSeenAt'
+      | 'includeInContext'
+      | 'kind'
+      | 'lastSyncedAt'
+      | 'metadataJson'
+      | 'mimeType'
+      | 'parentArtifactId'
+      | 'pinned'
+      | 'projectId'
+      | 'provider'
+      | 'selectionOrigin'
+      | 'sourceId'
+      | 'status'
+      | 'storageId'
+      | 'subtitle'
+      | 'title'
+      | 'updatedAt'
+      | 'url'
+    indexes: {
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_project: ['projectId', '_creationTime']
+      by_project_updated: ['projectId', 'updatedAt', '_creationTime']
+      by_source_external: ['sourceId', 'externalId', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
+  projectMembers: {
+    document: {
+      createdAt: number
+      invitedByUserId?: Id<'users'>
+      projectId: Id<'projects'>
+      role: 'owner' | 'editor' | 'viewer'
+      updatedAt: number
+      userId: Id<'users'>
+      _id: Id<'projectMembers'>
+      _creationTime: number
+    }
+    fieldPaths:
+      | '_creationTime'
+      | '_id'
+      | 'createdAt'
+      | 'invitedByUserId'
+      | 'projectId'
+      | 'role'
+      | 'updatedAt'
+      | 'userId'
+    indexes: {
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_project: ['projectId', '_creationTime']
+      by_project_user: ['projectId', 'userId', '_creationTime']
+      by_user: ['userId', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
   projectMemories: {
     document: {
-      category?: string;
-      content: string;
-      contentHash: string;
-      createdAt: number;
-      embedding?: Array<number>;
-      originMessageIds?: Array<string>;
-      originThreadId?: string;
-      projectId: Id<"projects">;
-      ragKey: string;
-      source: "manual" | "aggregated";
-      tags?: Array<string>;
-      title: string;
-      updatedAt: number;
-      userId: Id<"users">;
-      _id: Id<"projectMemories">;
-      _creationTime: number;
-    };
+      category?: string
+      content: string
+      contentHash: string
+      createdAt: number
+      embedding?: Array<number>
+      originMessageIds?: Array<string>
+      originThreadId?: string
+      projectId: Id<'projects'>
+      ragKey: string
+      source: 'manual' | 'aggregated'
+      tags?: Array<string>
+      title: string
+      updatedAt: number
+      userId: Id<'users'>
+      _id: Id<'projectMemories'>
+      _creationTime: number
+    }
     fieldPaths:
-      | "_creationTime"
-      | "_id"
-      | "category"
-      | "content"
-      | "contentHash"
-      | "createdAt"
-      | "embedding"
-      | "originMessageIds"
-      | "originThreadId"
-      | "projectId"
-      | "ragKey"
-      | "source"
-      | "tags"
-      | "title"
-      | "updatedAt"
-      | "userId";
+      | '_creationTime'
+      | '_id'
+      | 'category'
+      | 'content'
+      | 'contentHash'
+      | 'createdAt'
+      | 'embedding'
+      | 'originMessageIds'
+      | 'originThreadId'
+      | 'projectId'
+      | 'ragKey'
+      | 'source'
+      | 'tags'
+      | 'title'
+      | 'updatedAt'
+      | 'userId'
     indexes: {
-      by_id: ["_id"];
-      by_creation_time: ["_creationTime"];
-      by_project: ["projectId", "_creationTime"];
-      by_project_contentHash: ["projectId", "contentHash", "_creationTime"];
-      by_project_updated: ["projectId", "updatedAt", "_creationTime"];
-      by_user: ["userId", "_creationTime"];
-    };
-    searchIndexes: {};
-    vectorIndexes: {};
-  };
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_project: ['projectId', '_creationTime']
+      by_project_contentHash: ['projectId', 'contentHash', '_creationTime']
+      by_project_updated: ['projectId', 'updatedAt', '_creationTime']
+      by_user: ['userId', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
   projects: {
     document: {
-      createdAt: number;
-      description?: string;
-      name: string;
-      threadIds?: Array<string>;
-      updatedAt: number;
-      userId: Id<"users">;
-      _id: Id<"projects">;
-      _creationTime: number;
-    };
+      createdAt: number
+      description?: string
+      name: string
+      ownerUserId?: Id<'users'>
+      threadIds?: Array<string>
+      updatedAt: number
+      userId?: Id<'users'>
+      visibility?: 'private' | 'shared'
+      _id: Id<'projects'>
+      _creationTime: number
+    }
     fieldPaths:
-      | "_creationTime"
-      | "_id"
-      | "createdAt"
-      | "description"
-      | "name"
-      | "threadIds"
-      | "updatedAt"
-      | "userId";
+      | '_creationTime'
+      | '_id'
+      | 'createdAt'
+      | 'description'
+      | 'name'
+      | 'ownerUserId'
+      | 'threadIds'
+      | 'updatedAt'
+      | 'userId'
+      | 'visibility'
     indexes: {
-      by_id: ["_id"];
-      by_creation_time: ["_creationTime"];
-      by_updated: ["updatedAt", "_creationTime"];
-      by_user: ["userId", "_creationTime"];
-    };
-    searchIndexes: {};
-    vectorIndexes: {};
-  };
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_owner: ['ownerUserId', '_creationTime']
+      by_updated: ['updatedAt', '_creationTime']
+      by_user: ['userId', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
+  projectSources: {
+    document: {
+      configJson: string
+      connectionId?: Id<'integrationConnections'>
+      createdAt: number
+      createdByUserId: Id<'users'>
+      kind: 'github_repo' | 'gmail_query' | 'manual_uploads' | 'manual_links'
+      lastCursor?: string
+      lastError?: string
+      lastSyncedAt?: number
+      projectId: Id<'projects'>
+      provider: 'github' | 'gmail' | 'manual'
+      status: 'active' | 'paused' | 'error'
+      syncMode: 'rule' | 'manual'
+      title: string
+      updatedAt: number
+      _id: Id<'projectSources'>
+      _creationTime: number
+    }
+    fieldPaths:
+      | '_creationTime'
+      | '_id'
+      | 'configJson'
+      | 'connectionId'
+      | 'createdAt'
+      | 'createdByUserId'
+      | 'kind'
+      | 'lastCursor'
+      | 'lastError'
+      | 'lastSyncedAt'
+      | 'projectId'
+      | 'provider'
+      | 'status'
+      | 'syncMode'
+      | 'title'
+      | 'updatedAt'
+    indexes: {
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_connection: ['connectionId', '_creationTime']
+      by_project: ['projectId', '_creationTime']
+      by_project_provider: ['projectId', 'provider', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
+  projectSyncJobs: {
+    document: {
+      error?: string
+      finishedAt?: number
+      jobType: 'full' | 'incremental' | 'artifact_refresh'
+      projectId: Id<'projects'>
+      scheduledAt: number
+      sourceId: Id<'projectSources'>
+      startedAt?: number
+      status: 'queued' | 'running' | 'done' | 'error'
+      _id: Id<'projectSyncJobs'>
+      _creationTime: number
+    }
+    fieldPaths:
+      | '_creationTime'
+      | '_id'
+      | 'error'
+      | 'finishedAt'
+      | 'jobType'
+      | 'projectId'
+      | 'scheduledAt'
+      | 'sourceId'
+      | 'startedAt'
+      | 'status'
+    indexes: {
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_project: ['projectId', '_creationTime']
+      by_source: ['sourceId', '_creationTime']
+      by_source_status: ['sourceId', 'status', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
   providers: {
     document: {
-      apiKey: string;
-      baseURL?: string;
+      apiKey: string
+      baseURL?: string
       config?: {
-        headers?: Record<string, string>;
-        organization?: string;
-        project?: string;
-        queryParams?: Record<string, string>;
-      };
-      description?: string;
-      icon?: string;
-      iconId?: Id<"_storage">;
-      iconType?: "emoji" | "lucide" | "phosphor" | "upload";
-      isEnabled: boolean;
-      lastDiscoveredAt?: number;
-      lastDiscoveredModelCount?: number;
-      lastDiscoveryError?: string;
-      name: string;
+        headers?: Record<string, string>
+        organization?: string
+        project?: string
+        queryParams?: Record<string, string>
+      }
+      description?: string
+      icon?: string
+      iconId?: Id<'_storage'>
+      iconType?: 'emoji' | 'lucide' | 'phosphor' | 'upload'
+      isEnabled: boolean
+      lastDiscoveredAt?: number
+      lastDiscoveredModelCount?: number
+      lastDiscoveryError?: string
+      name: string
       providerType:
-        | "openrouter"
-        | "openai"
-        | "anthropic"
-        | "google"
-        | "azure"
-        | "groq"
-        | "deepseek"
-        | "xai"
-        | "cerebras"
-        | "openai-compatible"
-        | "opencode"
-        | "mistral"
-        | "cohere"
-        | "perplexity"
-        | "fireworks"
-        | "together"
-        | "replicate"
-        | "moonshot"
-        | "qwen"
-        | "stepfun";
+        | 'openrouter'
+        | 'openai'
+        | 'anthropic'
+        | 'google'
+        | 'azure'
+        | 'groq'
+        | 'deepseek'
+        | 'xai'
+        | 'cerebras'
+        | 'openai-compatible'
+        | 'opencode'
+        | 'mistral'
+        | 'cohere'
+        | 'perplexity'
+        | 'fireworks'
+        | 'together'
+        | 'replicate'
+        | 'moonshot'
+        | 'qwen'
+        | 'stepfun'
       rateLimit?: {
-        capacity?: number;
-        enabled: boolean;
-        kind: "fixed window" | "token bucket";
-        period: number;
-        rate: number;
-        scope: "global" | "user";
-        shards?: number;
-      };
-      sortOrder: number;
-      _id: Id<"providers">;
-      _creationTime: number;
-    };
+        capacity?: number
+        enabled: boolean
+        kind: 'fixed window' | 'token bucket'
+        period: number
+        rate: number
+        scope: 'global' | 'user'
+        shards?: number
+      }
+      sortOrder: number
+      _id: Id<'providers'>
+      _creationTime: number
+    }
     fieldPaths:
-      | "_creationTime"
-      | "_id"
-      | "apiKey"
-      | "baseURL"
-      | "config"
-      | "config.headers"
+      | '_creationTime'
+      | '_id'
+      | 'apiKey'
+      | 'baseURL'
+      | 'config'
+      | 'config.headers'
       | `config.headers.${string}`
-      | "config.organization"
-      | "config.project"
-      | "config.queryParams"
+      | 'config.organization'
+      | 'config.project'
+      | 'config.queryParams'
       | `config.queryParams.${string}`
-      | "description"
-      | "icon"
-      | "iconId"
-      | "iconType"
-      | "isEnabled"
-      | "lastDiscoveredAt"
-      | "lastDiscoveredModelCount"
-      | "lastDiscoveryError"
-      | "name"
-      | "providerType"
-      | "rateLimit"
-      | "rateLimit.capacity"
-      | "rateLimit.enabled"
-      | "rateLimit.kind"
-      | "rateLimit.period"
-      | "rateLimit.rate"
-      | "rateLimit.scope"
-      | "rateLimit.shards"
-      | "sortOrder";
+      | 'description'
+      | 'icon'
+      | 'iconId'
+      | 'iconType'
+      | 'isEnabled'
+      | 'lastDiscoveredAt'
+      | 'lastDiscoveredModelCount'
+      | 'lastDiscoveryError'
+      | 'name'
+      | 'providerType'
+      | 'rateLimit'
+      | 'rateLimit.capacity'
+      | 'rateLimit.enabled'
+      | 'rateLimit.kind'
+      | 'rateLimit.period'
+      | 'rateLimit.rate'
+      | 'rateLimit.scope'
+      | 'rateLimit.shards'
+      | 'sortOrder'
     indexes: {
-      by_id: ["_id"];
-      by_creation_time: ["_creationTime"];
-      by_enabled: ["isEnabled", "_creationTime"];
-      by_providerType: ["providerType", "_creationTime"];
-    };
-    searchIndexes: {};
-    vectorIndexes: {};
-  };
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_enabled: ['isEnabled', '_creationTime']
+      by_providerType: ['providerType', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
   routerEvents: {
     document: {
-      actualCost?: number;
-      candidateModelIds: Array<Id<"models">>;
-      completionTokens?: number;
-      complexityScore: number;
-      createdAt: number;
-      decisionId: string;
-      estimatedCost?: number;
-      estimatedInputTokens: number;
-      estimatedOutputTokens: number;
-      fallbackModelIds: Array<Id<"models">>;
-      fallbackUsed?: boolean;
-      finalModelId?: Id<"models">;
-      finalSuccess?: boolean;
-      latencyMs?: number;
-      maxCostConstraint?: number;
-      maxLatencyConstraint?: number;
-      promptTokens?: number;
-      requiresReasoning: boolean;
-      requiresTools: boolean;
+      actualCost?: number
+      candidateModelIds: Array<Id<'models'>>
+      completionTokens?: number
+      complexityScore: number
+      createdAt: number
+      decisionId: string
+      estimatedCost?: number
+      estimatedInputTokens: number
+      estimatedOutputTokens: number
+      fallbackModelIds: Array<Id<'models'>>
+      fallbackUsed?: boolean
+      finalModelId?: Id<'models'>
+      finalSuccess?: boolean
+      latencyMs?: number
+      maxCostConstraint?: number
+      maxLatencyConstraint?: number
+      promptTokens?: number
+      requiresReasoning: boolean
+      requiresTools: boolean
       scoreBreakdown: {
-        contextFit: number;
-        costFit: number;
-        qualityFit: number;
-        riskPenalty: number;
-        speedFit: number;
-        toolFit: number;
-        totalScore: number;
-      };
-      selectedModelId: Id<"models">;
-      selectedProviderId: Id<"providers">;
-      taskType: "chat" | "coding" | "analysis" | "rewrite" | "qa";
-      threadId?: string;
-      tier: "free" | "pro" | "advanced" | "light" | "medium";
-      totalTokens?: number;
-      updatedAt: number;
-      userId?: Id<"users">;
-      validationPassed?: boolean;
-      _id: Id<"routerEvents">;
-      _creationTime: number;
-    };
+        contextFit: number
+        costFit: number
+        qualityFit: number
+        riskPenalty: number
+        speedFit: number
+        toolFit: number
+        totalScore: number
+      }
+      selectedModelId: Id<'models'>
+      selectedProviderId: Id<'providers'>
+      taskType: 'chat' | 'coding' | 'analysis' | 'rewrite' | 'qa'
+      threadId?: string
+      tier: 'free' | 'pro' | 'advanced' | 'light' | 'medium'
+      totalTokens?: number
+      updatedAt: number
+      userId?: Id<'users'>
+      validationPassed?: boolean
+      _id: Id<'routerEvents'>
+      _creationTime: number
+    }
     fieldPaths:
-      | "_creationTime"
-      | "_id"
-      | "actualCost"
-      | "candidateModelIds"
-      | "completionTokens"
-      | "complexityScore"
-      | "createdAt"
-      | "decisionId"
-      | "estimatedCost"
-      | "estimatedInputTokens"
-      | "estimatedOutputTokens"
-      | "fallbackModelIds"
-      | "fallbackUsed"
-      | "finalModelId"
-      | "finalSuccess"
-      | "latencyMs"
-      | "maxCostConstraint"
-      | "maxLatencyConstraint"
-      | "promptTokens"
-      | "requiresReasoning"
-      | "requiresTools"
-      | "scoreBreakdown"
-      | "scoreBreakdown.contextFit"
-      | "scoreBreakdown.costFit"
-      | "scoreBreakdown.qualityFit"
-      | "scoreBreakdown.riskPenalty"
-      | "scoreBreakdown.speedFit"
-      | "scoreBreakdown.toolFit"
-      | "scoreBreakdown.totalScore"
-      | "selectedModelId"
-      | "selectedProviderId"
-      | "taskType"
-      | "threadId"
-      | "tier"
-      | "totalTokens"
-      | "updatedAt"
-      | "userId"
-      | "validationPassed";
+      | '_creationTime'
+      | '_id'
+      | 'actualCost'
+      | 'candidateModelIds'
+      | 'completionTokens'
+      | 'complexityScore'
+      | 'createdAt'
+      | 'decisionId'
+      | 'estimatedCost'
+      | 'estimatedInputTokens'
+      | 'estimatedOutputTokens'
+      | 'fallbackModelIds'
+      | 'fallbackUsed'
+      | 'finalModelId'
+      | 'finalSuccess'
+      | 'latencyMs'
+      | 'maxCostConstraint'
+      | 'maxLatencyConstraint'
+      | 'promptTokens'
+      | 'requiresReasoning'
+      | 'requiresTools'
+      | 'scoreBreakdown'
+      | 'scoreBreakdown.contextFit'
+      | 'scoreBreakdown.costFit'
+      | 'scoreBreakdown.qualityFit'
+      | 'scoreBreakdown.riskPenalty'
+      | 'scoreBreakdown.speedFit'
+      | 'scoreBreakdown.toolFit'
+      | 'scoreBreakdown.totalScore'
+      | 'selectedModelId'
+      | 'selectedProviderId'
+      | 'taskType'
+      | 'threadId'
+      | 'tier'
+      | 'totalTokens'
+      | 'updatedAt'
+      | 'userId'
+      | 'validationPassed'
     indexes: {
-      by_id: ["_id"];
-      by_creation_time: ["_creationTime"];
-      by_createdAt: ["createdAt", "_creationTime"];
-      by_decisionId: ["decisionId", "_creationTime"];
-      by_tier_createdAt: ["tier", "createdAt", "_creationTime"];
-    };
-    searchIndexes: {};
-    vectorIndexes: {};
-  };
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_createdAt: ['createdAt', '_creationTime']
+      by_decisionId: ['decisionId', '_creationTime']
+      by_tier_createdAt: ['tier', 'createdAt', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
   sections: {
     document: {
-      emoji: string;
-      isExpanded: boolean;
-      name: string;
-      sortOrder: number;
-      userId: Id<"users">;
-      _id: Id<"sections">;
-      _creationTime: number;
-    };
-    fieldPaths:
-      | "_creationTime"
-      | "_id"
-      | "emoji"
-      | "isExpanded"
-      | "name"
-      | "sortOrder"
-      | "userId";
+      emoji: string
+      isExpanded: boolean
+      name: string
+      sortOrder: number
+      userId: Id<'users'>
+      _id: Id<'sections'>
+      _creationTime: number
+    }
+    fieldPaths: '_creationTime' | '_id' | 'emoji' | 'isExpanded' | 'name' | 'sortOrder' | 'userId'
     indexes: {
-      by_id: ["_id"];
-      by_creation_time: ["_creationTime"];
-      by_userId: ["userId", "_creationTime"];
-    };
-    searchIndexes: {};
-    vectorIndexes: {};
-  };
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_userId: ['userId', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
   threadMemories: {
     document: {
-      category?: string;
-      content: string;
-      contentHash: string;
-      createdAt: number;
-      embedding?: Array<number>;
-      originMessageIds?: Array<string>;
-      originThreadId?: string;
-      ragKey: string;
-      source: "session" | "manual";
-      tags?: Array<string>;
-      threadId: string;
-      title: string;
-      updatedAt: number;
-      userId: Id<"users">;
-      _id: Id<"threadMemories">;
-      _creationTime: number;
-    };
+      category?: string
+      content: string
+      contentHash: string
+      createdAt: number
+      embedding?: Array<number>
+      originMessageIds?: Array<string>
+      originThreadId?: string
+      ragKey: string
+      source: 'session' | 'manual'
+      tags?: Array<string>
+      threadId: string
+      title: string
+      updatedAt: number
+      userId: Id<'users'>
+      _id: Id<'threadMemories'>
+      _creationTime: number
+    }
     fieldPaths:
-      | "_creationTime"
-      | "_id"
-      | "category"
-      | "content"
-      | "contentHash"
-      | "createdAt"
-      | "embedding"
-      | "originMessageIds"
-      | "originThreadId"
-      | "ragKey"
-      | "source"
-      | "tags"
-      | "threadId"
-      | "title"
-      | "updatedAt"
-      | "userId";
+      | '_creationTime'
+      | '_id'
+      | 'category'
+      | 'content'
+      | 'contentHash'
+      | 'createdAt'
+      | 'embedding'
+      | 'originMessageIds'
+      | 'originThreadId'
+      | 'ragKey'
+      | 'source'
+      | 'tags'
+      | 'threadId'
+      | 'title'
+      | 'updatedAt'
+      | 'userId'
     indexes: {
-      by_id: ["_id"];
-      by_creation_time: ["_creationTime"];
-      by_thread: ["threadId", "_creationTime"];
-      by_thread_contentHash: ["threadId", "contentHash", "_creationTime"];
-      by_thread_updated: ["threadId", "updatedAt", "_creationTime"];
-      by_user: ["userId", "_creationTime"];
-    };
-    searchIndexes: {};
-    vectorIndexes: {};
-  };
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_thread: ['threadId', '_creationTime']
+      by_thread_contentHash: ['threadId', 'contentHash', '_creationTime']
+      by_thread_updated: ['threadId', 'updatedAt', '_creationTime']
+      by_user: ['userId', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
   threadMetadata: {
     document: {
-      clientThreadKey?: string;
-      emoji: string;
-      icon?: string;
-      lastLabelUpdateAt: number;
-      lastMessageAt?: number;
-      projectId?: Id<"projects">;
-      sectionId?: Id<"sections">;
-      sortOrder: number;
-      threadId: string;
-      userId: Id<"users">;
-      _id: Id<"threadMetadata">;
-      _creationTime: number;
-    };
+      clientThreadKey?: string
+      emoji: string
+      icon?: string
+      lastLabelUpdateAt: number
+      lastMessageAt?: number
+      projectId?: Id<'projects'>
+      sectionId?: Id<'sections'>
+      sortOrder: number
+      threadId: string
+      userId: Id<'users'>
+      _id: Id<'threadMetadata'>
+      _creationTime: number
+    }
     fieldPaths:
-      | "_creationTime"
-      | "_id"
-      | "clientThreadKey"
-      | "emoji"
-      | "icon"
-      | "lastLabelUpdateAt"
-      | "lastMessageAt"
-      | "projectId"
-      | "sectionId"
-      | "sortOrder"
-      | "threadId"
-      | "userId";
+      | '_creationTime'
+      | '_id'
+      | 'clientThreadKey'
+      | 'emoji'
+      | 'icon'
+      | 'lastLabelUpdateAt'
+      | 'lastMessageAt'
+      | 'projectId'
+      | 'sectionId'
+      | 'sortOrder'
+      | 'threadId'
+      | 'userId'
     indexes: {
-      by_id: ["_id"];
-      by_creation_time: ["_creationTime"];
-      by_projectId: ["projectId", "_creationTime"];
-      by_sectionId: ["sectionId", "_creationTime"];
-      by_threadId: ["threadId", "_creationTime"];
-      by_userId: ["userId", "_creationTime"];
-      by_userId_clientThreadKey: ["userId", "clientThreadKey", "_creationTime"];
-      by_userId_sortOrder: ["userId", "sortOrder", "_creationTime"];
-      by_userId_sortOrder_lastMessageAt: [
-        "userId",
-        "sortOrder",
-        "lastMessageAt",
-        "_creationTime",
-      ];
-    };
-    searchIndexes: {};
-    vectorIndexes: {};
-  };
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_projectId: ['projectId', '_creationTime']
+      by_sectionId: ['sectionId', '_creationTime']
+      by_threadId: ['threadId', '_creationTime']
+      by_userId: ['userId', '_creationTime']
+      by_userId_clientThreadKey: ['userId', 'clientThreadKey', '_creationTime']
+      by_userId_sortOrder: ['userId', 'sortOrder', '_creationTime']
+      by_userId_sortOrder_lastMessageAt: ['userId', 'sortOrder', 'lastMessageAt', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
   toolPolicyEvents: {
     document: {
-      automaticActions: Array<string>;
-      createdAt: number;
+      automaticActions: Array<string>
+      createdAt: number
       detectedIntent?:
-        | "memory_search"
-        | "memory_add"
-        | "memory_update"
-        | "memory_delete"
-        | "metadata_refresh"
-        | "none";
-      error?: string;
-      observedTools?: Array<string>;
-      policyTrace: Array<string>;
-      policyVersion: string;
-      promptMessageId?: string;
-      requiredActions: Array<string>;
-      satisfiedActions?: Array<string>;
-      status: "evaluated" | "completed" | "skipped" | "failed";
-      systemAddendum: string;
-      threadId: string;
-      userId: Id<"users">;
-      _id: Id<"toolPolicyEvents">;
-      _creationTime: number;
-    };
+        | 'memory_search'
+        | 'memory_add'
+        | 'memory_update'
+        | 'memory_delete'
+        | 'metadata_refresh'
+        | 'none'
+      error?: string
+      observedTools?: Array<string>
+      policyTrace: Array<string>
+      policyVersion: string
+      promptMessageId?: string
+      requiredActions: Array<string>
+      satisfiedActions?: Array<string>
+      status: 'evaluated' | 'completed' | 'skipped' | 'failed'
+      systemAddendum: string
+      threadId: string
+      userId: Id<'users'>
+      _id: Id<'toolPolicyEvents'>
+      _creationTime: number
+    }
     fieldPaths:
-      | "_creationTime"
-      | "_id"
-      | "automaticActions"
-      | "createdAt"
-      | "detectedIntent"
-      | "error"
-      | "observedTools"
-      | "policyTrace"
-      | "policyVersion"
-      | "promptMessageId"
-      | "requiredActions"
-      | "satisfiedActions"
-      | "status"
-      | "systemAddendum"
-      | "threadId"
-      | "userId";
+      | '_creationTime'
+      | '_id'
+      | 'automaticActions'
+      | 'createdAt'
+      | 'detectedIntent'
+      | 'error'
+      | 'observedTools'
+      | 'policyTrace'
+      | 'policyVersion'
+      | 'promptMessageId'
+      | 'requiredActions'
+      | 'satisfiedActions'
+      | 'status'
+      | 'systemAddendum'
+      | 'threadId'
+      | 'userId'
     indexes: {
-      by_id: ["_id"];
-      by_creation_time: ["_creationTime"];
-      by_promptMessageId: ["promptMessageId", "_creationTime"];
-      by_thread_createdAt: ["threadId", "createdAt", "_creationTime"];
-      by_user_createdAt: ["userId", "createdAt", "_creationTime"];
-    };
-    searchIndexes: {};
-    vectorIndexes: {};
-  };
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_promptMessageId: ['promptMessageId', '_creationTime']
+      by_thread_createdAt: ['threadId', 'createdAt', '_creationTime']
+      by_user_createdAt: ['userId', 'createdAt', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
   trainingExamples: {
     document: {
-      costLabel?: number;
-      createdAt: number;
-      latencyLabel?: number;
-      metadata?: Record<string, string>;
-      promptHash: string;
-      promptPreview?: string;
-      qualityLabel?: number;
-      source: "benchmark" | "production" | "synthetic";
-      split?: "train" | "validation" | "test";
-      successLabel?: boolean;
-      targetModelId?: Id<"models">;
-      targetResponse?: string;
-      taskType: "chat" | "coding" | "analysis" | "rewrite" | "qa";
-      tier?: "free" | "pro" | "advanced" | "light" | "medium";
-      _id: Id<"trainingExamples">;
-      _creationTime: number;
-    };
+      costLabel?: number
+      createdAt: number
+      latencyLabel?: number
+      metadata?: Record<string, string>
+      promptHash: string
+      promptPreview?: string
+      qualityLabel?: number
+      source: 'benchmark' | 'production' | 'synthetic'
+      split?: 'train' | 'validation' | 'test'
+      successLabel?: boolean
+      targetModelId?: Id<'models'>
+      targetResponse?: string
+      taskType: 'chat' | 'coding' | 'analysis' | 'rewrite' | 'qa'
+      tier?: 'free' | 'pro' | 'advanced' | 'light' | 'medium'
+      _id: Id<'trainingExamples'>
+      _creationTime: number
+    }
     fieldPaths:
-      | "_creationTime"
-      | "_id"
-      | "costLabel"
-      | "createdAt"
-      | "latencyLabel"
-      | "metadata"
+      | '_creationTime'
+      | '_id'
+      | 'costLabel'
+      | 'createdAt'
+      | 'latencyLabel'
+      | 'metadata'
       | `metadata.${string}`
-      | "promptHash"
-      | "promptPreview"
-      | "qualityLabel"
-      | "source"
-      | "split"
-      | "successLabel"
-      | "targetModelId"
-      | "targetResponse"
-      | "taskType"
-      | "tier";
+      | 'promptHash'
+      | 'promptPreview'
+      | 'qualityLabel'
+      | 'source'
+      | 'split'
+      | 'successLabel'
+      | 'targetModelId'
+      | 'targetResponse'
+      | 'taskType'
+      | 'tier'
     indexes: {
-      by_id: ["_id"];
-      by_creation_time: ["_creationTime"];
-      by_createdAt: ["createdAt", "_creationTime"];
-      by_source: ["source", "_creationTime"];
-      by_taskType: ["taskType", "_creationTime"];
-    };
-    searchIndexes: {};
-    vectorIndexes: {};
-  };
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_createdAt: ['createdAt', '_creationTime']
+      by_source: ['source', '_creationTime']
+      by_taskType: ['taskType', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
   userFavoriteModels: {
     document: {
-      createdAt: number;
-      modelId: Id<"models">;
-      userId: Id<"users">;
-      _id: Id<"userFavoriteModels">;
-      _creationTime: number;
-    };
-    fieldPaths: "_creationTime" | "_id" | "createdAt" | "modelId" | "userId";
+      createdAt: number
+      modelId: Id<'models'>
+      userId: Id<'users'>
+      _id: Id<'userFavoriteModels'>
+      _creationTime: number
+    }
+    fieldPaths: '_creationTime' | '_id' | 'createdAt' | 'modelId' | 'userId'
     indexes: {
-      by_id: ["_id"];
-      by_creation_time: ["_creationTime"];
-      by_user: ["userId", "_creationTime"];
-      by_user_model: ["userId", "modelId", "_creationTime"];
-    };
-    searchIndexes: {};
-    vectorIndexes: {};
-  };
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_user: ['userId', '_creationTime']
+      by_user_model: ['userId', 'modelId', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
   userMemories: {
     document: {
-      category?: string;
-      content: string;
-      contentHash: string;
-      createdAt: number;
-      embedding?: Array<number>;
-      originMessageIds?: Array<string>;
-      originThreadId?: string;
-      ragKey: string;
-      source: "manual" | "extracted" | "system";
-      tags?: Array<string>;
-      title: string;
-      updatedAt: number;
-      userId: Id<"users">;
-      _id: Id<"userMemories">;
-      _creationTime: number;
-    };
+      category?: string
+      content: string
+      contentHash: string
+      createdAt: number
+      embedding?: Array<number>
+      originMessageIds?: Array<string>
+      originThreadId?: string
+      ragKey: string
+      source: 'manual' | 'extracted' | 'system'
+      tags?: Array<string>
+      title: string
+      updatedAt: number
+      userId: Id<'users'>
+      _id: Id<'userMemories'>
+      _creationTime: number
+    }
     fieldPaths:
-      | "_creationTime"
-      | "_id"
-      | "category"
-      | "content"
-      | "contentHash"
-      | "createdAt"
-      | "embedding"
-      | "originMessageIds"
-      | "originThreadId"
-      | "ragKey"
-      | "source"
-      | "tags"
-      | "title"
-      | "updatedAt"
-      | "userId";
+      | '_creationTime'
+      | '_id'
+      | 'category'
+      | 'content'
+      | 'contentHash'
+      | 'createdAt'
+      | 'embedding'
+      | 'originMessageIds'
+      | 'originThreadId'
+      | 'ragKey'
+      | 'source'
+      | 'tags'
+      | 'title'
+      | 'updatedAt'
+      | 'userId'
     indexes: {
-      by_id: ["_id"];
-      by_creation_time: ["_creationTime"];
-      by_user: ["userId", "_creationTime"];
-      by_user_contentHash: ["userId", "contentHash", "_creationTime"];
-      by_user_updated: ["userId", "updatedAt", "_creationTime"];
-    };
-    searchIndexes: {};
-    vectorIndexes: {};
-  };
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_user: ['userId', '_creationTime']
+      by_user_contentHash: ['userId', 'contentHash', '_creationTime']
+      by_user_updated: ['userId', 'updatedAt', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
   userRoles: {
     document: {
-      grantedBy?: Id<"users">;
-      role: "owner" | "admin" | "member";
-      updatedAt: number;
-      userId: Id<"users">;
-      _id: Id<"userRoles">;
-      _creationTime: number;
-    };
-    fieldPaths:
-      | "_creationTime"
-      | "_id"
-      | "grantedBy"
-      | "role"
-      | "updatedAt"
-      | "userId";
+      grantedBy?: Id<'users'>
+      role: 'owner' | 'admin' | 'member'
+      updatedAt: number
+      userId: Id<'users'>
+      _id: Id<'userRoles'>
+      _creationTime: number
+    }
+    fieldPaths: '_creationTime' | '_id' | 'grantedBy' | 'role' | 'updatedAt' | 'userId'
     indexes: {
-      by_id: ["_id"];
-      by_creation_time: ["_creationTime"];
-      by_userId: ["userId", "_creationTime"];
-    };
-    searchIndexes: {};
-    vectorIndexes: {};
-  };
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_userId: ['userId', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
   users: {
     document: {
-      appPlan?: "free" | "pro";
-      clerkUserId?: string;
-      email?: string;
-      emailVerificationTime?: number;
-      image?: string;
-      isAnonymous?: boolean;
-      name?: string;
-      phone?: string;
-      phoneVerificationTime?: number;
-      tokenIdentifier?: string;
-      _id: Id<"users">;
-      _creationTime: number;
-    };
+      appPlan?: 'free' | 'pro'
+      clerkUserId?: string
+      email?: string
+      emailVerificationTime?: number
+      image?: string
+      isAnonymous?: boolean
+      name?: string
+      phone?: string
+      phoneVerificationTime?: number
+      tokenIdentifier?: string
+      _id: Id<'users'>
+      _creationTime: number
+    }
     fieldPaths:
-      | "_creationTime"
-      | "_id"
-      | "appPlan"
-      | "clerkUserId"
-      | "email"
-      | "emailVerificationTime"
-      | "image"
-      | "isAnonymous"
-      | "name"
-      | "phone"
-      | "phoneVerificationTime"
-      | "tokenIdentifier";
+      | '_creationTime'
+      | '_id'
+      | 'appPlan'
+      | 'clerkUserId'
+      | 'email'
+      | 'emailVerificationTime'
+      | 'image'
+      | 'isAnonymous'
+      | 'name'
+      | 'phone'
+      | 'phoneVerificationTime'
+      | 'tokenIdentifier'
     indexes: {
-      by_id: ["_id"];
-      by_creation_time: ["_creationTime"];
-      by_tokenIdentifier: ["tokenIdentifier", "_creationTime"];
-      clerkUserId: ["clerkUserId", "_creationTime"];
-      email: ["email", "_creationTime"];
-      phone: ["phone", "_creationTime"];
-    };
-    searchIndexes: {};
-    vectorIndexes: {};
-  };
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_tokenIdentifier: ['tokenIdentifier', '_creationTime']
+      clerkUserId: ['clerkUserId', '_creationTime']
+      email: ['email', '_creationTime']
+      phone: ['phone', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
   userSettings: {
     document: {
-      bio?: string;
-      displayName?: string;
-      image?: string;
-      reasoningEnabled?: boolean;
-      reasoningLevel?: "low" | "medium" | "high";
-      updatedAt: number;
-      userId: Id<"users">;
-      voiceTranscriptionMode?: "cloud" | "device";
-      _id: Id<"userSettings">;
-      _creationTime: number;
-    };
+      bio?: string
+      displayName?: string
+      image?: string
+      reasoningEnabled?: boolean
+      reasoningLevel?: 'low' | 'medium' | 'high'
+      updatedAt: number
+      userId: Id<'users'>
+      voiceTranscriptionMode?: 'cloud' | 'device'
+      _id: Id<'userSettings'>
+      _creationTime: number
+    }
     fieldPaths:
-      | "_creationTime"
-      | "_id"
-      | "bio"
-      | "displayName"
-      | "image"
-      | "reasoningEnabled"
-      | "reasoningLevel"
-      | "updatedAt"
-      | "userId"
-      | "voiceTranscriptionMode";
+      | '_creationTime'
+      | '_id'
+      | 'bio'
+      | 'displayName'
+      | 'image'
+      | 'reasoningEnabled'
+      | 'reasoningLevel'
+      | 'updatedAt'
+      | 'userId'
+      | 'voiceTranscriptionMode'
     indexes: {
-      by_id: ["_id"];
-      by_creation_time: ["_creationTime"];
-      by_user: ["userId", "_creationTime"];
-    };
-    searchIndexes: {};
-    vectorIndexes: {};
-  };
-};
+      by_id: ['_id']
+      by_creation_time: ['_creationTime']
+      by_user: ['userId', '_creationTime']
+    }
+    searchIndexes: {}
+    vectorIndexes: {}
+  }
+}
 
 /**
  * The names of all of your Convex tables.
  */
-export type TableNames = TableNamesInDataModel<DataModel>;
+export type TableNames = TableNamesInDataModel<DataModel>
 
 /**
  * The type of a document stored in Convex.
  *
  * @typeParam TableName - A string literal type of the table name (like "users").
  */
-export type Doc<TableName extends TableNames> = DocumentByName<
-  DataModel,
-  TableName
->;
+export type Doc<TableName extends TableNames> = DocumentByName<DataModel, TableName>
 
 /**
  * An identifier for a document in Convex.
@@ -1344,5 +1733,4 @@ export type Doc<TableName extends TableNames> = DocumentByName<
  *
  * @typeParam TableName - A string literal type of the table name (like "users").
  */
-export type Id<TableName extends TableNames | SystemTableNames> =
-  GenericId<TableName>;
+export type Id<TableName extends TableNames | SystemTableNames> = GenericId<TableName>

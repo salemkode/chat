@@ -75,9 +75,7 @@ export const searchFiles = query({
     if (source) {
       queryBuilder = ctx.db
         .query('memoryFiles')
-        .withIndex('by_source', (q) =>
-          q.eq('source', source).eq('agentId', agentId),
-        )
+        .withIndex('by_source', (q) => q.eq('source', source).eq('agentId', agentId))
     }
 
     const results = await queryBuilder.collect()

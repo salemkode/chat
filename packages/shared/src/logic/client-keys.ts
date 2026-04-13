@@ -16,4 +16,3 @@ export function createClientRequestId() {
 export function isClientThreadKey(value?: string | null) {
   return Boolean(value && value.startsWith(CLIENT_THREAD_KEY_PREFIX))
 }
-

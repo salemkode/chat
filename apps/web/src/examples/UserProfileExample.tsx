@@ -36,9 +36,7 @@ export function UserProfileExample() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <p className="text-gray-600 mb-4">
-            Please sign in to view your profile
-          </p>
+          <p className="text-gray-600 mb-4">Please sign in to view your profile</p>
           <SignInButton mode="modal" />
         </div>
       </div>
@@ -134,8 +132,7 @@ export function UserProfileExample() {
                       _id: profile._id,
                       name: profile.name,
                       email: profile.email,
-                      tokenIdentifier:
-                        profile.tokenIdentifier?.substring(0, 30) + '...',
+                      tokenIdentifier: profile.tokenIdentifier?.substring(0, 30) + '...',
                     }
                   : null,
               },

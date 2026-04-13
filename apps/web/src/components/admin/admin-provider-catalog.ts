@@ -112,10 +112,7 @@ export const PROVIDER_TYPES: Array<{
 ] as const
 
 export function defaultBaseURL(providerType: ProviderType) {
-  return (
-    PROVIDER_TYPES.find((provider) => provider.value === providerType)
-      ?.defaultBaseURL ?? ''
-  )
+  return PROVIDER_TYPES.find((provider) => provider.value === providerType)?.defaultBaseURL ?? ''
 }
 
 const PROVIDER_FORM_HINTS: Record<
@@ -136,8 +133,7 @@ const PROVIDER_FORM_HINTS: Record<
   },
   azure: {
     apiKeyPlaceholder: 'Azure OpenAI API key',
-    baseURLNote:
-      'Use your resource endpoint, e.g. https://YOUR_RESOURCE.openai.azure.com/openai',
+    baseURLNote: 'Use your resource endpoint, e.g. https://YOUR_RESOURCE.openai.azure.com/openai',
   },
   groq: {
     apiKeyPlaceholder: 'gsk_...',
@@ -193,8 +189,7 @@ export function getProviderFormHints(providerType: ProviderType) {
   const fallbackUrl = defaultBaseURL(providerType)
   return {
     apiKeyPlaceholder: hints.apiKeyPlaceholder,
-    baseURLPlaceholder:
-      fallbackUrl || 'https://api.example.com/v1',
+    baseURLPlaceholder: fallbackUrl || 'https://api.example.com/v1',
     baseURLNote: hints.baseURLNote,
   }
 }

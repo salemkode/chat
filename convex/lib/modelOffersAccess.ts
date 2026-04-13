@@ -7,15 +7,8 @@ export type OfferAccessFlags = {
   blocksAllAccess: boolean
 }
 
-function offerCoversNow(
-  offer: Doc<'modelOffers'>,
-  nowMs: number,
-): boolean {
-  return (
-    offer.isEnabled &&
-    offer.startsAt <= nowMs &&
-    offer.endsAt >= nowMs
-  )
+function offerCoversNow(offer: Doc<'modelOffers'>, nowMs: number): boolean {
+  return offer.isEnabled && offer.startsAt <= nowMs && offer.endsAt >= nowMs
 }
 
 /**

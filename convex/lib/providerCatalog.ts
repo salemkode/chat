@@ -30,12 +30,7 @@ export const PROVIDER_TYPES = [
 
 export type ProviderType = (typeof PROVIDER_TYPES)[number]
 
-type DiscoveryMode =
-  | 'openai-compatible'
-  | 'openrouter'
-  | 'anthropic'
-  | 'google'
-  | 'unsupported'
+type DiscoveryMode = 'openai-compatible' | 'openrouter' | 'anthropic' | 'google' | 'unsupported'
 
 export interface DiscoveredModel {
   modelId: string
@@ -97,8 +92,7 @@ const PROVIDER_METADATA: Record<
   azure: {
     label: 'Azure OpenAI',
     discoveryMode: 'unsupported',
-    note:
-      'Azure OpenAI model discovery is deployment-based and not exposed by the same data-plane API used for chat requests.',
+    note: 'Azure OpenAI model discovery is deployment-based and not exposed by the same data-plane API used for chat requests.',
   },
   groq: {
     label: 'Groq',
@@ -157,8 +151,7 @@ const PROVIDER_METADATA: Record<
   replicate: {
     label: 'Replicate',
     discoveryMode: 'unsupported',
-    note:
-      'Replicate does not expose the same chat-model listing shape used by the rest of this admin flow.',
+    note: 'Replicate does not expose the same chat-model listing shape used by the rest of this admin flow.',
   },
   moonshot: {
     label: 'Moonshot',
@@ -201,10 +194,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function getRecordArray(
-  value: unknown,
-  key?: string,
-): Record<string, unknown>[] {
+function getRecordArray(value: unknown, key?: string): Record<string, unknown>[] {
   const source = key && isRecord(value) ? value[key] : value
   if (!Array.isArray(source)) {
     return []
@@ -246,12 +236,8 @@ function normalizeOpenAiLikeModel(raw: Record<string, unknown>): DiscoveredModel
 
   return {
     modelId,
-    displayName: formatDisplayName(
-      modelId,
-      typeof raw.name === 'string' ? raw.name : undefined,
-    ),
-    description:
-      typeof raw.description === 'string' ? raw.description : undefined,
+    displayName: formatDisplayName(modelId, typeof raw.name === 'string' ? raw.name : undefined),
+    description: typeof raw.description === 'string' ? raw.description : undefined,
     ownedBy: typeof raw.owned_by === 'string' ? raw.owned_by : undefined,
     contextWindow:
       toNumber(raw.context_length) ??
@@ -271,19 +257,13 @@ function normalizeOpenRouterModel(raw: Record<string, unknown>): DiscoveredModel
     return null
   }
 
-  const architecture =
-    isRecord(raw.architecture) ? raw.architecture : undefined
-  const topProvider =
-    isRecord(raw.top_provider) ? raw.top_provider : undefined
+  const architecture = isRecord(raw.architecture) ? raw.architecture : undefined
+  const topProvider = isRecord(raw.top_provider) ? raw.top_provider : undefined
 
   return {
     modelId,
-    displayName: formatDisplayName(
-      modelId,
-      typeof raw.name === 'string' ? raw.name : undefined,
-    ),
-    description:
-      typeof raw.description === 'string' ? raw.description : undefined,
+    displayName: formatDisplayName(modelId, typeof raw.name === 'string' ? raw.name : undefined),
+    description: typeof raw.description === 'string' ? raw.description : undefined,
     ownedBy:
       typeof raw.author === 'string'
         ? raw.author
@@ -292,8 +272,7 @@ function normalizeOpenRouterModel(raw: Record<string, unknown>): DiscoveredModel
           : undefined,
     contextWindow: toNumber(raw.context_length),
     maxOutputTokens:
-      toNumber(topProvider?.max_completion_tokens) ??
-      toNumber(raw.max_output_tokens),
+      toNumber(topProvider?.max_completion_tokens) ?? toNumber(raw.max_output_tokens),
     modalities: architecture
       ? {
           input: toArray(architecture.input_modalities),
@@ -309,8 +288,7 @@ function normalizeAnthropicModel(raw: Record<string, unknown>): DiscoveredModel 
     return null
   }
 
-  const inputModalities =
-    typeof raw.type === 'string' ? [raw.type] : ['text']
+  const inputModalities = typeof raw.type === 'string' ? [raw.type] : ['text']
 
   return {
     modelId,
@@ -318,8 +296,7 @@ function normalizeAnthropicModel(raw: Record<string, unknown>): DiscoveredModel 
       modelId,
       typeof raw.display_name === 'string' ? raw.display_name : undefined,
     ),
-    description:
-      typeof raw.description === 'string' ? raw.description : undefined,
+    description: typeof raw.description === 'string' ? raw.description : undefined,
     ownedBy: 'anthropic',
     contextWindow: toNumber(raw.context_window),
     maxOutputTokens: toNumber(raw.max_output_tokens),
@@ -344,8 +321,7 @@ function normalizeGoogleModel(raw: Record<string, unknown>): DiscoveredModel | n
       modelId,
       typeof raw.displayName === 'string' ? raw.displayName : undefined,
     ),
-    description:
-      typeof raw.description === 'string' ? raw.description : undefined,
+    description: typeof raw.description === 'string' ? raw.description : undefined,
     ownedBy: 'google',
     contextWindow: toNumber(raw.inputTokenLimit),
     maxOutputTokens: toNumber(raw.outputTokenLimit),
@@ -362,9 +338,7 @@ function dedupeAndSort(models: DiscoveredModel[]) {
     byId.set(model.modelId, model)
   }
 
-  return [...byId.values()].sort((left, right) =>
-    left.displayName.localeCompare(right.displayName),
-  )
+  return [...byId.values()].sort((left, right) => left.displayName.localeCompare(right.displayName))
 }
 
 export function getProviderMetadata(providerType: ProviderType) {
@@ -520,13 +494,9 @@ export async function fetchProviderCatalog(args: {
       ? getRecordArray(payload)
       : getRecordArray(payload, 'data')
     const normalizer =
-      args.providerType === 'openrouter'
-        ? normalizeOpenRouterModel
-        : normalizeOpenAiLikeModel
+      args.providerType === 'openrouter' ? normalizeOpenRouterModel : normalizeOpenAiLikeModel
     const models = dedupeAndSort(
-      rawModels
-        .map(normalizer)
-        .filter((model): model is DiscoveredModel => Boolean(model)),
+      rawModels.map(normalizer).filter((model): model is DiscoveredModel => Boolean(model)),
     )
 
     return {
@@ -542,8 +512,7 @@ export async function fetchProviderCatalog(args: {
       models,
     }
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Failed to discover models.'
+    const message = error instanceof Error ? error.message : 'Failed to discover models.'
 
     return {
       ok: false,

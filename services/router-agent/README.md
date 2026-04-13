@@ -43,6 +43,8 @@ Health:
 ```bash
 curl http://127.0.0.1:8001/healthz
 curl http://127.0.0.1:8001/readyz
+curl http://127.0.0.1:8001/capabilities \
+  -H "Authorization: Bearer $ROUTER_API_KEY"
 ```
 
 Update models:
@@ -93,7 +95,13 @@ curl -X POST http://127.0.0.1:8001/route \
       }
     ],
     "user": {
-      "preference": "balanced"
+      "preference": "balanced",
+      "requires_image_input": true,
+      "attachments": {
+        "image_count": 2,
+        "file_count": 1,
+        "total_count": 3
+      }
     }
   }'
 ```

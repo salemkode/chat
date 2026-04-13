@@ -113,12 +113,9 @@ export const syncManualLinkSource = internalAction({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const artifacts = await ctx.runQuery(
-      internal.projectContext.listArtifactsByProjectInternal,
-      {
-        projectId: args.projectId,
-      },
-    )
+    const artifacts = await ctx.runQuery(internal.projectContext.listArtifactsByProjectInternal, {
+      projectId: args.projectId,
+    })
 
     for (const artifact of artifacts) {
       if (artifact.sourceId !== args.sourceId || artifact.kind !== 'external_link') {
@@ -135,33 +132,25 @@ export const syncManualLinkSource = internalAction({
         }
         const contentType = response.headers.get('content-type') || ''
         const raw = await response.text()
-        const text = contentType.includes('text/html')
-          ? stripHtmlToText(raw)
-          : raw.trim()
+        const text = contentType.includes('text/html') ? stripHtmlToText(raw) : raw.trim()
         const normalized = text.slice(0, 50_000)
 
-        await ctx.runMutation(
-          internal.projectContext.upsertProjectArtifactContentInternal,
-          {
-            artifactId: artifact._id,
-            projectId: args.projectId,
-            text: normalized,
-            contentHash: `${normalized.length}:${artifact._id}`,
-            extractionStatus: 'ready',
-          },
-        )
+        await ctx.runMutation(internal.projectContext.upsertProjectArtifactContentInternal, {
+          artifactId: artifact._id,
+          projectId: args.projectId,
+          text: normalized,
+          contentHash: `${normalized.length}:${artifact._id}`,
+          extractionStatus: 'ready',
+        })
       } catch (error) {
-        await ctx.runMutation(
-          internal.projectContext.upsertProjectArtifactContentInternal,
-          {
-            artifactId: artifact._id,
-            projectId: args.projectId,
-            text: '',
-            contentHash: '',
-            extractionStatus: 'error',
-            error: error instanceof Error ? error.message : 'Failed to extract URL',
-          },
-        )
+        await ctx.runMutation(internal.projectContext.upsertProjectArtifactContentInternal, {
+          artifactId: artifact._id,
+          projectId: args.projectId,
+          text: '',
+          contentHash: '',
+          extractionStatus: 'error',
+          error: error instanceof Error ? error.message : 'Failed to extract URL',
+        })
       }
     }
 

@@ -3,10 +3,7 @@ import { ConvexError } from 'convex/values'
 /** Long enough to read multi-line Convex validation / server errors in admin toasts. */
 export const ADMIN_MUTATION_ERROR_TOAST_DURATION_MS = 12_000
 
-export function formatAdminMutationError(
-  error: unknown,
-  fallback: string,
-): string {
+export function formatAdminMutationError(error: unknown, fallback: string): string {
   if (error instanceof ConvexError) {
     const parts: string[] = [error.message]
     const data = error.data

@@ -44,9 +44,7 @@ export type RateLimitPolicy = {
 }
 
 export function isProviderType(value: unknown): value is ProviderType {
-  return (
-    typeof value === 'string' && PROVIDER_TYPES.includes(value as ProviderType)
-  )
+  return typeof value === 'string' && PROVIDER_TYPES.includes(value as ProviderType)
 }
 
 export function isIconType(value: unknown): value is IconType {
@@ -58,17 +56,11 @@ export function isAppPlan(value: unknown): value is AppPlan {
 }
 
 export function isRateLimitScope(value: unknown): value is RateLimitScope {
-  return (
-    typeof value === 'string' &&
-    RATE_LIMIT_SCOPES.includes(value as RateLimitScope)
-  )
+  return typeof value === 'string' && RATE_LIMIT_SCOPES.includes(value as RateLimitScope)
 }
 
 export function isRateLimitKind(value: unknown): value is RateLimitKind {
-  return (
-    typeof value === 'string' &&
-    RATE_LIMIT_KINDS.includes(value as RateLimitKind)
-  )
+  return typeof value === 'string' && RATE_LIMIT_KINDS.includes(value as RateLimitKind)
 }
 
 export function isRateLimitPolicy(value: unknown): value is RateLimitPolicy {
@@ -85,8 +77,7 @@ export function isRateLimitPolicy(value: unknown): value is RateLimitPolicy {
     typeof value.period === 'number' &&
     Number.isFinite(value.period) &&
     (value.capacity === undefined ||
-      (typeof value.capacity === 'number' &&
-        Number.isFinite(value.capacity))) &&
+      (typeof value.capacity === 'number' && Number.isFinite(value.capacity))) &&
     (value.shards === undefined ||
       (typeof value.shards === 'number' && Number.isFinite(value.shards)))
   )
@@ -96,10 +87,4 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-export {
-  APP_PLANS,
-  ICON_TYPES,
-  PROVIDER_TYPES,
-  RATE_LIMIT_KINDS,
-  RATE_LIMIT_SCOPES,
-}
+export { APP_PLANS, ICON_TYPES, PROVIDER_TYPES, RATE_LIMIT_KINDS, RATE_LIMIT_SCOPES }

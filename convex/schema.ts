@@ -24,11 +24,7 @@ const modalitiesValidator = v.object({
   output: v.array(v.string()),
 })
 
-const reasoningLevelValidator = v.union(
-  v.literal('low'),
-  v.literal('medium'),
-  v.literal('high'),
-)
+const reasoningLevelValidator = v.union(v.literal('low'), v.literal('medium'), v.literal('high'))
 
 const modelReasoningDefaultValidator = v.union(
   v.literal('off'),
@@ -54,27 +50,13 @@ const modelSelectionTaskTypeValidator = v.union(
   v.literal('qa'),
 )
 
-const userRoleValidator = v.union(
-  v.literal('owner'),
-  v.literal('admin'),
-  v.literal('member'),
-)
+const userRoleValidator = v.union(v.literal('owner'), v.literal('admin'), v.literal('member'))
 
-const projectRoleValidator = v.union(
-  v.literal('owner'),
-  v.literal('editor'),
-  v.literal('viewer'),
-)
+const projectRoleValidator = v.union(v.literal('owner'), v.literal('editor'), v.literal('viewer'))
 
-const projectVisibilityValidator = v.union(
-  v.literal('private'),
-  v.literal('shared'),
-)
+const projectVisibilityValidator = v.union(v.literal('private'), v.literal('shared'))
 
-const integrationProviderValidator = v.union(
-  v.literal('github'),
-  v.literal('google'),
-)
+const integrationProviderValidator = v.union(v.literal('github'), v.literal('google'))
 
 const integrationStatusValidator = v.union(
   v.literal('active'),
@@ -122,10 +104,7 @@ const projectArtifactStatusValidator = v.union(
   v.literal('error'),
 )
 
-const projectArtifactSelectionOriginValidator = v.union(
-  v.literal('manual'),
-  v.literal('rule'),
-)
+const projectArtifactSelectionOriginValidator = v.union(v.literal('manual'), v.literal('rule'))
 
 const projectExtractionStatusValidator = v.union(
   v.literal('pending'),
@@ -146,10 +125,7 @@ const projectSyncJobStatusValidator = v.union(
   v.literal('error'),
 )
 
-const modelOfferKindValidator = v.union(
-  v.literal('free_access'),
-  v.literal('availability_window'),
-)
+const modelOfferKindValidator = v.union(v.literal('free_access'), v.literal('availability_window'))
 
 const modelSelectionPricingValidator = v.object({
   inputPer1M: v.number(),
@@ -361,6 +337,12 @@ export default defineSchema({
     key: v.string(),
     appPlan: appPlanValidator,
     defaultRateLimit: v.optional(rateLimitPolicyValidator),
+    autoModelRoutingEnabled: v.optional(v.boolean()),
+    autoModelRouterUrl: v.optional(v.string()),
+    autoModelRouterApiKey: v.optional(v.string()),
+    autoModelRouterPreference: v.optional(
+      v.union(v.literal('balanced'), v.literal('cost'), v.literal('speed'), v.literal('quality')),
+    ),
     updatedAt: v.number(),
   }).index('by_key', ['key']),
 
@@ -433,11 +415,7 @@ export default defineSchema({
     .index('by_tier_createdAt', ['tier', 'createdAt']),
 
   trainingExamples: defineTable({
-    source: v.union(
-      v.literal('benchmark'),
-      v.literal('production'),
-      v.literal('synthetic'),
-    ),
+    source: v.union(v.literal('benchmark'), v.literal('production'), v.literal('synthetic')),
     taskType: modelSelectionTaskTypeValidator,
     tier: v.optional(modelSelectionTierValidator),
     promptHash: v.string(),
@@ -448,15 +426,39 @@ export default defineSchema({
     costLabel: v.optional(v.number()),
     latencyLabel: v.optional(v.number()),
     successLabel: v.optional(v.boolean()),
-    split: v.optional(
-      v.union(v.literal('train'), v.literal('validation'), v.literal('test')),
-    ),
+    split: v.optional(v.union(v.literal('train'), v.literal('validation'), v.literal('test'))),
     metadata: v.optional(v.record(v.string(), v.string())),
     createdAt: v.number(),
   })
     .index('by_source', ['source'])
     .index('by_taskType', ['taskType'])
     .index('by_createdAt', ['createdAt']),
+
+  autoModelDecisions: defineTable({
+    decisionId: v.string(),
+    userId: v.optional(v.id('users')),
+    threadId: v.optional(v.string()),
+    selectedModelId: v.optional(v.id('models')),
+    selectedModelKey: v.optional(v.string()),
+    selectedModelName: v.optional(v.string()),
+    selectedProviderId: v.optional(v.id('providers')),
+    selectedProviderName: v.optional(v.string()),
+    routerUrl: v.optional(v.string()),
+    routerPreference: v.optional(
+      v.union(v.literal('balanced'), v.literal('cost'), v.literal('speed'), v.literal('quality')),
+    ),
+    requestPreview: v.optional(v.string()),
+    requestChars: v.number(),
+    searchEnabled: v.boolean(),
+    reasoningEnabled: v.boolean(),
+    status: v.union(v.literal('success'), v.literal('failed')),
+    error: v.optional(v.string()),
+    latencyMs: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index('by_createdAt', ['createdAt'])
+    .index('by_selectedModel_createdAt', ['selectedModelId', 'createdAt'])
+    .index('by_status_createdAt', ['status', 'createdAt']),
 
   // Chat sections (folders) for organizing threads
   sections: defineTable({
@@ -486,11 +488,7 @@ export default defineSchema({
     .index('by_threadId', ['threadId'])
     .index('by_userId_clientThreadKey', ['userId', 'clientThreadKey'])
     .index('by_userId_sortOrder', ['userId', 'sortOrder'])
-    .index('by_userId_sortOrder_lastMessageAt', [
-      'userId',
-      'sortOrder',
-      'lastMessageAt',
-    ]),
+    .index('by_userId_sortOrder_lastMessageAt', ['userId', 'sortOrder', 'lastMessageAt']),
 
   clientMutationReceipts: defineTable({
     userId: v.id('users'),
@@ -635,11 +633,7 @@ export default defineSchema({
     embedding: v.optional(v.array(v.number())),
     originThreadId: v.optional(v.string()),
     originMessageIds: v.optional(v.array(v.string())),
-    source: v.union(
-      v.literal('manual'),
-      v.literal('extracted'),
-      v.literal('system'),
-    ),
+    source: v.union(v.literal('manual'), v.literal('extracted'), v.literal('system')),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -840,10 +834,12 @@ export default defineSchema({
   projects: defineTable({
     name: v.string(),
     description: v.optional(v.string()),
-    ownerUserId: v.id('users'),
+    // Optional for legacy rows created before ownership migration.
+    ownerUserId: v.optional(v.id('users')),
     // Legacy owner field kept for backward compatibility with older queries.
     userId: v.optional(v.id('users')),
-    visibility: projectVisibilityValidator,
+    // Optional for legacy rows; runtime logic defaults undefined to "private".
+    visibility: v.optional(projectVisibilityValidator),
     threadIds: v.optional(v.array(v.string())),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -856,11 +852,7 @@ export default defineSchema({
   memoryState: defineTable({
     userId: v.id('users'),
     lastSyncAt: v.number(),
-    status: v.union(
-      v.literal('idle'),
-      v.literal('syncing'),
-      v.literal('error'),
-    ),
+    status: v.union(v.literal('idle'), v.literal('syncing'), v.literal('error')),
     errorMessage: v.optional(v.string()),
   }).index('by_user', ['userId']),
 
@@ -869,9 +861,7 @@ export default defineSchema({
     userId: v.id('users'),
     lastProcessedOrder: v.number(),
     updatedAt: v.number(),
-    status: v.optional(
-      v.union(v.literal('idle'), v.literal('running'), v.literal('error')),
-    ),
+    status: v.optional(v.union(v.literal('idle'), v.literal('running'), v.literal('error'))),
     error: v.optional(v.string()),
   })
     .index('by_thread', ['threadId'])
@@ -885,9 +875,7 @@ export default defineSchema({
     bio: v.optional(v.string()),
     reasoningEnabled: v.optional(v.boolean()),
     reasoningLevel: v.optional(reasoningLevelValidator),
-    voiceTranscriptionMode: v.optional(
-      v.union(v.literal('cloud'), v.literal('device')),
-    ),
+    voiceTranscriptionMode: v.optional(v.union(v.literal('cloud'), v.literal('device'))),
     updatedAt: v.number(),
   }).index('by_user', ['userId']),
 })

@@ -24,8 +24,7 @@ export function useCachedSessionStatus() {
     isOnline,
     isLoading,
     isOfflineReady: hasTrustedOfflineSession,
-    isAuthenticatedOrOffline:
-      isAuthenticated || (!isOnline && hasTrustedOfflineSession),
+    isAuthenticatedOrOffline: isAuthenticated || (!isOnline && hasTrustedOfflineSession),
   }
 }
 
@@ -50,6 +49,7 @@ export function useViewer() {
         name: viewer.settings?.displayName || viewer.name,
         email: viewer.email,
         image: viewer.settings?.image || viewer.image,
+        appPlan: viewer.appPlan,
         settings: viewer.settings,
         createdAt: viewer._creationTime,
       }
@@ -64,6 +64,7 @@ export function useViewer() {
       name: cachedSettings?.displayName || cachedSession.name,
       email: cachedSession.email,
       image: cachedSettings?.image || cachedSession.image,
+      appPlan: undefined,
       settings: cachedSettings
         ? {
             displayName: cachedSettings.displayName,

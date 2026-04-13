@@ -1,5 +1,5 @@
 import { ConvexError } from 'convex/values'
-import type { Doc, Id } from '../_generated/dataModel'
+import type { Id } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 
 export type ProjectRole = 'owner' | 'editor' | 'viewer'
@@ -12,10 +12,7 @@ const ROLE_RANK: Record<ProjectRole, number> = {
   owner: 3,
 }
 
-function getProjectOwnerId(project: {
-  ownerUserId?: Id<'users'>
-  userId?: Id<'users'>
-}) {
+function getProjectOwnerId(project: { ownerUserId?: Id<'users'>; userId?: Id<'users'> }) {
   return project.ownerUserId ?? project.userId ?? null
 }
 
@@ -48,9 +45,7 @@ export async function getProjectRole(
 
   const membership = await ctx.db
     .query('projectMembers')
-    .withIndex('by_project_user', (q) =>
-      q.eq('projectId', projectId).eq('userId', userId),
-    )
+    .withIndex('by_project_user', (q) => q.eq('projectId', projectId).eq('userId', userId))
     .unique()
 
   return membership?.role ?? null
@@ -108,10 +103,7 @@ export async function requireProjectRole(
   }
 }
 
-export async function listAccessibleProjectIds(
-  ctx: ProjectAccessCtx,
-  userId: Id<'users'>,
-) {
+export async function listAccessibleProjectIds(ctx: ProjectAccessCtx, userId: Id<'users'>) {
   const [ownedProjectsLegacy, ownedProjectsModern, memberRows] = await Promise.all([
     ctx.db
       .query('projects')
@@ -143,7 +135,11 @@ export async function listAccessibleProjectIds(
 export async function ensureProjectOwnerMembership(
   ctx: MutationCtx,
   args: {
-    project: Doc<'projects'>
+    project: {
+      _id: Id<'projects'>
+      ownerUserId?: Id<'users'>
+      userId?: Id<'users'>
+    }
     userId: Id<'users'>
   },
 ) {

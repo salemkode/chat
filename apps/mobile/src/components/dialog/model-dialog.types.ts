@@ -3,6 +3,7 @@ export type ModelDialogItem = {
   modelId: string
   displayName: string
   description?: string
+  capabilities?: string[]
   isFavorite: boolean
 }
 

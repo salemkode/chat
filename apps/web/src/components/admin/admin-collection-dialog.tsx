@@ -16,18 +16,11 @@ import {
   initialModelCollectionDialogState,
   mergeReducer,
 } from '@/components/admin/admin-form-state'
-import type {
-  AdminModel,
-  AdminModelCollection,
-  IconType,
-} from '@/components/admin/types'
+import type { AdminModel, AdminModelCollection, IconType } from '@/components/admin/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import {
-  DialogHeader,
-  DialogFooter,
-} from '@/components/ui/dialog'
+import { DialogHeader, DialogFooter } from '@/components/ui/dialog'
 import {
   ResponsiveModal,
   ResponsiveModalContent,
@@ -60,10 +53,7 @@ export type AdminCollectionDialogProps = {
   }
 }
 
-export function AdminCollectionDialog({
-  state,
-  actions,
-}: AdminCollectionDialogProps) {
+export function AdminCollectionDialog({ state, actions }: AdminCollectionDialogProps) {
   const {
     open,
     onOpenChange,
@@ -81,175 +71,153 @@ export function AdminCollectionDialog({
         Add collection
       </Button>
       <ResponsiveModal open={open} onOpenChange={onOpenChange}>
-      <ResponsiveModalContent size="page" className="max-h-[90vh] overflow-hidden">
-        <DialogHeader>
-          <ResponsiveModalTitle>
-            {editingCollection ? 'Edit collection' : 'Add collection'}
-          </ResponsiveModalTitle>
-          <ResponsiveModalDescription>
-            Build a named group from your current models. Collections only
-            reference existing models, so any model edits stay in sync
-            automatically.
-          </ResponsiveModalDescription>
-        </DialogHeader>
+        <ResponsiveModalContent size="page" className="max-h-[90vh] overflow-hidden">
+          <DialogHeader>
+            <ResponsiveModalTitle>
+              {editingCollection ? 'Edit collection' : 'Add collection'}
+            </ResponsiveModalTitle>
+            <ResponsiveModalDescription>
+              Build a named group from your current models. Collections only reference existing
+              models, so any model edits stay in sync automatically.
+            </ResponsiveModalDescription>
+          </DialogHeader>
 
-        <ScrollArea className="max-h-[70vh] pr-6">
-          <div className="grid gap-6 py-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="grid gap-2">
-                <Label htmlFor={ids.collectionName}>Name</Label>
-                <Input
-                  id={ids.collectionName}
-                  value={collectionForm.name}
-                  onChange={(event) =>
-                    setCollectionForm((current) => ({
-                      ...current,
-                      name: event.target.value,
-                    }))
-                  }
-                  placeholder="Reasoning models"
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor={ids.collectionSortOrder}>Sort order</Label>
-                <Input
-                  id={ids.collectionSortOrder}
-                  type="number"
-                  value={collectionForm.sortOrder}
-                  onChange={(event) =>
-                    setCollectionForm((current) => ({
-                      ...current,
-                      sortOrder: Number(event.target.value) || 0,
-                    }))
-                  }
-                />
-              </div>
-
-              <div className="grid gap-2 md:col-span-2">
-                <Label>Description</Label>
-                <Textarea
-                  value={collectionForm.description}
-                  onChange={(event) =>
-                    setCollectionForm((current) => ({
-                      ...current,
-                      description: event.target.value,
-                    }))
-                  }
-                  placeholder="A curated set of models for long-form reasoning and coding."
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-medium">Models</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Select from the models already configured in the catalog.
-                  </p>
+          <ScrollArea className="max-h-[70vh] pr-6">
+            <div className="grid gap-6 py-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-2">
+                  <Label htmlFor={ids.collectionName}>Name</Label>
+                  <Input
+                    id={ids.collectionName}
+                    value={collectionForm.name}
+                    onChange={(event) =>
+                      setCollectionForm((current) => ({
+                        ...current,
+                        name: event.target.value,
+                      }))
+                    }
+                    placeholder="Reasoning models"
+                  />
                 </div>
-                <Badge variant="secondary">
-                  {collectionForm.modelIds.length} selected
-                </Badge>
+
+                <div className="grid gap-2">
+                  <Label htmlFor={ids.collectionSortOrder}>Sort order</Label>
+                  <Input
+                    id={ids.collectionSortOrder}
+                    type="number"
+                    value={collectionForm.sortOrder}
+                    onChange={(event) =>
+                      setCollectionForm((current) => ({
+                        ...current,
+                        sortOrder: Number(event.target.value) || 0,
+                      }))
+                    }
+                  />
+                </div>
+
+                <div className="grid gap-2 md:col-span-2">
+                  <Label>Description</Label>
+                  <Textarea
+                    value={collectionForm.description}
+                    onChange={(event) =>
+                      setCollectionForm((current) => ({
+                        ...current,
+                        description: event.target.value,
+                      }))
+                    }
+                    placeholder="A curated set of models for long-form reasoning and coding."
+                  />
+                </div>
               </div>
 
-              <div className="overflow-hidden rounded-xl border border-border">
-                <ScrollArea className="h-[320px]">
-                  <div className="grid gap-2 p-3">
-                    {models.length > 0 ? (
-                      models.map((model: AdminModel) => {
-                        const isSelected = collectionForm.modelIds.includes(
-                          model._id,
-                        )
+              <div className="grid gap-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-medium">Models</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Select from the models already configured in the catalog.
+                    </p>
+                  </div>
+                  <Badge variant="secondary">{collectionForm.modelIds.length} selected</Badge>
+                </div>
 
-                        return (
-                          <label
-                            key={model._id}
-                            className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-background p-3 transition-colors hover:bg-muted/40"
-                          >
-                            <Checkbox
-                              checked={isSelected}
-                              onCheckedChange={(checked) =>
-                                setCollectionForm((current) => ({
-                                  ...current,
-                                  modelIds: checked
-                                    ? [
-                                        ...new Set([
-                                          ...current.modelIds,
-                                          model._id,
-                                        ]),
-                                      ]
-                                    : current.modelIds.filter(
-                                        (modelId) => modelId !== model._id,
-                                      ),
-                                }))
-                              }
-                            />
-                            <div className="mt-0.5 flex size-9 items-center justify-center rounded-lg border border-border bg-muted">
-                              <EntityIcon
-                                icon={model.icon}
-                                iconType={model.iconType as IconType}
-                                iconUrl={
-                                  model.iconUrl || model.providerIconUrl
+                <div className="overflow-hidden rounded-xl border border-border">
+                  <ScrollArea className="h-[320px]">
+                    <div className="grid gap-2 p-3">
+                      {models.length > 0 ? (
+                        models.map((model: AdminModel) => {
+                          const isSelected = collectionForm.modelIds.includes(model._id)
+
+                          return (
+                            <label
+                              key={model._id}
+                              className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-background p-3 transition-colors hover:bg-muted/40"
+                            >
+                              <Checkbox
+                                checked={isSelected}
+                                onCheckedChange={(checked) =>
+                                  setCollectionForm((current) => ({
+                                    ...current,
+                                    modelIds: checked
+                                      ? [...new Set([...current.modelIds, model._id])]
+                                      : current.modelIds.filter((modelId) => modelId !== model._id),
+                                  }))
                                 }
                               />
-                            </div>
-                            <div className="min-w-0 flex-1 space-y-1">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="font-medium">
-                                  {model.displayName}
-                                </span>
-                                <Badge variant="outline">
-                                  {model.providerName}
-                                </Badge>
-                                {!model.isEnabled ? (
-                                  <Badge variant="secondary">Hidden</Badge>
+                              <div className="mt-0.5 flex size-9 items-center justify-center rounded-lg border border-border bg-muted">
+                                <EntityIcon
+                                  icon={model.icon}
+                                  iconType={model.iconType as IconType}
+                                  iconUrl={model.iconUrl || model.providerIconUrl}
+                                />
+                              </div>
+                              <div className="min-w-0 flex-1 space-y-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="font-medium">{model.displayName}</span>
+                                  <Badge variant="outline">{model.providerName}</Badge>
+                                  {!model.isEnabled ? (
+                                    <Badge variant="secondary">Hidden</Badge>
+                                  ) : null}
+                                </div>
+                                <p className="truncate font-mono text-xs text-muted-foreground">
+                                  {model.modelId}
+                                </p>
+                                {model.description ? (
+                                  <p className="text-xs text-muted-foreground">
+                                    {model.description}
+                                  </p>
                                 ) : null}
                               </div>
-                              <p className="truncate font-mono text-xs text-muted-foreground">
-                                {model.modelId}
-                              </p>
-                              {model.description ? (
-                                <p className="text-xs text-muted-foreground">
-                                  {model.description}
-                                </p>
-                              ) : null}
-                            </div>
-                          </label>
-                        )
-                      })
-                    ) : (
-                      <div className="rounded-xl border border-dashed border-border p-6 text-sm text-muted-foreground">
-                        Add models first, then create collections from them here.
-                      </div>
-                    )}
-                  </div>
-                </ScrollArea>
+                            </label>
+                          )
+                        })
+                      ) : (
+                        <div className="rounded-xl border border-dashed border-border p-6 text-sm text-muted-foreground">
+                          Add models first, then create collections from them here.
+                        </div>
+                      )}
+                    </div>
+                  </ScrollArea>
+                </div>
               </div>
             </div>
-          </div>
-        </ScrollArea>
+          </ScrollArea>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={() => void actions.onSave()}>
-            {editingCollection ? 'Update collection' : 'Create collection'}
-          </Button>
-        </DialogFooter>
-      </ResponsiveModalContent>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => void actions.onSave()}>
+              {editingCollection ? 'Update collection' : 'Create collection'}
+            </Button>
+          </DialogFooter>
+        </ResponsiveModalContent>
       </ResponsiveModal>
     </>
   )
 }
 
-export function useAdminCollectionDialog({
-  models,
-}: {
-  models: AdminModel[]
-}) {
+export function useAdminCollectionDialog({ models }: { models: AdminModel[] }) {
   const [dialogState, updateDialog] = useReducer(
     mergeReducer<ModelCollectionDialogState>,
     initialModelCollectionDialogState,
@@ -264,20 +232,13 @@ export function useAdminCollectionDialog({
   const collectionForm = dialogState.form
   const editingCollection = dialogState.editingCollection
 
-  const setModelCollectionDialogOpen = (open: boolean) =>
-    updateDialog({ open })
-  const setEditingCollection = (
-    editingCollection: AdminModelCollection | null,
-  ) => updateDialog({ editingCollection })
-  const setCollectionForm = (
-    update: StateUpdate<ModelCollectionFormData>,
-  ) =>
+  const setModelCollectionDialogOpen = (open: boolean) => updateDialog({ open })
+  const setEditingCollection = (editingCollection: AdminModelCollection | null) =>
+    updateDialog({ editingCollection })
+  const setCollectionForm = (update: StateUpdate<ModelCollectionFormData>) =>
     updateDialog((current) => ({
       ...current,
-      form:
-        typeof update === 'function'
-          ? update(current.form)
-          : { ...current.form, ...update },
+      form: typeof update === 'function' ? update(current.form) : { ...current.form, ...update },
     }))
 
   const openCollectionDialog = useCallback(
@@ -319,17 +280,13 @@ export function useAdminCollectionDialog({
       : addModelCollection(payload)
     return request
       .then(() => {
-        toast.success(
-          editingCollection ? 'Collection updated' : 'Collection created',
-        )
+        toast.success(editingCollection ? 'Collection updated' : 'Collection created')
         setModelCollectionDialogOpen(false)
         setEditingCollection(null)
         setCollectionForm(createModelCollectionForm(nextCollectionSortOrder))
       })
       .catch((error) => {
-        toast.error(
-          error instanceof Error ? error.message : 'Failed to save collection',
-        )
+        toast.error(error instanceof Error ? error.message : 'Failed to save collection')
       })
   }, [
     addModelCollection,

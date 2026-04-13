@@ -18,10 +18,7 @@ describe('dedupeMemoryHitsByPriority', () => {
       ],
     ])
 
-    expect(projectHits.map((hit) => hit.title)).toEqual([
-      'Project A',
-      'Project B',
-    ])
+    expect(projectHits.map((hit) => hit.title)).toEqual(['Project A', 'Project B'])
     expect(threadHits.map((hit) => hit.title)).toEqual(['Thread unique'])
     expect(userHits.map((hit) => hit.title)).toEqual(['User unique'])
   })

@@ -37,6 +37,8 @@ import { normalizeHexColor, type ThemeMode } from '@/lib/theme'
 import { readFileReaderResultAsString } from '@/lib/parsers'
 import { cn } from '@/lib/utils'
 import { ResponsiveSelectField } from '@/components/ui/responsive-select-field'
+import { useChatModel } from '@/components/chat-model-context'
+import { ModelSelector } from '@/components/model-selector'
 
 interface SettingsDialogProps {
   open: boolean
@@ -71,6 +73,7 @@ export function SettingsDialog({
 }: SettingsDialogProps) {
   const user = useViewer()
   const { settings, updateSettings } = useSettings()
+  const { selectedModelId, setSelectedModelId } = useChatModel()
   const { isAdminLike } = useRoleContext()
   const { isOnline } = useOnlineStatus()
   const { theme, setTheme, primaryColor, setPrimaryColor } = useTheme()
@@ -114,9 +117,7 @@ export function SettingsDialog({
         { id: 'memory', label: 'Memory', icon: Database },
         { id: 'data', label: 'Data controls', icon: Database },
         { id: 'account', label: 'Account', icon: UserCircle },
-        ...(isAdminLike
-          ? [{ id: 'admin' as const, label: 'Admin', icon: Wrench }]
-          : []),
+        ...(isAdminLike ? [{ id: 'admin' as const, label: 'Admin', icon: Wrench }] : []),
       ] satisfies Array<{ id: SettingsTab; label: string; icon: AppIcon }>,
     [isAdminLike],
   )
@@ -154,15 +155,7 @@ export function SettingsDialog({
     previewClassName: string
   }>
 
-  const presetColors = [
-    '#8b5cf6',
-    '#2563eb',
-    '#0891b2',
-    '#059669',
-    '#ea580c',
-    '#dc2626',
-    '#db2777',
-  ]
+  const presetColors = ['#8b5cf6', '#2563eb', '#0891b2', '#059669', '#ea580c', '#dc2626', '#db2777']
 
   const displayNameValue = displayName || user?.name || ''
   const emailValue = user?.email || ''
@@ -176,21 +169,18 @@ export function SettingsDialog({
       .toUpperCase()
       .slice(0, 2)
 
-  const handleFileChange = useCallback(
-    async (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0]
-      if (!file) {
-        return
-      }
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        const base64 = readFileReaderResultAsString(reader.result)
-        setImage(base64)
-      }
-      reader.readAsDataURL(file)
-    },
-    [],
-  )
+  const handleFileChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) {
+      return
+    }
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      const base64 = readFileReaderResultAsString(reader.result)
+      setImage(base64)
+    }
+    reader.readAsDataURL(file)
+  }, [])
 
   const handleSaveAccount = useCallback(async () => {
     setIsSavingAccount(true)
@@ -225,7 +215,12 @@ export function SettingsDialog({
         <aside className="flex w-full shrink-0 flex-col border-b border-border bg-muted/20 sm:w-56 sm:border-r sm:border-b-0">
           <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-5 sm:px-6">
             <p className="text-sm font-semibold leading-none">Settings</p>
-            <Button variant="ghost" size="icon" className="size-8" onClick={() => onOpenChange(false)}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              onClick={() => onOpenChange(false)}
+            >
               <X className="size-4" />
             </Button>
           </div>
@@ -377,6 +372,16 @@ export function SettingsDialog({
             {activeTab === 'model' ? (
               <div className="space-y-3">
                 <SettingsItem
+                  label="Default model"
+                  description="Choose a fixed model or Auto when it is enabled by the admin router configuration."
+                >
+                  <ModelSelector
+                    selectedModel={selectedModelId}
+                    onModelChange={setSelectedModelId}
+                    className="w-full sm:w-[220px]"
+                  />
+                </SettingsItem>
+                <SettingsItem
                   label="Reasoning"
                   description="Extra step-by-step reasoning when the model supports it. Uses more time per reply when on."
                 >
@@ -425,7 +430,10 @@ export function SettingsDialog({
                 >
                   <span className="text-sm font-medium">Enabled</span>
                 </SettingsItem>
-                <SettingsItem label="Connection" description="Live updates require network connectivity.">
+                <SettingsItem
+                  label="Connection"
+                  description="Live updates require network connectivity."
+                >
                   <span className="text-sm">{isOnline ? 'Online' : 'Offline'}</span>
                 </SettingsItem>
               </div>
@@ -441,9 +449,17 @@ export function SettingsDialog({
                     onClick={() => fileInputRef.current?.click()}
                   >
                     <Avatar className="size-20 ring-4 ring-border">
-                      <AvatarImage src={image || user?.image || undefined} alt={displayNameValue} className="object-cover" />
+                      <AvatarImage
+                        src={image || user?.image || undefined}
+                        alt={displayNameValue}
+                        className="object-cover"
+                      />
                       <AvatarFallback className="bg-primary text-xl font-medium text-primary-foreground">
-                        {displayNameValue ? getInitials(displayNameValue) : <User className="size-8" />}
+                        {displayNameValue ? (
+                          getInitials(displayNameValue)
+                        ) : (
+                          <User className="size-8" />
+                        )}
                       </AvatarFallback>
                     </Avatar>
                     <div
@@ -486,7 +502,13 @@ export function SettingsDialog({
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
-                    <Input id="email" type="email" value={emailValue} disabled className="bg-muted" />
+                    <Input
+                      id="email"
+                      type="email"
+                      value={emailValue}
+                      disabled
+                      className="bg-muted"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="bio">Bio</Label>
@@ -499,10 +521,7 @@ export function SettingsDialog({
                   </div>
                 </div>
 
-                <SettingsItem
-                  label="Session"
-                  description="Sign out from your current session."
-                >
+                <SettingsItem label="Session" description="Sign out from your current session.">
                   <Button
                     type="button"
                     variant="destructive"
@@ -541,7 +560,10 @@ export function SettingsDialog({
               <Button variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
-              <Button onClick={() => void handleSaveAccount()} disabled={isSavingAccount || !isOnline}>
+              <Button
+                onClick={() => void handleSaveAccount()}
+                disabled={isSavingAccount || !isOnline}
+              >
                 {isSavingAccount ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
                 Save changes
               </Button>

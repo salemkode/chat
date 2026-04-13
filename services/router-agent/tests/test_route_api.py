@@ -120,3 +120,25 @@ def test_long_prompt_excludes_small_context_model(client, auth_headers) -> None:
     )
     prompt = "Compare these architectures and benchmark the tradeoffs. " * 120
     assert route(client, auth_headers, prompt, "quality") == "analyst-long"
+
+
+def test_route_accepts_attachment_summary(client, auth_headers, baseline_models_payload) -> None:
+    update_models(client, auth_headers, baseline_models_payload)
+    response = client.post(
+        "/route",
+        headers=auth_headers,
+        json={
+            "messages": [{"role": "user", "content": "Review these images and files"}],
+            "user": {
+                "preference": "balanced",
+                "requires_image_input": True,
+                "attachments": {
+                    "image_count": 2,
+                    "file_count": 1,
+                    "total_count": 3,
+                },
+            },
+        },
+    )
+    assert response.status_code == 200, response.text
+    assert isinstance(response.json().get("model"), str)

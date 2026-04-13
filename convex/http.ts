@@ -114,6 +114,87 @@ const handleClerkWebhook = httpAction(async (ctx, request) => {
   })
 })
 
+function redirectTo(path: string) {
+  return new Response(null, {
+    status: 302,
+    headers: {
+      location: path,
+    },
+  })
+}
+
+function buildOAuthErrorRedirect(redirectToPath: string, provider: string, error: string) {
+  const url = new URL(redirectToPath, 'https://placeholder.local')
+  url.searchParams.set('integration', 'error')
+  url.searchParams.set('provider', provider)
+  url.searchParams.set('message', error)
+  return `${url.pathname}${url.search}${url.hash}`
+}
+
+const handleOAuthStart = (provider: 'github' | 'google') =>
+  httpAction(async () => {
+    return jsonResponse(400, {
+      error: `Use integrations.getOAuthStartUrl to begin ${provider} OAuth`,
+    })
+  })
+
+const handleOAuthCallback = (provider: 'github' | 'google') =>
+  httpAction(async (ctx, request) => {
+    const url = new URL(request.url)
+    const state = url.searchParams.get('state')?.trim()
+    const code = url.searchParams.get('code')?.trim()
+    const oauthError = url.searchParams.get('error')?.trim()
+
+    if (!state) {
+      return jsonResponse(400, { error: 'Missing OAuth state' })
+    }
+
+    const stateData = await ctx.runMutation(internal.integrations.consumeOAuthState, {
+      provider,
+      state,
+    })
+
+    if (!stateData) {
+      return jsonResponse(400, { error: 'OAuth state is invalid or expired' })
+    }
+
+    if (oauthError) {
+      return redirectTo(buildOAuthErrorRedirect(stateData.redirectTo, provider, oauthError))
+    }
+
+    if (!code) {
+      return redirectTo(
+        buildOAuthErrorRedirect(stateData.redirectTo, provider, 'missing_authorization_code'),
+      )
+    }
+
+    try {
+      const result = await ctx.runAction(internal.integrations.exchangeOAuthCode, {
+        provider,
+        code,
+      })
+
+      await ctx.runMutation(internal.integrations.upsertOAuthConnection, {
+        userId: stateData.userId,
+        provider: result.provider,
+        accountSubject: result.accountSubject,
+        accountLabel: result.accountLabel,
+        scopes: result.scopes,
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        expiresAt: result.expiresAt,
+      })
+
+      const doneUrl = new URL(stateData.redirectTo, 'https://placeholder.local')
+      doneUrl.searchParams.set('integration', 'connected')
+      doneUrl.searchParams.set('provider', provider)
+      return redirectTo(`${doneUrl.pathname}${doneUrl.search}${doneUrl.hash}`)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'oauth_callback_failed'
+      return redirectTo(buildOAuthErrorRedirect(stateData.redirectTo, provider, message))
+    }
+  })
+
 const http = httpRouter()
 registerRoutes(http, components.stripe, {
   webhookPath: '/stripe/webhook',
@@ -137,9 +218,31 @@ http.route({
   handler: handleReportOutcome,
 })
 
-async function validateRequest(
-  req: Request,
-): Promise<WebhookEvent | undefined> {
+http.route({
+  path: '/oauth/github/start',
+  method: 'GET',
+  handler: handleOAuthStart('github'),
+})
+
+http.route({
+  path: '/oauth/github/callback',
+  method: 'GET',
+  handler: handleOAuthCallback('github'),
+})
+
+http.route({
+  path: '/oauth/google/start',
+  method: 'GET',
+  handler: handleOAuthStart('google'),
+})
+
+http.route({
+  path: '/oauth/google/callback',
+  method: 'GET',
+  handler: handleOAuthCallback('google'),
+})
+
+async function validateRequest(req: Request): Promise<WebhookEvent | undefined> {
   const payloadString = await req.text()
 
   const svixHeaders = {

@@ -13,9 +13,7 @@ import {
 } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 
-type ChatMessage = FunctionReturnType<
-  typeof api.chat.listMessages
->['page'][number]
+type ChatMessage = FunctionReturnType<typeof api.chat.listMessages>['page'][number]
 type PartRecord = Record<string, unknown>
 
 export type ActivityStatus = 'complete' | 'running' | 'pending' | 'error'
@@ -67,8 +65,7 @@ export function buildActivitySteps(
 
     if (partType === 'reasoning') {
       const reasoningText = getString(part['text']) || ''
-      const reasoningStatus =
-        messageStatus === 'streaming' ? 'running' : 'complete'
+      const reasoningStatus = messageStatus === 'streaming' ? 'running' : 'complete'
 
       if (!reasoningStep) {
         reasoningStep = {
@@ -81,10 +78,7 @@ export function buildActivitySteps(
         }
         steps.push(reasoningStep)
       } else {
-        reasoningStep.status = mergeActivityStatus(
-          reasoningStep.status,
-          reasoningStatus,
-        )
+        reasoningStep.status = mergeActivityStatus(reasoningStep.status, reasoningStatus)
         reasoningStep.body = reasoningStep.redacted
           ? reasoningText || reasoningStep.body
           : appendReasoningText(reasoningStep.body, reasoningText)
@@ -95,8 +89,7 @@ export function buildActivitySteps(
     }
 
     if (partType === 'redacted-reasoning') {
-      const reasoningStatus =
-        messageStatus === 'streaming' ? 'running' : 'complete'
+      const reasoningStatus = messageStatus === 'streaming' ? 'running' : 'complete'
 
       if (!reasoningStep) {
         reasoningStep = {
@@ -110,10 +103,7 @@ export function buildActivitySteps(
         }
         steps.push(reasoningStep)
       } else {
-        reasoningStep.status = mergeActivityStatus(
-          reasoningStep.status,
-          reasoningStatus,
-        )
+        reasoningStep.status = mergeActivityStatus(reasoningStep.status, reasoningStatus)
         reasoningStep.count += 1
       }
       continue
@@ -158,8 +148,7 @@ export function buildActivitySteps(
     if (partType === 'tool-result') {
       const toolCallId = getString(part['toolCallId']) || `tool-result-${index}`
       const toolName = getString(part['toolName']) || 'tool'
-      const stepKey =
-        toolStepKeysByCallId.get(toolCallId) || `tool:${toolName}`
+      const stepKey = toolStepKeysByCallId.get(toolCallId) || `tool:${toolName}`
       const existing = toolSteps.get(stepKey)
 
       if (existing) {
@@ -183,9 +172,7 @@ export function buildActivitySteps(
         status: getBoolean(part['isError']) ? 'error' : 'complete',
         toolName,
         count: 1,
-        sources: isSearchTool(toolName)
-          ? extractSearchSources(part['result'])
-          : undefined,
+        sources: isSearchTool(toolName) ? extractSearchSources(part['result']) : undefined,
       }
 
       toolStepKeysByCallId.set(toolCallId, stepKey)
@@ -208,10 +195,7 @@ export function getLastIncompleteStepId(steps: ActivityStep[]) {
   return null
 }
 
-export function getStepIcon(
-  step: ActivityStep,
-  showActiveLoading: boolean,
-): AppIcon {
+export function getStepIcon(step: ActivityStep): AppIcon {
   if (step.status === 'error') {
     return TriangleAlert
   }
@@ -243,20 +227,11 @@ export function getStepIcon(
   return Wrench
 }
 
-export function isStepActivelyLoading(
-  step: ActivityStep,
-  showActiveLoading: boolean,
-) {
-  return (
-    showActiveLoading &&
-    (step.status === 'running' || step.status === 'pending')
-  )
+export function isStepActivelyLoading(step: ActivityStep, showActiveLoading: boolean) {
+  return showActiveLoading && (step.status === 'running' || step.status === 'pending')
 }
 
-export function getStepIconClassName(
-  step: ActivityStep,
-  showActiveLoading: boolean,
-) {
+export function getStepIconClassName(step: ActivityStep, showActiveLoading: boolean) {
   const isTool = step.kind === 'tool'
   const isSearchToolStep = isTool && isSearchTool(step.toolName)
   const isMemoryTool = isTool && step.toolName.startsWith('memory_')
@@ -264,10 +239,7 @@ export function getStepIconClassName(
   return cn(
     'size-4 shrink-0',
     isStepActivelyLoading(step, showActiveLoading) && 'text-primary',
-    !showActiveLoading &&
-      step.kind === 'reasoning' &&
-      step.status !== 'error' &&
-      'text-primary',
+    !showActiveLoading && step.kind === 'reasoning' && step.status !== 'error' && 'text-primary',
     !showActiveLoading &&
       isSearchToolStep &&
       step.status !== 'error' &&
@@ -289,10 +261,7 @@ export function isSearchTool(toolName: string) {
   )
 }
 
-export function getSearchEmptyState(
-  toolName: string,
-  status: ActivityStatus,
-) {
+export function getSearchEmptyState(toolName: string, status: ActivityStatus) {
   const subject =
     toolName === 'quran_docs_search'
       ? 'Quran docs'
@@ -330,9 +299,7 @@ function getPartType(part: Record<string, unknown>) {
 function isToolCallLikePart(partType: string) {
   return (
     partType === 'tool-call' ||
-    (partType.startsWith('tool-') &&
-      partType !== 'tool-result' &&
-      partType !== 'tool-calls')
+    (partType.startsWith('tool-') && partType !== 'tool-result' && partType !== 'tool-calls')
   )
 }
 
@@ -350,18 +317,11 @@ function getToolName(part: PartRecord, partType: string) {
   return 'tool'
 }
 
-function getToolCallStatus(
-  part: PartRecord,
-  messageStatus: ChatMessage['status'],
-): ActivityStatus {
+function getToolCallStatus(part: PartRecord, messageStatus: ChatMessage['status']): ActivityStatus {
   const state = getString(part['state'])?.toLowerCase()
 
   if (state) {
-    if (
-      state.includes('error') ||
-      state.includes('failed') ||
-      state.includes('denied')
-    ) {
+    if (state.includes('error') || state.includes('failed') || state.includes('denied')) {
       return 'error'
     }
 
@@ -387,15 +347,10 @@ function getToolCallStatus(
     return 'error'
   }
 
-  return messageStatus === 'streaming' || messageStatus === 'pending'
-    ? 'running'
-    : 'pending'
+  return messageStatus === 'streaming' || messageStatus === 'pending' ? 'running' : 'pending'
 }
 
-function mergeActivityStatus(
-  current: ActivityStatus,
-  next: ActivityStatus,
-): ActivityStatus {
+function mergeActivityStatus(current: ActivityStatus, next: ActivityStatus): ActivityStatus {
   if (next === 'pending' && current === 'running') {
     return current
   }
@@ -467,11 +422,7 @@ function formatToolName(toolName: string) {
   }
 
   return words
-    .map((word) =>
-      /^[A-Z0-9]+$/.test(word)
-        ? word
-        : word.charAt(0).toUpperCase() + word.slice(1),
-    )
+    .map((word) => (/^[A-Z0-9]+$/.test(word) ? word : word.charAt(0).toUpperCase() + word.slice(1)))
     .join(' ')
 }
 
@@ -501,10 +452,7 @@ function extractSearchSources(result: unknown): SearchSource[] {
           url,
           title: getString(item.title) || getDomainLabel(url),
           description:
-            getString(item.snippet) ||
-            getString(item.description) ||
-            getString(item.text) ||
-            url,
+            getString(item.snippet) || getString(item.description) || getString(item.text) || url,
         },
       ]
     })

@@ -18,9 +18,7 @@ export function parseThemeMode(
   value: unknown,
   fallback: ThemeMode = DEFAULT_THEME_SETTINGS.mode,
 ): ThemeMode {
-  return value === 'light' || value === 'dark' || value === 'system'
-    ? value
-    : fallback
+  return value === 'light' || value === 'dark' || value === 'system' ? value : fallback
 }
 
 export function getSystemResolvedTheme(): ResolvedTheme {
@@ -28,9 +26,7 @@ export function getSystemResolvedTheme(): ResolvedTheme {
     return 'light'
   }
 
-  return window.matchMedia('(prefers-color-scheme: dark)').matches
-    ? 'dark'
-    : 'light'
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
 export function normalizeHexColor(
@@ -93,10 +89,7 @@ export function parseStoredThemeSettings(
 export function serializeThemeSettings(settings: ThemeSettings): string {
   return JSON.stringify({
     mode: parseThemeMode(settings.mode, DEFAULT_THEME_SETTINGS.mode),
-    primaryColor: normalizeHexColor(
-      settings.primaryColor,
-      DEFAULT_THEME_SETTINGS.primaryColor,
-    ),
+    primaryColor: normalizeHexColor(settings.primaryColor, DEFAULT_THEME_SETTINGS.primaryColor),
   })
 }
 
@@ -114,16 +107,10 @@ export function getContrastTextColor(hexColor: string): string {
   return luminance >= 160 ? '#111827' : '#f8fafc'
 }
 
-export function applyThemeSettings(
-  root: HTMLElement,
-  settings: ThemeSettings,
-): ResolvedTheme {
+export function applyThemeSettings(root: HTMLElement, settings: ThemeSettings): ResolvedTheme {
   const normalized = {
     mode: parseThemeMode(settings.mode, DEFAULT_THEME_SETTINGS.mode),
-    primaryColor: normalizeHexColor(
-      settings.primaryColor,
-      DEFAULT_THEME_SETTINGS.primaryColor,
-    ),
+    primaryColor: normalizeHexColor(settings.primaryColor, DEFAULT_THEME_SETTINGS.primaryColor),
   }
   const resolvedTheme = resolveThemeMode(normalized.mode)
 

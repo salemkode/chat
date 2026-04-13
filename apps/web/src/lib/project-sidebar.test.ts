@@ -38,10 +38,7 @@ describe('project-sidebar helpers', () => {
       },
     ])
 
-    expect(projectThreads.get('p1')?.map((thread) => thread.id)).toEqual([
-      't1',
-      't2',
-    ])
+    expect(projectThreads.get('p1')?.map((thread) => thread.id)).toEqual(['t1', 't2'])
     expect(unfiledThreads.map((thread) => thread.id)).toEqual(['t3', 't4'])
   })
 

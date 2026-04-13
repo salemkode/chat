@@ -35,7 +35,10 @@ export function MemorySettingsPanel() {
       [
         ...(userMemories?.page ?? []).map((memory) => ({ ...memory, scope: 'user' as const })),
         ...(threadMemories?.page ?? []).map((memory) => ({ ...memory, scope: 'thread' as const })),
-        ...(projectMemories?.page ?? []).map((memory) => ({ ...memory, scope: 'project' as const })),
+        ...(projectMemories?.page ?? []).map((memory) => ({
+          ...memory,
+          scope: 'project' as const,
+        })),
       ].sort((a, b) => b.updatedAt - a.updatedAt),
     [projectMemories?.page, threadMemories?.page, userMemories?.page],
   )
@@ -143,16 +146,10 @@ export function MemorySettingsPanel() {
   )
 }
 
-function threadLabel(
-  threads: ReturnType<typeof useThreads>['threads'],
-  threadId: string,
-) {
+function threadLabel(threads: ReturnType<typeof useThreads>['threads'], threadId: string) {
   return threads.find((thread) => thread.id === threadId)?.title || 'Thread'
 }
 
-function projectLabel(
-  projects: Array<{ id: string; name: string }>,
-  projectId: string,
-) {
+function projectLabel(projects: Array<{ id: string; name: string }>, projectId: string) {
   return projects.find((project) => project.id === projectId)?.name || 'Project'
 }

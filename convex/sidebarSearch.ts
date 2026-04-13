@@ -29,9 +29,7 @@ function buildSnippet(text: string, query: string, maxLength = 180) {
     return normalized
   }
 
-  const match = query.trim()
-    ? normalized.search(new RegExp(escapeRegExp(query.trim()), 'i'))
-    : -1
+  const match = query.trim() ? normalized.search(new RegExp(escapeRegExp(query.trim()), 'i')) : -1
 
   if (match < 0) {
     return `${normalized.slice(0, maxLength).trimEnd()}...`
@@ -100,10 +98,7 @@ export const searchSidebar = action({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const userId = await ctx.runQuery(
-      internal.sidebarSearch.getSearchUserId,
-      {},
-    )
+    const userId = await ctx.runQuery(internal.sidebarSearch.getSearchUserId, {})
     if (!userId) {
       return []
     }
@@ -124,32 +119,22 @@ export const searchSidebar = action({
         ).embeddings[0]
       : undefined
 
-    const results = await ctx.runAction(
-      components.agent.messages.searchMessages,
-      {
-        searchAllMessagesForUserId: userId,
-        text: query,
-        textSearch: true,
-        vectorSearch: vectorSearchEnabled,
-        embedding,
-        embeddingModel: vectorSearchEnabled
-          ? SEARCH_EMBEDDING_MODEL
-          : undefined,
-        limit,
-      },
-    )
+    const results = await ctx.runAction(components.agent.messages.searchMessages, {
+      searchAllMessagesForUserId: userId,
+      text: query,
+      textSearch: true,
+      vectorSearch: vectorSearchEnabled,
+      embedding,
+      embeddingModel: vectorSearchEnabled ? SEARCH_EMBEDDING_MODEL : undefined,
+      limit,
+    })
 
-    const threadIds = Array.from(
-      new Set(results.map((result) => result.threadId).filter(Boolean)),
-    )
+    const threadIds = Array.from(new Set(results.map((result) => result.threadId).filter(Boolean)))
 
-    const threads = await ctx.runQuery(
-      internal.sidebarSearch.getThreadSearchMetadata,
-      {
-        userId,
-        threadIds,
-      },
-    )
+    const threads = await ctx.runQuery(internal.sidebarSearch.getThreadSearchMetadata, {
+      userId,
+      threadIds,
+    })
 
     const threadMap = new Map(
       threads.map((thread) => [
@@ -170,9 +155,7 @@ export const searchSidebar = action({
           message: {
             role: 'user' | 'assistant'
           }
-        } =>
-          result.message?.role === 'user' ||
-          result.message?.role === 'assistant',
+        } => result.message?.role === 'user' || result.message?.role === 'assistant',
       )
       .map((result) => {
         const text = extractMessageText(result)

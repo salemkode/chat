@@ -49,9 +49,7 @@ export function AdaptiveDialog({
       >
         <ResponsiveModalTitle className="sr-only">{title}</ResponsiveModalTitle>
         {description ? (
-          <ResponsiveModalDescription className="sr-only">
-            {description}
-          </ResponsiveModalDescription>
+          <ResponsiveModalDescription className="sr-only">{description}</ResponsiveModalDescription>
         ) : null}
         {children}
       </ResponsiveModalContent>

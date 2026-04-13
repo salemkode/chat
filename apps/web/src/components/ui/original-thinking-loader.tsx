@@ -1,11 +1,7 @@
 import { OriginalThinkingAnimation } from '@/components/auth/original-thinking-animation'
 import { cn } from '@/lib/utils'
 
-export function OriginalThinkingLoader({
-  className,
-}: {
-  className?: string
-}) {
+export function OriginalThinkingLoader({ className }: { className?: string }) {
   return (
     <OriginalThinkingAnimation
       variant="minimal"

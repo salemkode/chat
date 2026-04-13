@@ -5,11 +5,7 @@ import { v } from 'convex/values'
 import type { Id } from '../_generated/dataModel'
 import { z } from 'zod'
 import { components, internal } from '../_generated/api'
-import {
-  MEMORY_EXTRACTION_MODEL,
-  ensureOpenRouterConfigured,
-  openRouter,
-} from './memoryRag'
+import { MEMORY_EXTRACTION_MODEL, ensureOpenRouterConfigured, openRouter } from './memoryRag'
 import { extractMessageText, shouldSkipExtractedMemory } from './memoryShared'
 
 const extractionSchema = z.object({
@@ -84,17 +80,14 @@ export const extractMemoriesFromThread = internalAction({
     )
 
     const lastProcessedOrder = existingState?.lastProcessedOrder ?? -1
-    await ctx.runMutation(
-      internal.functions.memoryInternal.upsertExtractionState,
-      {
-        threadId: args.threadId,
-        userId,
-        lastProcessedOrder,
-        updatedAt: Date.now(),
-        status: 'running',
-        error: undefined,
-      },
-    )
+    await ctx.runMutation(internal.functions.memoryInternal.upsertExtractionState, {
+      threadId: args.threadId,
+      userId,
+      lastProcessedOrder,
+      updatedAt: Date.now(),
+      status: 'running',
+      error: undefined,
+    })
 
     try {
       let cursor: string | null = null
@@ -124,26 +117,21 @@ export const extractMemoriesFromThread = internalAction({
           },
         )
 
-        messages.push(
-          ...batch.page.filter((message) => message.order > lastProcessedOrder),
-        )
+        messages.push(...batch.page.filter((message) => message.order > lastProcessedOrder))
 
         if (batch.isDone) break
         cursor = batch.continueCursor
       }
 
       if (messages.length === 0) {
-        await ctx.runMutation(
-          internal.functions.memoryInternal.upsertExtractionState,
-          {
-            threadId: args.threadId,
-            userId,
-            lastProcessedOrder,
-            updatedAt: Date.now(),
-            status: 'idle',
-            error: undefined,
-          },
-        )
+        await ctx.runMutation(internal.functions.memoryInternal.upsertExtractionState, {
+          threadId: args.threadId,
+          userId,
+          lastProcessedOrder,
+          updatedAt: Date.now(),
+          status: 'idle',
+          error: undefined,
+        })
         return { created: 0, skipped: 0, processedMessages: 0 }
       }
 
@@ -158,29 +146,22 @@ export const extractMemoriesFromThread = internalAction({
         .join('\n')
 
       if (!transcript.trim()) {
-        const lastOrder =
-          messages[messages.length - 1]?.order ?? lastProcessedOrder
-        await ctx.runMutation(
-          internal.functions.memoryInternal.upsertExtractionState,
-          {
-            threadId: args.threadId,
-            userId,
-            lastProcessedOrder: lastOrder,
-            updatedAt: Date.now(),
-            status: 'idle',
-            error: undefined,
-          },
-        )
+        const lastOrder = messages[messages.length - 1]?.order ?? lastProcessedOrder
+        await ctx.runMutation(internal.functions.memoryInternal.upsertExtractionState, {
+          threadId: args.threadId,
+          userId,
+          lastProcessedOrder: lastOrder,
+          updatedAt: Date.now(),
+          status: 'idle',
+          error: undefined,
+        })
         return { created: 0, skipped: 0, processedMessages: messages.length }
       }
 
-      const projects = await ctx.runQuery(
-        internal.functions.memoryInternal.listProjectsForThread,
-        {
-          userId,
-          threadId: args.threadId,
-        },
-      )
+      const projects = await ctx.runQuery(internal.functions.memoryInternal.listProjectsForThread, {
+        userId,
+        threadId: args.threadId,
+      })
       const project = projects[0] ?? null
 
       const projectContext = project
@@ -220,31 +201,10 @@ export const extractMemoriesFromThread = internalAction({
             continue
           }
 
-          await ctx.runAction(
-            internal.functions.memoryInternal.createMemoryInScope,
-            {
-              scope: 'project',
-              userId,
-              projectId: project._id,
-              title: memory.title,
-              content: memory.content,
-              category: memory.category,
-              tags: memory.tags,
-              source: 'extracted',
-              originThreadId: args.threadId,
-              originMessageIds,
-            },
-          )
-          created += 1
-          continue
-        }
-
-        await ctx.runAction(
-          internal.functions.memoryInternal.createMemoryInScope,
-          {
-            scope: memory.scope,
+          await ctx.runAction(internal.functions.memoryInternal.createMemoryInScope, {
+            scope: 'project',
             userId,
-            threadId: memory.scope === 'thread' ? args.threadId : undefined,
+            projectId: project._id,
             title: memory.title,
             content: memory.content,
             category: memory.category,
@@ -252,24 +212,35 @@ export const extractMemoriesFromThread = internalAction({
             source: 'extracted',
             originThreadId: args.threadId,
             originMessageIds,
-          },
-        )
+          })
+          created += 1
+          continue
+        }
+
+        await ctx.runAction(internal.functions.memoryInternal.createMemoryInScope, {
+          scope: memory.scope,
+          userId,
+          threadId: memory.scope === 'thread' ? args.threadId : undefined,
+          title: memory.title,
+          content: memory.content,
+          category: memory.category,
+          tags: memory.tags,
+          source: 'extracted',
+          originThreadId: args.threadId,
+          originMessageIds,
+        })
         created += 1
       }
 
-      const lastOrder =
-        messages[messages.length - 1]?.order ?? lastProcessedOrder
-      await ctx.runMutation(
-        internal.functions.memoryInternal.upsertExtractionState,
-        {
-          threadId: args.threadId,
-          userId,
-          lastProcessedOrder: lastOrder,
-          updatedAt: Date.now(),
-          status: 'idle',
-          error: undefined,
-        },
-      )
+      const lastOrder = messages[messages.length - 1]?.order ?? lastProcessedOrder
+      await ctx.runMutation(internal.functions.memoryInternal.upsertExtractionState, {
+        threadId: args.threadId,
+        userId,
+        lastProcessedOrder: lastOrder,
+        updatedAt: Date.now(),
+        status: 'idle',
+        error: undefined,
+      })
 
       return { created, skipped, processedMessages: messages.length }
     } catch (error) {
@@ -277,17 +248,14 @@ export const extractMemoriesFromThread = internalAction({
         ? 'Memory extraction is temporarily rate-limited upstream. It will succeed on a later retry.'
         : getExtractionErrorMessage(error)
 
-      await ctx.runMutation(
-        internal.functions.memoryInternal.upsertExtractionState,
-        {
-          threadId: args.threadId,
-          userId,
-          lastProcessedOrder,
-          updatedAt: Date.now(),
-          status: 'error',
-          error: message,
-        },
-      )
+      await ctx.runMutation(internal.functions.memoryInternal.upsertExtractionState, {
+        threadId: args.threadId,
+        userId,
+        lastProcessedOrder,
+        updatedAt: Date.now(),
+        status: 'error',
+        error: message,
+      })
 
       if (isRetryableUpstreamRateLimit(error)) {
         return { created: 0, skipped: 0, processedMessages: 0 }

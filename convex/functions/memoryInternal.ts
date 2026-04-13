@@ -1,8 +1,4 @@
-import {
-  internalAction,
-  internalMutation,
-  internalQuery,
-} from '../_generated/server'
+import { internalAction, internalMutation, internalQuery } from '../_generated/server'
 import { v, ConvexError } from 'convex/values'
 import type { Doc, Id } from '../_generated/dataModel'
 import { components, internal } from '../_generated/api'
@@ -20,6 +16,7 @@ import {
   scopeToTable,
   userMemorySourceValidator,
 } from './memoryShared'
+import { requireProjectRole } from '../lib/projectAccess'
 
 type UserMemoryDoc = Doc<'userMemories'>
 type ThreadMemoryDoc = Doc<'threadMemories'>
@@ -312,9 +309,7 @@ export const getThreadMemoriesByIds = internalQuery({
   },
   handler: async (ctx, args) => {
     const memories = await Promise.all(args.ids.map((id) => ctx.db.get(id)))
-    return memories.filter(
-      (memory): memory is ThreadMemoryDoc => memory !== null,
-    )
+    return memories.filter((memory): memory is ThreadMemoryDoc => memory !== null)
   },
 })
 
@@ -324,9 +319,7 @@ export const getProjectMemoriesByIds = internalQuery({
   },
   handler: async (ctx, args) => {
     const memories = await Promise.all(args.ids.map((id) => ctx.db.get(id)))
-    return memories.filter(
-      (memory): memory is ProjectMemoryDoc => memory !== null,
-    )
+    return memories.filter((memory): memory is ProjectMemoryDoc => memory !== null)
   },
 })
 
@@ -366,6 +359,27 @@ export const getProjectById = internalQuery({
   },
 })
 
+export const hasProjectAccessForUser = internalQuery({
+  args: {
+    projectId: v.id('projects'),
+    userId: v.id('users'),
+    minimumRole: v.optional(v.union(v.literal('owner'), v.literal('editor'), v.literal('viewer'))),
+  },
+  returns: v.boolean(),
+  handler: async (ctx, args) => {
+    try {
+      await requireProjectRole(ctx, {
+        projectId: args.projectId,
+        userId: args.userId,
+        minimumRole: args.minimumRole ?? 'viewer',
+      })
+      return true
+    } catch {
+      return false
+    }
+  },
+})
+
 export const getExtractionStateByThread = internalQuery({
   args: {
     threadId: v.string(),
@@ -384,9 +398,7 @@ export const upsertExtractionState = internalMutation({
     userId: v.id('users'),
     lastProcessedOrder: v.number(),
     updatedAt: v.number(),
-    status: v.optional(
-      v.union(v.literal('idle'), v.literal('running'), v.literal('error')),
-    ),
+    status: v.optional(v.union(v.literal('idle'), v.literal('running'), v.literal('error'))),
     error: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -426,7 +438,17 @@ export const listProjectsForThread = internalQuery({
     }
 
     const project = await ctx.db.get(metadata.projectId)
-    if (!project || project.userId !== args.userId) {
+    if (!project) {
+      return []
+    }
+
+    try {
+      await requireProjectRole(ctx, {
+        projectId: project._id,
+        userId: args.userId,
+        minimumRole: 'viewer',
+      })
+    } catch {
       return []
     }
 
@@ -450,7 +472,17 @@ export const getProjectForThread = internalQuery({
     }
 
     const project = await ctx.db.get(metadata.projectId)
-    if (!project || project.userId !== args.userId) {
+    if (!project) {
+      return null
+    }
+
+    try {
+      await requireProjectRole(ctx, {
+        projectId: project._id,
+        userId: args.userId,
+        minimumRole: 'viewer',
+      })
+    } catch {
       return null
     }
 
@@ -502,72 +534,56 @@ export const createMemoryInScope = internalAction({
 
       const memoryId =
         existing?._id ??
-        (await ctx.runMutation(
-          internal.functions.memoryInternal.insertUserMemory,
-          {
-            userId: args.userId,
-            title,
-            content,
-            category,
-            tags,
-            ragKey: '',
-            contentHash,
-            originThreadId,
-            originMessageIds,
-            source: args.source,
-            createdAt: now,
-            updatedAt: now,
-          },
-        ))
+        (await ctx.runMutation(internal.functions.memoryInternal.insertUserMemory, {
+          userId: args.userId,
+          title,
+          content,
+          category,
+          tags,
+          ragKey: '',
+          contentHash,
+          originThreadId,
+          originMessageIds,
+          source: args.source,
+          createdAt: now,
+          updatedAt: now,
+        }))
 
-      const ragKey =
-        existing?.ragKey ?? buildRagKey('user', memoryId.toString())
+      const ragKey = existing?.ragKey ?? buildRagKey('user', memoryId.toString())
 
       if (existing) {
-        await ctx.runMutation(
-          internal.functions.memoryInternal.patchUserMemory,
-          {
-            memoryId: existing._id,
-            title,
-            content,
-            category: category ?? existing.category,
-            tags: mergeStringLists(existing.tags, tags),
-            contentHash,
-            originThreadId: originThreadId ?? existing.originThreadId,
-            originMessageIds: mergeStringLists(
-              existing.originMessageIds,
-              originMessageIds,
-            ),
-            source:
-              existing.source === 'manual' && args.source === 'extracted'
-                ? existing.source
-                : args.source,
-            updatedAt: now,
-          },
-        )
+        await ctx.runMutation(internal.functions.memoryInternal.patchUserMemory, {
+          memoryId: existing._id,
+          title,
+          content,
+          category: category ?? existing.category,
+          tags: mergeStringLists(existing.tags, tags),
+          contentHash,
+          originThreadId: originThreadId ?? existing.originThreadId,
+          originMessageIds: mergeStringLists(existing.originMessageIds, originMessageIds),
+          source:
+            existing.source === 'manual' && args.source === 'extracted'
+              ? existing.source
+              : args.source,
+          updatedAt: now,
+        })
       } else {
-        await ctx.runMutation(
-          internal.functions.memoryInternal.patchUserMemoryRagKey,
-          {
-            memoryId: memoryId as Id<'userMemories'>,
-            ragKey,
-          },
-        )
-        await ctx.runMutation(
-          internal.functions.memoryInternal.patchUserMemory,
-          {
-            memoryId: memoryId as Id<'userMemories'>,
-            title,
-            content,
-            category,
-            tags,
-            contentHash,
-            originThreadId,
-            originMessageIds,
-            source: args.source,
-            updatedAt: now,
-          },
-        )
+        await ctx.runMutation(internal.functions.memoryInternal.patchUserMemoryRagKey, {
+          memoryId: memoryId as Id<'userMemories'>,
+          ragKey,
+        })
+        await ctx.runMutation(internal.functions.memoryInternal.patchUserMemory, {
+          memoryId: memoryId as Id<'userMemories'>,
+          title,
+          content,
+          category,
+          tags,
+          contentHash,
+          originThreadId,
+          originMessageIds,
+          source: args.source,
+          updatedAt: now,
+        })
       }
 
       await memoryRag.add(ctx, {
@@ -592,10 +608,9 @@ export const createMemoryInScope = internalAction({
         contentHash,
       })
 
-      const memory = await ctx.runQuery(
-        internal.functions.memoryInternal.getUserMemoryById,
-        { id: memoryId as Id<'userMemories'> },
-      )
+      const memory = await ctx.runQuery(internal.functions.memoryInternal.getUserMemoryById, {
+        id: memoryId as Id<'userMemories'>,
+      })
 
       if (!memory) {
         throw new ConvexError({
@@ -619,59 +634,46 @@ export const createMemoryInScope = internalAction({
 
       const memoryId =
         existing?._id ??
-        (await ctx.runMutation(
-          internal.functions.memoryInternal.insertThreadMemory,
-          {
-            threadId,
-            userId: args.userId,
-            title,
-            content,
-            category,
-            tags,
-            ragKey: '',
-            contentHash,
-            originThreadId,
-            originMessageIds,
-            source: toThreadMemorySource(args.source),
-            createdAt: now,
-            updatedAt: now,
-          },
-        ))
-
-      const ragKey =
-        existing?.ragKey ?? buildRagKey('thread', memoryId.toString())
-
-      if (!existing) {
-        await ctx.runMutation(
-          internal.functions.memoryInternal.patchThreadMemoryRagKey,
-          {
-            memoryId: memoryId as Id<'threadMemories'>,
-            ragKey,
-          },
-        )
-      }
-
-      await ctx.runMutation(
-        internal.functions.memoryInternal.patchThreadMemory,
-        {
-          memoryId: memoryId as Id<'threadMemories'>,
+        (await ctx.runMutation(internal.functions.memoryInternal.insertThreadMemory, {
+          threadId,
+          userId: args.userId,
           title,
           content,
-          category: category ?? existing?.category,
-          tags: mergeStringLists(existing?.tags, tags),
+          category,
+          tags,
+          ragKey: '',
           contentHash,
-          originThreadId: originThreadId ?? existing?.originThreadId,
-          originMessageIds: mergeStringLists(
-            existing?.originMessageIds,
-            originMessageIds,
-          ),
-          source:
-            existing?.source === 'manual' && args.source === 'extracted'
-              ? existing.source
-              : toThreadMemorySource(args.source),
+          originThreadId,
+          originMessageIds,
+          source: toThreadMemorySource(args.source),
+          createdAt: now,
           updatedAt: now,
-        },
-      )
+        }))
+
+      const ragKey = existing?.ragKey ?? buildRagKey('thread', memoryId.toString())
+
+      if (!existing) {
+        await ctx.runMutation(internal.functions.memoryInternal.patchThreadMemoryRagKey, {
+          memoryId: memoryId as Id<'threadMemories'>,
+          ragKey,
+        })
+      }
+
+      await ctx.runMutation(internal.functions.memoryInternal.patchThreadMemory, {
+        memoryId: memoryId as Id<'threadMemories'>,
+        title,
+        content,
+        category: category ?? existing?.category,
+        tags: mergeStringLists(existing?.tags, tags),
+        contentHash,
+        originThreadId: originThreadId ?? existing?.originThreadId,
+        originMessageIds: mergeStringLists(existing?.originMessageIds, originMessageIds),
+        source:
+          existing?.source === 'manual' && args.source === 'extracted'
+            ? existing.source
+            : toThreadMemorySource(args.source),
+        updatedAt: now,
+      })
 
       await memoryRag.add(ctx, {
         namespace: args.userId,
@@ -695,10 +697,9 @@ export const createMemoryInScope = internalAction({
         contentHash,
       })
 
-      const memory = await ctx.runQuery(
-        internal.functions.memoryInternal.getThreadMemoryById,
-        { id: memoryId as Id<'threadMemories'> },
-      )
+      const memory = await ctx.runQuery(internal.functions.memoryInternal.getThreadMemoryById, {
+        id: memoryId as Id<'threadMemories'>,
+      })
 
       if (!memory) {
         throw new ConvexError({
@@ -721,59 +722,46 @@ export const createMemoryInScope = internalAction({
 
     const memoryId =
       existing?._id ??
-      (await ctx.runMutation(
-        internal.functions.memoryInternal.insertProjectMemory,
-        {
-          projectId,
-          userId: args.userId,
-          title,
-          content,
-          category,
-          tags,
-          ragKey: '',
-          contentHash,
-          originThreadId,
-          originMessageIds,
-          source: toProjectMemorySource(args.source),
-          createdAt: now,
-          updatedAt: now,
-        },
-      ))
-
-    const ragKey =
-      existing?.ragKey ?? buildRagKey('project', memoryId.toString())
-
-    if (!existing) {
-      await ctx.runMutation(
-        internal.functions.memoryInternal.patchProjectMemoryRagKey,
-        {
-          memoryId: memoryId as Id<'projectMemories'>,
-          ragKey,
-        },
-      )
-    }
-
-    await ctx.runMutation(
-      internal.functions.memoryInternal.patchProjectMemory,
-      {
-        memoryId: memoryId as Id<'projectMemories'>,
+      (await ctx.runMutation(internal.functions.memoryInternal.insertProjectMemory, {
+        projectId,
+        userId: args.userId,
         title,
         content,
-        category: category ?? existing?.category,
-        tags: mergeStringLists(existing?.tags, tags),
+        category,
+        tags,
+        ragKey: '',
         contentHash,
-        originThreadId: originThreadId ?? existing?.originThreadId,
-        originMessageIds: mergeStringLists(
-          existing?.originMessageIds,
-          originMessageIds,
-        ),
-        source:
-          existing?.source === 'manual' && args.source === 'extracted'
-            ? existing.source
-            : toProjectMemorySource(args.source),
+        originThreadId,
+        originMessageIds,
+        source: toProjectMemorySource(args.source),
+        createdAt: now,
         updatedAt: now,
-      },
-    )
+      }))
+
+    const ragKey = existing?.ragKey ?? buildRagKey('project', memoryId.toString())
+
+    if (!existing) {
+      await ctx.runMutation(internal.functions.memoryInternal.patchProjectMemoryRagKey, {
+        memoryId: memoryId as Id<'projectMemories'>,
+        ragKey,
+      })
+    }
+
+    await ctx.runMutation(internal.functions.memoryInternal.patchProjectMemory, {
+      memoryId: memoryId as Id<'projectMemories'>,
+      title,
+      content,
+      category: category ?? existing?.category,
+      tags: mergeStringLists(existing?.tags, tags),
+      contentHash,
+      originThreadId: originThreadId ?? existing?.originThreadId,
+      originMessageIds: mergeStringLists(existing?.originMessageIds, originMessageIds),
+      source:
+        existing?.source === 'manual' && args.source === 'extracted'
+          ? existing.source
+          : toProjectMemorySource(args.source),
+      updatedAt: now,
+    })
 
     await memoryRag.add(ctx, {
       namespace: args.userId,
@@ -797,10 +785,9 @@ export const createMemoryInScope = internalAction({
       contentHash,
     })
 
-    const memory = await ctx.runQuery(
-      internal.functions.memoryInternal.getProjectMemoryById,
-      { id: memoryId as Id<'projectMemories'> },
-    )
+    const memory = await ctx.runQuery(internal.functions.memoryInternal.getProjectMemoryById, {
+      id: memoryId as Id<'projectMemories'>,
+    })
 
     if (!memory) {
       throw new ConvexError({
@@ -853,10 +840,9 @@ export const updateMemoryInScope = internalAction({
         })
       }
 
-      const memory = await ctx.runQuery(
-        internal.functions.memoryInternal.getUserMemoryById,
-        { id: memoryId },
-      )
+      const memory = await ctx.runQuery(internal.functions.memoryInternal.getUserMemoryById, {
+        id: memoryId,
+      })
       if (!memory || memory.userId !== args.userId) {
         throw new ConvexError({
           code: 'NOT_FOUND',
@@ -864,13 +850,10 @@ export const updateMemoryInScope = internalAction({
         })
       }
 
-      const content = args.content
-        ? normalizeMemoryContent(args.content)
-        : memory.content
+      const content = args.content ? normalizeMemoryContent(args.content) : memory.content
       const contentHash = await hashMemoryContent(content)
       const title = nextTitle ?? memory.title
-      const category =
-        args.category !== undefined ? nextCategory : memory.category
+      const category = args.category !== undefined ? nextCategory : memory.category
       const tags = args.tags !== undefined ? nextTags : memory.tags
 
       await ctx.runMutation(internal.functions.memoryInternal.patchUserMemory, {
@@ -905,10 +888,9 @@ export const updateMemoryInScope = internalAction({
         contentHash,
       })
 
-      const updated = await ctx.runQuery(
-        internal.functions.memoryInternal.getUserMemoryById,
-        { id: memoryId },
-      )
+      const updated = await ctx.runQuery(internal.functions.memoryInternal.getUserMemoryById, {
+        id: memoryId,
+      })
       if (!updated)
         throw new ConvexError({
           code: 'NOT_FOUND',
@@ -926,10 +908,9 @@ export const updateMemoryInScope = internalAction({
         })
       }
 
-      const memory = await ctx.runQuery(
-        internal.functions.memoryInternal.getThreadMemoryById,
-        { id: memoryId },
-      )
+      const memory = await ctx.runQuery(internal.functions.memoryInternal.getThreadMemoryById, {
+        id: memoryId,
+      })
       if (!memory || memory.userId !== args.userId) {
         throw new ConvexError({
           code: 'NOT_FOUND',
@@ -937,30 +918,24 @@ export const updateMemoryInScope = internalAction({
         })
       }
 
-      const content = args.content
-        ? normalizeMemoryContent(args.content)
-        : memory.content
+      const content = args.content ? normalizeMemoryContent(args.content) : memory.content
       const contentHash = await hashMemoryContent(content)
       const title = nextTitle ?? memory.title
-      const category =
-        args.category !== undefined ? nextCategory : memory.category
+      const category = args.category !== undefined ? nextCategory : memory.category
       const tags = args.tags !== undefined ? nextTags : memory.tags
 
-      await ctx.runMutation(
-        internal.functions.memoryInternal.patchThreadMemory,
-        {
-          memoryId,
-          title,
-          content,
-          category,
-          tags,
-          contentHash,
-          originThreadId: memory.originThreadId,
-          originMessageIds: memory.originMessageIds,
-          source: memory.source,
-          updatedAt: now,
-        },
-      )
+      await ctx.runMutation(internal.functions.memoryInternal.patchThreadMemory, {
+        memoryId,
+        title,
+        content,
+        category,
+        tags,
+        contentHash,
+        originThreadId: memory.originThreadId,
+        originMessageIds: memory.originMessageIds,
+        source: memory.source,
+        updatedAt: now,
+      })
 
       await memoryRag.add(ctx, {
         namespace: args.userId,
@@ -981,10 +956,9 @@ export const updateMemoryInScope = internalAction({
         contentHash,
       })
 
-      const updated = await ctx.runQuery(
-        internal.functions.memoryInternal.getThreadMemoryById,
-        { id: memoryId },
-      )
+      const updated = await ctx.runQuery(internal.functions.memoryInternal.getThreadMemoryById, {
+        id: memoryId,
+      })
       if (!updated)
         throw new ConvexError({
           code: 'NOT_FOUND',
@@ -1001,10 +975,9 @@ export const updateMemoryInScope = internalAction({
       })
     }
 
-    const memory = await ctx.runQuery(
-      internal.functions.memoryInternal.getProjectMemoryById,
-      { id: memoryId },
-    )
+    const memory = await ctx.runQuery(internal.functions.memoryInternal.getProjectMemoryById, {
+      id: memoryId,
+    })
     if (!memory || memory.userId !== args.userId) {
       throw new ConvexError({
         code: 'NOT_FOUND',
@@ -1012,30 +985,24 @@ export const updateMemoryInScope = internalAction({
       })
     }
 
-    const content = args.content
-      ? normalizeMemoryContent(args.content)
-      : memory.content
+    const content = args.content ? normalizeMemoryContent(args.content) : memory.content
     const contentHash = await hashMemoryContent(content)
     const title = nextTitle ?? memory.title
-    const category =
-      args.category !== undefined ? nextCategory : memory.category
+    const category = args.category !== undefined ? nextCategory : memory.category
     const tags = args.tags !== undefined ? nextTags : memory.tags
 
-    await ctx.runMutation(
-      internal.functions.memoryInternal.patchProjectMemory,
-      {
-        memoryId,
-        title,
-        content,
-        category,
-        tags,
-        contentHash,
-        originThreadId: memory.originThreadId,
-        originMessageIds: memory.originMessageIds,
-        source: memory.source,
-        updatedAt: now,
-      },
-    )
+    await ctx.runMutation(internal.functions.memoryInternal.patchProjectMemory, {
+      memoryId,
+      title,
+      content,
+      category,
+      tags,
+      contentHash,
+      originThreadId: memory.originThreadId,
+      originMessageIds: memory.originMessageIds,
+      source: memory.source,
+      updatedAt: now,
+    })
 
     await memoryRag.add(ctx, {
       namespace: args.userId,
@@ -1056,10 +1023,9 @@ export const updateMemoryInScope = internalAction({
       contentHash,
     })
 
-    const updated = await ctx.runQuery(
-      internal.functions.memoryInternal.getProjectMemoryById,
-      { id: memoryId },
-    )
+    const updated = await ctx.runQuery(internal.functions.memoryInternal.getProjectMemoryById, {
+      id: memoryId,
+    })
     if (!updated)
       throw new ConvexError({
         code: 'NOT_FOUND',
@@ -1088,10 +1054,9 @@ export const deleteMemoryInScope = internalAction({
           message: 'userMemoryId is required for deletion',
         })
       }
-      const memory = await ctx.runQuery(
-        internal.functions.memoryInternal.getUserMemoryById,
-        { id: memoryId },
-      )
+      const memory = await ctx.runQuery(internal.functions.memoryInternal.getUserMemoryById, {
+        id: memoryId,
+      })
       if (!memory || memory.userId !== args.userId) {
         throw new ConvexError({
           code: 'NOT_FOUND',
@@ -1102,12 +1067,9 @@ export const deleteMemoryInScope = internalAction({
         namespaceId: args.userId,
         key: memory.ragKey,
       })
-      await ctx.runMutation(
-        internal.functions.memoryInternal.deleteUserMemoryRecord,
-        {
-          memoryId,
-        },
-      )
+      await ctx.runMutation(internal.functions.memoryInternal.deleteUserMemoryRecord, {
+        memoryId,
+      })
       return { success: true }
     }
 
@@ -1119,10 +1081,9 @@ export const deleteMemoryInScope = internalAction({
           message: 'threadMemoryId is required for deletion',
         })
       }
-      const memory = await ctx.runQuery(
-        internal.functions.memoryInternal.getThreadMemoryById,
-        { id: memoryId },
-      )
+      const memory = await ctx.runQuery(internal.functions.memoryInternal.getThreadMemoryById, {
+        id: memoryId,
+      })
       if (!memory || memory.userId !== args.userId) {
         throw new ConvexError({
           code: 'NOT_FOUND',
@@ -1133,12 +1094,9 @@ export const deleteMemoryInScope = internalAction({
         namespaceId: args.userId,
         key: memory.ragKey,
       })
-      await ctx.runMutation(
-        internal.functions.memoryInternal.deleteThreadMemoryRecord,
-        {
-          memoryId,
-        },
-      )
+      await ctx.runMutation(internal.functions.memoryInternal.deleteThreadMemoryRecord, {
+        memoryId,
+      })
       return { success: true }
     }
 
@@ -1149,10 +1107,9 @@ export const deleteMemoryInScope = internalAction({
         message: 'projectMemoryId is required for deletion',
       })
     }
-    const memory = await ctx.runQuery(
-      internal.functions.memoryInternal.getProjectMemoryById,
-      { id: memoryId },
-    )
+    const memory = await ctx.runQuery(internal.functions.memoryInternal.getProjectMemoryById, {
+      id: memoryId,
+    })
     if (!memory || memory.userId !== args.userId) {
       throw new ConvexError({ code: 'NOT_FOUND', message: 'Memory not found' })
     }
@@ -1160,12 +1117,9 @@ export const deleteMemoryInScope = internalAction({
       namespaceId: args.userId,
       key: memory.ragKey,
     })
-    await ctx.runMutation(
-      internal.functions.memoryInternal.deleteProjectMemoryRecord,
-      {
-        memoryId,
-      },
-    )
+    await ctx.runMutation(internal.functions.memoryInternal.deleteProjectMemoryRecord, {
+      memoryId,
+    })
     return { success: true }
   },
 })

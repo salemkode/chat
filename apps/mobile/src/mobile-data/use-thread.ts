@@ -8,7 +8,10 @@ import { normalizeThread } from './normalize'
 
 export function useThread(threadId?: string) {
   const hasLocalThreadId = isLocalThreadId(threadId)
-  const liveThread = useQuery(api.chat.getThread, threadId && !hasLocalThreadId ? { threadId } : 'skip')
+  const liveThread = useQuery(
+    api.chat.getThread,
+    threadId && !hasLocalThreadId ? { threadId } : 'skip',
+  )
   const [cachedThread, setCachedThread] = useState<MobileOfflineThreadRecord | null>(null)
 
   useEffect(() => {

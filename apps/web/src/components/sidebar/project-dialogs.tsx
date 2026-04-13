@@ -1,14 +1,20 @@
 'use client'
 
-import { CircleDollarSign, Folder, GraduationCap, Lightbulb, NotebookPen, Plane, X } from '@/lib/icons'
+import {
+  CircleDollarSign,
+  Folder,
+  GraduationCap,
+  Lightbulb,
+  NotebookPen,
+  Plane,
+  X,
+} from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  DialogHeader,
-} from '@/components/ui/dialog'
+import { DialogHeader } from '@/components/ui/dialog'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -184,7 +190,8 @@ export function ProjectCreateDialog({
               <Lightbulb className="size-4 text-primary" />
             </div>
             <p className="leading-6">
-              Projects keep chats, files, and custom instructions in one place so long-running work stays organized.
+              Projects keep chats, files, and custom instructions in one place so long-running work
+              stays organized.
             </p>
           </div>
         </div>

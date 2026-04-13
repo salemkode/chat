@@ -91,19 +91,13 @@ async function searchScopeHits(
         })
       : Promise.resolve([]),
     idsByScope.project.length
-      ? ctx.runQuery(
-          internal.functions.memoryInternal.getProjectMemoriesByIds,
-          {
-            ids: idsByScope.project,
-          },
-        )
+      ? ctx.runQuery(internal.functions.memoryInternal.getProjectMemoriesByIds, {
+          ids: idsByScope.project,
+        })
       : Promise.resolve([]),
   ])
 
-  const memoryMap = new Map<
-    string,
-    { hit: ScopeHit; contentHash: string }
-  >()
+  const memoryMap = new Map<string, { hit: ScopeHit; contentHash: string }>()
 
   for (const memory of userDocs) {
     memoryMap.set(`user:${memory._id.toString()}`, {
@@ -145,13 +139,10 @@ async function searchScopeHits(
           ? (entry.metadata as Record<string, unknown>)
           : undefined
       const entryScope =
-        metadata?.scope === 'user' ||
-        metadata?.scope === 'thread' ||
-        metadata?.scope === 'project'
+        metadata?.scope === 'user' || metadata?.scope === 'thread' || metadata?.scope === 'project'
           ? metadata.scope
           : undefined
-      const memoryId =
-        typeof metadata?.memoryId === 'string' ? metadata.memoryId : undefined
+      const memoryId = typeof metadata?.memoryId === 'string' ? metadata.memoryId : undefined
 
       if (!entryScope || !memoryId) {
         return null

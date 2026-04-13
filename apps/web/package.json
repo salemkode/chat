@@ -78,7 +78,9 @@
     "date-fns": "^4.1.0",
     "embla-carousel-react": "^8.6.0",
     "input-otp": "^1.4.2",
+    "isbot": "^5",
     "marked": "^17.0.1",
+    "mermaid": "^11.14.0",
     "next-themes": "^0.4.6",
     "radix-ui": "^1.4.3",
     "react": "^19.2.0",
@@ -90,6 +92,7 @@
     "react-resizable-panels": "^4.4.1",
     "react-router": "^7.14.0",
     "react-scan": "^0.5.3",
+    "react-zoom-pan-pinch": "^4.0.3",
     "recharts": "2.15.4",
     "remark-breaks": "^4.0.0",
     "remark-gfm": "^4.0.1",
@@ -104,8 +107,7 @@
     "vaul": "^1.1.2",
     "workbox-window": "^7.4.0",
     "wrangler": "^4.80.0",
-    "zod": "^3.25.76",
-    "isbot": "^5"
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@react-router/dev": "^7.14.0",

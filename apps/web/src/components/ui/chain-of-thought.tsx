@@ -1,19 +1,11 @@
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { cn } from '@/lib/utils'
 import { ChevronDown, Circle } from '@/lib/icons'
 import React from 'react'
 
 export type ChainOfThoughtItemProps = React.ComponentProps<'div'>
 
-export function ChainOfThoughtItem({
-  children,
-  className,
-  ...props
-}: ChainOfThoughtItemProps) {
+export function ChainOfThoughtItem({ children, className, ...props }: ChainOfThoughtItemProps) {
   return (
     <div className={cn('text-sm text-muted-foreground', className)} {...props}>
       {children}
@@ -21,9 +13,7 @@ export function ChainOfThoughtItem({
   )
 }
 
-export type ChainOfThoughtTriggerProps = React.ComponentProps<
-  typeof CollapsibleTrigger
-> & {
+export type ChainOfThoughtTriggerProps = React.ComponentProps<typeof CollapsibleTrigger> & {
   leftIcon?: React.ReactNode
   swapIconOnHover?: boolean
 }
@@ -48,12 +38,7 @@ export function ChainOfThoughtTrigger({
       <div className="flex items-center gap-2">
         {shouldHideIcon ? null : leftIcon ? (
           <span className="relative inline-flex size-4 items-center justify-center">
-            <span
-              className={cn(
-                'transition-opacity',
-                swapIconOnHover && 'group-hover:opacity-0',
-              )}
-            >
+            <span className={cn('transition-opacity', swapIconOnHover && 'group-hover:opacity-0')}>
               {leftIcon}
             </span>
             {swapIconOnHover ? (
@@ -76,9 +61,7 @@ export function ChainOfThoughtTrigger({
   )
 }
 
-export type ChainOfThoughtContentProps = React.ComponentProps<
-  typeof CollapsibleContent
->
+export type ChainOfThoughtContentProps = React.ComponentProps<typeof CollapsibleContent>
 
 export function ChainOfThoughtContent({
   children,
@@ -116,12 +99,9 @@ export function ChainOfThought({
       {childrenArray.map((child, index) => (
         <React.Fragment key={index}>
           {React.isValidElement(child)
-            ? React.cloneElement(
-                child as React.ReactElement<ChainOfThoughtStepProps>,
-                {
-                  isLast: index === childrenArray.length - 1,
-                },
-              )
+            ? React.cloneElement(child as React.ReactElement<ChainOfThoughtStepProps>, {
+                isLast: index === childrenArray.length - 1,
+              })
             : child}
         </React.Fragment>
       ))}
@@ -142,11 +122,7 @@ export function ChainOfThoughtStep({
   ...props
 }: ChainOfThoughtStepProps) {
   return (
-    <Collapsible
-      className={cn('group', className)}
-      data-last={isLast}
-      {...props}
-    >
+    <Collapsible className={cn('group', className)} data-last={isLast} {...props}>
       {children}
       <div className="flex justify-start group-data-[last=true]:hidden">
         <div className="ml-1.75 h-4 w-px bg-primary/20" />

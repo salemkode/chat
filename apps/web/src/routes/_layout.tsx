@@ -1,5 +1,11 @@
-import { generatePath, Outlet, useNavigate, useParams } from 'react-router'
-import { chatSuggestions } from '@chat/shared'
+import { generatePath, Outlet, useLocation, useNavigate, useParams } from 'react-router'
+import {
+  AUTO_MODEL_ID,
+  chatSuggestions,
+  isAutoModelSelection,
+  modelSupportsAnyAttachments,
+  modelSupportsImageAttachments,
+} from '@chat/shared'
 import { api } from '@convex/_generated/api'
 import type { Id } from '@convex/_generated/dataModel'
 import { useAction } from 'convex/react'
@@ -8,7 +14,7 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'r
 import { AIPromptInput } from '@/components/ai-prompt-input'
 import { AppSidebar } from '@/components/app-sidebar'
 import { AuthRedirect } from '@/components/auth-redirect'
-import { ChatSuggestions } from '@/components/chat/ChatSuggestions'
+import { ChatSuggestions } from '@/components/chat/chat-suggestions'
 import { ChatModelProvider, useChatModel } from '@/components/chat-model-context'
 import { useIsMobile } from '@/hooks/use-mobile'
 import {
@@ -31,7 +37,9 @@ import {
   useSettings,
   useSendMessage,
   useThread,
+  useViewer,
 } from '@/hooks/use-chat-data'
+import { getSelectionTierFromAppPlan } from '@/lib/model-routing'
 
 function toModelDocId(value?: string): Id<'models'> | undefined {
   return value as Id<'models'> | undefined
@@ -58,14 +66,16 @@ function AuthBootstrapShell() {
 function AuthenticatedChatLayout() {
   const isMobile = useIsMobile()
   const { chatId } = useParams()
+  const location = useLocation()
   const threadId = chatId
   const [mobileComposerHeight] = useState(176)
+  const showComposer = !location.pathname.startsWith('/projects/')
 
   return (
     <SidebarProvider className="h-screen">
-      <AppSidebar selectedThreadId={threadId ?? null} />
-
       <ChatModelProvider>
+        <AppSidebar selectedThreadId={threadId ?? null} />
+
         <PendingSendsProvider>
           <SidebarInset
             className="relative min-h-0"
@@ -82,11 +92,13 @@ function AuthenticatedChatLayout() {
               <Outlet />
             </div>
 
-            <div className="shrink-0">
-              <div className="mx-auto w-full max-w-3xl px-2 sm:px-4">
-                <ChatComposer threadId={threadId} mobile={isMobile} />
+            {showComposer ? (
+              <div className="shrink-0">
+                <div className="mx-auto w-full max-w-3xl px-2 sm:px-4">
+                  <ChatComposer threadId={threadId} mobile={isMobile} />
+                </div>
               </div>
-            </div>
+            ) : null}
           </SidebarInset>
         </PendingSendsProvider>
       </ChatModelProvider>
@@ -107,6 +119,7 @@ function ChatComposer({ threadId, mobile = false }: { threadId?: string; mobile?
   )
   const { models } = useModels()
   const { settings } = useSettings()
+  const viewer = useViewer()
   const { projects, createProject, assignThreadToProject } = useProjects()
   const { send, stop, disabledReason } = useSendMessage()
   const {
@@ -136,6 +149,7 @@ function ChatComposer({ threadId, mobile = false }: { threadId?: string; mobile?
     reason?: string
   } | null>(null)
   const [isCreatingProject, setIsCreatingProject] = useState(false)
+  const selectionTier = getSelectionTierFromAppPlan(viewer?.appPlan)
 
   useEffect(() => {
     if (threadId) {
@@ -153,8 +167,10 @@ function ChatComposer({ threadId, mobile = false }: { threadId?: string; mobile?
 
   const selectedModelDocId = useMemo(
     () =>
-      models.find((model: { modelId: string; id: string }) => model.modelId === selectedModelId)
-        ?.id,
+      isAutoModelSelection(selectedModelId)
+        ? undefined
+        : models.find((model: { modelId: string; id: string }) => model.modelId === selectedModelId)
+            ?.id,
     [models, selectedModelId],
   )
   const selectedModel = useMemo(
@@ -162,6 +178,8 @@ function ChatComposer({ threadId, mobile = false }: { threadId?: string; mobile?
       models.find(
         (model: {
           modelId: string
+          displayName: string
+          capabilities?: string[]
           supportsReasoning?: boolean
           reasoningLevels?: Array<'low' | 'medium' | 'high'>
           defaultReasoningLevel?: 'off' | 'low' | 'medium' | 'high'
@@ -182,6 +200,7 @@ function ChatComposer({ threadId, mobile = false }: { threadId?: string; mobile?
         text: input.text,
         threadId,
         modelDocId: toModelDocId(input.modelDocId),
+        selectionTier,
         projectId: input.projectId as Id<'projects'> | undefined,
         searchEnabled: input.searchEnabled,
         searchMode: input.searchMode,
@@ -218,6 +237,7 @@ function ChatComposer({ threadId, mobile = false }: { threadId?: string; mobile?
       movePendingSendToThread,
       navigate,
       send,
+      selectionTier,
       threadId,
     ],
   )
@@ -285,7 +305,7 @@ function ChatComposer({ threadId, mobile = false }: { threadId?: string; mobile?
   ) {
     const payload: QueuedMessage = {
       text,
-      modelDocId: selectedModelDocId,
+      modelDocId: selectedModelId === AUTO_MODEL_ID ? undefined : selectedModelDocId,
       projectId: opts.projectId,
       searchEnabled: opts.searchEnabled,
       searchMode: opts.searchMode,
@@ -386,8 +406,40 @@ function ChatComposer({ threadId, mobile = false }: { threadId?: string; mobile?
     ],
   )
 
-  const showSuggestions =
-    (messages || []).length === 0 && isComposerEmpty
+  const showSuggestions = !threadId && (messages || []).length === 0 && isComposerEmpty
+  const autoReasoningLevels = useMemo(() => {
+    const all = new Set<'low' | 'medium' | 'high'>()
+    for (const model of models) {
+      for (const level of model.reasoningLevels ?? []) {
+        all.add(level)
+      }
+    }
+    return Array.from(all)
+  }, [models])
+  const reasoningSupported = isAutoModelSelection(selectedModelId)
+    ? models.some((model) => Boolean(model.supportsReasoning))
+    : Boolean(selectedModel?.supportsReasoning)
+  const reasoningLevels = isAutoModelSelection(selectedModelId)
+    ? autoReasoningLevels
+    : selectedModel?.reasoningLevels
+  const defaultReasoningLevel = isAutoModelSelection(selectedModelId)
+    ? 'medium'
+    : selectedModel?.defaultReasoningLevel
+  const selectedModelCapabilitiesKnown =
+    Array.isArray(selectedModel?.capabilities) && selectedModel.capabilities.length > 0
+  const imageAttachmentsSupported = isAutoModelSelection(selectedModelId)
+    ? true
+    : selectedModelCapabilitiesKnown
+      ? modelSupportsImageAttachments(selectedModel?.capabilities)
+      : true
+  const textAttachmentCardsEnabled = isAutoModelSelection(selectedModelId)
+    ? true
+    : selectedModelCapabilitiesKnown
+      ? modelSupportsAnyAttachments(selectedModel?.capabilities)
+      : true
+  const selectedModelLabel = isAutoModelSelection(selectedModelId)
+    ? 'Auto'
+    : selectedModel?.displayName || selectedModelId
 
   return (
     <div className="flex min-w-0 flex-col gap-3">
@@ -451,9 +503,12 @@ function ChatComposer({ threadId, mobile = false }: { threadId?: string; mobile?
           setSelectedProjectId(nextProjectId)
         }}
         selectedModel={selectedModelId}
+        selectedModelLabel={selectedModelLabel}
         onModelChange={setSelectedModelId}
         contextThreadId={threadId}
         contextModelDocId={selectedModelDocId}
+        imageAttachmentsSupported={imageAttachmentsSupported}
+        textAttachmentCardsEnabled={textAttachmentCardsEnabled}
         onEmptyEnter={() => {
           if (!threadId || queuedMessages.length === 0) {
             return
@@ -463,9 +518,9 @@ function ChatComposer({ threadId, mobile = false }: { threadId?: string; mobile?
             // Errors are shown through the composer error state on direct sends.
           })
         }}
-        reasoningSupported={Boolean(selectedModel?.supportsReasoning)}
-        reasoningLevels={selectedModel?.reasoningLevels}
-        defaultReasoningLevel={selectedModel?.defaultReasoningLevel}
+        reasoningSupported={reasoningSupported}
+        reasoningLevels={reasoningLevels}
+        defaultReasoningLevel={defaultReasoningLevel}
         userReasoningEnabled={Boolean(settings?.reasoningEnabled)}
         userReasoningLevel={
           (settings?.reasoningLevel as 'low' | 'medium' | 'high' | undefined) ?? 'medium'

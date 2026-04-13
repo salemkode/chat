@@ -42,9 +42,7 @@ export default function VerifyEmailScreen() {
       style={{ paddingTop: Math.max(insets.top, 20) }}
     >
       <Text className="text-3xl font-bold">Verify Email</Text>
-      <Text className="text-gray-600">
-        Enter the code sent to {pendingEmail || 'your email'}.
-      </Text>
+      <Text className="text-gray-600">Enter the code sent to {pendingEmail || 'your email'}.</Text>
       <TextInput
         value={code}
         onChangeText={setCode}
@@ -52,7 +50,9 @@ export default function VerifyEmailScreen() {
         keyboardType="number-pad"
         className="rounded-[10px] border border-gray-300 px-3 py-2.5"
       />
-      {errors.fields.code ? <Text className="text-red-700">{errors.fields.code.message}</Text> : null}
+      {errors.fields.code ? (
+        <Text className="text-red-700">{errors.fields.code.message}</Text>
+      ) : null}
       {error ? <Text className="text-red-700">{error}</Text> : null}
       <Pressable
         onPress={() => void handleVerify()}

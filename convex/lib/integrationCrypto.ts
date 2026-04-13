@@ -1,55 +1,77 @@
-import { createCipheriv, createDecipheriv, randomBytes } from 'crypto'
+const ENCODER = new TextEncoder()
+const DECODER = new TextDecoder()
 
-const ALGORITHM = 'aes-256-gcm'
+function bytesToBase64Url(bytes: Uint8Array) {
+  let binary = ''
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte)
+  }
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
 
-function readCipherKey() {
+function base64UrlToBytes(value: string) {
+  const normalized = value.replace(/-/g, '+').replace(/_/g, '/')
+  const padded = normalized + '==='.slice((normalized.length + 3) % 4)
+  const binary = atob(padded)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i)
+  }
+  return bytes
+}
+
+function readCipherKeyBytes() {
   const raw = process.env.INTEGRATION_ENCRYPTION_KEY?.trim()
   if (!raw) {
     throw new Error('INTEGRATION_ENCRYPTION_KEY is not configured')
   }
 
-  try {
-    const decoded = Buffer.from(raw, 'base64')
-    if (decoded.length === 32) {
-      return decoded
+  const parsed = (() => {
+    try {
+      return base64UrlToBytes(raw)
+    } catch {
+      return ENCODER.encode(raw)
     }
-  } catch {
-    // Fallback to utf8 handling below.
-  }
+  })()
 
-  const utf8 = Buffer.from(raw, 'utf8')
-  if (utf8.length !== 32) {
-    throw new Error(
-      'INTEGRATION_ENCRYPTION_KEY must be 32 bytes (base64 or utf8)',
-    )
+  if (parsed.length !== 32) {
+    throw new Error('INTEGRATION_ENCRYPTION_KEY must decode to exactly 32 bytes')
   }
-  return utf8
+  return parsed
 }
 
-export function encryptSecret(plainText: string) {
-  const key = readCipherKey()
-  const iv = randomBytes(12)
-  const cipher = createCipheriv(ALGORITHM, key, iv)
-  const encrypted = Buffer.concat([
-    cipher.update(plainText, 'utf8'),
-    cipher.final(),
+async function importKey() {
+  return await crypto.subtle.importKey('raw', readCipherKeyBytes(), { name: 'AES-GCM' }, false, [
+    'encrypt',
+    'decrypt',
   ])
-  const tag = cipher.getAuthTag()
-  return `${iv.toString('base64url')}.${encrypted.toString('base64url')}.${tag.toString('base64url')}`
 }
 
-export function decryptSecret(cipherText: string) {
-  const [ivEncoded, dataEncoded, tagEncoded] = cipherText.split('.')
-  if (!ivEncoded || !dataEncoded || !tagEncoded) {
-    throw new Error('Invalid encrypted secret format')
+export async function encryptSecret(plainText: string) {
+  const key = await importKey()
+  const iv = crypto.getRandomValues(new Uint8Array(12))
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    key,
+    ENCODER.encode(plainText),
+  )
+  return `${bytesToBase64Url(iv)}.${bytesToBase64Url(new Uint8Array(encrypted))}`
+}
+
+export async function decryptSecret(cipherText: string) {
+  const [ivEncoded, dataEncoded] = cipherText.split('.')
+  if (!ivEncoded || !dataEncoded) {
+    throw new Error('Invalid encrypted secret payload')
   }
 
-  const key = readCipherKey()
-  const iv = Buffer.from(ivEncoded, 'base64url')
-  const data = Buffer.from(dataEncoded, 'base64url')
-  const tag = Buffer.from(tagEncoded, 'base64url')
-  const decipher = createDecipheriv(ALGORITHM, key, iv)
-  decipher.setAuthTag(tag)
-  const decrypted = Buffer.concat([decipher.update(data), decipher.final()])
-  return decrypted.toString('utf8')
+  const key = await importKey()
+  const decrypted = await crypto.subtle.decrypt(
+    {
+      name: 'AES-GCM',
+      iv: base64UrlToBytes(ivEncoded),
+    },
+    key,
+    base64UrlToBytes(dataEncoded),
+  )
+  return DECODER.decode(decrypted)
 }

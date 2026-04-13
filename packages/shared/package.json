@@ -1,11 +1,8 @@
 {
   "name": "@chat/shared",
-  "private": true,
   "version": "0.0.0",
+  "private": true,
   "type": "module",
-  "scripts": {
-    "typecheck": "tsc -p tsconfig.json --noEmit"
-  },
   "exports": {
     ".": "./src/index.ts",
     "./admin-types": "./src/admin-types.ts",
@@ -15,5 +12,8 @@
     "./logic/project-mention": "./src/logic/project-mention.ts",
     "./logic/thread-groups": "./src/logic/thread-groups.ts",
     "./quran-ayah": "./src/quran-ayah.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   }
 }

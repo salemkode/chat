@@ -28,10 +28,7 @@ export function getProjectMention(
   }
 }
 
-export function removeMentionToken(
-  value: string,
-  mention: ProjectMentionState,
-): string {
+export function removeMentionToken(value: string, mention: ProjectMentionState): string {
   const before = value.slice(0, mention.start)
   const after = value.slice(mention.end)
   return `${before}${after}`
@@ -49,7 +46,7 @@ export function fallbackProjectNameFromMentionQuery(query: string): string {
   const normalized = query
     .trim()
     .replace(/\s+/g, ' ')
-    .replace(/^new\s*[:\-]?\s*/i, '')
+    .replace(/^new\s*[:-]?\s*/i, '')
     .trim()
 
   if (normalized.length > 0) {

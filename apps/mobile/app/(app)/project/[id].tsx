@@ -4,11 +4,17 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useQuery } from 'convex/react'
 import { Pressable, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { OfflineBanner } from '../../../src/components/OfflineBanner'
+import { OfflineBanner } from '../../../src/components/offline-banner'
 import { useProjects } from '../../../src/mobile-data/use-projects'
 import { useSendMessage } from '../../../src/mobile-data/use-send-message'
+import type { MobileOfflineProjectRecord } from '../../../src/offline/types'
 import { useNetworkStatus } from '../../../src/utils/network-status'
 import { api, type Id } from '../../../src/lib/convexApi'
+
+type ProjectThreadListItem = {
+  _id: string
+  title?: string
+}
 
 export default function ProjectDetailScreen() {
   const router = useRouter()
@@ -16,11 +22,28 @@ export default function ProjectDetailScreen() {
   const { isOnline } = useNetworkStatus()
   const { projects, deleteProject } = useProjects()
   const { createThread } = useSendMessage()
-  const threads = (useQuery(
+  const threadsQuery = useQuery(
     api.projects.listThreadsByProject as never,
     id ? ({ projectId: id as Id<'projects'> } as never) : 'skip',
-  ) ?? []) as any[]
-  const project = projects.find((item) => item.id === id)
+  )
+  const threads: ProjectThreadListItem[] = Array.isArray(threadsQuery) ? threadsQuery : []
+  const projectContextApi = (
+    api as typeof api & {
+      projectContext: {
+        listProjectArtifacts: unknown
+      }
+    }
+  ).projectContext
+  const artifacts = (useQuery(
+    projectContextApi.listProjectArtifacts as never,
+    id ? ({ projectId: id as Id<'projects'> } as never) : 'skip',
+  ) ?? []) as Array<{
+    id: string
+    title: string
+    kind: string
+    status: string
+  }>
+  const project = projects.find((item: MobileOfflineProjectRecord) => item.id === id)
 
   if (!id || !project) {
     return (
@@ -127,6 +150,35 @@ export default function ProjectDetailScreen() {
             )}
           />
         </View>
+
+        <Text
+          className="mb-2 mt-6 text-[13px] uppercase tracking-wide text-foreground-secondary"
+          style={{ fontFamily: 'Inter_500Medium' }}
+        >
+          Recent artifacts
+        </Text>
+        {artifacts.length === 0 ? (
+          <Text className="py-2 font-sans text-[14px] text-foreground-secondary">
+            No project artifacts yet.
+          </Text>
+        ) : (
+          artifacts.slice(0, 6).map((artifact) => (
+            <View
+              key={artifact.id}
+              className="mb-2 rounded-2xl border border-border bg-card px-4 py-3"
+            >
+              <Text
+                className="text-[15px] text-foreground"
+                style={{ fontFamily: 'Inter_500Medium' }}
+              >
+                {artifact.title}
+              </Text>
+              <Text className="mt-1 text-[12px] text-foreground-secondary">
+                {artifact.kind} • {artifact.status}
+              </Text>
+            </View>
+          ))
+        )}
       </View>
     </SafeAreaView>
   )

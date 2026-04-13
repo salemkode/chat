@@ -69,11 +69,7 @@ function CodeBlockCode({
 
   // SSR fallback: render plain code if not hydrated yet
   return highlightedHtml ? (
-    <div
-      className={classNames}
-      dangerouslySetInnerHTML={{ __html: highlightedHtml }}
-      {...props}
-    />
+    <div className={classNames} dangerouslySetInnerHTML={{ __html: highlightedHtml }} {...props} />
   ) : (
     <div className={classNames} {...props}>
       <pre>
@@ -85,16 +81,9 @@ function CodeBlockCode({
 
 export type CodeBlockGroupProps = React.HTMLAttributes<HTMLDivElement>
 
-function CodeBlockGroup({
-  children,
-  className,
-  ...props
-}: CodeBlockGroupProps) {
+function CodeBlockGroup({ children, className, ...props }: CodeBlockGroupProps) {
   return (
-    <div
-      className={cn('flex items-center justify-between', className)}
-      {...props}
-    >
+    <div className={cn('flex items-center justify-between', className)} {...props}>
       {children}
     </div>
   )

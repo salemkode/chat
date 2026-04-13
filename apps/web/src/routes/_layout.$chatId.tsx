@@ -1,13 +1,8 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access -- hook return types are narrowed at runtime for this route */
 import { useParams } from 'react-router'
-import { ChatMessageList } from '@/components/ChatMessageList'
-import { ChatThreadHeader } from '@/components/chat/ChatThreadHeader'
-import {
-  useGenerationState,
-  useMessages,
-  useProjects,
-  useThread,
-} from '@/hooks/use-chat-data'
+import { ChatMessageList } from '@/components/chat-message-list'
+import { ChatThreadHeader } from '@/components/chat/chat-thread-header'
+import { useGenerationState, useMessages, useProjects, useThread } from '@/hooks/use-chat-data'
 
 export default function ChatPage() {
   return <AuthenticatedChatPage />
@@ -17,13 +12,7 @@ function AuthenticatedChatPage() {
   const { chatId = '' } = useParams()
   const thread = useThread(chatId)
   const { removeThreadFromProject } = useProjects()
-  const {
-    messages,
-    hasMore,
-    isLoadingMore,
-    loadOlderMessages,
-  } =
-    useMessages(chatId)
+  const { messages, hasMore, isLoadingMore, loadOlderMessages } = useMessages(chatId)
   const { activeGeneration, isStalled } = useGenerationState(messages || [])
   const threadTitle = thread?.title || 'New Chat'
 
@@ -38,9 +27,7 @@ function AuthenticatedChatPage() {
           thread?.projectId
             ? () => {
                 if (
-                  window.confirm(
-                    `Remove this chat from ${thread?.projectName || 'its project'}?`,
-                  )
+                  window.confirm(`Remove this chat from ${thread?.projectName || 'its project'}?`)
                 ) {
                   void removeThreadFromProject(chatId)
                 }
@@ -58,9 +45,7 @@ function AuthenticatedChatPage() {
         hasOlderMessages={hasMore}
         onLoadOlder={loadOlderMessages}
         activeAssistantMessageId={activeGeneration?.message.id}
-        stalledAssistantMessageId={
-          isStalled ? activeGeneration?.message.id : undefined
-        }
+        stalledAssistantMessageId={isStalled ? activeGeneration?.message.id : undefined}
       />
     </div>
   )

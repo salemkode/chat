@@ -5,13 +5,7 @@ import type { AdminOutletContext } from '@/components/admin/admin-outlet-context
 import type { AdminModelCollection } from '@/components/admin/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Table,
   TableBody,
@@ -21,10 +15,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 
-type AdminCollectionsPanelProps = Pick<
-  AdminOutletContext,
-  'dashboard' | 'onOpenCollectionDialog'
->
+type AdminCollectionsPanelProps = Pick<AdminOutletContext, 'dashboard' | 'onOpenCollectionDialog'>
 
 export function AdminCollectionsPanel({
   dashboard,
@@ -39,8 +30,7 @@ export function AdminCollectionsPanel({
         <CardHeader>
           <CardTitle>Collections</CardTitle>
           <CardDescription>
-            Curate reusable groups of existing models without duplicating their
-            configuration.
+            Curate reusable groups of existing models without duplicating their configuration.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -57,8 +47,7 @@ export function AdminCollectionsPanel({
               {collections.length > 0 ? (
                 collections.map((collection: AdminModelCollection) => {
                   const hiddenModels = collection.models.filter(
-                    (model: AdminModelCollection['models'][number]) =>
-                      !model.isEnabled,
+                    (model: AdminModelCollection['models'][number]) => !model.isEnabled,
                   ).length
 
                   return (
@@ -67,9 +56,7 @@ export function AdminCollectionsPanel({
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
                             <p className="font-medium">{collection.name}</p>
-                            <Badge variant="secondary">
-                              {collection.modelCount} models
-                            </Badge>
+                            <Badge variant="secondary">{collection.modelCount} models</Badge>
                           </div>
                           {collection.description ? (
                             <p className="max-w-xl text-sm text-muted-foreground">
@@ -82,31 +69,19 @@ export function AdminCollectionsPanel({
                         <div className="flex flex-wrap gap-2">
                           {collection.models
                             .slice(0, 4)
-                            .map(
-                              (
-                                model: AdminModelCollection['models'][number],
-                              ) => (
-                                <Badge
-                                  key={model._id}
-                                  variant="outline"
-                                  className="gap-1.5"
-                                >
-                                  <span>{model.displayName}</span>
-                                  <span className="text-muted-foreground">
-                                    ({model.providerName})
-                                  </span>
-                                </Badge>
-                              ),
-                            )}
+                            .map((model: AdminModelCollection['models'][number]) => (
+                              <Badge key={model._id} variant="outline" className="gap-1.5">
+                                <span>{model.displayName}</span>
+                                <span className="text-muted-foreground">
+                                  ({model.providerName})
+                                </span>
+                              </Badge>
+                            ))}
                           {collection.modelCount > 4 ? (
-                            <Badge variant="outline">
-                              +{collection.modelCount - 4} more
-                            </Badge>
+                            <Badge variant="outline">+{collection.modelCount - 4} more</Badge>
                           ) : null}
                           {hiddenModels > 0 ? (
-                            <Badge variant="secondary">
-                              {hiddenModels} hidden
-                            </Badge>
+                            <Badge variant="secondary">{hiddenModels} hidden</Badge>
                           ) : null}
                         </div>
                       </TableCell>
@@ -116,9 +91,7 @@ export function AdminCollectionsPanel({
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() =>
-                              onOpenCollectionDialog(collection)
-                            }
+                            onClick={() => onOpenCollectionDialog(collection)}
                           >
                             Edit
                           </Button>
@@ -126,9 +99,7 @@ export function AdminCollectionsPanel({
                             variant="ghost"
                             size="sm"
                             className="text-destructive"
-                            onClick={() =>
-                              void deleteModelCollection({ id: collection._id })
-                            }
+                            onClick={() => void deleteModelCollection({ id: collection._id })}
                           >
                             Delete
                           </Button>
@@ -143,8 +114,7 @@ export function AdminCollectionsPanel({
                     colSpan={4}
                     className="py-10 text-center text-sm text-muted-foreground"
                   >
-                    No collections yet. Create one from the current model
-                    catalog.
+                    No collections yet. Create one from the current model catalog.
                   </TableCell>
                 </TableRow>
               )}

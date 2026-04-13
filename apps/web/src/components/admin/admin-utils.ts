@@ -32,14 +32,8 @@ export function formatTokenCount(value: number) {
   return new Intl.NumberFormat('en-US').format(value)
 }
 
-export function formatModelModalities(modalities?: {
-  input?: string[]
-  output?: string[]
-}) {
-  const values = [
-    ...(modalities?.input ?? []),
-    ...(modalities?.output ?? []),
-  ].filter(Boolean)
+export function formatModelModalities(modalities?: { input?: string[]; output?: string[] }) {
+  const values = [...(modalities?.input ?? []), ...(modalities?.output ?? [])].filter(Boolean)
 
   return values.length > 0 ? values.join(', ') : 'n/a'
 }
@@ -48,10 +42,7 @@ export function getCapabilitiesTextFromModalities(modalities?: {
   input?: string[]
   output?: string[]
 }) {
-  const capabilities = [
-    ...(modalities?.input ?? []),
-    ...(modalities?.output ?? []),
-  ]
+  const capabilities = [...(modalities?.input ?? []), ...(modalities?.output ?? [])]
     .map((value) => value.trim().toLowerCase())
     .filter((value) => value.length > 0 && value !== 'text')
 
@@ -63,10 +54,7 @@ export function getProviderName(
   providerId: string,
 ) {
   return (
-    providers?.find(
-      (provider: DashboardData['providers'][number]) =>
-        provider._id === providerId,
-    )?.name ??
-    'Unknown Provider'
+    providers?.find((provider: DashboardData['providers'][number]) => provider._id === providerId)
+      ?.name ?? 'Unknown Provider'
   )
 }

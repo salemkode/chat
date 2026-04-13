@@ -5,11 +5,12 @@ import { cacheThreads, readThreads } from '../offline/cache'
 import type { MobileOfflineThreadRecord } from '../offline/types'
 import { useNetworkStatus } from '../utils/network-status'
 import { normalizeThread } from './normalize'
-import { withOptimisticThreads } from './optimistic'
+import { type ThreadsWithMetadata, withOptimisticThreads } from './optimistic'
 
 export function useThreads() {
   const { isOnline } = useNetworkStatus()
-  const liveThreads = (useQuery(api.agents.listThreadsWithMetadata as never) ?? []) as any[]
+  const liveThreadsQuery = useQuery(api.agents.listThreadsWithMetadata as never)
+  const liveThreads: ThreadsWithMetadata = Array.isArray(liveThreadsQuery) ? liveThreadsQuery : []
   const [cachedThreads, setCachedThreads] = useState<MobileOfflineThreadRecord[]>([])
   const setThreadPinned = useMutation(api.agents.setThreadPinned as never).withOptimisticUpdate(
     (localStore, args: { threadId: string; pinned: boolean }) => {

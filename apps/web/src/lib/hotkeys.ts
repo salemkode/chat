@@ -49,7 +49,7 @@ export const HOTKEY_DEFINITIONS: HotkeyDefinition[] = [
     id: 'sendMessage',
     label: 'Send message',
     description: 'Send the current composer message without clicking the send button.',
-    defaultBinding: 'shift+enter',
+    defaultBinding: 'mod+enter',
     allowInInput: true,
   },
   {
@@ -110,13 +110,10 @@ const KEY_ALIASES: Record<string, string> = {
 
 export function getDefaultHotkeyBindings(): HotkeyBindings {
   return HOTKEY_DEFINITION_MAP
-    ? HOTKEY_DEFINITIONS.reduce(
-        (acc, definition) => {
-          acc[definition.id] = definition.defaultBinding
-          return acc
-        },
-        {} as HotkeyBindings,
-      )
+    ? HOTKEY_DEFINITIONS.reduce((acc, definition) => {
+        acc[definition.id] = definition.defaultBinding
+        return acc
+      }, {} as HotkeyBindings)
     : ({} as HotkeyBindings)
 }
 
@@ -124,9 +121,7 @@ export function getHotkeyDefinition(actionId: HotkeyActionId) {
   return HOTKEY_DEFINITION_MAP[actionId]
 }
 
-export function normalizeHotkeyBinding(
-  binding: string | null | undefined,
-): HotkeyBinding {
+export function normalizeHotkeyBinding(binding: string | null | undefined): HotkeyBinding {
   if (!binding) {
     return null
   }
@@ -189,14 +184,17 @@ export function normalizeHotkeyBindings(
     next[definition.id] = normalizeHotkeyBinding(input[definition.id])
   }
 
+  // Migrate old default send binding (Shift+Enter) to Mod+Enter.
+  // Users can still rebind back to Shift+Enter from settings if they prefer.
+  if (next.sendMessage === 'shift+enter') {
+    next.sendMessage = 'mod+enter'
+  }
+
   return next
 }
 
 export function createHotkeyBindingFromEvent(
-  event: Pick<
-    KeyboardEvent,
-    'altKey' | 'ctrlKey' | 'key' | 'metaKey' | 'shiftKey'
-  >,
+  event: Pick<KeyboardEvent, 'altKey' | 'ctrlKey' | 'key' | 'metaKey' | 'shiftKey'>,
   platform: HotkeyPlatform = getPlatform(),
 ): HotkeyBinding {
   const key = normalizeEventKey(event.key)
@@ -233,10 +231,7 @@ export function createHotkeyBindingFromEvent(
 
 export function matchesHotkeyBinding(
   binding: HotkeyBinding,
-  event: Pick<
-    KeyboardEvent,
-    'altKey' | 'ctrlKey' | 'key' | 'metaKey' | 'shiftKey'
-  >,
+  event: Pick<KeyboardEvent, 'altKey' | 'ctrlKey' | 'key' | 'metaKey' | 'shiftKey'>,
   platform: HotkeyPlatform = getPlatform(),
 ): boolean {
   if (!binding) {
@@ -332,8 +327,7 @@ function getPlatform(): HotkeyPlatform {
   const nav = navigator as Navigator & {
     userAgentData?: { platform?: string }
   }
-  const platform =
-    nav.userAgentData?.platform || navigator.platform || navigator.userAgent
+  const platform = nav.userAgentData?.platform || navigator.platform || navigator.userAgent
 
   return /mac|iphone|ipad|ipod/i.test(platform) ? 'apple' : 'other'
 }

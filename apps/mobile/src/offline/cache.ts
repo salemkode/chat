@@ -55,12 +55,26 @@ export async function readThreads() {
   return rows.map((row) => fromJson<MobileOfflineThreadRecord>(row.json))
 }
 
-export async function cacheMessages(
-  threadId: string,
-  messages: MobileOfflineMessageRecord[],
-) {
+export async function cacheMessages(threadId: string, messages: MobileOfflineMessageRecord[]) {
   const db = await getOfflineDb()
   await db.runAsync('DELETE FROM messages WHERE threadId = ?', threadId)
+  for (const message of messages) {
+    await db.runAsync(
+      'INSERT OR REPLACE INTO messages (id, threadId, json, createdAt) VALUES (?, ?, ?, ?)',
+      message.id,
+      message.threadId,
+      toJson(message),
+      message.createdAt,
+    )
+  }
+}
+
+export async function upsertMessages(messages: MobileOfflineMessageRecord[]) {
+  if (messages.length === 0) {
+    return
+  }
+
+  const db = await getOfflineDb()
   for (const message of messages) {
     await db.runAsync(
       'INSERT OR REPLACE INTO messages (id, threadId, json, createdAt) VALUES (?, ?, ?, ?)',

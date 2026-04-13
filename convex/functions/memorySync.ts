@@ -111,9 +111,7 @@ export const getFile = query({
   handler: async (ctx, args) => {
     return await ctx.db
       .query('memoryFiles')
-      .withIndex('by_path', (q) =>
-        q.eq('path', args.path).eq('agentId', args.agentId),
-      )
+      .withIndex('by_path', (q) => q.eq('path', args.path).eq('agentId', args.agentId))
       .first()
   },
 })
@@ -132,9 +130,7 @@ export const listFiles = query({
       queryBuilder = ctx.db
         .query('memoryFiles')
         .withIndex('by_source', (q) =>
-          q
-            .eq('source', args.source as 'memory' | 'sessions')
-            .eq('agentId', args.agentId),
+          q.eq('source', args.source as 'memory' | 'sessions').eq('agentId', args.agentId),
         )
     }
 

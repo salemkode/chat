@@ -14,10 +14,7 @@ type ProjectLike = {
   description?: string
 }
 
-export function filterProjectsBySearch<T extends ProjectLike>(
-  projects: T[],
-  searchQuery: string,
-) {
+export function filterProjectsBySearch<T extends ProjectLike>(projects: T[], searchQuery: string) {
   const needle = searchQuery.trim().toLowerCase()
   if (!needle) {
     return projects
@@ -28,19 +25,14 @@ export function filterProjectsBySearch<T extends ProjectLike>(
   )
 }
 
-export function filterThreadsBySearch<T extends ThreadLike>(
-  threads: T[],
-  searchQuery: string,
-) {
+export function filterThreadsBySearch<T extends ThreadLike>(threads: T[], searchQuery: string) {
   const needle = searchQuery.trim().toLowerCase()
   if (!needle) {
     return threads
   }
 
   return threads.filter((thread) =>
-    `${thread.title ?? ''}\n${thread.projectName ?? ''}`
-      .toLowerCase()
-      .includes(needle),
+    `${thread.title ?? ''}\n${thread.projectName ?? ''}`.toLowerCase().includes(needle),
   )
 }
 
