@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { Modal, Pressable, Text, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { OfflineBanner } from '../../src/components/offline-banner'
+import type { MobileOfflineProjectRecord } from '../../src/offline/types'
 import { useProjects } from '../../src/mobile-data/use-projects'
 import { useNetworkStatus } from '../../src/utils/network-status'
 
@@ -46,7 +47,7 @@ export default function ProjectsTabScreen() {
 
       <View className="min-h-0 flex-1 px-4 pt-3">
         <OfflineBanner visible={!isOnline} />
-        <FlashList
+        <FlashList<MobileOfflineProjectRecord>
           className="flex-1"
           data={projects}
           keyExtractor={(item) => item.id}

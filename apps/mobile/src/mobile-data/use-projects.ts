@@ -7,7 +7,18 @@ import { useNetworkStatus } from '../utils/network-status'
 import { normalizeProject } from './normalize'
 import { type ProjectsList, withOptimisticProjects, withOptimisticThreads } from './optimistic'
 
-export function useProjects() {
+export function useProjects(): {
+  projects: MobileOfflineProjectRecord[]
+  createProject: (values: { name: string; description?: string }) => Promise<unknown | null>
+  updateProject: (values: {
+    projectId: string
+    name?: string
+    description?: string
+  }) => Promise<void>
+  deleteProject: (projectId: string) => Promise<void>
+  assignThreadToProject: (threadId: string, projectId: string) => Promise<void>
+  removeThreadFromProject: (threadId: string) => Promise<void>
+} {
   const { isOnline } = useNetworkStatus()
   const liveProjectsQuery = useQuery(api.projects.listProjects as never)
   const liveProjects: ProjectsList = Array.isArray(liveProjectsQuery) ? liveProjectsQuery : []

@@ -1,3 +1,4 @@
+import { parseConvexIdForTable } from '@chat/shared/logic/convex-ids'
 import type { Id } from '../lib/convexApi'
 import type {
   MobileOfflineModelRecord,
@@ -5,12 +6,12 @@ import type {
   MobileOfflineThreadRecord,
 } from '../offline/types'
 
-export function toProjectId(value?: string) {
-  return value as Id<'projects'> | undefined
+export function toProjectId(value?: string): Id<'projects'> | undefined {
+  return parseConvexIdForTable('projects', value)
 }
 
-export function toModelId(value?: string) {
-  return value as Id<'models'> | undefined
+export function toModelId(value?: string): Id<'models'> | undefined {
+  return parseConvexIdForTable('models', value)
 }
 
 export function normalizeThread(thread: any): MobileOfflineThreadRecord {

@@ -16,7 +16,7 @@ describe('hotkeys helpers', () => {
   })
 
   it('includes a configurable default binding for sending messages', () => {
-    expect(getDefaultHotkeyBindings().sendMessage).toBe('shift+enter')
+    expect(getDefaultHotkeyBindings().sendMessage).toBe('mod+enter')
   })
 
   it('matches mod bindings against ctrl or meta key events', () => {

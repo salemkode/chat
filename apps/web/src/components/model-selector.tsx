@@ -39,7 +39,7 @@ export function ModelSelector({
   onModelChange?: (modelId: string) => void
   className?: string
 }) {
-  const { models, autoModelAvailable } = useModels()
+  const { models } = useModels()
   const [open, setOpen] = useState(false)
   const autoSelected = isAutoModelSelection(selectedModel)
   const currentModel = models.find((model: OfflineModelRecord) => model.modelId === selectedModel)

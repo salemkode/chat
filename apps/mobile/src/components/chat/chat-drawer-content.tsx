@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'expo-router'
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { InteractionManager, Pressable, Text, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import type { MobileOfflineProjectRecord } from '../../offline/types'
 import { useProjects } from '../../mobile-data/use-projects'
 import { useHydrateVisibleThreadLastMessages } from '../../mobile-data/use-thread-last-messages'
 import { useThreads } from '../../mobile-data/use-threads'
@@ -104,7 +105,7 @@ export function ChatDrawerContent({ navigation }: DrawerContentComponentProps) {
 
       {projects.length ? (
         <View className="mb-6 gap-1">
-          {projects.map((project) => (
+          {projects.map((project: MobileOfflineProjectRecord) => (
             <Pressable
               key={project.id}
               onPress={() => {

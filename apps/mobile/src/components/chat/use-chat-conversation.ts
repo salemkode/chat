@@ -14,9 +14,10 @@ import {
   isNewProjectMentionQuery,
   removeMentionToken,
 } from '@chat/shared/logic/project-mention'
+import { toModelId } from '../../mobile-data/normalize'
 import { useDraft } from '../../mobile-data/use-draft'
 import { createLocalThreadId, isLocalThreadId } from '../../mobile-data/local-thread-id'
-import { api, type Id } from '../../lib/convexApi'
+import { api } from '../../lib/convexApi'
 import { useModels } from '../../mobile-data/use-models'
 import { useProjects } from '../../mobile-data/use-projects'
 import { useSendMessage } from '../../mobile-data/use-send-message'
@@ -174,7 +175,7 @@ export function useChatConversation({
     disabledReason !== null ||
     (!draft.trim() && attachments.length === 0) ||
     hasUnsupportedImageAttachments
-  const contextModelDocId = selectedModelRecord?.id as Id<'models'> | undefined
+  const contextModelDocId = toModelId(selectedModelRecord?.id)
   const contextThreadId =
     activeThreadId !== undefined && !isLocalThreadId(activeThreadId) ? activeThreadId : undefined
 

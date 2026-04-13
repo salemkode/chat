@@ -4,6 +4,9 @@
 
 - Do **not** add or change lint/format configuration or rules (e.g. ESLint, Oxlint, Biome, Prettier, `*rc` / `*config` for those tools) unless the user explicitly asks.
 - Do **not** use TypeScript `as` type assertions unless the user explicitly asks; prefer sound narrowing, `satisfies`, or refactors that preserve types without assertions.
+- **Convex document IDs** (`Id<'tableName'>`): avoid scattering `as Id<...>` on arbitrary strings. Prefer:
+  - **Server**: `ctx.db.normalizeId("tableName", string)` or `args: { id: v.id("tableName") }`.
+  - **Client / shared**: `@chat/shared/logic/convex-ids` — `parseConvexIdForTable("tableName", value)` and `isPossiblyConvexDocumentId` (shape-only; still validate on the server for authoritative table + format checks). Centralize any remaining branding in those helpers instead of ad hoc casts.
 
 ## Frontend / web UI
 
