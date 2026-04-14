@@ -181,6 +181,8 @@ export function normalizeModel(model: ModelRecord): OfflineModelRecord {
     displayName: model.displayName,
     description: model.description,
     capabilities: model.capabilities,
+    supportedAttachmentMediaTypes: model.supportedAttachmentMediaTypes,
+    attachmentValidationStatus: model.attachmentValidationStatus,
     supportsReasoning:
       typeof model.supportsReasoning === 'boolean' ? model.supportsReasoning : undefined,
     reasoningLevels: model.reasoningLevels as Array<'low' | 'medium' | 'high'> | undefined,

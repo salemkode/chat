@@ -524,7 +524,9 @@ export function useSendMessage() {
       [isOnline, regenerateMessageMutation, resolveAutoModelDecisionForPromptMessage],
     ),
     pickImageAttachments: useCallback(async () => pickImages(), []),
-    pickDocumentAttachments: useCallback(async () => pickDocuments(), []),
+    pickDocumentAttachments: useCallback(async (allowedMediaTypes?: string[]) => {
+      return await pickDocuments(allowedMediaTypes)
+    }, []),
     disabledReason: isOnline ? null : 'offline',
   }
 }

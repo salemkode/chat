@@ -88,10 +88,15 @@ export function mediaTypeMatchesPattern(mediaType: string, pattern: string): boo
     return false
   }
 
-  return patternGroup === mediaTypeGroup && (patternSubtype === '*' || patternSubtype === mediaSubtype)
+  return (
+    patternGroup === mediaTypeGroup && (patternSubtype === '*' || patternSubtype === mediaSubtype)
+  )
 }
 
-export function isAttachmentMediaTypeAllowed(mediaType: string, allowedMediaTypes: string[]): boolean {
+export function isAttachmentMediaTypeAllowed(
+  mediaType: string,
+  allowedMediaTypes: string[],
+): boolean {
   return allowedMediaTypes.some((pattern) => mediaTypeMatchesPattern(mediaType, pattern))
 }
 
@@ -111,10 +116,13 @@ export function inferAttachmentMediaTypesFromCapabilities(
     return []
   }
 
-  const supportsImages = normalizedCapabilities.some((capability) => IMAGE_INPUT_CAPABILITIES.has(capability))
+  const supportsImages = normalizedCapabilities.some((capability) =>
+    IMAGE_INPUT_CAPABILITIES.has(capability),
+  )
   const supportsDocuments = normalizedCapabilities.some(
     (capability) =>
-      GENERIC_FILE_INPUT_CAPABILITIES.has(capability) || DOCUMENT_INPUT_CAPABILITIES.has(capability),
+      GENERIC_FILE_INPUT_CAPABILITIES.has(capability) ||
+      DOCUMENT_INPUT_CAPABILITIES.has(capability),
   )
 
   const inferred: string[] = []

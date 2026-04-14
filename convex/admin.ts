@@ -426,7 +426,9 @@ function resolveAttachmentValidationSnapshot(args: {
         .map((value) => value.trim().toLowerCase())
         .filter((value) => value.length > 0)
     : []
-  const invalidPatterns = [...new Set(rawCustomPatterns.filter((value) => !isValidAttachmentMediaTypePattern(value)))]
+  const invalidPatterns = [
+    ...new Set(rawCustomPatterns.filter((value) => !isValidAttachmentMediaTypePattern(value))),
+  ]
   const allowedMediaTypes = resolveModelAttachmentMediaTypes({
     capabilities: args.capabilities,
     supportedAttachmentMediaTypes: args.supportedAttachmentMediaTypes,
@@ -434,7 +436,9 @@ function resolveAttachmentValidationSnapshot(args: {
 
   if (invalidPatterns.length > 0) {
     return {
-      supportedAttachmentMediaTypes: normalizeAttachmentMediaTypes(args.supportedAttachmentMediaTypes),
+      supportedAttachmentMediaTypes: normalizeAttachmentMediaTypes(
+        args.supportedAttachmentMediaTypes,
+      ),
       attachmentValidationStatus: 'invalid' as const,
       attachmentValidationMessage: `Invalid media type patterns: ${invalidPatterns.join(', ')}`,
       attachmentValidatedAt: Date.now(),
@@ -447,7 +451,9 @@ function resolveAttachmentValidationSnapshot(args: {
       : 'Attachments are disabled for this model.'
 
   return {
-    supportedAttachmentMediaTypes: normalizeAttachmentMediaTypes(args.supportedAttachmentMediaTypes),
+    supportedAttachmentMediaTypes: normalizeAttachmentMediaTypes(
+      args.supportedAttachmentMediaTypes,
+    ),
     attachmentValidationStatus: 'valid' as const,
     attachmentValidationMessage: statusMessage,
     attachmentValidatedAt: Date.now(),
@@ -1429,6 +1435,7 @@ export const addModel = mutation({
     contextWindow: v.optional(v.number()),
     maxOutputTokens: v.optional(v.number()),
     modalities: v.optional(modalitiesValidator),
+    supportedAttachmentMediaTypes: v.optional(v.array(v.string())),
     rateLimit: v.optional(rateLimitPolicyValidator),
   },
   handler: async (ctx, args) => {
@@ -1463,8 +1470,14 @@ export const addModel = mutation({
       })
     }
 
+    const attachmentValidation = resolveAttachmentValidationSnapshot({
+      capabilities: args.capabilities,
+      supportedAttachmentMediaTypes: args.supportedAttachmentMediaTypes,
+    })
+
     return await ctx.db.insert('models', {
       ...args,
+      ...attachmentValidation,
       modelId,
       displayName,
     })
@@ -1492,6 +1505,7 @@ export const updateModel = mutation({
     contextWindow: v.optional(v.number()),
     maxOutputTokens: v.optional(v.number()),
     modalities: v.optional(modalitiesValidator),
+    supportedAttachmentMediaTypes: v.optional(v.array(v.string())),
     rateLimit: v.optional(rateLimitPolicyValidator),
   },
   handler: async (ctx, args) => {
@@ -1534,7 +1548,27 @@ export const updateModel = mutation({
       updates.displayName = trimmed
     }
 
-    await ctx.db.patch(id, cleanUpdates(updates))
+    const currentModel = await ctx.db.get(id)
+    if (!currentModel) {
+      throw new ConvexError({
+        code: 'NOT_FOUND',
+        message: 'Model not found.',
+      })
+    }
+
+    const attachmentValidation = resolveAttachmentValidationSnapshot({
+      capabilities: updates.capabilities ?? currentModel.capabilities,
+      supportedAttachmentMediaTypes:
+        updates.supportedAttachmentMediaTypes ?? currentModel.supportedAttachmentMediaTypes,
+    })
+
+    await ctx.db.patch(
+      id,
+      cleanUpdates({
+        ...updates,
+        ...attachmentValidation,
+      }),
+    )
     return
   },
 })
@@ -1553,6 +1587,67 @@ export const toggleModelEnabled = mutation({
 
     await ctx.db.patch(args.id, { isEnabled: args.isEnabled })
     return
+  },
+})
+
+export const validateModelAttachmentPolicies = mutation({
+  args: {
+    modelId: v.optional(v.id('models')),
+  },
+  returns: v.object({
+    validatedCount: v.number(),
+    invalidCount: v.number(),
+    updatedAt: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId) {
+      throw new ConvexError({
+        code: 'UNAUTHORIZED',
+        message: 'Not signed in.',
+      })
+    }
+    const isAdminLike = await hasAdminAccess(ctx, userId)
+    if (!isAdminLike) {
+      throw new ConvexError({
+        code: 'FORBIDDEN',
+        message: 'Not authorized to validate models.',
+      })
+    }
+
+    const models = args.modelId
+      ? [await ctx.db.get(args.modelId)]
+      : await ctx.db.query('models').collect()
+    const now = Date.now()
+    let validatedCount = 0
+    let invalidCount = 0
+
+    for (const model of models) {
+      if (!model) {
+        continue
+      }
+
+      const snapshot = resolveAttachmentValidationSnapshot({
+        capabilities: model.capabilities,
+        supportedAttachmentMediaTypes: model.supportedAttachmentMediaTypes,
+      })
+
+      await ctx.db.patch(model._id, {
+        ...snapshot,
+        attachmentValidatedAt: now,
+      })
+
+      validatedCount += 1
+      if (snapshot.attachmentValidationStatus === 'invalid') {
+        invalidCount += 1
+      }
+    }
+
+    return {
+      validatedCount,
+      invalidCount,
+      updatedAt: now,
+    }
   },
 })
 
@@ -1683,6 +1778,10 @@ export const importDiscoveredModels = mutation({
         contextWindow: discovered.contextWindow,
         maxOutputTokens: discovered.maxOutputTokens,
         modalities: discovered.modalities,
+        attachmentValidationStatus: 'pending' as const,
+        attachmentValidationMessage:
+          'Needs validation. Save model attachment types or run validation.',
+        attachmentValidatedAt: Date.now(),
         lastSyncedAt: Date.now(),
       }
 
@@ -1707,6 +1806,10 @@ export const importDiscoveredModels = mutation({
         contextWindow: discovered.contextWindow,
         maxOutputTokens: discovered.maxOutputTokens,
         modalities: discovered.modalities,
+        attachmentValidationStatus: 'pending',
+        attachmentValidationMessage:
+          'Needs validation. Save model attachment types or run validation.',
+        attachmentValidatedAt: Date.now(),
         discoveredAt: Date.now(),
         lastSyncedAt: Date.now(),
       })

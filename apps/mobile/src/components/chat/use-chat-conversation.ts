@@ -5,8 +5,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
   AUTO_MODEL_ID,
   chatSuggestions,
+  isAttachmentMediaTypeAllowed,
   isAutoModelSelection,
-  modelSupportsImageAttachments,
+  resolveModelAttachmentMediaTypes,
 } from '@chat/shared'
 import {
   fallbackProjectNameFromMentionQuery,
@@ -157,23 +158,34 @@ export function useChatConversation({
   const modelLabel = isAutoModelSelection(selectedModelId)
     ? 'Auto'
     : (selectedModelRecord?.displayName ?? selectedModelId ?? 'Model')
-  const selectedModelCapabilitiesKnown =
-    Array.isArray(selectedModelRecord?.capabilities) && selectedModelRecord.capabilities.length > 0
-  const imageAttachmentsSupported = isAutoModelSelection(selectedModelId)
-    ? true
-    : selectedModelCapabilitiesKnown
-      ? modelSupportsImageAttachments(selectedModelRecord?.capabilities)
-      : true
+  const attachmentMediaTypes = isAutoModelSelection(selectedModelId)
+    ? resolveModelAttachmentMediaTypes({})
+    : resolveModelAttachmentMediaTypes({
+        capabilities: selectedModelRecord?.capabilities,
+        supportedAttachmentMediaTypes: selectedModelRecord?.supportedAttachmentMediaTypes,
+        attachmentValidationStatus: selectedModelRecord?.attachmentValidationStatus,
+      })
+  const attachmentsSupported = attachmentMediaTypes.length > 0
+  const imageAttachmentsSupported = attachmentMediaTypes.some((mediaType) =>
+    mediaType.startsWith('image/'),
+  )
   const imageUnsupportedError = `${modelLabel} does not support image attachments. Remove images or choose a Vision model.`
+  const attachmentUnsupportedError = attachmentsSupported
+    ? `This model accepts: ${attachmentMediaTypes.join(', ')}`
+    : `${modelLabel} does not support file attachments.`
   const hasUnsupportedImageAttachments =
     !imageAttachmentsSupported &&
     attachments.some((attachment) => attachment.mimeType.startsWith('image/'))
+  const hasUnsupportedAttachments = attachments.some(
+    (attachment) => !isAttachmentMediaTypeAllowed(attachment.mimeType, attachmentMediaTypes),
+  )
 
   const activeProject = projects.find((project) => project.id === selectedProjectId)
   const hasMessages = messages.length > 0
   const sendDisabled =
     disabledReason !== null ||
     (!draft.trim() && attachments.length === 0) ||
+    hasUnsupportedAttachments ||
     hasUnsupportedImageAttachments
   const contextModelDocId = toModelId(selectedModelRecord?.id)
   const contextThreadId =
@@ -182,13 +194,24 @@ export function useChatConversation({
   const title = thread?.title || (mode === 'new' ? 'New chat' : 'Chat')
 
   useEffect(() => {
+    if (hasUnsupportedAttachments) {
+      setInlineError(attachmentUnsupportedError)
+      return
+    }
     if (hasUnsupportedImageAttachments) {
       setInlineError(imageUnsupportedError)
       return
     }
 
-    setInlineError((current) => (current === imageUnsupportedError ? null : current))
-  }, [hasUnsupportedImageAttachments, imageUnsupportedError])
+    setInlineError((current) =>
+      current === imageUnsupportedError || current === attachmentUnsupportedError ? null : current,
+    )
+  }, [
+    attachmentUnsupportedError,
+    hasUnsupportedAttachments,
+    hasUnsupportedImageAttachments,
+    imageUnsupportedError,
+  ])
 
   const submitOptimisticSend = async ({
     threadForSend,
@@ -264,6 +287,14 @@ export function useChatConversation({
       : models.find((item) => item.modelId === selectedModelId)?.id
 
     if (!promptSnapshot.trim() && attachmentsSnapshot.length === 0) {
+      return
+    }
+    if (
+      attachmentsSnapshot.some(
+        (attachment) => !isAttachmentMediaTypeAllowed(attachment.mimeType, attachmentMediaTypes),
+      )
+    ) {
+      setInlineError(attachmentUnsupportedError)
       return
     }
     if (
@@ -588,11 +619,16 @@ export function useChatConversation({
         setAttachments((current) => [...current, ...picked])
       },
       onPickDocument: async () => {
-        const picked = await pickDocumentAttachments()
+        if (!attachmentsSupported) {
+          setInlineError(attachmentUnsupportedError)
+          return
+        }
+        const picked = await pickDocumentAttachments(attachmentMediaTypes)
         setAttachments((current) => [...current, ...picked])
       },
       onSend: handleSend,
       sendDisabled,
+      attachmentMediaTypes,
       imageAttachmentsSupported,
       isOnline,
       bottomInset: insets.bottom,

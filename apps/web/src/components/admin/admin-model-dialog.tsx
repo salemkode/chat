@@ -486,6 +486,23 @@ export function AdminModelDialog({ state, actions }: AdminModelDialogProps) {
                       </div>
                     </div>
 
+                    <div className="grid gap-2">
+                      <Label>Supported file media types</Label>
+                      <Input
+                        value={modelForm.supportedAttachmentMediaTypesText}
+                        onChange={(event) =>
+                          setModelForm((current) => ({
+                            ...current,
+                            supportedAttachmentMediaTypesText: event.target.value,
+                          }))
+                        }
+                        placeholder="image/*, application/pdf, text/plain"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Optional. Leave empty to infer from capabilities.
+                      </p>
+                    </div>
+
                     <RateLimitEditor
                       label="Model rate limit"
                       description="Apply the strictest limit last, after the global and provider policies."
@@ -603,6 +620,7 @@ export function useAdminModelDialog({
           ownedBy: model.ownedBy ?? '',
           contextWindow: model.contextWindow ? String(model.contextWindow) : '',
           maxOutputTokens: model.maxOutputTokens ? String(model.maxOutputTokens) : '',
+          supportedAttachmentMediaTypesText: model.supportedAttachmentMediaTypes?.join(', ') ?? '',
           rateLimit: model.rateLimit as RateLimitPolicy | undefined,
         })
       } else {
@@ -632,6 +650,7 @@ export function useAdminModelDialog({
         maxOutputTokens: discoveredModel.maxOutputTokens
           ? String(discoveredModel.maxOutputTokens)
           : '',
+        supportedAttachmentMediaTypesText: '',
         capabilitiesText,
         supportsReasoning: capabilitiesText
           .split(',')
@@ -712,6 +731,10 @@ export function useAdminModelDialog({
       .split(',')
       .map((value) => value.trim())
       .filter(Boolean)
+    const supportedAttachmentMediaTypes = modelForm.supportedAttachmentMediaTypesText
+      .split(',')
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean)
     const payload = {
       modelId: modelIdTrim,
       displayName: displayNameTrim,
@@ -727,6 +750,8 @@ export function useAdminModelDialog({
           ? (modelForm.iconId as Id<'_storage'> | undefined)
           : undefined,
       capabilities: capabilities.length > 0 ? capabilities : undefined,
+      supportedAttachmentMediaTypes:
+        supportedAttachmentMediaTypes.length > 0 ? supportedAttachmentMediaTypes : undefined,
       supportsReasoning: modelForm.supportsReasoning,
       reasoningLevels: modelForm.supportsReasoning ? modelForm.reasoningLevels : undefined,
       defaultReasoningLevel: modelForm.supportsReasoning ? modelForm.defaultReasoningLevel : 'off',

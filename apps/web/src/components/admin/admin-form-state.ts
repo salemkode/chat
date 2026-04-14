@@ -44,6 +44,7 @@ export interface ModelFormData {
   ownedBy: string
   contextWindow: string
   maxOutputTokens: string
+  supportedAttachmentMediaTypesText: string
   rateLimit?: RateLimitPolicy
 }
 
@@ -139,6 +140,7 @@ export function createModelForm(providerId = '', sortOrder = 0): ModelFormData {
     ownedBy: '',
     contextWindow: '',
     maxOutputTokens: '',
+    supportedAttachmentMediaTypesText: '',
     rateLimit: undefined,
   }
 }

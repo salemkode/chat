@@ -2,6 +2,7 @@ import {
   fallbackProjectNameFromMentionQuery,
   isNewProjectMentionQuery,
 } from '@chat/shared/logic/project-mention'
+import { isAttachmentMediaTypeAllowed } from '@chat/shared'
 
 export type ProjectMentionState = {
   start: number
@@ -148,12 +149,8 @@ export function getAttachmentFingerprint(file: File) {
   return `${file.name}:${file.size}:${file.lastModified}`
 }
 
-export function isSupportedAttachment(file: File) {
-  return (
-    file.type === 'application/pdf' ||
-    file.type === PASTED_TEXT_MEDIA_TYPE ||
-    file.type.startsWith('image/')
-  )
+export function isSupportedAttachment(file: File, allowedMediaTypes: string[]) {
+  return Boolean(file.type) && isAttachmentMediaTypeAllowed(file.type, allowedMediaTypes)
 }
 
 export function extractClipboardImageFiles(

@@ -115,10 +115,14 @@ export async function pickImageAttachments(): Promise<LocalAsset[]> {
   )
 }
 
-export async function pickDocumentAttachments(): Promise<LocalAsset[]> {
+export async function pickDocumentAttachments(allowedMediaTypes?: string[]): Promise<LocalAsset[]> {
+  const normalizedAllowedMediaTypes =
+    allowedMediaTypes && allowedMediaTypes.length > 0
+      ? allowedMediaTypes
+      : ['application/pdf', 'image/*']
   const result = await DocumentPicker.getDocumentAsync({
     multiple: true,
-    type: ['application/pdf', 'image/*'],
+    type: normalizedAllowedMediaTypes,
   })
   if (result.canceled) {
     return []

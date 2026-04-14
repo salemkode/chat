@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import { isAttachmentMediaTypeAllowed, resolveModelAttachmentMediaTypes } from '@chat/shared'
 import { api } from '@convex/_generated/api'
 import type { Id } from '@convex/_generated/dataModel'
 import { AlertCircle } from '@/lib/icons'
@@ -179,7 +180,7 @@ interface AIPromptInputProps {
   onConfirmCreateProject?: (values: { name: string; description?: string }) => Promise<void> | void
   onCancelCreateProject?: () => void
   creatingProject?: boolean
-  imageAttachmentsSupported?: boolean
+  attachmentMediaTypes?: string[]
 }
 
 export function AIPromptInput({
@@ -210,7 +211,7 @@ export function AIPromptInput({
   onConfirmCreateProject,
   onCancelCreateProject,
   creatingProject = false,
-  imageAttachmentsSupported = true,
+  attachmentMediaTypes,
 }: AIPromptInputProps) {
   const [internalValue, setInternalValue] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -233,9 +234,20 @@ export function AIPromptInput({
   const { bindings } = useHotkeys()
 
   const value = controlledValue ?? internalValue
+  const allowedAttachmentMediaTypes =
+    attachmentMediaTypes === undefined
+      ? resolveModelAttachmentMediaTypes({})
+      : [...attachmentMediaTypes]
+  const attachmentsSupported = allowedAttachmentMediaTypes.length > 0
+  const imageAttachmentsSupported = allowedAttachmentMediaTypes.some((mediaType) =>
+    mediaType.startsWith('image/'),
+  )
   const unsupportedImageMessage = `${
     selectedModelLabel || 'Selected model'
   } does not support image attachments. Remove images or choose a model with Vision support.`
+  const unsupportedAttachmentTypeMessage = attachmentsSupported
+    ? `This model accepts: ${allowedAttachmentMediaTypes.join(', ')}`
+    : `${selectedModelLabel || 'Selected model'} does not support file attachments.`
   const selectedProject = projects.find((project) => project.id === selectedProjectId)
   const sendBinding = bindings.sendMessage
   const mentionOptions: MentionProjectOption[] = projectMention
@@ -289,6 +301,11 @@ export function AIPromptInput({
       return
     }
 
+    if (!attachmentsSupported) {
+      setSubmitError(unsupportedAttachmentTypeMessage)
+      return
+    }
+
     const modelBlockedImages = !imageAttachmentsSupported
       ? incoming.filter((file) => file.type.startsWith('image/'))
       : []
@@ -300,12 +317,16 @@ export function AIPromptInput({
       ? incoming
       : incoming.filter((file) => !file.type.startsWith('image/'))
 
-    const unsupported = modelAllowed.filter((file) => !isSupportedAttachment(file))
+    const unsupported = modelAllowed.filter(
+      (file) => !isSupportedAttachment(file, allowedAttachmentMediaTypes),
+    )
     if (unsupported.length > 0) {
-      setSubmitError('Only images and PDFs are supported right now.')
+      setSubmitError(unsupportedAttachmentTypeMessage)
     }
 
-    const supported = modelAllowed.filter(isSupportedAttachment)
+    const supported = modelAllowed.filter((file) =>
+      isSupportedAttachment(file, allowedAttachmentMediaTypes),
+    )
     if (supported.length === 0) {
       return
     }
@@ -424,6 +445,14 @@ export function AIPromptInput({
 
   const handleSubmit = async (event?: React.FormEvent) => {
     event?.preventDefault()
+    const hasUnsupportedAttachments = attachments.some(
+      (attachment) =>
+        !isAttachmentMediaTypeAllowed(attachment.file.type, allowedAttachmentMediaTypes),
+    )
+    if (hasUnsupportedAttachments) {
+      setSubmitError(unsupportedAttachmentTypeMessage)
+      return
+    }
     const hasUnsupportedImageAttachments =
       !imageAttachmentsSupported &&
       attachments.some((attachment) => attachment.file.type.startsWith('image/'))
@@ -550,14 +579,33 @@ export function AIPromptInput({
     const hasUnsupportedImageAttachments =
       !imageAttachmentsSupported &&
       attachments.some((attachment) => attachment.file.type.startsWith('image/'))
+    const hasUnsupportedAttachments = attachments.some(
+      (attachment) =>
+        !isAttachmentMediaTypeAllowed(attachment.file.type, allowedAttachmentMediaTypes),
+    )
+
+    if (hasUnsupportedAttachments) {
+      setSubmitError(unsupportedAttachmentTypeMessage)
+      return
+    }
 
     if (hasUnsupportedImageAttachments) {
       setSubmitError(unsupportedImageMessage)
       return
     }
 
-    setSubmitError((current) => (current === unsupportedImageMessage ? null : current))
-  }, [attachments, imageAttachmentsSupported, unsupportedImageMessage])
+    setSubmitError((current) =>
+      current === unsupportedImageMessage || current === unsupportedAttachmentTypeMessage
+        ? null
+        : current,
+    )
+  }, [
+    allowedAttachmentMediaTypes,
+    attachments,
+    imageAttachmentsSupported,
+    unsupportedAttachmentTypeMessage,
+    unsupportedImageMessage,
+  ])
 
   useEffect(() => {
     if (!submitError) {
@@ -708,7 +756,12 @@ export function AIPromptInput({
               }
 
               const pastedText = event.clipboardData.getData('text/plain')
-              if (pastedText && shouldConvertToTextAttachment(pastedText)) {
+              if (
+                pastedText &&
+                attachmentsSupported &&
+                isAttachmentMediaTypeAllowed('text/plain', allowedAttachmentMediaTypes) &&
+                shouldConvertToTextAttachment(pastedText)
+              ) {
                 event.preventDefault()
                 addAttachments([createPastedTextFile(pastedText)])
               }
@@ -815,12 +868,23 @@ export function AIPromptInput({
           reasoningLevels={reasoningLevels}
           defaultReasoningLevel={defaultReasoningLevel}
           onAttach={addAttachments}
+          attachmentMediaTypes={allowedAttachmentMediaTypes}
           imageAttachmentsSupported={imageAttachmentsSupported}
           sendBlockedReason={
-            !imageAttachmentsSupported &&
-            attachments.some((attachment) => attachment.file.type.startsWith('image/'))
-              ? unsupportedImageMessage
-              : undefined
+            !attachmentsSupported
+              ? unsupportedAttachmentTypeMessage
+              : !imageAttachmentsSupported &&
+                  attachments.some((attachment) => attachment.file.type.startsWith('image/'))
+                ? unsupportedImageMessage
+                : attachments.some(
+                      (attachment) =>
+                        !isAttachmentMediaTypeAllowed(
+                          attachment.file.type,
+                          allowedAttachmentMediaTypes,
+                        ),
+                    )
+                  ? unsupportedAttachmentTypeMessage
+                  : undefined
           }
           contextMeter={
             <ComposerContextMeter

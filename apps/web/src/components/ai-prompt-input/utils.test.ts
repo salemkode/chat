@@ -144,6 +144,6 @@ describe('text paste attachments', () => {
 
   it('accepts plain text files as supported attachments', () => {
     const textFile = new File(['hello'], 'notes.txt', { type: 'text/plain' })
-    expect(isSupportedAttachment(textFile)).toBe(true)
+    expect(isSupportedAttachment(textFile, ['text/plain'])).toBe(true)
   })
 })

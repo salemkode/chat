@@ -329,6 +329,7 @@ export function ComposerActionRow({
   reasoningLevels,
   defaultReasoningLevel,
   onAttach,
+  attachmentMediaTypes,
   imageAttachmentsSupported,
   sendBlockedReason,
   contextMeter,
@@ -351,14 +352,19 @@ export function ComposerActionRow({
   reasoningLevels?: Array<'low' | 'medium' | 'high'>
   defaultReasoningLevel: 'off' | 'low' | 'medium' | 'high'
   onAttach: (files: FileList | null) => void
+  attachmentMediaTypes: string[]
   imageAttachmentsSupported: boolean
   sendBlockedReason?: string
   contextMeter?: ReactNode
 }) {
   const hasContent = value.trim() || attachments.length > 0 || textAttachments.length > 0
-  const attachmentAccept = imageAttachmentsSupported
-    ? 'image/*,application/pdf,text/plain,.txt'
-    : 'application/pdf,text/plain,.txt'
+  const attachmentsSupported = attachmentMediaTypes.length > 0
+  const attachmentAccept = attachmentMediaTypes.join(',')
+  const attachmentsLabel = attachmentsSupported
+    ? imageAttachmentsSupported
+      ? 'Attach supported files'
+      : `This model accepts: ${attachmentMediaTypes.join(', ')}`
+    : 'This model does not support file attachments'
 
   return (
     <div
@@ -463,12 +469,11 @@ export function ComposerActionRow({
 
         <Label
           htmlFor="composer-attachment-input"
-          title={
-            imageAttachmentsSupported ? 'Attach images or PDFs' : 'This model accepts PDFs only'
-          }
+          title={attachmentsLabel}
           className={cn(
             'inline-flex cursor-pointer items-center text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
             mobile ? 'h-11 rounded-full border border-border/70 px-3.5' : 'h-8 rounded-full px-2.5',
+            !attachmentsSupported && 'cursor-not-allowed opacity-50',
           )}
           aria-label="Attach a file"
         >
@@ -479,6 +484,7 @@ export function ComposerActionRow({
             accept={attachmentAccept}
             className="sr-only"
             type="file"
+            disabled={!attachmentsSupported}
             onChange={(event) => {
               onAttach(event.target.files)
               event.currentTarget.value = ''
@@ -486,8 +492,12 @@ export function ComposerActionRow({
           />
           <Paperclip className="size-4" aria-hidden="true" />
         </Label>
-        {!imageAttachmentsSupported ? (
-          <span className="text-[10px] font-medium text-muted-foreground">PDF only</span>
+        {!attachmentsSupported ? (
+          <span className="text-[10px] font-medium text-muted-foreground">No files</span>
+        ) : !imageAttachmentsSupported ? (
+          <span className="text-[10px] font-medium text-muted-foreground">
+            {attachmentMediaTypes.join(', ')}
+          </span>
         ) : null}
       </div>
     </div>

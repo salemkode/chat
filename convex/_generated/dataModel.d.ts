@@ -607,6 +607,9 @@ export type DataModel = {
   }
   models: {
     document: {
+      attachmentValidatedAt?: number
+      attachmentValidationMessage?: string
+      attachmentValidationStatus?: 'pending' | 'valid' | 'invalid'
       capabilities?: Array<string>
       contextWindow?: number
       defaultReasoningLevel?: 'off' | 'low' | 'medium' | 'high'
@@ -635,6 +638,7 @@ export type DataModel = {
       }
       reasoningLevels?: Array<'low' | 'medium' | 'high'>
       sortOrder: number
+      supportedAttachmentMediaTypes?: Array<string>
       supportsReasoning?: boolean
       _id: Id<'models'>
       _creationTime: number
@@ -642,6 +646,9 @@ export type DataModel = {
     fieldPaths:
       | '_creationTime'
       | '_id'
+      | 'attachmentValidatedAt'
+      | 'attachmentValidationMessage'
+      | 'attachmentValidationStatus'
       | 'capabilities'
       | 'contextWindow'
       | 'defaultReasoningLevel'
@@ -671,6 +678,7 @@ export type DataModel = {
       | 'rateLimit.shards'
       | 'reasoningLevels'
       | 'sortOrder'
+      | 'supportedAttachmentMediaTypes'
       | 'supportsReasoning'
     indexes: {
       by_id: ['_id']

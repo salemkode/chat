@@ -47,6 +47,8 @@ export interface OfflineModelRecord {
   displayName: string
   description?: string
   capabilities?: string[]
+  supportedAttachmentMediaTypes?: string[]
+  attachmentValidationStatus?: 'pending' | 'valid' | 'invalid'
   supportsReasoning?: boolean
   reasoningLevels?: Array<'low' | 'medium' | 'high'>
   defaultReasoningLevel?: 'off' | 'low' | 'medium' | 'high'

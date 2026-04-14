@@ -192,8 +192,9 @@ Backend:
 4. `MessageList` reads merged live, cached, and optimistic messages.
 5. `ChatComposer` submits through `useSendMessage`.
 6. `useSendMessage` optionally creates a thread, uploads attachments, and calls Convex generation mutations.
-7. Optimistic UI is inserted locally for thread and message rows.
-8. If a mutation fails, a failed assistant response is shown inline with error text and a replay action.
+7. File picker options are derived from each model attachment policy (`supportedAttachmentMediaTypes` when configured, otherwise capability inference). Unsupported file types are blocked in the composer.
+8. Optimistic UI is inserted locally for thread and message rows.
+9. If a mutation fails, a failed assistant response is shown inline with error text and a replay action.
 
 ### Web
 
@@ -202,7 +203,8 @@ Backend:
 3. `useSendMessage` in `apps/web/src/hooks/chat-data/send.ts` creates a thread if needed, uploads files, and calls generation mutations.
 4. In the web composer, long pasted plain text is converted into a real `.txt` `File` attachment before send rather than being inlined into the prompt body.
 5. Optimistic assistant and user message placeholders are inserted with local query store updates.
-6. Successful data is mirrored into offline browser storage for read-back.
+6. Server-side mutation validation re-checks attachment media types against the selected model policy before the prompt is persisted.
+7. Successful data is mirrored into offline browser storage for read-back.
 
 ## Offline Model
 
@@ -252,6 +254,8 @@ Generation path:
 5. post-processing may trigger memory extraction or related bookkeeping
 
 This design lets admin configuration change model availability without redeploying clients.
+
+Model records now also carry attachment policy metadata (`supportedAttachmentMediaTypes`, validation status/message/timestamp). Admin settings can run a bulk validation pass to refresh per-model status for the admin models table.
 
 ## Memory Subsystem
 

@@ -448,7 +448,8 @@ export function SettingsDialog({
                     value={selectedModelValue}
                     onValueChange={(value) => {
                       const nextModel =
-                        isAutoModelSelection(value) || modelOptions.some((option) => option.value === value)
+                        isAutoModelSelection(value) ||
+                        modelOptions.some((option) => option.value === value)
                           ? value
                           : undefined
 

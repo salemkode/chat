@@ -1,5 +1,7 @@
 import { useSSO } from '@clerk/expo'
-import { Alert, Platform, Text, TouchableOpacity, View } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
+import { Alert, Platform, Pressable, Text, View } from 'react-native'
+import { useCSSVariable } from 'uniwind'
 import { logClerkError } from '../../lib/clerk-debug'
 
 type AuthErrorLike = {
@@ -14,9 +16,10 @@ interface GoogleSignInButtonProps {
 
 export function GoogleSignInButton({
   onSignInComplete,
-  showDivider = true,
+  showDivider = false,
 }: GoogleSignInButtonProps) {
   const { startSSOFlow } = useSSO()
+  const iconColor = useCSSVariable('--color-foreground') as string
 
   if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
     return null
@@ -41,20 +44,21 @@ export function GoogleSignInButton({
   }
 
   return (
-    <>
-      <TouchableOpacity
-        onPress={() => void handleGoogleSignIn()}
-        className="items-center rounded-[10px] bg-blue-500 py-3.5"
-      >
-        <Text className="text-base font-semibold text-white">Continue with Google</Text>
-      </TouchableOpacity>
+    <View>
       {showDivider ? (
-        <View className="my-3 flex-row items-center">
-          <View className="h-px flex-1 bg-gray-300" />
-          <Text className="mx-2 text-xs font-semibold text-gray-500">OR</Text>
-          <View className="h-px flex-1 bg-gray-300" />
+        <View className="mb-4 mt-2 flex-row items-center">
+          <View className="h-px flex-1 bg-border" />
+          <Text className="mx-4 text-sm font-medium text-muted">OR</Text>
+          <View className="h-px flex-1 bg-border" />
         </View>
       ) : null}
-    </>
+      <Pressable
+        onPress={() => void handleGoogleSignIn()}
+        className="mb-3 flex-row items-center justify-center gap-3 rounded-full border border-border bg-card py-4 active:opacity-70"
+      >
+        <Ionicons name="logo-google" size={18} color={iconColor} />
+        <Text className="text-base font-semibold text-foreground">Continue with Google</Text>
+      </Pressable>
+    </View>
   )
 }

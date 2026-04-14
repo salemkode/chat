@@ -1,6 +1,8 @@
 import { useSSO } from '@clerk/expo'
 import { useSignInWithApple } from '@clerk/expo/apple'
-import { Alert, Platform, Pressable, Text, View } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
+import { Alert, Platform, Pressable, Text } from 'react-native'
+import { useCSSVariable } from 'uniwind'
 import { logClerkError } from '../../lib/clerk-debug'
 
 type AuthErrorLike = {
@@ -11,6 +13,7 @@ type AuthErrorLike = {
 export function AppleSignInButton({ onSignInComplete }: { onSignInComplete?: () => void }) {
   const { startAppleAuthenticationFlow } = useSignInWithApple()
   const { startSSOFlow } = useSSO()
+  const iconColor = useCSSVariable('--color-background') as string
 
   if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
     return null
@@ -47,13 +50,12 @@ export function AppleSignInButton({ onSignInComplete }: { onSignInComplete?: () 
   }
 
   return (
-    <View>
-      <Pressable
-        onPress={() => void handleAppleSignIn()}
-        className="items-center rounded-[10px] bg-gray-950 py-3.5 active:opacity-75"
-      >
-        <Text className="text-base font-semibold text-white">Continue with Apple</Text>
-      </Pressable>
-    </View>
+    <Pressable
+      onPress={() => void handleAppleSignIn()}
+      className="mb-3 flex-row items-center justify-center gap-3 rounded-full bg-foreground py-4 active:opacity-80"
+    >
+      <Ionicons name="logo-apple" size={20} color={iconColor} />
+      <Text className="text-base font-semibold text-background">Continue with Apple</Text>
+    </Pressable>
   )
 }
