@@ -45,6 +45,9 @@ export type PendingProjectDraft = {
 
 const TEXT_ATTACHMENT_CHAR_THRESHOLD = 500
 const TEXT_ATTACHMENT_LINE_THRESHOLD = 10
+const PASTED_TEXT_FILENAME_PREFIX = 'pasted-text'
+const PASTED_TEXT_FILE_EXTENSION = '.txt'
+const PASTED_TEXT_MEDIA_TYPE = 'text/plain'
 const CLIPBOARD_IMAGE_EXTENSION_BY_TYPE: Record<string, string> = {
   'image/gif': '.gif',
   'image/heic': '.heic',
@@ -60,6 +63,24 @@ export function shouldConvertToTextAttachment(text: string): boolean {
   if (text.length >= TEXT_ATTACHMENT_CHAR_THRESHOLD) return true
   const lineCount = text.split('\n').length
   return lineCount >= TEXT_ATTACHMENT_LINE_THRESHOLD
+}
+
+export function createPastedTextFile(text: string): File {
+  const date = new Date()
+  const stamp = [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+    '-',
+    String(date.getHours()).padStart(2, '0'),
+    String(date.getMinutes()).padStart(2, '0'),
+    String(date.getSeconds()).padStart(2, '0'),
+  ].join('')
+
+  return new File([text], `${PASTED_TEXT_FILENAME_PREFIX}-${stamp}${PASTED_TEXT_FILE_EXTENSION}`, {
+    type: PASTED_TEXT_MEDIA_TYPE,
+    lastModified: Date.now(),
+  })
 }
 
 let textAttachmentCounter = 0
@@ -104,6 +125,10 @@ function getAttachmentLabel(mediaType: string) {
     return 'PDF'
   }
 
+  if (mediaType === PASTED_TEXT_MEDIA_TYPE) {
+    return 'Text'
+  }
+
   if (mediaType.startsWith('image/')) {
     return 'Image'
   }
@@ -124,7 +149,11 @@ export function getAttachmentFingerprint(file: File) {
 }
 
 export function isSupportedAttachment(file: File) {
-  return file.type === 'application/pdf' || file.type.startsWith('image/')
+  return (
+    file.type === 'application/pdf' ||
+    file.type === PASTED_TEXT_MEDIA_TYPE ||
+    file.type.startsWith('image/')
+  )
 }
 
 export function extractClipboardImageFiles(

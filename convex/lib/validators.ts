@@ -52,6 +52,12 @@ export const modalitiesValidator = v.object({
   output: v.array(v.string()),
 })
 
+export const modelAttachmentValidationStatusValidator = v.union(
+  v.literal('pending'),
+  v.literal('valid'),
+  v.literal('invalid'),
+)
+
 export const discoveredModelValidator = v.object({
   modelId: v.string(),
   displayName: v.string(),

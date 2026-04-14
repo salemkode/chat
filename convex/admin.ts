@@ -14,6 +14,7 @@ import { fetchProviderCatalog } from './lib/providerCatalog'
 import {
   discoveredModelValidator,
   iconTypeValidator,
+  modelAttachmentValidationStatusValidator,
   modalitiesValidator,
   providerCatalogResultValidator,
   providerConfigValidator,
@@ -28,6 +29,11 @@ import {
   isStripeSubscriptionActive,
   resolveEffectiveAppPlan,
 } from './lib/billing'
+import {
+  isValidAttachmentMediaTypePattern,
+  normalizeAttachmentMediaTypes,
+  resolveModelAttachmentMediaTypes,
+} from './lib/modelAttachmentPolicy'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -133,6 +139,10 @@ const modelBaseValidator = v.object({
   contextWindow: v.optional(v.number()),
   maxOutputTokens: v.optional(v.number()),
   modalities: v.optional(modalitiesValidator),
+  supportedAttachmentMediaTypes: v.optional(v.array(v.string())),
+  attachmentValidationStatus: v.optional(modelAttachmentValidationStatusValidator),
+  attachmentValidationMessage: v.optional(v.string()),
+  attachmentValidatedAt: v.optional(v.number()),
   rateLimit: v.optional(rateLimitPolicyValidator),
   discoveredAt: v.optional(v.number()),
   lastSyncedAt: v.optional(v.number()),
@@ -159,6 +169,10 @@ const modelWithProviderValidator = v.object({
   contextWindow: v.optional(v.number()),
   maxOutputTokens: v.optional(v.number()),
   modalities: v.optional(modalitiesValidator),
+  supportedAttachmentMediaTypes: v.optional(v.array(v.string())),
+  attachmentValidationStatus: v.optional(modelAttachmentValidationStatusValidator),
+  attachmentValidationMessage: v.optional(v.string()),
+  attachmentValidatedAt: v.optional(v.number()),
   rateLimit: v.optional(rateLimitPolicyValidator),
   discoveredAt: v.optional(v.number()),
   lastSyncedAt: v.optional(v.number()),
@@ -217,6 +231,10 @@ const dashboardModelValidator = v.object({
   contextWindow: v.optional(v.number()),
   maxOutputTokens: v.optional(v.number()),
   modalities: v.optional(modalitiesValidator),
+  supportedAttachmentMediaTypes: v.optional(v.array(v.string())),
+  attachmentValidationStatus: v.optional(modelAttachmentValidationStatusValidator),
+  attachmentValidationMessage: v.optional(v.string()),
+  attachmentValidatedAt: v.optional(v.number()),
   rateLimit: v.optional(rateLimitPolicyValidator),
   discoveredAt: v.optional(v.number()),
   lastSyncedAt: v.optional(v.number()),
@@ -397,6 +415,43 @@ function cleanUpdates<T extends Record<string, unknown>>(updates: T) {
 
 function normalizeIsFree(modelId: string) {
   return modelId.includes(':free') || modelId.endsWith('-free')
+}
+
+function resolveAttachmentValidationSnapshot(args: {
+  capabilities?: string[] | null
+  supportedAttachmentMediaTypes?: string[] | null
+}) {
+  const rawCustomPatterns = Array.isArray(args.supportedAttachmentMediaTypes)
+    ? args.supportedAttachmentMediaTypes
+        .map((value) => value.trim().toLowerCase())
+        .filter((value) => value.length > 0)
+    : []
+  const invalidPatterns = [...new Set(rawCustomPatterns.filter((value) => !isValidAttachmentMediaTypePattern(value)))]
+  const allowedMediaTypes = resolveModelAttachmentMediaTypes({
+    capabilities: args.capabilities,
+    supportedAttachmentMediaTypes: args.supportedAttachmentMediaTypes,
+  })
+
+  if (invalidPatterns.length > 0) {
+    return {
+      supportedAttachmentMediaTypes: normalizeAttachmentMediaTypes(args.supportedAttachmentMediaTypes),
+      attachmentValidationStatus: 'invalid' as const,
+      attachmentValidationMessage: `Invalid media type patterns: ${invalidPatterns.join(', ')}`,
+      attachmentValidatedAt: Date.now(),
+    }
+  }
+
+  const statusMessage =
+    allowedMediaTypes.length > 0
+      ? `Allowed file types: ${allowedMediaTypes.join(', ')}`
+      : 'Attachments are disabled for this model.'
+
+  return {
+    supportedAttachmentMediaTypes: normalizeAttachmentMediaTypes(args.supportedAttachmentMediaTypes),
+    attachmentValidationStatus: 'valid' as const,
+    attachmentValidationMessage: statusMessage,
+    attachmentValidatedAt: Date.now(),
+  }
 }
 
 async function normalizeCollectionModelIds(ctx: MutationCtx, modelIds: Id<'models'>[]) {

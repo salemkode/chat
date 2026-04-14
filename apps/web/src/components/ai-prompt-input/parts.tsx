@@ -356,7 +356,9 @@ export function ComposerActionRow({
   contextMeter?: ReactNode
 }) {
   const hasContent = value.trim() || attachments.length > 0 || textAttachments.length > 0
-  const attachmentAccept = imageAttachmentsSupported ? 'image/*,application/pdf' : 'application/pdf'
+  const attachmentAccept = imageAttachmentsSupported
+    ? 'image/*,application/pdf,text/plain,.txt'
+    : 'application/pdf,text/plain,.txt'
 
   return (
     <div

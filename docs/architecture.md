@@ -116,6 +116,8 @@ Web feature areas:
 
 - `apps/web/src/routes/*`: route handlers for chat, auth, admin, share, signup, memory demo
 - `apps/web/src/components/*`: chat UI, sidebar, prompt input, auth redirect, settings, markdown, model UI
+- settings shell lives in `apps/web/src/components/settings-modal.tsx`; settings dropdown fields use the shared Shadcn `Select` pattern for consistent design
+- `apps/web/src/components/chat-model-context.tsx`: model preference state; persists `default model` and `last used model` separately in `localStorage`
 - `apps/web/src/hooks/chat-data/*`: thread/message send flow, optimistic message list updates, local draft support
 - `apps/web/src/offline/*`: localStorage-backed offline snapshots
 
@@ -198,8 +200,9 @@ Backend:
 1. Route loads chat shell and current thread through React Router.
 2. Data hooks subscribe to Convex queries.
 3. `useSendMessage` in `apps/web/src/hooks/chat-data/send.ts` creates a thread if needed, uploads files, and calls generation mutations.
-4. Optimistic assistant and user message placeholders are inserted with local query store updates.
-5. Successful data is mirrored into offline browser storage for read-back.
+4. In the web composer, long pasted plain text is converted into a real `.txt` `File` attachment before send rather than being inlined into the prompt body.
+5. Optimistic assistant and user message placeholders are inserted with local query store updates.
+6. Successful data is mirrored into offline browser storage for read-back.
 
 ## Offline Model
 

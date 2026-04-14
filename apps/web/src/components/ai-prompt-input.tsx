@@ -19,7 +19,7 @@ import {
   combineTextAttachmentsWithPrompt,
   buildMentionProjectOptions,
   buildPendingProjectDraft,
-  createTextAttachment,
+  createPastedTextFile,
   extractClipboardImageFiles,
   getAttachmentFingerprint,
   getComposerErrorMessage,
@@ -180,7 +180,6 @@ interface AIPromptInputProps {
   onCancelCreateProject?: () => void
   creatingProject?: boolean
   imageAttachmentsSupported?: boolean
-  textAttachmentCardsEnabled?: boolean
 }
 
 export function AIPromptInput({
@@ -212,7 +211,6 @@ export function AIPromptInput({
   onCancelCreateProject,
   creatingProject = false,
   imageAttachmentsSupported = true,
-  textAttachmentCardsEnabled = true,
 }: AIPromptInputProps) {
   const [internalValue, setInternalValue] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -710,13 +708,9 @@ export function AIPromptInput({
               }
 
               const pastedText = event.clipboardData.getData('text/plain')
-              if (
-                textAttachmentCardsEnabled &&
-                pastedText &&
-                shouldConvertToTextAttachment(pastedText)
-              ) {
+              if (pastedText && shouldConvertToTextAttachment(pastedText)) {
                 event.preventDefault()
-                setTextAttachments((current) => [...current, createTextAttachment(pastedText)])
+                addAttachments([createPastedTextFile(pastedText)])
               }
             }}
             onChange={(event) => {

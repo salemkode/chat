@@ -3,7 +3,6 @@ import {
   AUTO_MODEL_ID,
   chatSuggestions,
   isAutoModelSelection,
-  modelSupportsAnyAttachments,
   modelSupportsImageAttachments,
 } from '@chat/shared'
 import { api } from '@convex/_generated/api'
@@ -432,11 +431,6 @@ function ChatComposer({ threadId, mobile = false }: { threadId?: string; mobile?
     : selectedModelCapabilitiesKnown
       ? modelSupportsImageAttachments(selectedModel?.capabilities)
       : true
-  const textAttachmentCardsEnabled = isAutoModelSelection(selectedModelId)
-    ? true
-    : selectedModelCapabilitiesKnown
-      ? modelSupportsAnyAttachments(selectedModel?.capabilities)
-      : true
   const selectedModelLabel = isAutoModelSelection(selectedModelId)
     ? 'Auto'
     : selectedModel?.displayName || selectedModelId
@@ -508,7 +502,6 @@ function ChatComposer({ threadId, mobile = false }: { threadId?: string; mobile?
         contextThreadId={threadId}
         contextModelDocId={selectedModelDocId}
         imageAttachmentsSupported={imageAttachmentsSupported}
-        textAttachmentCardsEnabled={textAttachmentCardsEnabled}
         onEmptyEnter={() => {
           if (!threadId || queuedMessages.length === 0) {
             return

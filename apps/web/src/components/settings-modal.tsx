@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { AUTO_MODEL_ID, isAutoModelSelection } from '@chat/shared'
 import { useClerk } from '@clerk/react-router'
 import { useNavigate } from 'react-router'
 import {
@@ -27,18 +28,23 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { MemorySettingsPanel } from '@/components/settings/memory-settings-panel'
 import { KeyboardSettingsPanel } from '@/components/settings/keyboard-settings-panel'
 import { useTheme } from '@/components/theme-provider'
 import { useOnlineStatus } from '@/hooks/use-online-status'
-import { useRoleContext, useSettings, useViewer } from '@/hooks/use-chat-data'
+import { useModels, useRoleContext, useSettings, useViewer } from '@/hooks/use-chat-data'
 import type { SettingsTab } from '@/lib/settings-navigation'
 import { normalizeHexColor, type ThemeMode } from '@/lib/theme'
 import { readFileReaderResultAsString } from '@/lib/parsers'
 import { cn } from '@/lib/utils'
-import { ResponsiveSelectField } from '@/components/ui/responsive-select-field'
 import { useChatModel } from '@/components/chat-model-context'
-import { ModelSelector } from '@/components/model-selector'
 
 interface SettingsDialogProps {
   open: boolean
@@ -66,6 +72,42 @@ function SettingsItem({ label, description, children }: SettingsItemProps) {
   )
 }
 
+type SettingsSelectOption = {
+  value: string
+  label: string
+}
+
+function SettingsSelect({
+  value,
+  options,
+  onValueChange,
+  placeholder,
+  className,
+  disabled,
+}: {
+  value?: string
+  options: SettingsSelectOption[]
+  onValueChange: (value: string) => void
+  placeholder?: string
+  className?: string
+  disabled?: boolean
+}) {
+  return (
+    <Select value={value} onValueChange={onValueChange} disabled={disabled}>
+      <SelectTrigger className={className}>
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((option) => (
+          <SelectItem key={option.value} value={option.value}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
+}
+
 export function SettingsDialog({
   open,
   onOpenChange,
@@ -73,7 +115,8 @@ export function SettingsDialog({
 }: SettingsDialogProps) {
   const user = useViewer()
   const { settings, updateSettings } = useSettings()
-  const { selectedModelId, setSelectedModelId } = useChatModel()
+  const { defaultModelId, setDefaultModelId, setSelectedModelId } = useChatModel()
+  const { models, autoModelAvailable } = useModels()
   const { isAdminLike } = useRoleContext()
   const { isOnline } = useOnlineStatus()
   const { theme, setTheme, primaryColor, setPrimaryColor } = useTheme()
@@ -160,6 +203,32 @@ export function SettingsDialog({
   const displayNameValue = displayName || user?.name || ''
   const emailValue = user?.email || ''
   const activePanel = tabs.find((tab) => tab.id === activeTab)
+  const reasoningLevel = settings?.reasoningLevel
+  const selectedReasoningLevel =
+    reasoningLevel === 'low' || reasoningLevel === 'medium' || reasoningLevel === 'high'
+      ? reasoningLevel
+      : 'medium'
+
+  const modelOptions = useMemo(() => {
+    const sortedModels = [...models].sort((a, b) => a.displayName.localeCompare(b.displayName))
+    const options = sortedModels.map((model) => ({
+      value: model.modelId,
+      label: model.displayName,
+    }))
+
+    if (autoModelAvailable) {
+      return [{ value: AUTO_MODEL_ID, label: 'Auto' }, ...options]
+    }
+
+    return options
+  }, [autoModelAvailable, models])
+
+  const selectedModelValue =
+    defaultModelId && modelOptions.some((option) => option.value === defaultModelId)
+      ? defaultModelId
+      : autoModelAvailable
+        ? AUTO_MODEL_ID
+        : modelOptions[0]?.value
 
   const getInitials = (name: string) =>
     name
@@ -256,10 +325,10 @@ export function SettingsDialog({
             {activeTab === 'general' ? (
               <div className="space-y-3">
                 <SettingsItem label="Language">
-                  <ResponsiveSelectField
+                  <SettingsSelect
                     value={language}
                     onValueChange={setLanguage}
-                    title="Choose language"
+                    placeholder="Choose language"
                     className="w-[140px]"
                     options={[
                       { value: 'auto', label: 'Auto-detect' },
@@ -375,10 +444,23 @@ export function SettingsDialog({
                   label="Default model"
                   description="Choose a fixed model or Auto when it is enabled by the admin router configuration."
                 >
-                  <ModelSelector
-                    selectedModel={selectedModelId}
-                    onModelChange={setSelectedModelId}
+                  <SettingsSelect
+                    value={selectedModelValue}
+                    onValueChange={(value) => {
+                      const nextModel =
+                        isAutoModelSelection(value) || modelOptions.some((option) => option.value === value)
+                          ? value
+                          : undefined
+
+                      if (nextModel) {
+                        setDefaultModelId(nextModel)
+                        setSelectedModelId(nextModel)
+                      }
+                    }}
                     className="w-full sm:w-[220px]"
+                    placeholder="Choose default model"
+                    options={modelOptions}
+                    disabled={!isOnline || modelOptions.length === 0}
                   />
                 </SettingsItem>
                 <SettingsItem
@@ -397,18 +479,15 @@ export function SettingsDialog({
                   label="Reasoning depth"
                   description="Default when reasoning is enabled."
                 >
-                  <ResponsiveSelectField
-                    value={
-                      (settings?.reasoningLevel as 'low' | 'medium' | 'high' | undefined) ??
-                      'medium'
-                    }
+                  <SettingsSelect
+                    value={selectedReasoningLevel}
                     onValueChange={(value) => {
-                      void updateSettings({
-                        reasoningLevel: value as 'low' | 'medium' | 'high',
-                      })
+                      if (value === 'low' || value === 'medium' || value === 'high') {
+                        void updateSettings({ reasoningLevel: value })
+                      }
                     }}
                     disabled={!isOnline}
-                    title="Depth"
+                    placeholder="Depth"
                     className="w-[140px]"
                     options={[
                       { value: 'low', label: 'Low' },
