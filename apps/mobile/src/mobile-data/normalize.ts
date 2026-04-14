@@ -45,6 +45,15 @@ export function normalizeModel(model: any): MobileOfflineModelRecord {
     displayName: model.displayName,
     description: model.description,
     capabilities: Array.isArray(model.capabilities) ? model.capabilities : undefined,
+    supportedAttachmentMediaTypes: Array.isArray(model.supportedAttachmentMediaTypes)
+      ? model.supportedAttachmentMediaTypes
+      : undefined,
+    attachmentValidationStatus:
+      model.attachmentValidationStatus === 'pending' ||
+      model.attachmentValidationStatus === 'valid' ||
+      model.attachmentValidationStatus === 'invalid'
+        ? model.attachmentValidationStatus
+        : undefined,
     sortOrder: model.sortOrder,
     isFavorite: Boolean(model.isFavorite),
   }

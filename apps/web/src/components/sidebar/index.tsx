@@ -31,7 +31,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { SettingsDialog } from '@/components/settings-dialog'
+import { SettingsDialog } from '@/components/settings-modal'
 import { useOnlineStatus } from '@/hooks/use-online-status'
 import { useProjects, useThreads, useViewer } from '@/hooks/use-chat-data'
 import { writePendingNewChatProjectId } from '@/lib/project-selection'

@@ -42,6 +42,7 @@ export function AdminModelsPanel({ dashboard, onOpenModelDialog }: AdminModelsPa
               <TableRow>
                 <TableHead>Model</TableHead>
                 <TableHead>Provider</TableHead>
+                <TableHead>File Policy</TableHead>
                 <TableHead>Visibility</TableHead>
                 <TableHead>Usage / 30d</TableHead>
                 <TableHead>Accounts</TableHead>
@@ -70,6 +71,26 @@ export function AdminModelsPanel({ dashboard, onOpenModelDialog }: AdminModelsPa
                     </div>
                   </TableCell>
                   <TableCell>{getProviderName(providers, model.providerId)}</TableCell>
+                  <TableCell>
+                    <div className="space-y-1">
+                      <Badge
+                        variant={
+                          model.attachmentValidationStatus === 'invalid'
+                            ? 'destructive'
+                            : model.attachmentValidationStatus === 'pending'
+                              ? 'secondary'
+                              : 'default'
+                        }
+                      >
+                        {model.attachmentValidationStatus ?? 'pending'}
+                      </Badge>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {model.supportedAttachmentMediaTypes?.join(', ') ||
+                          model.attachmentValidationMessage ||
+                          'Inferred from capabilities'}
+                      </p>
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Switch

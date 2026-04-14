@@ -3,8 +3,7 @@ import {
   AUTO_MODEL_ID,
   chatSuggestions,
   isAutoModelSelection,
-  modelSupportsAnyAttachments,
-  modelSupportsImageAttachments,
+  resolveModelAttachmentMediaTypes,
 } from '@chat/shared'
 import { api } from '@convex/_generated/api'
 import type { Id } from '@convex/_generated/dataModel'
@@ -425,18 +424,13 @@ function ChatComposer({ threadId, mobile = false }: { threadId?: string; mobile?
   const defaultReasoningLevel = isAutoModelSelection(selectedModelId)
     ? 'medium'
     : selectedModel?.defaultReasoningLevel
-  const selectedModelCapabilitiesKnown =
-    Array.isArray(selectedModel?.capabilities) && selectedModel.capabilities.length > 0
-  const imageAttachmentsSupported = isAutoModelSelection(selectedModelId)
-    ? true
-    : selectedModelCapabilitiesKnown
-      ? modelSupportsImageAttachments(selectedModel?.capabilities)
-      : true
-  const textAttachmentCardsEnabled = isAutoModelSelection(selectedModelId)
-    ? true
-    : selectedModelCapabilitiesKnown
-      ? modelSupportsAnyAttachments(selectedModel?.capabilities)
-      : true
+  const attachmentMediaTypes = isAutoModelSelection(selectedModelId)
+    ? resolveModelAttachmentMediaTypes({})
+    : resolveModelAttachmentMediaTypes({
+        capabilities: selectedModel?.capabilities,
+        supportedAttachmentMediaTypes: selectedModel?.supportedAttachmentMediaTypes,
+        attachmentValidationStatus: selectedModel?.attachmentValidationStatus,
+      })
   const selectedModelLabel = isAutoModelSelection(selectedModelId)
     ? 'Auto'
     : selectedModel?.displayName || selectedModelId
@@ -507,8 +501,7 @@ function ChatComposer({ threadId, mobile = false }: { threadId?: string; mobile?
         onModelChange={setSelectedModelId}
         contextThreadId={threadId}
         contextModelDocId={selectedModelDocId}
-        imageAttachmentsSupported={imageAttachmentsSupported}
-        textAttachmentCardsEnabled={textAttachmentCardsEnabled}
+        attachmentMediaTypes={attachmentMediaTypes}
         onEmptyEnter={() => {
           if (!threadId || queuedMessages.length === 0) {
             return

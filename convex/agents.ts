@@ -46,6 +46,11 @@ import {
   type ToolPolicyRequiredAction,
 } from './lib/toolPolicy'
 import { projectContextTools } from './lib/projectContextTools'
+import {
+  isMediaTypeAllowed,
+  resolveModelAttachmentMediaTypes,
+  type ModelAttachmentValidationStatus,
+} from './lib/modelAttachmentPolicy'
 
 // Random emoji picker for new chats
 const CHAT_EMOJIS = [
@@ -76,7 +81,6 @@ export function getRandomEmoji(): string {
 }
 
 const THREAD_TITLE_MAX_LENGTH = 60
-const SUPPORTED_CHAT_ATTACHMENT_TYPES = ['application/pdf'] as const
 export const GENERATION_STOPPED_BY_USER = 'GENERATION_STOPPED_BY_USER'
 const GENERATION_FAILED_FALLBACK_MESSAGE = 'The model could not complete this response.'
 const GENERATION_REPLACED_BY_RESEND = 'Regenerating response.'
@@ -113,15 +117,6 @@ function normalizeThreadTitle(title: string) {
 function normalizeThreadEmoji(emoji?: string) {
   const cleaned = emoji?.trim()
   return cleaned ? cleaned.slice(0, 16) : undefined
-}
-
-function isSupportedChatAttachmentType(mediaType: string) {
-  return (
-    mediaType.startsWith('image/') ||
-    SUPPORTED_CHAT_ATTACHMENT_TYPES.includes(
-      mediaType as (typeof SUPPORTED_CHAT_ATTACHMENT_TYPES)[number],
-    )
-  )
 }
 
 function summarizeForPrompt(text: string, maxLength = 240) {
@@ -1059,8 +1054,27 @@ async function deleteResponseStepsForPrompt(
 
 async function registerChatAttachments(
   ctx: MutationCtx,
-  attachments: Array<Infer<typeof chatAttachmentValidator>>,
+  args: {
+    attachments: Array<Infer<typeof chatAttachmentValidator>>
+    model: {
+      capabilities?: string[]
+      supportedAttachmentMediaTypes?: string[]
+      attachmentValidationStatus?: ModelAttachmentValidationStatus
+    }
+  },
 ) {
+  const allowedMediaTypes = resolveModelAttachmentMediaTypes({
+    capabilities: args.model.capabilities,
+    supportedAttachmentMediaTypes: args.model.supportedAttachmentMediaTypes,
+    attachmentValidationStatus: args.model.attachmentValidationStatus,
+  })
+  if (allowedMediaTypes.length === 0) {
+    throw new ConvexError({
+      code: 'VALIDATION_ERROR',
+      message: 'This model does not support file attachments.',
+    })
+  }
+
   const registered: Array<{
     fileId: string
     filename?: string
@@ -1068,7 +1082,7 @@ async function registerChatAttachments(
     storageId: Id<'_storage'>
   }> = []
 
-  for (const attachment of attachments) {
+  for (const attachment of args.attachments) {
     const metadata = await ctx.storage.getMetadata(attachment.storageId)
     if (!metadata) {
       throw new ConvexError({
@@ -1078,10 +1092,10 @@ async function registerChatAttachments(
     }
 
     const mediaType = metadata.contentType || attachment.mediaType || ''
-    if (!isSupportedChatAttachmentType(mediaType)) {
+    if (!isMediaTypeAllowed(mediaType, allowedMediaTypes)) {
       throw new ConvexError({
         code: 'VALIDATION_ERROR',
-        message: 'Only images and PDFs are supported right now',
+        message: `This model accepts: ${allowedMediaTypes.join(', ')}`,
       })
     }
 
@@ -1806,7 +1820,10 @@ export const generateMessage = mutation({
     let promptMessageId: string | undefined
 
     if (args.attachments && args.attachments.length > 0) {
-      const registeredAttachments = await registerChatAttachments(ctx, args.attachments)
+      const registeredAttachments = await registerChatAttachments(ctx, {
+        attachments: args.attachments,
+        model,
+      })
       const content: Array<TextPart | FilePart | ImagePart> = []
       const trimmedPrompt = args.prompt.trim()
 

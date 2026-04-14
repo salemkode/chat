@@ -32,8 +32,9 @@ function normalizeMediaTypePattern(value: string): string {
   return value.trim().toLowerCase()
 }
 
-function isValidMediaTypePattern(value: string): boolean {
-  return /^[a-z0-9!#$&^_.+-]+\/(\*|[a-z0-9!#$&^_.+-]+)$/.test(value)
+export function isValidAttachmentMediaTypePattern(value: string): boolean {
+  const normalized = normalizeMediaTypePattern(value)
+  return /^[a-z0-9!#$&^_.+-]+\/(\*|[a-z0-9!#$&^_.+-]+)$/.test(normalized)
 }
 
 export function normalizeModelCapabilities(capabilities?: string[] | null): string[] {
@@ -48,16 +49,6 @@ export function normalizeModelCapabilities(capabilities?: string[] | null): stri
   return [...new Set(normalized)]
 }
 
-export function modelSupportsImageAttachments(capabilities?: string[] | null): boolean {
-  const normalized = normalizeModelCapabilities(capabilities)
-  return normalized.some((capability) => IMAGE_INPUT_CAPABILITIES.has(capability))
-}
-
-export function modelSupportsAnyAttachments(capabilities?: string[] | null): boolean {
-  const normalized = normalizeModelCapabilities(capabilities)
-  return normalized.some((capability) => ATTACHMENT_INPUT_CAPABILITIES.has(capability))
-}
-
 export function normalizeAttachmentMediaTypes(mediaTypes?: string[] | null): string[] {
   if (!Array.isArray(mediaTypes)) {
     return []
@@ -66,38 +57,9 @@ export function normalizeAttachmentMediaTypes(mediaTypes?: string[] | null): str
   const normalized = mediaTypes
     .map(normalizeMediaTypePattern)
     .filter((value) => value.length > 0)
-    .filter((value) => isValidMediaTypePattern(value))
+    .filter((value) => isValidAttachmentMediaTypePattern(value))
 
   return [...new Set(normalized)]
-}
-
-export function mediaTypeMatchesPattern(mediaType: string, pattern: string): boolean {
-  const normalizedMediaType = normalizeMediaTypePattern(mediaType)
-  if (!normalizedMediaType || !normalizedMediaType.includes('/')) {
-    return false
-  }
-
-  const normalizedPattern = normalizeMediaTypePattern(pattern)
-  if (!isValidMediaTypePattern(normalizedPattern)) {
-    return false
-  }
-
-  const [mediaTypeGroup, mediaSubtype] = normalizedMediaType.split('/')
-  const [patternGroup, patternSubtype] = normalizedPattern.split('/')
-  if (!mediaTypeGroup || !mediaSubtype || !patternGroup || !patternSubtype) {
-    return false
-  }
-
-  return (
-    patternGroup === mediaTypeGroup && (patternSubtype === '*' || patternSubtype === mediaSubtype)
-  )
-}
-
-export function isAttachmentMediaTypeAllowed(
-  mediaType: string,
-  allowedMediaTypes: string[],
-): boolean {
-  return allowedMediaTypes.some((pattern) => mediaTypeMatchesPattern(mediaType, pattern))
 }
 
 export function inferAttachmentMediaTypesFromCapabilities(
@@ -136,9 +98,7 @@ export function inferAttachmentMediaTypesFromCapabilities(
     return inferred
   }
 
-  return modelSupportsAnyAttachments(normalizedCapabilities)
-    ? [...DEFAULT_ATTACHMENT_MEDIA_TYPES]
-    : []
+  return [...DEFAULT_ATTACHMENT_MEDIA_TYPES]
 }
 
 export function resolveModelAttachmentMediaTypes(args: {
@@ -161,4 +121,26 @@ export function resolveModelAttachmentMediaTypes(args: {
   }
 
   return [...DEFAULT_ATTACHMENT_MEDIA_TYPES]
+}
+
+export function mediaTypeMatchesPattern(mediaType: string, pattern: string): boolean {
+  const normalizedMediaType = normalizeMediaTypePattern(mediaType)
+  const normalizedPattern = normalizeMediaTypePattern(pattern)
+  if (!normalizedMediaType || !isValidAttachmentMediaTypePattern(normalizedPattern)) {
+    return false
+  }
+
+  const [mediaTypeGroup, mediaSubtype] = normalizedMediaType.split('/')
+  const [patternGroup, patternSubtype] = normalizedPattern.split('/')
+  if (!mediaTypeGroup || !mediaSubtype || !patternGroup || !patternSubtype) {
+    return false
+  }
+
+  return (
+    patternGroup === mediaTypeGroup && (patternSubtype === '*' || patternSubtype === mediaSubtype)
+  )
+}
+
+export function isMediaTypeAllowed(mediaType: string, allowedMediaTypes: string[]): boolean {
+  return allowedMediaTypes.some((pattern) => mediaTypeMatchesPattern(mediaType, pattern))
 }

@@ -51,6 +51,7 @@ export declare const api: {
         }
         reasoningLevels?: Array<'low' | 'medium' | 'high'>
         sortOrder: number
+        supportedAttachmentMediaTypes?: Array<string>
         supportsReasoning?: boolean
       },
       any
@@ -215,6 +216,9 @@ export declare const api: {
       Array<{
         _creationTime: number
         _id: Id<'models'>
+        attachmentValidatedAt?: number
+        attachmentValidationMessage?: string
+        attachmentValidationStatus?: 'pending' | 'valid' | 'invalid'
         capabilities?: Array<string>
         contextWindow?: number
         defaultReasoningLevel?: 'off' | 'low' | 'medium' | 'high'
@@ -243,6 +247,7 @@ export declare const api: {
         }
         reasoningLevels?: Array<'low' | 'medium' | 'high'>
         sortOrder: number
+        supportedAttachmentMediaTypes?: Array<string>
         supportsReasoning?: boolean
       }>
     >
@@ -281,6 +286,9 @@ export declare const api: {
         favorites: Array<{
           _creationTime: number
           _id: Id<'models'>
+          attachmentValidatedAt?: number
+          attachmentValidationMessage?: string
+          attachmentValidationStatus?: 'pending' | 'valid' | 'invalid'
           capabilities?: Array<string>
           contextWindow?: number
           defaultReasoningLevel?: 'off' | 'low' | 'medium' | 'high'
@@ -340,11 +348,15 @@ export declare const api: {
           }
           reasoningLevels?: Array<'low' | 'medium' | 'high'>
           sortOrder: number
+          supportedAttachmentMediaTypes?: Array<string>
           supportsReasoning?: boolean
         }>
         models: Array<{
           _creationTime: number
           _id: Id<'models'>
+          attachmentValidatedAt?: number
+          attachmentValidationMessage?: string
+          attachmentValidationStatus?: 'pending' | 'valid' | 'invalid'
           capabilities?: Array<string>
           contextWindow?: number
           defaultReasoningLevel?: 'off' | 'low' | 'medium' | 'high'
@@ -404,6 +416,7 @@ export declare const api: {
           }
           reasoningLevels?: Array<'low' | 'medium' | 'high'>
           sortOrder: number
+          supportedAttachmentMediaTypes?: Array<string>
           supportsReasoning?: boolean
         }>
         providers: Array<{
@@ -528,6 +541,7 @@ export declare const api: {
         }
         reasoningLevels?: Array<'low' | 'medium' | 'high'>
         sortOrder?: number
+        supportedAttachmentMediaTypes?: Array<string>
         supportsReasoning?: boolean
       },
       any
@@ -610,6 +624,12 @@ export declare const api: {
         sortOrder?: number
       },
       any
+    >
+    validateModelAttachmentPolicies: FunctionReference<
+      'mutation',
+      'public',
+      { modelId?: Id<'models'> },
+      { invalidCount: number; updatedAt: number; validatedCount: number }
     >
     verifyAutoModelRouterConnection: FunctionReference<
       'action',

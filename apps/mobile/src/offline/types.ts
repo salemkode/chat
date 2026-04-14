@@ -40,6 +40,8 @@ export interface MobileOfflineModelRecord {
   displayName: string
   description?: string
   capabilities?: string[]
+  supportedAttachmentMediaTypes?: string[]
+  attachmentValidationStatus?: 'pending' | 'valid' | 'invalid'
   sortOrder: number
   isFavorite: boolean
 }

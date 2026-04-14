@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest'
 import {
   buildMentionProjectOptions,
   buildPendingProjectDraft,
+  createPastedTextFile,
   extractClipboardImageFiles,
+  isSupportedAttachment,
+  shouldConvertToTextAttachment,
 } from './utils'
 
 describe('buildMentionProjectOptions', () => {
@@ -121,5 +124,26 @@ describe('extractClipboardImageFiles', () => {
     expect(files).toHaveLength(1)
     expect(files[0]?.name).toBe('clipboard-shot.webp')
     expect(files[0]?.type).toBe('image/webp')
+  })
+})
+
+describe('text paste attachments', () => {
+  it('marks long clipboard text for attachment conversion', () => {
+    const longText = `${'A'.repeat(520)}\n`
+    expect(shouldConvertToTextAttachment(longText)).toBe(true)
+    expect(shouldConvertToTextAttachment('short')).toBe(false)
+  })
+
+  it('creates a real text file attachment for pasted text', () => {
+    const file = createPastedTextFile('line one\nline two')
+    expect(file.name.startsWith('pasted-text-')).toBe(true)
+    expect(file.name.endsWith('.txt')).toBe(true)
+    expect(file.type).toBe('text/plain')
+    expect(file.size).toBeGreaterThan(0)
+  })
+
+  it('accepts plain text files as supported attachments', () => {
+    const textFile = new File(['hello'], 'notes.txt', { type: 'text/plain' })
+    expect(isSupportedAttachment(textFile, ['text/plain'])).toBe(true)
   })
 })

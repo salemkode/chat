@@ -55,6 +55,7 @@ type Props = {
   onPickDocument: () => Promise<void>
   onSend: () => Promise<void>
   sendDisabled: boolean
+  attachmentMediaTypes: string[]
   imageAttachmentsSupported: boolean
   isOnline: boolean
   bottomInset: number
@@ -99,6 +100,7 @@ export function ChatComposer({
   onPickDocument,
   onSend,
   sendDisabled,
+  attachmentMediaTypes,
   imageAttachmentsSupported,
   isOnline,
   bottomInset,
@@ -106,6 +108,8 @@ export function ChatComposer({
   contextThreadId,
   contextModelDocId,
 }: Props) {
+  const attachmentsSupported = attachmentMediaTypes.length > 0
+
   return (
     <View
       style={{
@@ -453,14 +457,36 @@ export function ChatComposer({
           />
         </Pressable>
         <Pressable
+          disabled={!attachmentsSupported}
           onPress={() => void onPickDocument()}
-          style={{ borderRadius: 999, backgroundColor: CHAT_CARD, padding: 8 }}
+          style={{
+            borderRadius: 999,
+            backgroundColor: CHAT_CARD,
+            padding: 8,
+            opacity: attachmentsSupported ? 1 : 0.55,
+          }}
         >
-          <Ionicons name="document-attach-outline" size={20} color={CHAT_FG} />
+          <Ionicons
+            name="document-attach-outline"
+            size={20}
+            color={attachmentsSupported ? CHAT_FG : CHAT_FG_MUTED}
+          />
         </Pressable>
       </View>
 
-      {!imageAttachmentsSupported ? (
+      {!attachmentsSupported ? (
+        <Text
+          style={{
+            marginBottom: 8,
+            marginHorizontal: 4,
+            fontSize: 12,
+            color: CHAT_FG_MUTED,
+            fontFamily: 'Inter_400Regular',
+          }}
+        >
+          This model does not support file attachments.
+        </Text>
+      ) : !imageAttachmentsSupported ? (
         <Text
           style={{
             marginBottom: 8,

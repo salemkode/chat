@@ -33,6 +33,12 @@ const modelReasoningDefaultValidator = v.union(
   v.literal('high'),
 )
 
+const modelAttachmentValidationStatusValidator = v.union(
+  v.literal('pending'),
+  v.literal('valid'),
+  v.literal('invalid'),
+)
+
 const modelSelectionTierValidator = v.union(
   v.literal('free'),
   v.literal('pro'),
@@ -241,6 +247,10 @@ export default defineSchema({
     contextWindow: v.optional(v.number()),
     maxOutputTokens: v.optional(v.number()),
     modalities: v.optional(modalitiesValidator),
+    supportedAttachmentMediaTypes: v.optional(v.array(v.string())),
+    attachmentValidationStatus: v.optional(modelAttachmentValidationStatusValidator),
+    attachmentValidationMessage: v.optional(v.string()),
+    attachmentValidatedAt: v.optional(v.number()),
     rateLimit: v.optional(rateLimitPolicyValidator),
     discoveredAt: v.optional(v.number()),
     lastSyncedAt: v.optional(v.number()),

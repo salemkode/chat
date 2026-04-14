@@ -38,6 +38,7 @@ export function AdminSettingsPanel({ dashboard }: AdminSettingsPanelProps) {
   const verifyAutoModelRouterConnection = useAction(api.admin.verifyAutoModelRouterConnection)
   const createProSubscriptionCheckout = useAction(api.stripe.createProSubscriptionCheckout)
   const createBillingPortalSession = useAction(api.stripe.createBillingPortalSession)
+  const validateModelAttachmentPolicies = useMutation(api.admin.validateModelAttachmentPolicies)
 
   const billing = dashboard.billing
   const autoRouting = dashboard.autoRouting ?? {
@@ -76,6 +77,14 @@ export function AdminSettingsPanel({ dashboard }: AdminSettingsPanelProps) {
   const setAutoModelRouterPreference = (value: 'balanced' | 'cost' | 'speed' | 'quality') =>
     updateSettings({ autoModelRouterPreferenceDraft: value })
   const [isVerifyingRouter, setIsVerifyingRouter] = useState(false)
+  const [isValidatingModels, setIsValidatingModels] = useState(false)
+  const invalidModelCount = dashboard.models.filter(
+    (model: (typeof dashboard.models)[number]) => model.attachmentValidationStatus === 'invalid',
+  ).length
+  const pendingModelCount = dashboard.models.filter(
+    (model: (typeof dashboard.models)[number]) =>
+      model.attachmentValidationStatus === 'pending' || !model.attachmentValidationStatus,
+  ).length
 
   const handleSaveSettings = useCallback(async () => {
     const trimmedRouterUrl = autoModelRouterUrl.trim() || undefined
@@ -176,6 +185,20 @@ export function AdminSettingsPanel({ dashboard }: AdminSettingsPanelProps) {
         updateSettings({ isOpeningBillingPortal: false })
       })
   }, [createBillingPortalSession])
+
+  const handleValidateModels = useCallback(async () => {
+    setIsValidatingModels(true)
+    try {
+      const result = await validateModelAttachmentPolicies({})
+      toast.success(
+        `Validated ${result.validatedCount} models${result.invalidCount > 0 ? `, ${result.invalidCount} invalid` : ''}`,
+      )
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to validate models')
+    } finally {
+      setIsValidatingModels(false)
+    }
+  }, [validateModelAttachmentPolicies])
 
   const isSavingSettings = settingsState.isSavingSettings
   const isStartingCheckout = settingsState.isStartingCheckout
@@ -300,6 +323,31 @@ export function AdminSettingsPanel({ dashboard }: AdminSettingsPanelProps) {
             value={globalRateLimit}
             onChange={setGlobalRateLimit}
           />
+          <Separator />
+          <div className="grid gap-3 rounded-xl border border-border bg-muted p-4">
+            <div className="flex items-center justify-between gap-2">
+              <p className="font-medium text-foreground">Model file policy validation</p>
+              <Badge variant={invalidModelCount > 0 ? 'destructive' : 'secondary'}>
+                {invalidModelCount > 0 ? `${invalidModelCount} invalid` : 'No invalid models'}
+              </Badge>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Validate configured model attachment media types and refresh status in the models
+              admin page.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline">{pendingModelCount} pending</Badge>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void handleValidateModels()}
+                disabled={isValidatingModels}
+              >
+                {isValidatingModels ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
+                Validate models
+              </Button>
+            </div>
+          </div>
           <Separator />
           <div className="grid gap-4 rounded-xl border border-border bg-muted p-4">
             <div>
