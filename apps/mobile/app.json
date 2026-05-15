@@ -3,22 +3,21 @@
     "name": "Salemkode Chat Mobile",
     "slug": "salemkode-chat-mobile",
     "version": "1.0.0",
-    "newArchEnabled": false,
     "orientation": "portrait",
     "scheme": "salemkode-chat-mobile",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#000000"
-    },
+    "backgroundColor": "#000000",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.salemkode.chat"
+      "bundleIdentifier": "com.salemkode.agent",
+      "appleTeamId": "U5F7DCUAMQ",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
-      "package": "com.salemkode.chat",
+      "package": "com.salemkode.agent",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -26,7 +25,9 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "permissions": ["android.permission.RECORD_AUDIO"]
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "plugins": [
       "expo-router",
@@ -38,16 +39,35 @@
       "expo-document-picker",
       "expo-web-browser",
       "@clerk/expo",
-      "expo-font"
+      "expo-font",
+      "expo-image",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "17.0"
+          }
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#000000"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
     "extra": {
-      "EXPO_PUBLIC_CLERK_GOOGLE_IOS_URL_SCHEME": "com.googleusercontent.apps.719208346092-o0aglbhq4vgg5frg2b1bi0o7e4bj1gpn"
-    }
+      "EXPO_PUBLIC_CLERK_GOOGLE_IOS_URL_SCHEME": "com.googleusercontent.apps.719208346092-o0aglbhq4vgg5frg2b1bi0o7e4bj1gpn",
+      "router": {},
+      "eas": {
+        "projectId": "3eb43048-7dce-40e1-b4e5-5fd0a4e62756"
+      }
+    },
+    "owner": "salemkode"
   }
 }
