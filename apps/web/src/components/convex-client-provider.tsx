@@ -10,10 +10,6 @@ const convex = new ConvexReactClient(getRequiredEnv(import.meta.env, 'VITE_CONVE
 })
 
 export function ConvexClientProvider({ children }: { children: ReactNode }) {
-  return <ConvexClerkProvider>{children}</ConvexClerkProvider>
-}
-
-function ConvexClerkProvider({ children }: { children: ReactNode }) {
   const { isLoaded, isSignedIn, getToken, orgId, orgRole } = useAuth()
 
   useEffect(() => {
@@ -48,7 +44,7 @@ function ConvexClerkProvider({ children }: { children: ReactNode }) {
   return (
     <ConvexProvider client={convex}>
       {/* Keeps idle Convex query subscriptions briefly after unmount for faster navigation; uses more bandwidth than uncached useQuery (see convex-helpers Query Caching docs). */}
-      <ConvexQueryCacheProvider>{children}</ConvexQueryCacheProvider>
+      {children}
     </ConvexProvider>
   )
 }
