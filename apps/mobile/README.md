@@ -39,8 +39,8 @@ cp .env.example .env
 
 | Variable              | Description                                                                                                                                                    |
 | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ANTHROPIC_API_KEY`   | Your [Anthropic API key](https://console.anthropic.com/settings/keys). Used by the server-side chat API route (`app/api/chat+api.ts`) via `@ai-sdk/anthropic`. |
-| `EXPO_PUBLIC_MOCK_AI` | Set to `1` to use mock streaming responses instead of calling the Anthropic API. Useful for UI development without an API key.                                 |
+| `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk publishable key used for the dedicated Google sign-in flow. |
+| `EXPO_PUBLIC_CONVEX_URL` | Convex deployment URL used by the mobile client. |
 
 ### Install & Run
 
@@ -85,7 +85,7 @@ I recommend using Convex, which you can setup in a single command:
 npx eas-cli@latest integrations:convex:connect
 ```
 
-Pair this with [better-auth](https://labs.convex.dev/better-auth/framework-guides/expo) for authentication. Convex also has support for Expo Notifications: [Learn more](https://www.convex.dev/components/push-notifications).
+This app uses Clerk for authentication with a dedicated sign-in screen and Google login. Native Google sign-in requires a native build, not Expo Go. Convex also has support for Expo Notifications: [Learn more](https://www.convex.dev/components/push-notifications).
 
 ## License
 

@@ -1,29 +1,39 @@
 {
   "expo": {
-    "name": "chat",
-    "slug": "chat",
+    "name": "Salemkode Chat Mobile",
+    "slug": "salemkode-chat-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "scheme": "chat",
+    "scheme": "salemkode-chat-mobile",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
+      "supportsTablet": true,
       "infoPlist": {
         "UIViewControllerBasedStatusBarAppearance": false,
         "ITSAppUsesNonExemptEncryption": false
       },
-      "bundleIdentifier": "com.salemkode.chat"
+      "bundleIdentifier": "com.salemkode.agent",
+      "appleTeamId": "A5XBH27R6R"
     },
     "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.salemkode.chat"
+      "package": "com.salemkode.agent"
     },
     "web": {
       "output": "server"
     },
     "plugins": [
       "expo-router",
+      "@clerk/expo",
       [
         "expo-splash-screen",
         {
@@ -47,6 +57,9 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "EXPO_PUBLIC_CLERK_GOOGLE_IOS_URL_SCHEME": "com.googleusercontent.apps.719208346092-o0aglbhq4vgg5frg2b1bi0o7e4bj1gpn"
     }
   }
 }

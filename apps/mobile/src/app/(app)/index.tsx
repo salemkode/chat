@@ -19,18 +19,16 @@ import { MainHeader } from "@/components/main-header";
 import { useModel } from "@/components/model-context";
 import { useMessages, useSendMessage } from "@/hooks/use-chat-data";
 import * as Haptics from "expo-haptics";
-import { Link, useRouter } from "expo-router";
+import { Link } from "expo-router";
 import { Plus } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export default function ChatScreen() {
-  const router = useRouter();
   const [threadId, setThreadId] = useState<string | undefined>(undefined);
   const [input, setInput] = useState("");
   const { selectedModelId } = useModel();
-  const { send, stop } = useSendMessage();
-  const { messages, hasActiveStreaming, loadOlderMessages, hasMore } =
-    useMessages(threadId);
+  const { send } = useSendMessage();
+  const { messages, hasActiveStreaming } = useMessages(threadId);
   const streamingStore = useMemo(() => createStreamingStore(), []);
   const prevStreamTextRef = useRef("");
 

@@ -71,10 +71,10 @@ The mobile app uses Expo Router for navigation and keeps route files thin.
 
 Entry and shell:
 
-- `apps/mobile/app/_layout.tsx`: global bootstrap, fonts, splash screen, root providers
-- `apps/mobile/src/providers/AppProviders.tsx`: Clerk + Convex + gesture handler + keyboard-controller + safe area providers
-- `apps/mobile/app/(app)/_layout.tsx`: authenticated stack shell for app routes such as profile, projects, legacy deep links, and the chat shell group
-- `apps/mobile/app/(app)/(pager)/_layout.tsx`: thin stack group kept for legacy path stability; the active chat route owns the template-style gesture drawer
+- `apps/mobile/src/app/_layout.tsx`: global bootstrap for Clerk, Convex, keyboard handling, and the top-level auth/app route split
+- `apps/mobile/src/app/(auth)/sign-in.tsx`: dedicated signed-out entry screen with Google-only Clerk login
+- `apps/mobile/src/app/(app)/_layout.tsx`: authenticated native shell with the drawer layout, model provider, and protected chat stack
+- `apps/mobile/src/app/(app)/_layout.web.tsx`: authenticated web shell with the sidebar and inset content panel
 
 Chat architecture follows the repo rule set:
 
