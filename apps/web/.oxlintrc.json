@@ -1,6 +1,21 @@
 {
   "extends": ["../../.oxlintrc.json"],
+  "plugins": [
+    "typescript",
+    "unicorn",
+    "oxc",
+    "react",
+    "import",
+    "vitest",
+    "jsx-a11y"
+  ],
   "env": {
     "browser": true
+  },
+  "settings": {
+    "react": {
+      "version": "19.0",
+      "linkComponents": [{ "name": "Link", "linkAttribute": "to" }]
+    }
   }
 }

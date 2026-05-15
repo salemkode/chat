@@ -3,15 +3,21 @@ export const DEFAULT_CUSTOM_PRIMARY = '#8b5cf6'
 
 export type ThemeMode = 'light' | 'dark' | 'system'
 export type ResolvedTheme = 'light' | 'dark'
+export type EnglishFont = 'geist' | 'inter' | 'ibm-plex'
+export type ArabicFont = 'ibm-plex-arabic' | 'noto-sans'
 
 export type ThemeSettings = {
   mode: ThemeMode
   primaryColor: string
+  englishFont: EnglishFont
+  arabicFont: ArabicFont
 }
 
 export const DEFAULT_THEME_SETTINGS: ThemeSettings = {
   mode: 'system',
   primaryColor: DEFAULT_CUSTOM_PRIMARY,
+  englishFont: 'geist',
+  arabicFont: 'ibm-plex-arabic',
 }
 
 export function parseThemeMode(
@@ -53,6 +59,45 @@ export function normalizeHexColor(
   return fallback
 }
 
+export function parseArabicFont(
+  value: unknown,
+  fallback: ArabicFont = 'ibm-plex-arabic',
+): ArabicFont {
+  if (value === 'ibm-plex-arabic' || value === 'noto-sans') {
+    return value
+  }
+
+  if (value === 'thmanyah') {
+    return 'ibm-plex-arabic'
+  }
+
+  return fallback
+}
+
+export function parseEnglishFont(value: unknown, fallback: EnglishFont = 'geist'): EnglishFont {
+  return value === 'geist' || value === 'inter' || value === 'ibm-plex' ? value : fallback
+}
+
+export function getEnglishFontFamily(font: EnglishFont): string {
+  if (font === 'inter') {
+    return "Inter, 'Geist Variable', ui-sans-serif, system-ui, sans-serif"
+  }
+
+  if (font === 'ibm-plex') {
+    return "'IBM Plex Sans', 'Geist Variable', Inter, ui-sans-serif, system-ui, sans-serif"
+  }
+
+  return "'Geist Variable', Inter, ui-sans-serif, system-ui, sans-serif"
+}
+
+export function getArabicFontFamily(font: ArabicFont): string {
+  if (font === 'noto-sans') {
+    return "'Noto Sans Arabic', sans-serif"
+  }
+
+  return "'IBM Plex Sans Arabic', 'Noto Sans Arabic', sans-serif"
+}
+
 export function parseThemeSettings(
   value: unknown,
   fallback: ThemeSettings = DEFAULT_THEME_SETTINGS,
@@ -68,6 +113,8 @@ export function parseThemeSettings(
   return {
     mode: parseThemeMode(value.mode, fallback.mode),
     primaryColor: normalizeHexColor(value.primaryColor, fallback.primaryColor),
+    englishFont: parseEnglishFont(value.englishFont, fallback.englishFont),
+    arabicFont: parseArabicFont(value.arabicFont, fallback.arabicFont),
   }
 }
 
@@ -90,6 +137,8 @@ export function serializeThemeSettings(settings: ThemeSettings): string {
   return JSON.stringify({
     mode: parseThemeMode(settings.mode, DEFAULT_THEME_SETTINGS.mode),
     primaryColor: normalizeHexColor(settings.primaryColor, DEFAULT_THEME_SETTINGS.primaryColor),
+    englishFont: parseEnglishFont(settings.englishFont, DEFAULT_THEME_SETTINGS.englishFont),
+    arabicFont: parseArabicFont(settings.arabicFont, DEFAULT_THEME_SETTINGS.arabicFont),
   })
 }
 
@@ -111,6 +160,8 @@ export function applyThemeSettings(root: HTMLElement, settings: ThemeSettings): 
   const normalized = {
     mode: parseThemeMode(settings.mode, DEFAULT_THEME_SETTINGS.mode),
     primaryColor: normalizeHexColor(settings.primaryColor, DEFAULT_THEME_SETTINGS.primaryColor),
+    englishFont: parseEnglishFont(settings.englishFont, DEFAULT_THEME_SETTINGS.englishFont),
+    arabicFont: parseArabicFont(settings.arabicFont, DEFAULT_THEME_SETTINGS.arabicFont),
   }
   const resolvedTheme = resolveThemeMode(normalized.mode)
 
@@ -126,6 +177,9 @@ export function applyThemeSettings(root: HTMLElement, settings: ThemeSettings): 
     getContrastTextColor(normalized.primaryColor),
   )
 
+  root.dataset.englishFont = normalized.englishFont
+  root.dataset.arabicFont = normalized.arabicFont
+
   return resolvedTheme
 }
 
@@ -134,6 +188,8 @@ function parseLegacyTheme(value: string, fallback: ThemeSettings): ThemeSettings
     return {
       mode: 'system',
       primaryColor: fallback.primaryColor,
+      englishFont: fallback.englishFont,
+      arabicFont: fallback.arabicFont,
     }
   }
 
@@ -141,6 +197,8 @@ function parseLegacyTheme(value: string, fallback: ThemeSettings): ThemeSettings
     return {
       mode: parseThemeMode(value, fallback.mode),
       primaryColor: fallback.primaryColor,
+      englishFont: fallback.englishFont,
+      arabicFont: fallback.arabicFont,
     }
   }
 
@@ -148,6 +206,8 @@ function parseLegacyTheme(value: string, fallback: ThemeSettings): ThemeSettings
     return {
       mode: 'system',
       primaryColor: fallback.primaryColor,
+      englishFont: fallback.englishFont,
+      arabicFont: fallback.arabicFont,
     }
   }
 

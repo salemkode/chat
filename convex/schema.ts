@@ -148,6 +148,27 @@ const modelSelectionPricingValidator = v.object({
   ),
 })
 
+const chatThreadStatusValidator = v.union(v.literal('active'), v.literal('archived'))
+
+const chatMessageStatusValidator = v.union(
+  v.literal('pending'),
+  v.literal('success'),
+  v.literal('failed'),
+)
+
+const chatMessageRoleValidator = v.union(
+  v.literal('system'),
+  v.literal('user'),
+  v.literal('assistant'),
+  v.literal('tool'),
+)
+
+const chatStoredMessageValidator = v.object({
+  role: chatMessageRoleValidator,
+  content: v.any(),
+  providerOptions: v.optional(v.any()),
+})
+
 export default defineSchema({
   users: defineTable({
     tokenIdentifier: v.optional(v.string()),
@@ -479,9 +500,108 @@ export default defineSchema({
     isExpanded: v.boolean(),
   }).index('by_userId', ['userId']),
 
+  chatThreads: defineTable({
+    userId: v.optional(v.id('users')),
+    title: v.optional(v.string()),
+    summary: v.optional(v.string()),
+    status: chatThreadStatusValidator,
+  })
+    .index('by_userId', ['userId'])
+    .searchIndex('title_search', { searchField: 'title', filterFields: ['userId'] }),
+
+  chatMessages: defineTable({
+    userId: v.optional(v.id('users')),
+    threadId: v.id('chatThreads'),
+    order: v.number(),
+    stepOrder: v.number(),
+    embeddingId: v.optional(v.id('chatMessageEmbeddings')),
+    fileIds: v.optional(v.array(v.id('chatFiles'))),
+    error: v.optional(v.string()),
+    status: chatMessageStatusValidator,
+    agentName: v.optional(v.string()),
+    model: v.optional(v.string()),
+    provider: v.optional(v.string()),
+    providerOptions: v.optional(v.any()),
+    providerMetadata: v.optional(v.any()),
+    message: v.optional(chatStoredMessageValidator),
+    tool: v.boolean(),
+    text: v.optional(v.string()),
+    parts: v.array(v.any()),
+    usage: v.optional(v.any()),
+    sources: v.optional(v.array(v.any())),
+    warnings: v.optional(v.array(v.any())),
+    finishReason: v.optional(v.string()),
+    reasoning: v.optional(v.string()),
+    reasoningDetails: v.optional(v.any()),
+  })
+    .index('by_thread_order', ['threadId', 'order', 'stepOrder'])
+    .index('by_thread_status_order', ['threadId', 'status', 'order', 'stepOrder'])
+    .index('by_embedding_thread', ['embeddingId', 'threadId'])
+    .searchIndex('text_search', {
+      searchField: 'text',
+      filterFields: ['userId', 'threadId'],
+    }),
+
+  chatStreamingMessages: defineTable({
+    userId: v.optional(v.id('users')),
+    agentName: v.optional(v.string()),
+    model: v.optional(v.string()),
+    provider: v.optional(v.string()),
+    providerOptions: v.optional(v.any()),
+    format: v.optional(v.union(v.literal('UIMessageChunk'), v.literal('TextStreamPart'))),
+    threadId: v.id('chatThreads'),
+    order: v.number(),
+    stepOrder: v.number(),
+    state: v.union(
+      v.object({
+        kind: v.literal('streaming'),
+        lastHeartbeat: v.number(),
+      }),
+      v.object({
+        kind: v.literal('finished'),
+        endedAt: v.number(),
+      }),
+      v.object({
+        kind: v.literal('aborted'),
+        reason: v.string(),
+      }),
+    ),
+  }).index('by_thread_state_order', ['threadId', 'state.kind', 'order', 'stepOrder']),
+
+  chatStreamDeltas: defineTable({
+    streamId: v.id('chatStreamingMessages'),
+    start: v.number(),
+    end: v.number(),
+    parts: v.array(v.any()),
+  }).index('by_stream_start', ['streamId', 'start', 'end']),
+
+  chatFiles: defineTable({
+    storageId: v.id('_storage'),
+    mediaType: v.optional(v.string()),
+    filename: v.optional(v.string()),
+    hash: v.string(),
+    refcount: v.number(),
+    lastTouchedAt: v.number(),
+  })
+    .index('by_hash', ['hash'])
+    .index('by_refcount', ['refcount']),
+
+  chatMessageEmbeddings: defineTable({
+    vector: v.array(v.number()),
+    model: v.string(),
+    userId: v.optional(v.id('users')),
+    threadId: v.optional(v.id('chatThreads')),
+    messageId: v.optional(v.id('chatMessages')),
+    createdAt: v.number(),
+  }).vectorIndex('by_embedding', {
+    vectorField: 'vector',
+    dimensions: 1536,
+    filterFields: ['userId', 'threadId', 'model'],
+  }),
+
   // Thread metadata (emoji/icon, sectionId) linked to agent threads
   threadMetadata: defineTable({
-    threadId: v.string(), // ID from @convex-dev/agent threads table
+    threadId: v.string(), // ID from the first-party chatThreads table
     clientThreadKey: v.optional(v.string()),
     emoji: v.string(),
     icon: v.optional(v.string()), // Lucide icon name

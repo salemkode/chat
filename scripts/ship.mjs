@@ -4,10 +4,10 @@
  * Works from any terminal (Cursor, Codex CLI, OpenCode, CI) — no IDE APIs.
  *
  * Usage:
- *   pnpm run ship
- *   pnpm run ship -- --dry-run
- *   pnpm run ship -- --no-push
- *   SHIP_INTERACTIVE=1 pnpm run ship   # prompt for each commit message
+ *   bun run ship
+ *   bun run ship -- --dry-run
+ *   bun run ship -- --no-push
+ *   SHIP_INTERACTIVE=1 bun run ship   # prompt for each commit message
  *
  * Env:
  *   SHIP_INTERACTIVE=1  - prompt for commit messages (default off)
@@ -146,7 +146,7 @@ function appendChangelog(entries) {
   const block = `## ${when}\n\n${entries.map((l) => `- ${l}`).join('\n')}\n\n`
   let body = fs.existsSync(CHANGELOG) ? fs.readFileSync(CHANGELOG, 'utf8') : ''
   if (!body.trim()) {
-    body = `# Changelog\n\nShipped changes from \`pnpm run ship\`.\n\n`
+    body = `# Changelog\n\nShipped changes from \`bun run ship\`.\n\n`
   } else if (!body.startsWith('# Changelog')) {
     body = `# Changelog\n\n${body}`
   }

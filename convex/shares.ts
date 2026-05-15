@@ -1,14 +1,9 @@
-import { paginationOptsValidator, type FunctionReturnType } from 'convex/server'
-import { ConvexError, v } from 'convex/values'
+import { paginationOptsValidator } from 'convex/server'
+import { v } from 'convex/values'
 import type { Id } from './_generated/dataModel'
-import { components } from './_generated/api'
 import { mutation, query, type MutationCtx } from './_generated/server'
-import { extractMessageText } from './functions/memoryShared'
 import { getAuthUserId } from './lib/auth'
-
-type ThreadMessageBatch = FunctionReturnType<
-  typeof components.agent.messages.listMessagesByThreadId
->
+import { extractTextFromParts, normalizeChatThreadId } from './lib/chatEngine'
 
 const sharedChatMessageValidator = v.object({
   order: v.number(),
@@ -16,37 +11,17 @@ const sharedChatMessageValidator = v.object({
   text: v.string(),
 })
 
-function isInvalidThreadIdError(error: unknown) {
-  if (!(error instanceof Error)) {
-    return false
-  }
-  const message = error.message
-  return (
-    message.includes('does not match the table name in validator') ||
-    (message.includes('Value does not match validator') &&
-      message.includes('Validator: v.id("threads")'))
-  )
-}
-
 async function getOwnedThread(
-  ctx: Pick<MutationCtx, 'runQuery'>,
+  ctx: Pick<MutationCtx, 'db'>,
   threadId: string,
   userId: Id<'users'>,
 ) {
-  let thread
-
-  try {
-    thread = await ctx.runQuery(components.agent.threads.getThread, {
-      threadId,
-    })
-  } catch (error) {
-    if (isInvalidThreadIdError(error)) {
-      return null
-    }
-
+  const normalizedThreadId = normalizeChatThreadId(ctx, threadId)
+  if (!normalizedThreadId) {
     return null
   }
 
+  const thread = await ctx.db.get(normalizedThreadId)
   if (!thread || thread.userId !== userId) {
     return null
   }
@@ -54,49 +29,33 @@ async function getOwnedThread(
   return thread
 }
 
-async function listShareableMessages(ctx: Pick<MutationCtx, 'runQuery'>, threadId: string) {
+async function listShareableMessages(ctx: Pick<MutationCtx, 'db'>, threadId: Id<'chatThreads'>) {
   const messages: Array<{
     order: number
     role: 'user' | 'assistant'
     text: string
   }> = []
-  let cursor: string | null = null
 
-  while (true) {
-    const batch: ThreadMessageBatch = await ctx.runQuery(
-      components.agent.messages.listMessagesByThreadId,
-      {
-        threadId,
-        order: 'asc',
-        excludeToolMessages: true,
-        statuses: ['success'],
-        paginationOpts: {
-          cursor,
-          numItems: 100,
-        },
-      },
-    )
+  const rows = await ctx.db
+    .query('chatMessages')
+    .withIndex('by_thread_order', (q) => q.eq('threadId', threadId))
+    .order('asc')
+    .filter((q) => q.eq(q.field('status'), 'success'))
+    .take(500)
 
-    for (const message of batch.page) {
-      const role = message.message?.role
-      const text = extractMessageText(message)
+  for (const message of rows) {
+    const role = message.message?.role
+    const text = message.text ?? extractTextFromParts(message.parts)
 
-      if (!text || (role !== 'user' && role !== 'assistant')) {
-        continue
-      }
-
-      messages.push({
-        order: messages.length,
-        role,
-        text,
-      })
+    if (!text || (role !== 'user' && role !== 'assistant')) {
+      continue
     }
 
-    if (batch.isDone) {
-      break
-    }
-
-    cursor = batch.continueCursor
+    messages.push({
+      order: messages.length,
+      role,
+      text,
+    })
   }
 
   return messages
@@ -120,7 +79,7 @@ export const createOrUpdateChatShare = mutation({
     const thread = await getOwnedThread(ctx, args.threadId, userId)
     if (!thread) return null
 
-    const messages = await listShareableMessages(ctx, args.threadId)
+    const messages = await listShareableMessages(ctx, thread._id)
 
     if (messages.length === 0) {
       return null

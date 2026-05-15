@@ -1,7 +1,7 @@
 import { generatePath, Outlet, useLocation, useNavigate, useParams } from 'react-router'
 import {
   AUTO_MODEL_ID,
-  chatSuggestions,
+  getChatSuggestions,
   isAutoModelSelection,
   resolveModelAttachmentMediaTypes,
 } from '@chat/shared'
@@ -15,6 +15,7 @@ import { AppSidebar } from '@/components/app-sidebar'
 import { AuthRedirect } from '@/components/auth-redirect'
 import { ChatSuggestions } from '@/components/chat/chat-suggestions'
 import { ChatModelProvider, useChatModel } from '@/components/chat-model-context'
+import { useI18n } from '@/components/i18n-provider'
 import { useIsMobile } from '@/hooks/use-mobile'
 import {
   dequeueQueuedMessage,
@@ -71,7 +72,7 @@ function AuthenticatedChatLayout() {
   const showComposer = !location.pathname.startsWith('/projects/')
 
   return (
-    <SidebarProvider className="h-screen">
+    <SidebarProvider className="h-dvh">
       <ChatModelProvider>
         <AppSidebar selectedThreadId={threadId ?? null} />
 
@@ -106,6 +107,8 @@ function AuthenticatedChatLayout() {
 }
 
 function ChatComposer({ threadId, mobile = false }: { threadId?: string; mobile?: boolean }) {
+  const { locale, t } = useI18n()
+  const localizedSuggestions = useMemo(() => getChatSuggestions(locale), [locale])
   const navigate = useNavigate()
   const suggestProjectFromContext = useAction(
     (
@@ -427,12 +430,13 @@ function ChatComposer({ threadId, mobile = false }: { threadId?: string; mobile?
   const attachmentMediaTypes = isAutoModelSelection(selectedModelId)
     ? resolveModelAttachmentMediaTypes({})
     : resolveModelAttachmentMediaTypes({
+        providerType: selectedModel?.provider?.providerType,
         capabilities: selectedModel?.capabilities,
         supportedAttachmentMediaTypes: selectedModel?.supportedAttachmentMediaTypes,
         attachmentValidationStatus: selectedModel?.attachmentValidationStatus,
       })
   const selectedModelLabel = isAutoModelSelection(selectedModelId)
-    ? 'Auto'
+    ? t('settings.auto')
     : selectedModel?.displayName || selectedModelId
 
   return (
@@ -446,7 +450,7 @@ function ChatComposer({ threadId, mobile = false }: { threadId?: string; mobile?
             </div>
           </div>
           <ChatSuggestions
-            suggestions={chatSuggestions}
+            suggestions={localizedSuggestions}
             onSelect={(prompt) => {
               void setDraft(prompt)
             }}
@@ -462,9 +466,7 @@ function ChatComposer({ threadId, mobile = false }: { threadId?: string; mobile?
         onEmptyStateChange={setIsComposerEmpty}
         disabled={disabledReason !== null}
         footerText={
-          disabledReason === 'offline'
-            ? 'Offline mode is read-only. Cached chats stay available until you reconnect.'
-            : undefined
+          disabledReason === 'offline' ? t('chat.offlineReadonly') : undefined
         }
         projects={projects}
         selectedProjectId={selectedProjectId}

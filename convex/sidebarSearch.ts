@@ -1,10 +1,10 @@
 import { embedMany } from 'ai'
 import { createOpenRouter } from '@openrouter/ai-sdk-provider'
-import { v, ConvexError } from 'convex/values'
+import { v } from 'convex/values'
 import { action, internalQuery } from './_generated/server'
-import { components, internal } from './_generated/api'
+import { internal } from './_generated/api'
 import { getAuthUserId } from './lib/auth'
-import { extractMessageText } from './functions/memoryShared'
+import { extractTextFromParts, normalizeChatThreadId } from './lib/chatEngine'
 
 const SEARCH_EMBEDDING_MODEL = 'openai/text-embedding-3-small'
 const openrouter = createOpenRouter({
@@ -44,7 +44,7 @@ function buildSnippet(text: string, query: string, maxLength = 180) {
 
 export const getSearchUserId = internalQuery({
   args: {},
-  returns: v.union(v.string(), v.null()),
+  returns: v.union(v.id('users'), v.null()),
   handler: async (ctx) => {
     return await getAuthUserId(ctx)
   },
@@ -52,7 +52,7 @@ export const getSearchUserId = internalQuery({
 
 export const getThreadSearchMetadata = internalQuery({
   args: {
-    userId: v.string(),
+    userId: v.id('users'),
     threadIds: v.array(v.string()),
   },
   returns: v.array(
@@ -66,13 +66,22 @@ export const getThreadSearchMetadata = internalQuery({
   handler: async (ctx, args) => {
     const threads = await Promise.all(
       args.threadIds.map(async (threadId) => {
+        const normalizedThreadId = normalizeChatThreadId(ctx, threadId)
+        if (!normalizedThreadId) {
+          return null
+        }
+
         const [thread, metadata] = await Promise.all([
-          ctx.runQuery(components.agent.threads.getThread, { threadId }),
+          ctx.db.get(normalizedThreadId),
           ctx.db
             .query('threadMetadata')
             .withIndex('by_threadId', (q) => q.eq('threadId', threadId))
             .first(),
         ])
+
+        if (!thread || thread.userId !== args.userId) {
+          return null
+        }
 
         const project =
           metadata?.projectId && metadata.userId === args.userId
@@ -88,7 +97,37 @@ export const getThreadSearchMetadata = internalQuery({
       }),
     )
 
-    return threads
+    return threads.filter((thread): thread is NonNullable<typeof thread> => thread !== null)
+  },
+})
+
+export const searchMessagesByText = internalQuery({
+  args: {
+    userId: v.id('users'),
+    query: v.string(),
+    limit: v.number(),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query('chatMessages')
+      .withSearchIndex('text_search', (q) => q.search('text', args.query).eq('userId', args.userId))
+      .take(args.limit)
+  },
+})
+
+export const getEmbeddingMessages = internalQuery({
+  args: {
+    embeddingIds: v.array(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const rows = await Promise.all(
+      args.embeddingIds.map(async (embeddingId) => {
+        const normalized = ctx.db.normalizeId('chatMessageEmbeddings', embeddingId)
+        return normalized ? await ctx.db.get(normalized) : null
+      }),
+    )
+    const messageIds = rows.flatMap((row) => (row?.messageId ? [row.messageId] : []))
+    return await Promise.all(messageIds.map((messageId) => ctx.db.get(messageId)))
   },
 })
 
@@ -119,15 +158,28 @@ export const searchSidebar = action({
         ).embeddings[0]
       : undefined
 
-    const results = await ctx.runAction(components.agent.messages.searchMessages, {
-      searchAllMessagesForUserId: userId,
-      text: query,
-      textSearch: true,
-      vectorSearch: vectorSearchEnabled,
-      embedding,
-      embeddingModel: vectorSearchEnabled ? SEARCH_EMBEDDING_MODEL : undefined,
+    const textResults = await ctx.runQuery(internal.sidebarSearch.searchMessagesByText, {
+      userId,
+      query,
       limit,
     })
+    const vectorResults =
+      vectorSearchEnabled && embedding
+        ? await ctx.vectorSearch('chatMessageEmbeddings', 'by_embedding', {
+            vector: embedding,
+            limit,
+            filter: (q) => q.eq('userId', userId),
+          })
+        : []
+    const vectorMessages = await ctx.runQuery(internal.sidebarSearch.getEmbeddingMessages, {
+      embeddingIds: vectorResults.map((result) => result._id),
+    })
+    const resultMap = new Map(
+      [...textResults, ...vectorMessages]
+        .filter((message): message is NonNullable<typeof message> => message !== null)
+        .map((message) => [message._id.toString(), message]),
+    )
+    const results = Array.from(resultMap.values()).slice(0, limit)
 
     const threadIds = Array.from(new Set(results.map((result) => result.threadId).filter(Boolean)))
 
@@ -158,12 +210,13 @@ export const searchSidebar = action({
         } => result.message?.role === 'user' || result.message?.role === 'assistant',
       )
       .map((result) => {
-        const text = extractMessageText(result)
-        const thread = threadMap.get(result.threadId)
+        const text = result.text ?? extractTextFromParts(result.parts)
+        const threadId = result.threadId.toString()
+        const thread = threadMap.get(threadId)
 
         return {
           messageId: result._id,
-          threadId: result.threadId,
+          threadId,
           threadTitle: thread?.threadTitle || 'Untitled chat',
           projectId: thread?.projectId,
           projectName: thread?.projectName,

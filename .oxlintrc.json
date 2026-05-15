@@ -1,5 +1,13 @@
 {
-  "plugins": [],
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "typescript",
+    "unicorn",
+    "oxc",
+    "react",
+    "import",
+    "vitest"
+  ],
   "jsPlugins": [],
   "categories": {
     "correctness": "warn",
@@ -8,6 +16,16 @@
     "style": "off",
     "pedantic": "off",
     "restriction": "off"
+  },
+  "settings": {
+    "react": {
+      "version": "19.0"
+    }
+  },
+  "rules": {
+    "react/react-in-jsx-scope": "off",
+    "react/jsx-filename-extension": "off",
+    "typescript/no-explicit-any": "error"
   },
   "ignorePatterns": [
     "**/node_modules/**",

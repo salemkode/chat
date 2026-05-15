@@ -1,4 +1,4 @@
-import { useSmoothText } from '@convex-dev/agent/react'
+import { useSmoothText } from '@chat/shared/hooks/use-smooth-text'
 import { getQuranAyahCardFromParts } from '@chat/shared/quran-ayah'
 import type { FunctionReturnType } from 'convex/server'
 import { api } from '@convex/_generated/api'
@@ -7,6 +7,7 @@ import { memo, useMemo, useState } from 'react'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { getMessageFailurePresentation } from '@/lib/chat-generation'
 import { cn } from '@/lib/utils'
+import { useI18n } from '@/components/i18n-provider'
 import { QuranAyahCard } from './chat/quran-ayah-card'
 import { MessageActivityTimeline } from './chat/message-activity-timeline'
 import { ChatMarkdown } from './chat-markdown'
@@ -30,6 +31,7 @@ export const Message = memo(function Message({
   isActiveGeneration = false,
   isStalled = false,
 }: MessageProps) {
+  const { t } = useI18n()
   const isMobile = useIsMobile()
   const shouldSmoothText = message.role === 'assistant' && message.status === 'streaming'
   const [smoothedText] = useSmoothText(message.text, {
@@ -62,8 +64,8 @@ export const Message = memo(function Message({
   if (message.role === 'assistant') {
     const disableRepeat = message.status === 'streaming' || message.status === 'pending'
     const failureTitle =
-      failurePresentation?.kind === 'stopped' ? 'Generation stopped' : 'Message failed'
-    const failureNote = failurePresentation?.note || 'The model could not complete this response.'
+      failurePresentation?.kind === 'stopped' ? t('message.generationStopped') : t('message.failed')
+    const failureNote = failurePresentation?.note || t('message.failedNote')
     const failureVariant = failurePresentation?.kind === 'error' ? 'destructive' : 'default'
     const shouldShowResend = isFailedAssistant || isStalled
 
@@ -179,11 +181,13 @@ export const Message = memo(function Message({
 const COLLAPSED_LINE_LIMIT = 4
 
 function CollapsibleUserText({ text }: { text: string }) {
+  const { t, locale } = useI18n()
   const [expanded, setExpanded] = useState(false)
   const lines = text.split('\n')
   const lineCount = lines.length
   const charCount = text.length
   const preview = lines.slice(0, COLLAPSED_LINE_LIMIT).join('\n')
+  const lineLabel = lineCount === 1 ? t('message.line') : t('message.lines')
 
   if (!expanded) {
     return (
@@ -195,9 +199,13 @@ function CollapsibleUserText({ text }: { text: string }) {
         >
           <FileText className="size-4 shrink-0 text-muted-foreground" />
           <div className="min-w-0 flex-1">
-            <div className="text-xs font-medium text-foreground/80">Pasted text</div>
+            <div className="text-xs font-medium text-foreground/80">{t('message.pastedText')}</div>
             <div className="mt-0.5 text-[11px] text-muted-foreground">
-              {charCount.toLocaleString()} chars · {lineCount} {lineCount === 1 ? 'line' : 'lines'}
+              {t('message.charsLines', {
+                chars: charCount.toLocaleString(locale),
+                lines: lineCount.toLocaleString(locale),
+                lineLabel,
+              })}
             </div>
           </div>
           <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
@@ -219,9 +227,13 @@ function CollapsibleUserText({ text }: { text: string }) {
       >
         <FileText className="size-4 shrink-0 text-muted-foreground" />
         <div className="min-w-0 flex-1">
-          <div className="text-xs font-medium text-foreground/80">Pasted text</div>
+          <div className="text-xs font-medium text-foreground/80">{t('message.pastedText')}</div>
           <div className="mt-0.5 text-[11px] text-muted-foreground">
-            {charCount.toLocaleString()} chars · {lineCount} {lineCount === 1 ? 'line' : 'lines'}
+            {t('message.charsLines', {
+              chars: charCount.toLocaleString(locale),
+              lines: lineCount.toLocaleString(locale),
+              lineLabel,
+            })}
           </div>
         </div>
         <ChevronUp className="size-3.5 shrink-0 text-muted-foreground" />

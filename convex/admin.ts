@@ -418,6 +418,7 @@ function normalizeIsFree(modelId: string) {
 }
 
 function resolveAttachmentValidationSnapshot(args: {
+  providerType?: string | null
   capabilities?: string[] | null
   supportedAttachmentMediaTypes?: string[] | null
 }) {
@@ -430,6 +431,7 @@ function resolveAttachmentValidationSnapshot(args: {
     ...new Set(rawCustomPatterns.filter((value) => !isValidAttachmentMediaTypePattern(value))),
   ]
   const allowedMediaTypes = resolveModelAttachmentMediaTypes({
+    providerType: args.providerType,
     capabilities: args.capabilities,
     supportedAttachmentMediaTypes: args.supportedAttachmentMediaTypes,
   })
@@ -448,7 +450,9 @@ function resolveAttachmentValidationSnapshot(args: {
   const statusMessage =
     allowedMediaTypes.length > 0
       ? `Allowed file types: ${allowedMediaTypes.join(', ')}`
-      : 'Attachments are disabled for this model.'
+      : args.providerType?.trim().toLowerCase() === 'deepseek'
+        ? 'Attachments are disabled for DeepSeek because the current backend adapter is text-only.'
+        : 'Attachments are disabled for this model.'
 
   return {
     supportedAttachmentMediaTypes: normalizeAttachmentMediaTypes(
@@ -1470,7 +1474,10 @@ export const addModel = mutation({
       })
     }
 
+    const provider = await ctx.db.get(args.providerId)
+
     const attachmentValidation = resolveAttachmentValidationSnapshot({
+      providerType: provider?.providerType,
       capabilities: args.capabilities,
       supportedAttachmentMediaTypes: args.supportedAttachmentMediaTypes,
     })
@@ -1556,7 +1563,10 @@ export const updateModel = mutation({
       })
     }
 
+    const provider = await ctx.db.get(updates.providerId ?? currentModel.providerId)
+
     const attachmentValidation = resolveAttachmentValidationSnapshot({
+      providerType: provider?.providerType,
       capabilities: updates.capabilities ?? currentModel.capabilities,
       supportedAttachmentMediaTypes:
         updates.supportedAttachmentMediaTypes ?? currentModel.supportedAttachmentMediaTypes,
@@ -1627,7 +1637,9 @@ export const validateModelAttachmentPolicies = mutation({
         continue
       }
 
+      const provider = await ctx.db.get(model.providerId)
       const snapshot = resolveAttachmentValidationSnapshot({
+        providerType: provider?.providerType,
         capabilities: model.capabilities,
         supportedAttachmentMediaTypes: model.supportedAttachmentMediaTypes,
       })

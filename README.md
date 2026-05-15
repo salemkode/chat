@@ -1,6 +1,6 @@
 # Salemkode Chat
 
-Salemkode Chat is a pnpm + Turbo monorepo for a Convex-powered AI chat product with:
+Salemkode Chat is a Bun + Turbo monorepo for a Convex-powered AI chat product with:
 
 - Clerk authentication
 - Expo mobile app
@@ -36,28 +36,30 @@ Salemkode Chat is a pnpm + Turbo monorepo for a Convex-powered AI chat product w
 
 ## Running Locally
 
-This repo uses pnpm as the package manager.
+This repo uses Bun as the package manager.
 
 ```bash
-pnpm install
-pnpm run dev
+bun install
+bun run dev
 ```
 
 Mobile:
 
 ```bash
-pnpm run mobile:dev
-pnpm run ios
-pnpm run android
+bun run mobile:dev
+bun run ios
+bun run android
 ```
+
+The Expo mobile dev server uses port `8083` to avoid colliding with other local Metro servers that may already be using `8081`.
 
 Useful commands:
 
 ```bash
-pnpm run build
-pnpm run test
-pnpm run lint
-pnpm run dev:scan
+bun run build
+bun run test
+bun run lint
+bun run dev:scan
 ```
 
 `pnpm run dev:scan` enables `react-scan` locally so you can inspect unnecessary renders and hot paths without changing app code.

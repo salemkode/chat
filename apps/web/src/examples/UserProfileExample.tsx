@@ -34,7 +34,7 @@ export function UserProfileExample() {
 
   if (!isAuthenticated) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-dvh">
         <div className="text-center">
           <p className="text-gray-600 mb-4">Please sign in to view your profile</p>
           <SignInButton mode="modal" />

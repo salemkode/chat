@@ -41,9 +41,11 @@ This diagram is intentionally practical. Each value maps to a concrete mechanism
 
 ## Composition As UX Policy
 
-The mobile chat structure is especially clear about this. Routes such as `app/(app)/chats.tsx` and `app/(app)/chat/[id].tsx` do not own the entire interface. They both compose `ChatPage`, which in turn composes `ChatHeader`, `MessageList`, `ChatComposer`, `OfflineBanner`, and `ModelPickerDialog`.
+The mobile chat structure is especially clear about this. The authenticated pager now keeps `sidebar` and `chat` as separate swipe pages, while legacy deep links still map into the same shared selection model. The chat page still composes `ChatPage`, which in turn composes `ChatHeader`, a dedicated `NewChatBody` or `MessageList`, `ChatComposer`, `OfflineBanner`, and `ModelPickerDialog`, and the sidebar page is assembled from reusable thread, project, and footer sections instead of route-owned layout code.
 
 That is not just an engineering preference. It keeps the user experience coherent across chat entry points. A new chat and an existing chat do not become different products by accident. The same idea appears in the rule that model dialogs live under `apps/mobile/src/components/dialog` and message presentation stays shared through reusable chat components.
+
+That shared message presentation now spans platforms more directly as well. Mobile still uses native cards, touch targets, and sheet-based controls, but the row semantics now track web much more closely: assistant activity traces, failure replacement versus clarification, attachment rendering from message parts, and repeat/resend/stop affordances all follow the same underlying message contract.
 
 ## Failure Handling As UX
 

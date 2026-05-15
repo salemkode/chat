@@ -42,6 +42,10 @@ export default withMermaid(
         { text: 'Home', link: '/' },
         { text: 'Agent notes (AI)', link: '/agent' },
         { text: 'Architecture', link: '/architecture' },
+        {
+          text: 'Chat: attachments & models',
+          link: '/chat-attachments-models-and-context',
+        },
         { text: 'Cloudflare Pages', link: '/cloudflare-pages' },
         {
           text: 'Research',

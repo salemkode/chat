@@ -1,5 +1,10 @@
 import type { OptimisticLocalStore } from 'convex/browser'
 import type { FunctionReturnType } from 'convex/server'
+import {
+  buildOptimisticThreadId,
+  isOptimisticThreadId as isOptimisticThreadIdCore,
+  normalizeOptimisticThreadTitle,
+} from '@chat/shared/logic/optimistic-thread-core'
 import { api } from '@convex/_generated/api'
 
 type ThreadsWithMetadata = FunctionReturnType<typeof api.agents.listThreadsWithMetadata>
@@ -8,13 +13,6 @@ type CreateChatThreadArgs = {
   title?: string
   projectId?: string
   clientThreadKey?: string
-}
-
-const OPTIMISTIC_THREAD_PREFIX = 'optimistic-thread-'
-
-function normalizeThreadTitle(title?: string) {
-  const cleaned = title?.trim()
-  return cleaned ? cleaned.slice(0, 60) : 'New chat'
 }
 
 function resolveProjectName(localStore: OptimisticLocalStore, projectId?: string) {
@@ -31,7 +29,7 @@ function resolveProjectName(localStore: OptimisticLocalStore, projectId?: string
 }
 
 export function isOptimisticThreadId(threadId?: string | null) {
-  return Boolean(threadId && threadId.startsWith(OPTIMISTIC_THREAD_PREFIX))
+  return isOptimisticThreadIdCore(threadId)
 }
 
 export function filterPersistableThreads(threads: ThreadsWithMetadata): ThreadsWithMetadata {
@@ -48,14 +46,14 @@ export function applyOptimisticCreateThread(
   }
 
   const now = Date.now()
-  const optimisticId = `${OPTIMISTIC_THREAD_PREFIX}${args.clientThreadKey?.trim() || now}`
+  const optimisticId = buildOptimisticThreadId({ clientThreadKey: args.clientThreadKey, now })
   const projectName = resolveProjectName(localStore, args.projectId)
 
   const optimisticRow: ThreadsWithMetadata[number] = {
     _id: optimisticId,
     _creationTime: now,
     lastMessageAt: now,
-    title: normalizeThreadTitle(args.title),
+    title: normalizeOptimisticThreadTitle(args.title),
     metadata: null,
     project: args.projectId
       ? {

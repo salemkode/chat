@@ -3,7 +3,7 @@ import { v, ConvexError } from 'convex/values'
 import { paginationOptsValidator } from 'convex/server'
 import { type AuthCtx, getAuthUserId } from '../lib/auth'
 import type { Doc, Id } from '../_generated/dataModel'
-import { api, components, internal } from '../_generated/api'
+import { api, internal } from '../_generated/api'
 import { memoryRag, ensureOpenRouterConfigured } from './memoryRag'
 import {
   buildRagFilterValues,
@@ -21,6 +21,7 @@ import {
   listAccessibleProjectIds,
   requireProjectRole,
 } from '../lib/projectAccess'
+import { normalizeChatThreadId } from '../lib/chatEngine'
 
 type MemoryQueryCtx = QueryCtx
 type MemoryActionCtx = ActionCtx
@@ -80,7 +81,7 @@ async function assertThreadOwnership(
   ctx: MemoryActionCtx,
   args: { threadId: string; userId: Id<'users'> },
 ) {
-  const thread = await ctx.runQuery(components.agent.threads.getThread, {
+  const thread = await ctx.runQuery(internal.chatEngine.getThreadById, {
     threadId: args.threadId,
   })
 
@@ -294,9 +295,8 @@ export const listThreadMemories = query({
     const userId = await requireUserId(ctx)
 
     if (args.threadId) {
-      const thread = await ctx.runQuery(components.agent.threads.getThread, {
-        threadId: args.threadId,
-      })
+      const threadId = normalizeChatThreadId(ctx, args.threadId)
+      const thread = threadId ? await ctx.db.get(threadId) : null
       if (!thread || thread.userId !== userId) {
         throw new ConvexError({
           code: 'NOT_FOUND',

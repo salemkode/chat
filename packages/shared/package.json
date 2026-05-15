@@ -8,10 +8,21 @@
     "./admin-types": "./src/admin-types.ts",
     "./hooks/use-mobile": "./src/hooks/use-mobile.ts",
     "./hooks/use-online-status": "./src/hooks/use-online-status.ts",
+    "./hooks/use-smooth-text": "./src/hooks/use-smooth-text.ts",
     "./logic/client-keys": "./src/logic/client-keys.ts",
+    "./logic/i18n": "./src/logic/i18n.ts",
     "./logic/project-mention": "./src/logic/project-mention.ts",
+    "./logic/sidebar-threads": "./src/logic/sidebar-threads.ts",
     "./logic/thread-groups": "./src/logic/thread-groups.ts",
     "./logic/convex-ids": "./src/logic/convex-ids.ts",
+    "./logic/message-failure": "./src/logic/message-failure.ts",
+    "./logic/message-activity-core": "./src/logic/message-activity-core.ts",
+    "./logic/pending-send-core": "./src/logic/pending-send-core.ts",
+    "./logic/optimistic-list-messages-core": "./src/logic/optimistic-list-messages-core.ts",
+    "./logic/chat-generation-core": "./src/logic/chat-generation-core.ts",
+    "./logic/optimistic-thread-core": "./src/logic/optimistic-thread-core.ts",
+    "./logic/send-pipeline-core": "./src/logic/send-pipeline-core.ts",
+    "./logic/streaming-markdown-segments": "./src/logic/streaming-markdown-segments.ts",
     "./quran-ayah": "./src/quran-ayah.ts"
   },
   "scripts": {
@@ -20,7 +31,7 @@
   "devDependencies": {
     "@types/react": "^19.2.0",
     "convex": "^1.34.0",
-    "react": "^19.2.0"
+    "react": "19.2.3"
   },
   "peerDependencies": {
     "convex": "^1.34.0",

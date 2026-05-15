@@ -4,9 +4,10 @@ import type { FunctionReturnType } from 'convex/server'
 import { v } from 'convex/values'
 import type { Id } from '../_generated/dataModel'
 import { z } from 'zod'
-import { components, internal } from '../_generated/api'
+import { internal } from '../_generated/api'
 import { MEMORY_EXTRACTION_MODEL, ensureOpenRouterConfigured, openRouter } from './memoryRag'
-import { extractMessageText, shouldSkipExtractedMemory } from './memoryShared'
+import { shouldSkipExtractedMemory } from './memoryShared'
+import { extractTextFromParts } from '../lib/chatEngine'
 
 const extractionSchema = z.object({
   memories: z.array(
@@ -20,9 +21,6 @@ const extractionSchema = z.object({
   ),
 })
 
-type ThreadMessageBatch = FunctionReturnType<
-  typeof components.agent.messages.listMessagesByThreadId
->
 type LinkedProject = FunctionReturnType<
   typeof internal.functions.memoryInternal.listProjectsForThread
 >[number]
@@ -63,14 +61,14 @@ export const extractMemoriesFromThread = internalAction({
   handler: async (ctx, args) => {
     ensureOpenRouterConfigured()
 
-    const thread = await ctx.runQuery(components.agent.threads.getThread, {
+    const thread = await ctx.runQuery(internal.chatEngine.getThreadById, {
       threadId: args.threadId,
     })
 
     if (!thread?.userId) {
       return { created: 0, skipped: 0, processedMessages: 0 }
     }
-    const userId = thread.userId as Id<'users'>
+    const userId: Id<'users'> = thread.userId
 
     const existingState = await ctx.runQuery(
       internal.functions.memoryInternal.getExtractionStateByThread,
@@ -90,38 +88,22 @@ export const extractMemoriesFromThread = internalAction({
     })
 
     try {
-      let cursor: string | null = null
       const messages: Array<{
         _id: string
         order: number
         role?: string
         text?: string
-        message?: {
-          role?: string
-          content?: unknown
-        }
+        parts: unknown[]
+        message?: { role?: string }
       }> = []
 
-      while (true) {
-        const batch: ThreadMessageBatch = await ctx.runQuery(
-          components.agent.messages.listMessagesByThreadId,
-          {
-            threadId: args.threadId,
-            order: 'asc',
-            excludeToolMessages: true,
-            statuses: ['success'],
-            paginationOpts: {
-              cursor,
-              numItems: 100,
-            },
-          },
-        )
-
-        messages.push(...batch.page.filter((message) => message.order > lastProcessedOrder))
-
-        if (batch.isDone) break
-        cursor = batch.continueCursor
-      }
+      messages.push(
+        ...(await ctx.runQuery(internal.chatEngine.listMessagesAfterOrder, {
+          threadId: args.threadId,
+          afterOrder: lastProcessedOrder,
+          limit: 200,
+        })),
+      )
 
       if (messages.length === 0) {
         await ctx.runMutation(internal.functions.memoryInternal.upsertExtractionState, {
@@ -138,7 +120,7 @@ export const extractMemoriesFromThread = internalAction({
       const transcript = messages
         .map((message) => {
           const role = message.message?.role ?? 'unknown'
-          const text = extractMessageText(message)
+          const text = message.text ?? extractTextFromParts(message.parts)
           if (!text) return null
           return `${role}: ${text}`
         })

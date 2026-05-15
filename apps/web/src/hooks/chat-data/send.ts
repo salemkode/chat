@@ -11,62 +11,12 @@ import {
   dispatchChatEvent,
 } from '@/lib/chat-events'
 import { readDraft, writeDraft } from '@/hooks/chat-data/shared'
-import {
-  applyOptimisticGenerateMessage,
-  applyOptimisticRegenerateMessage,
-} from '@/hooks/chat-data/optimistic-list-messages'
+import { applyOptimisticGenerateMessage } from '@/hooks/chat-data/optimistic-list-messages'
 import { applyOptimisticCreateThread } from '@/hooks/chat-data/optimistic-threads'
-
-function getErrorMessage(error: unknown) {
-  if (error instanceof Error) {
-    return error.message
-  }
-  if (typeof error === 'string') {
-    return error
-  }
-  if (
-    typeof error === 'object' &&
-    error !== null &&
-    'message' in error &&
-    typeof error.message === 'string'
-  ) {
-    return error.message
-  }
-  return ''
-}
-
-function isExtraFieldValidationError(error: unknown, fieldName: string) {
-  const message = getErrorMessage(error)
-  return (
-    message.includes('ArgumentValidationError') &&
-    message.includes('extra field') &&
-    message.includes(fieldName)
-  )
-}
-
-function buildAttachmentSummary(
-  attachments: File[] | undefined,
-): { imageCount: number; fileCount: number; totalCount: number } | undefined {
-  if (!attachments || attachments.length === 0) {
-    return undefined
-  }
-
-  let imageCount = 0
-  let fileCount = 0
-  for (const attachment of attachments) {
-    if (attachment.type.startsWith('image/')) {
-      imageCount += 1
-    } else {
-      fileCount += 1
-    }
-  }
-
-  return {
-    imageCount,
-    fileCount,
-    totalCount: imageCount + fileCount,
-  }
-}
+import {
+  buildAttachmentSummaryFromFiles,
+  isExtraFieldValidationError,
+} from '@chat/shared/logic/send-pipeline-core'
 
 export function useDraft(threadId: string) {
   const [draft, setDraftState] = useState(() => readDraft(threadId))
@@ -140,11 +90,7 @@ export function useSendMessage() {
       )
     },
   )
-  const regenerateMessage = useMutation(api.agents.regenerateMessage).withOptimisticUpdate(
-    (localStore, args) => {
-      applyOptimisticRegenerateMessage(localStore, args.threadId)
-    },
-  )
+  const regenerateMessage = useMutation(api.agents.regenerateMessage)
   const stopGenerationApi = (
     api as typeof api & {
       agents: {
@@ -341,7 +287,7 @@ export function useSendMessage() {
         let routerDecisionId: string | undefined
         let resolvedModelDocId = modelDocId
         if (!resolvedModelDocId) {
-          const attachmentSummary = buildAttachmentSummary(attachments)
+          const attachmentSummary = buildAttachmentSummaryFromFiles(attachments ?? [])
           const routed = await resolveAutoModelDecision({
             text,
             threadId: resolvedThreadId,

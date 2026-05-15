@@ -3,6 +3,7 @@ import { isAutoModelSelection } from '@chat/shared'
 import { ExternalLink, FileText, RefreshCw, RotateCcw, Square } from '@/lib/icons'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useChatModel } from '@/components/chat-model-context'
+import { useI18n } from '@/components/i18n-provider'
 import { useModels, useSendMessage, useViewer } from '@/hooks/use-chat-data'
 import { cn } from '@/lib/utils'
 import { ModelSelectorPanel } from '@/components/model-selector'
@@ -15,6 +16,8 @@ const LONG_PRESS_DELAY_MS = 450
 const HOVER_CLOSE_DELAY_MS = 120
 
 export function MessageAttachments({ files }: { files: MessageFilePart[] }) {
+  const { t } = useI18n()
+
   return (
     <div className="space-y-2">
       {files.map((file) =>
@@ -28,7 +31,7 @@ export function MessageAttachments({ files }: { files: MessageFilePart[] }) {
           >
             <img
               src={file.url}
-              alt={file.filename || 'Attached image'}
+              alt={file.filename || t('message.attachedImage')}
               className="max-h-80 w-full object-cover"
             />
           </a>
@@ -45,7 +48,7 @@ export function MessageAttachments({ files }: { files: MessageFilePart[] }) {
             </div>
             <div className="min-w-0 flex-1">
               <div className="truncate font-medium text-foreground">
-                {file.filename || 'Attached PDF'}
+                {file.filename || t('message.attachedPdf')}
               </div>
               <div className="text-xs text-muted-foreground">
                 {file.mediaType === 'application/pdf' ? 'PDF' : file.mediaType}
@@ -68,6 +71,7 @@ export function RepeatButton({
   promptMessageId?: string
   disabled: boolean
 }) {
+  const { t } = useI18n()
   const { models } = useModels()
   const { regenerate, disabledReason } = useSendMessage()
   const viewer = useViewer()
@@ -171,17 +175,17 @@ export function RepeatButton({
           className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
           aria-label={
             selectedModelId && isAutoModelSelection(selectedModelId)
-              ? 'Repeat with Auto routing'
+              ? t('message.repeatWithAuto')
               : currentModel
-                ? `Repeat with ${currentModel.displayName}`
-                : 'Repeat response'
+                ? t('message.repeatWithModel', { modelName: currentModel.displayName })
+                : t('message.repeatResponse')
           }
           title={
             selectedModelId && isAutoModelSelection(selectedModelId)
-              ? 'Repeat with Auto routing'
+              ? t('message.repeatWithAuto')
               : currentModel
-                ? `Repeat with ${currentModel.displayName}`
-                : 'Repeat'
+                ? t('message.repeatWithModel', { modelName: currentModel.displayName })
+                : t('message.repeatShort')
           }
           onClick={() => {
             if (longPressTriggeredRef.current || !selectedModelId) {
@@ -235,12 +239,14 @@ export function RepeatButton({
         onMouseLeave={scheduleClose}
       >
         <div className="border-b border-border px-3 py-2.5">
-          <p className="text-sm font-medium">Repeat with model</p>
+          <p className="text-sm font-medium">{t('message.repeatWithModelTitle')}</p>
           <p className="text-xs text-muted-foreground">
-            Current:{' '}
-            {selectedModelId && isAutoModelSelection(selectedModelId)
-              ? 'Auto'
-              : (currentModel?.displayName ?? '—')}
+            {t('message.currentModel', {
+              modelName:
+                selectedModelId && isAutoModelSelection(selectedModelId)
+                  ? t('message.auto')
+                  : (currentModel?.displayName ?? t('message.none')),
+            })}
           </p>
         </div>
         <ModelSelectorPanel
@@ -262,6 +268,7 @@ export function StopButton({
   threadId: string
   promptMessageId?: string
 }) {
+  const { t } = useI18n()
   const { stop, disabledReason } = useSendMessage()
   const [isStopping, setIsStopping] = useState(false)
 
@@ -272,8 +279,8 @@ export function StopButton({
       size="icon-sm"
       disabled={!promptMessageId || disabledReason !== null || isStopping}
       className="inline-flex items-center gap-1.5 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-      aria-label="Stop generation"
-      title="Stop generation"
+      aria-label={t('message.stopGeneration')}
+      title={t('message.stopGeneration')}
       onClick={async () => {
         if (!promptMessageId || isStopping) {
           return

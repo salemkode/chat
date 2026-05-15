@@ -1,6 +1,6 @@
 export default function MemoryDemo() {
   return (
-    <div className="min-h-screen bg-background text-foreground font-sans p-8">
+    <div className="min-h-dvh bg-background text-foreground font-sans p-8">
       <div className="max-w-7xl mx-auto space-y-8">
         <div>
           <h1 className="text-4xl font-bold text-foreground mb-4">Memory System Demo</h1>

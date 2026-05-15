@@ -37,11 +37,20 @@ import {
 } from '@/components/ui/select'
 import { MemorySettingsPanel } from '@/components/settings/memory-settings-panel'
 import { KeyboardSettingsPanel } from '@/components/settings/keyboard-settings-panel'
+import { useI18n } from '@/components/i18n-provider'
 import { useTheme } from '@/components/theme-provider'
 import { useOnlineStatus } from '@/hooks/use-online-status'
 import { useModels, useRoleContext, useSettings, useViewer } from '@/hooks/use-chat-data'
+import { isSupportedLocale } from '@chat/shared/logic/i18n'
 import type { SettingsTab } from '@/lib/settings-navigation'
-import { normalizeHexColor, type ThemeMode } from '@/lib/theme'
+import {
+  getArabicFontFamily,
+  getEnglishFontFamily,
+  normalizeHexColor,
+  parseArabicFont,
+  parseEnglishFont,
+  type ThemeMode,
+} from '@/lib/theme'
 import { readFileReaderResultAsString } from '@/lib/parsers'
 import { cn } from '@/lib/utils'
 import { useChatModel } from '@/components/chat-model-context'
@@ -119,12 +128,21 @@ export function SettingsDialog({
   const { models, autoModelAvailable } = useModels()
   const { isAdminLike } = useRoleContext()
   const { isOnline } = useOnlineStatus()
-  const { theme, setTheme, primaryColor, setPrimaryColor } = useTheme()
+  const {
+    theme,
+    setTheme,
+    primaryColor,
+    setPrimaryColor,
+    englishFont,
+    setEnglishFont,
+    arabicFont,
+    setArabicFont,
+  } = useTheme()
+  const { localePreference, setLocalePreference, t } = useI18n()
   const { signOut } = useClerk()
   const navigate = useNavigate()
 
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab)
-  const [language, setLanguage] = useState('auto')
   const [displayName, setDisplayName] = useState('')
   const [bio, setBio] = useState('')
   const [image, setImage] = useState<string | null>(null)
@@ -153,50 +171,56 @@ export function SettingsDialog({
   const tabs = useMemo(
     () =>
       [
-        { id: 'general', label: 'General', icon: Settings },
-        { id: 'keyboard', label: 'Keyboard', icon: Key },
-        { id: 'theme', label: 'Theme', icon: Palette },
-        { id: 'model', label: 'Models & reasoning', icon: Brain },
-        { id: 'memory', label: 'Memory', icon: Database },
-        { id: 'data', label: 'Data controls', icon: Database },
-        { id: 'account', label: 'Account', icon: UserCircle },
-        ...(isAdminLike ? [{ id: 'admin' as const, label: 'Admin', icon: Wrench }] : []),
+        { id: 'general', label: t('settings.tab.general'), icon: Settings },
+        { id: 'keyboard', label: t('settings.tab.keyboard'), icon: Key },
+        { id: 'theme', label: t('settings.tab.theme'), icon: Palette },
+        { id: 'model', label: t('settings.tab.model'), icon: Brain },
+        { id: 'memory', label: t('settings.tab.memory'), icon: Database },
+        { id: 'data', label: t('settings.tab.data'), icon: Database },
+        { id: 'account', label: t('settings.tab.account'), icon: UserCircle },
+        ...(isAdminLike
+          ? [{ id: 'admin' as const, label: t('settings.tab.admin'), icon: Wrench }]
+          : []),
       ] satisfies Array<{ id: SettingsTab; label: string; icon: AppIcon }>,
-    [isAdminLike],
+    [isAdminLike, t],
   )
 
-  const themeOptions = [
-    {
-      id: 'light',
-      label: 'Light',
-      description: 'Bright neutral surfaces for daytime use.',
-      icon: Sun,
-      previewClassName:
-        'bg-[linear-gradient(135deg,#ffffff_0%,#f3f4f6_60%,#dbeafe_100%)] border-zinc-200',
-    },
-    {
-      id: 'dark',
-      label: 'Dark',
-      description: 'A darker workspace for low-light environments.',
-      icon: Moon,
-      previewClassName:
-        'bg-[linear-gradient(135deg,#0f172a_0%,#111827_55%,#1d4ed8_100%)] border-slate-700',
-    },
-    {
-      id: 'system',
-      label: 'System',
-      description: 'Matches your device appearance automatically.',
-      icon: Monitor,
-      previewClassName:
-        'bg-[linear-gradient(135deg,#f8fafc_0%,#dbeafe_45%,#0f172a_100%)] border-slate-300',
-    },
-  ] satisfies Array<{
-    id: ThemeMode
-    label: string
-    description: string
-    icon: AppIcon
-    previewClassName: string
-  }>
+  const themeOptions = useMemo(
+    () =>
+      [
+        {
+          id: 'light',
+          label: t('settings.theme.light'),
+          description: t('settings.theme.lightDescription'),
+          icon: Sun,
+          previewClassName:
+            'bg-[linear-gradient(135deg,#ffffff_0%,#f3f4f6_60%,#dbeafe_100%)] border-zinc-200',
+        },
+        {
+          id: 'dark',
+          label: t('settings.theme.dark'),
+          description: t('settings.theme.darkDescription'),
+          icon: Moon,
+          previewClassName:
+            'bg-[linear-gradient(135deg,#0f172a_0%,#111827_55%,#1d4ed8_100%)] border-slate-700',
+        },
+        {
+          id: 'system',
+          label: t('settings.theme.system'),
+          description: t('settings.theme.systemDescription'),
+          icon: Monitor,
+          previewClassName:
+            'bg-[linear-gradient(135deg,#f8fafc_0%,#dbeafe_45%,#0f172a_100%)] border-slate-300',
+        },
+      ] satisfies Array<{
+        id: ThemeMode
+        label: string
+        description: string
+        icon: AppIcon
+        previewClassName: string
+      }>,
+    [t],
+  )
 
   const presetColors = ['#8b5cf6', '#2563eb', '#0891b2', '#059669', '#ea580c', '#dc2626', '#db2777']
 
@@ -217,11 +241,11 @@ export function SettingsDialog({
     }))
 
     if (autoModelAvailable) {
-      return [{ value: AUTO_MODEL_ID, label: 'Auto' }, ...options]
+      return [{ value: AUTO_MODEL_ID, label: t('settings.auto') }, ...options]
     }
 
     return options
-  }, [autoModelAvailable, models])
+  }, [autoModelAvailable, models, t])
 
   const selectedModelValue =
     defaultModelId && modelOptions.some((option) => option.value === defaultModelId)
@@ -261,18 +285,18 @@ export function SettingsDialog({
       })
       onOpenChange(false)
     } catch (error) {
-      console.error('Failed to save settings:', error)
+      console.error(t('settings.accountSaveError'), error)
     } finally {
       setIsSavingAccount(false)
     }
-  }, [bio, displayName, image, onOpenChange, updateSettings])
+  }, [bio, displayName, image, onOpenChange, t, updateSettings])
 
   return (
     <AdaptiveDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Settings"
-      description="Account, data, theme, and model preferences"
+      title={t('common.settings')}
+      description={t('settings.description')}
       size="wide"
       showCloseButton={false}
       contentClassName={cn(
@@ -283,7 +307,7 @@ export function SettingsDialog({
       <div className="flex h-full min-h-0 flex-col overflow-hidden sm:flex-row">
         <aside className="flex w-full shrink-0 flex-col border-b border-border bg-muted/20 sm:w-56 sm:border-r sm:border-b-0">
           <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-5 sm:px-6">
-            <p className="text-sm font-semibold leading-none">Settings</p>
+            <p className="text-sm font-semibold leading-none">{t('common.settings')}</p>
             <Button
               variant="ghost"
               size="icon"
@@ -317,23 +341,32 @@ export function SettingsDialog({
         <section className="flex min-h-0 flex-1 flex-col bg-background">
           <div className="flex h-14 shrink-0 items-center border-b border-border px-5 sm:px-6">
             <h2 className="text-sm font-semibold leading-none">
-              {activePanel?.label ?? 'Settings'}
+              {activePanel?.label ?? t('common.settings')}
             </h2>
           </div>
 
           <div className="flex-1 overflow-y-auto px-6 py-6 sm:px-8 sm:py-7">
             {activeTab === 'general' ? (
               <div className="space-y-3">
-                <SettingsItem label="Language">
+                <SettingsItem label={t('settings.language')}>
                   <SettingsSelect
-                    value={language}
-                    onValueChange={setLanguage}
-                    placeholder="Choose language"
+                    value={localePreference}
+                    onValueChange={(value) => {
+                      if (value === 'auto') {
+                        setLocalePreference('auto')
+                        return
+                      }
+
+                      if (isSupportedLocale(value)) {
+                        setLocalePreference(value)
+                      }
+                    }}
+                    placeholder={t('settings.languagePlaceholder')}
                     className="w-[140px]"
                     options={[
-                      { value: 'auto', label: 'Auto-detect' },
-                      { value: 'en', label: 'English' },
-                      { value: 'ar', label: 'Arabic' },
+                      { value: 'auto', label: t('settings.language.auto') },
+                      { value: 'en', label: t('settings.language.en') },
+                      { value: 'ar', label: t('settings.language.ar') },
                     ]}
                   />
                 </SettingsItem>
@@ -345,7 +378,7 @@ export function SettingsDialog({
             {activeTab === 'theme' ? (
               <div className="space-y-6">
                 <div className="space-y-2">
-                  <p className="text-sm font-medium">Appearance</p>
+                  <p className="text-sm font-medium">{t('settings.appearance')}</p>
                   <div
                     className="grid gap-3 sm:grid-cols-3"
                     style={{ '--primary-color-preview': primaryColor } as React.CSSProperties}
@@ -384,8 +417,8 @@ export function SettingsDialog({
                 </div>
 
                 <SettingsItem
-                  label="Primary color"
-                  description="Use a custom accent color for buttons, highlights, and selections."
+                  label={t('settings.primaryColor')}
+                  description={t('settings.primaryColorDescription')}
                 >
                   <div className="flex items-center gap-3">
                     {/* Native color inputs are required for the browser color picker. */}
@@ -394,7 +427,7 @@ export function SettingsDialog({
                       value={primaryColor}
                       onChange={(event) => setPrimaryColor(event.target.value)}
                       className="h-10 w-14 cursor-pointer rounded-md border border-input bg-background p-1"
-                      aria-label="Theme primary color"
+                      aria-label={t('settings.primaryColorAria')}
                     />
                     <Input
                       value={primaryColorInput}
@@ -416,7 +449,7 @@ export function SettingsDialog({
                 </SettingsItem>
 
                 <div className="rounded-lg border border-border bg-card px-4 py-4">
-                  <Label className="text-sm font-medium">Presets</Label>
+                  <Label className="text-sm font-medium">{t('settings.presets')}</Label>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {presetColors.map((color) => (
                       <Button
@@ -430,10 +463,73 @@ export function SettingsDialog({
                           primaryColor === color ? 'border-foreground' : 'border-transparent',
                         )}
                         style={{ backgroundColor: color }}
-                        aria-label={`Use ${color} as the primary color`}
+                        aria-label={t('settings.primaryColorPreset', { color })}
                       />
                     ))}
                   </div>
+                </div>
+
+                <SettingsItem
+                  label={t('settings.englishFont')}
+                  description={t('settings.englishFontDescription')}
+                >
+                  <SettingsSelect
+                    value={englishFont}
+                    onValueChange={(value) => {
+                      setEnglishFont(parseEnglishFont(value))
+                    }}
+                    className="w-full sm:w-[220px]"
+                    placeholder={t('settings.englishFontPlaceholder')}
+                    options={[
+                      { value: 'geist', label: t('settings.englishFont.geist') },
+                      { value: 'inter', label: t('settings.englishFont.inter') },
+                      { value: 'ibm-plex', label: t('settings.englishFont.ibmPlex') },
+                    ]}
+                  />
+                </SettingsItem>
+
+                <div className="rounded-lg border border-border bg-card px-4 py-4">
+                  <Label className="text-sm font-medium">{t('settings.englishFontPreview')}</Label>
+                  <p
+                    lang="en"
+                    className="mt-2 text-lg leading-relaxed"
+                    style={{ fontFamily: getEnglishFontFamily(englishFont) }}
+                  >
+                    {t('settings.englishFontPreviewText')}
+                  </p>
+                </div>
+
+                <SettingsItem
+                  label={t('settings.arabicFont')}
+                  description={t('settings.arabicFontDescription')}
+                >
+                  <SettingsSelect
+                    value={arabicFont}
+                    onValueChange={(value) => {
+                      setArabicFont(parseArabicFont(value))
+                    }}
+                    className="w-full sm:w-[240px]"
+                    placeholder={t('settings.arabicFontPlaceholder')}
+                    options={[
+                      {
+                        value: 'ibm-plex-arabic',
+                        label: t('settings.arabicFont.ibmPlexArabic'),
+                      },
+                      { value: 'noto-sans', label: t('settings.arabicFont.notoSans') },
+                    ]}
+                  />
+                </SettingsItem>
+
+                <div className="rounded-lg border border-border bg-card px-4 py-4">
+                  <Label className="text-sm font-medium">{t('settings.arabicFontPreview')}</Label>
+                  <p
+                    dir="rtl"
+                    lang="ar"
+                    className="mt-2 text-lg leading-relaxed"
+                    style={{ fontFamily: getArabicFontFamily(arabicFont) }}
+                  >
+                    {t('settings.arabicFontPreviewText')}
+                  </p>
                 </div>
               </div>
             ) : null}
@@ -441,8 +537,8 @@ export function SettingsDialog({
             {activeTab === 'model' ? (
               <div className="space-y-3">
                 <SettingsItem
-                  label="Default model"
-                  description="Choose a fixed model or Auto when it is enabled by the admin router configuration."
+                  label={t('settings.defaultModel')}
+                  description={t('settings.defaultModelDescription')}
                 >
                   <SettingsSelect
                     value={selectedModelValue}
@@ -459,14 +555,14 @@ export function SettingsDialog({
                       }
                     }}
                     className="w-full sm:w-[220px]"
-                    placeholder="Choose default model"
+                    placeholder={t('settings.defaultModelPlaceholder')}
                     options={modelOptions}
                     disabled={!isOnline || modelOptions.length === 0}
                   />
                 </SettingsItem>
                 <SettingsItem
-                  label="Reasoning"
-                  description="Extra step-by-step reasoning when the model supports it. Uses more time per reply when on."
+                  label={t('settings.reasoning')}
+                  description={t('settings.reasoningDescription')}
                 >
                   <Switch
                     checked={Boolean(settings?.reasoningEnabled)}
@@ -477,8 +573,8 @@ export function SettingsDialog({
                   />
                 </SettingsItem>
                 <SettingsItem
-                  label="Reasoning depth"
-                  description="Default when reasoning is enabled."
+                  label={t('settings.reasoningDepth')}
+                  description={t('settings.reasoningDepthDescription')}
                 >
                   <SettingsSelect
                     value={selectedReasoningLevel}
@@ -488,12 +584,12 @@ export function SettingsDialog({
                       }
                     }}
                     disabled={!isOnline}
-                    placeholder="Depth"
+                    placeholder={t('settings.reasoningDepthPlaceholder')}
                     className="w-[140px]"
                     options={[
-                      { value: 'low', label: 'Low' },
-                      { value: 'medium', label: 'Medium' },
-                      { value: 'high', label: 'High' },
+                      { value: 'low', label: t('settings.reasoningLevel.low') },
+                      { value: 'medium', label: t('settings.reasoningLevel.medium') },
+                      { value: 'high', label: t('settings.reasoningLevel.high') },
                     ]}
                   />
                 </SettingsItem>
@@ -505,16 +601,16 @@ export function SettingsDialog({
             {activeTab === 'data' ? (
               <div className="space-y-3">
                 <SettingsItem
-                  label="Live query cache"
-                  description="Convex subscriptions stay warm during navigation to reduce reload latency."
+                  label={t('settings.liveQueryCache')}
+                  description={t('settings.liveQueryCacheDescription')}
                 >
-                  <span className="text-sm font-medium">Enabled</span>
+                  <span className="text-sm font-medium">{t('common.enabled')}</span>
                 </SettingsItem>
                 <SettingsItem
-                  label="Connection"
-                  description="Live updates require network connectivity."
+                  label={t('settings.connection')}
+                  description={t('settings.connectionDescription')}
                 >
-                  <span className="text-sm">{isOnline ? 'Online' : 'Offline'}</span>
+                  <span className="text-sm">{isOnline ? t('common.online') : t('common.offline')}</span>
                 </SettingsItem>
               </div>
             ) : null}
@@ -555,9 +651,9 @@ export function SettingsDialog({
                     </div>
                   </Button>
                   <div>
-                    <h3 className="font-medium">Profile picture</h3>
+                    <h3 className="font-medium">{t('settings.profilePicture')}</h3>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      Click to upload a new photo.
+                      {t('settings.profilePictureDescription')}
                     </p>
                   </div>
                   {/* Native file inputs are required for the browser file picker. */}
@@ -572,16 +668,16 @@ export function SettingsDialog({
 
                 <div className="space-y-4 rounded-lg border border-border bg-card p-5">
                   <div className="space-y-2">
-                    <Label htmlFor="displayName">Display name</Label>
+                    <Label htmlFor="displayName">{t('settings.displayName')}</Label>
                     <Input
                       id="displayName"
                       value={displayNameValue}
                       onChange={(event) => setDisplayName(event.target.value)}
-                      placeholder="Enter your display name"
+                      placeholder={t('settings.displayNamePlaceholder')}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="email">{t('settings.email')}</Label>
                     <Input
                       id="email"
                       type="email"
@@ -591,17 +687,20 @@ export function SettingsDialog({
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="bio">Bio</Label>
+                    <Label htmlFor="bio">{t('settings.bio')}</Label>
                     <Input
                       id="bio"
                       value={bio}
                       onChange={(event) => setBio(event.target.value)}
-                      placeholder="Tell us a little about yourself"
+                      placeholder={t('settings.bioPlaceholder')}
                     />
                   </div>
                 </div>
 
-                <SettingsItem label="Session" description="Sign out from your current session.">
+                <SettingsItem
+                  label={t('settings.session')}
+                  description={t('settings.sessionDescription')}
+                >
                   <Button
                     type="button"
                     variant="destructive"
@@ -610,7 +709,7 @@ export function SettingsDialog({
                     }}
                   >
                     <LogOut className="size-4" />
-                    Logout
+                    {t('settings.logout')}
                   </Button>
                 </SettingsItem>
               </div>
@@ -619,8 +718,8 @@ export function SettingsDialog({
             {activeTab === 'admin' && isAdminLike ? (
               <div className="space-y-3">
                 <SettingsItem
-                  label="Open admin dashboard"
-                  description="Manage providers, models, collections, plans, and usage."
+                  label={t('settings.openAdminDashboard')}
+                  description={t('settings.openAdminDashboardDescription')}
                 >
                   <Button
                     onClick={() => {
@@ -628,7 +727,7 @@ export function SettingsDialog({
                       void navigate('/admin')
                     }}
                   >
-                    Go to Admin
+                    {t('settings.goToAdmin')}
                   </Button>
                 </SettingsItem>
               </div>
@@ -638,14 +737,14 @@ export function SettingsDialog({
           {activeTab === 'account' ? (
             <div className="flex justify-end gap-3 border-t border-border bg-muted/20 px-6 py-4">
               <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
+                {t('common.cancel')}
               </Button>
               <Button
                 onClick={() => void handleSaveAccount()}
                 disabled={isSavingAccount || !isOnline}
               >
                 {isSavingAccount ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
-                Save changes
+                {t('common.saveChanges')}
               </Button>
             </div>
           ) : null}

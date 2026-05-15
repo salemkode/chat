@@ -28,6 +28,10 @@ function normalizeCapability(value: string): string {
   return value.trim().toLowerCase()
 }
 
+function normalizeProviderType(value?: string | null) {
+  return value?.trim().toLowerCase() || ''
+}
+
 function normalizeMediaTypePattern(value: string): string {
   return value.trim().toLowerCase()
 }
@@ -102,13 +106,20 @@ export function inferAttachmentMediaTypesFromCapabilities(
 }
 
 export function resolveModelAttachmentMediaTypes(args: {
+  providerType?: string | null
   capabilities?: string[] | null
   supportedAttachmentMediaTypes?: string[] | null
   attachmentValidationStatus?: ModelAttachmentValidationStatus | null
 }): string[] {
-  const customMediaTypes = normalizeAttachmentMediaTypes(args.supportedAttachmentMediaTypes)
-  if (customMediaTypes.length > 0) {
-    return customMediaTypes
+  if (normalizeProviderType(args.providerType) === 'deepseek') {
+    // The native DeepSeek adapter we use only supports text prompt parts.
+    return []
+  }
+
+  if (Array.isArray(args.supportedAttachmentMediaTypes)) {
+    // Treat an explicitly configured list (even empty) as authoritative.
+    // This enables admins to disable attachments for a specific model by saving `[]`.
+    return normalizeAttachmentMediaTypes(args.supportedAttachmentMediaTypes)
   }
 
   if (args.attachmentValidationStatus === 'invalid') {

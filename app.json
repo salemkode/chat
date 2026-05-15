@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "d7bc9517-1920-4656-b8e2-5d2b9aa8db92"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.salemkode.agent",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    }
+  }
+}

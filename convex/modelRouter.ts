@@ -1,5 +1,5 @@
 import { action, internalMutation, internalQuery } from './_generated/server'
-import { api, components, internal } from './_generated/api'
+import { api, internal } from './_generated/api'
 import { ConvexError, v } from 'convex/values'
 import { getAuthUserId } from './lib/auth'
 import { estimateCostFromProfile } from './lib/pricingTier'
@@ -458,11 +458,11 @@ export const selectAutoModelForPromptMessage = action({
     selectedProviderName: v.string(),
   }),
   handler: async (ctx, args) => {
-    const [promptMessage] = await ctx.runQuery(components.agent.messages.getMessagesByIds, {
+    const [promptMessage] = await ctx.runQuery(internal.chatEngine.getMessagesByIds, {
       messageIds: [args.promptMessageId],
     })
 
-    const attachmentSummary = getAttachmentSummaryFromPromptContent(promptMessage?.message?.content)
+    const attachmentSummary = getAttachmentSummaryFromPromptContent(promptMessage?.parts)
     const hasImageAttachment = attachmentSummary.imageCount > 0
     const promptText = promptMessage?.text?.trim() || ''
 

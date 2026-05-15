@@ -1,6 +1,7 @@
 import { Check, Copy, ExternalLink, Link2, Smartphone } from '@/lib/icons'
 import { useMemo, useState } from 'react'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { useI18n } from '@/components/i18n-provider'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -42,25 +43,23 @@ interface SharedChatSidebarProps {
   messageCount: number
 }
 
-function buildSharePrompt(shareTitle: string, shareUrl: string, messageCount: number) {
-  return [
-    `Read this shared chat transcript: ${shareUrl}`,
-    `Title: ${shareTitle}`,
-    `Transcript size: ${messageCount} messages.`,
-    'First summarize the important context in 3 concise bullets.',
-    'Then continue from the latest message in the transcript.',
-    'If you cannot open the link directly, tell me what context you need pasted here.',
-  ].join('\n')
-}
-
 export function SharedChatSidebar({ shareTitle, shareUrl, messageCount }: SharedChatSidebarProps) {
+  const { t } = useI18n()
   const isMobile = useIsMobile()
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
   const [isNativeSharing, setIsNativeSharing] = useState(false)
 
   const prompt = useMemo(
-    () => buildSharePrompt(shareTitle, shareUrl, messageCount),
-    [messageCount, shareTitle, shareUrl],
+    () =>
+      [
+        t('share.prompt.readTranscript', { shareUrl }),
+        t('share.prompt.title', { shareTitle }),
+        t('share.prompt.size', { messageCount }),
+        t('share.prompt.step1'),
+        t('share.prompt.step2'),
+        t('share.prompt.step3'),
+      ].join('\n'),
+    [messageCount, shareTitle, shareUrl, t],
   )
 
   const canNativeShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function'
@@ -80,7 +79,7 @@ export function SharedChatSidebar({ shareTitle, shareUrl, messageCount }: Shared
 
     try {
       await navigator.share({
-        title: `Continue "${shareTitle}" in another AI app`,
+        title: t('share.openInOtherApps'),
         text: prompt,
         url: shareUrl,
       })
@@ -96,16 +95,13 @@ export function SharedChatSidebar({ shareTitle, shareUrl, messageCount }: Shared
           <CardHeader className="gap-3">
             <div className="flex items-center justify-between gap-3">
               <Badge variant="outline" className="rounded-full px-3 py-1">
-                AI handoff
+                {t('share.aiHandoff')}
               </Badge>
               <span className="text-xs text-muted-foreground">{messageCount} messages</span>
             </div>
             <div className="space-y-2">
-              <CardTitle className="text-lg">Open this share in other AI apps</CardTitle>
-              <CardDescription>
-                Copy one prompt, open the app you want, and paste it to continue from the same
-                shared transcript.
-              </CardDescription>
+              <CardTitle className="text-lg">{t('share.openInOtherApps')}</CardTitle>
+              <CardDescription>{t('share.openInOtherAppsDescription')}</CardDescription>
             </div>
           </CardHeader>
 
@@ -116,7 +112,7 @@ export function SharedChatSidebar({ shareTitle, shareUrl, messageCount }: Shared
                   <Link2 className="size-4" />
                 </div>
                 <div className="min-w-0 space-y-1">
-                  <p className="text-sm font-medium">Shared transcript URL</p>
+                  <p className="text-sm font-medium">{t('share.transcriptUrl')}</p>
                   <p className="break-all font-mono text-xs text-muted-foreground">{shareUrl}</p>
                 </div>
               </div>
@@ -133,7 +129,7 @@ export function SharedChatSidebar({ shareTitle, shareUrl, messageCount }: Shared
                   ) : (
                     <Copy className="size-4" />
                   )}
-                  <span>{copiedKey === 'link' ? 'Copied link' : 'Copy link'}</span>
+                  <span>{copiedKey === 'link' ? t('share.copiedLink') : t('share.copyLink')}</span>
                 </Button>
 
                 {isMobile && canNativeShare ? (
@@ -144,7 +140,7 @@ export function SharedChatSidebar({ shareTitle, shareUrl, messageCount }: Shared
                     disabled={isNativeSharing}
                   >
                     <Smartphone className="size-4" />
-                    <span>{isNativeSharing ? 'Sharing...' : 'Share prompt'}</span>
+                    <span>{isNativeSharing ? t('share.sharing') : t('share.sharePrompt')}</span>
                   </Button>
                 ) : null}
               </div>
@@ -165,7 +161,15 @@ export function SharedChatSidebar({ shareTitle, shareUrl, messageCount }: Shared
                       </div>
                       <div className="min-w-0 space-y-1">
                         <p className="text-sm font-medium">{destination.name}</p>
-                        <p className="text-sm text-muted-foreground">{destination.description}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {destination.id === 'chatgpt'
+                            ? t('share.destination.chatgpt')
+                            : destination.id === 'gemini'
+                              ? t('share.destination.gemini')
+                              : destination.id === 'claude'
+                                ? t('share.destination.claude')
+                                : t('share.destination.t3chat')}
+                        </p>
                       </div>
                     </div>
 
@@ -181,7 +185,9 @@ export function SharedChatSidebar({ shareTitle, shareUrl, messageCount }: Shared
                         ) : (
                           <Copy className="size-4" />
                         )}
-                        <span>{copiedKey === promptKey ? 'Prompt copied' : 'Copy prompt'}</span>
+                        <span>
+                          {copiedKey === promptKey ? t('share.promptCopied') : t('share.copyPrompt')}
+                        </span>
                       </Button>
 
                       <Button
@@ -192,7 +198,7 @@ export function SharedChatSidebar({ shareTitle, shareUrl, messageCount }: Shared
                         }
                       >
                         <ExternalLink className="size-4" />
-                        <span>Open app</span>
+                        <span>{t('share.openApp')}</span>
                       </Button>
                     </div>
                   </div>

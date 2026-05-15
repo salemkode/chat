@@ -7,6 +7,7 @@ import { generatePath, useNavigate } from 'react-router'
 import { Loader2, Search, X } from '@/lib/icons'
 import { formatHotkeyBinding } from '@/lib/hotkeys'
 import { api } from '@convex/_generated/api'
+import { useI18n } from '@/components/i18n-provider'
 import { useHotkeyAction, useHotkeys } from '@/components/hotkeys-provider'
 import { Button } from '@/components/ui/button'
 import {
@@ -29,6 +30,7 @@ function createInitialState() {
 }
 
 export function SidebarSearchDialog({ isOnline }: { isOnline: boolean }) {
+  const { t } = useI18n()
   const navigate = useNavigate()
   const searchSidebar = useAction(api.sidebarSearch.searchSidebar)
   const { bindings } = useHotkeys()
@@ -92,14 +94,14 @@ export function SidebarSearchDialog({ isOnline }: { isOnline: boolean }) {
           setSearchState((current) => ({
             ...current,
             results: [],
-            error: error instanceof Error ? error.message : 'Search failed',
+            error: error instanceof Error ? error.message : t('sidebar.searchFailed'),
             isSearching: false,
           }))
         })
     }, 180)
 
     return () => window.clearTimeout(timeoutId)
-  }, [deferredQuery, isOnline, open, searchSidebar])
+  }, [deferredQuery, isOnline, open, searchSidebar, t])
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen)
@@ -120,7 +122,7 @@ export function SidebarSearchDialog({ isOnline }: { isOnline: boolean }) {
       >
         <span className="flex items-center gap-2">
           <Search className="size-4" />
-          Search chats
+          {t('sidebar.searchChats')}
         </span>
         <span className="rounded-md border border-sidebar-border px-2 py-0.5 text-[11px] text-sidebar-foreground/55">
           {formatHotkeyBinding(bindings.searchChats)}
@@ -134,7 +136,7 @@ export function SidebarSearchDialog({ isOnline }: { isOnline: boolean }) {
           className="gap-0 overflow-hidden rounded-[1.6rem] border border-white/8 bg-[#1f1f1f] p-0 text-white"
         >
           <div className="sr-only">
-            <ResponsiveModalTitle>Search chats</ResponsiveModalTitle>
+            <ResponsiveModalTitle>{t('sidebar.searchChats')}</ResponsiveModalTitle>
           </div>
 
           <div className="border-b border-white/8 px-5 py-4">
@@ -150,7 +152,7 @@ export function SidebarSearchDialog({ isOnline }: { isOnline: boolean }) {
                       query: event.target.value,
                     }))
                   }
-                  placeholder="Search across your chats"
+                  placeholder={t('sidebar.searchPlaceholder')}
                   className="h-12 rounded-2xl border-white/10 bg-white/4 pl-10 text-white placeholder:text-white/28 focus-visible:border-white/18 focus-visible:ring-white/10"
                 />
               </div>
@@ -160,7 +162,7 @@ export function SidebarSearchDialog({ isOnline }: { isOnline: boolean }) {
                   variant="outline"
                   size="icon"
                   className="rounded-full border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
-                  aria-label="Close search"
+                  aria-label={t('sidebar.searchClose')}
                 >
                   <X className="size-4" />
                 </Button>
@@ -171,12 +173,12 @@ export function SidebarSearchDialog({ isOnline }: { isOnline: boolean }) {
           <div className="max-h-[60vh] min-h-[18rem] overflow-y-auto">
             {!isOnline ? (
               <div className="px-5 py-10 text-center text-sm text-white/55">
-                Search is unavailable while offline.
+                {t('sidebar.searchOffline')}
               </div>
             ) : searchState.isSearching ? (
               <div className="flex items-center justify-center gap-3 px-5 py-10 text-sm text-white/58">
                 <Loader2 className="size-4 animate-spin" />
-                Searching conversations...
+                {t('sidebar.searchLoading')}
               </div>
             ) : searchState.error ? (
               <div className="px-5 py-10 text-center text-sm text-rose-300">
@@ -184,11 +186,11 @@ export function SidebarSearchDialog({ isOnline }: { isOnline: boolean }) {
               </div>
             ) : !searchState.query.trim() ? (
               <div className="px-5 py-10 text-center text-sm text-white/55">
-                Type to search across your chat history.
+                {t('sidebar.searchTypeHint')}
               </div>
             ) : searchState.results.length === 0 ? (
               <div className="px-5 py-10 text-center text-sm text-white/55">
-                No matching chats found.
+                {t('sidebar.searchEmpty')}
               </div>
             ) : (
               <div className="divide-y divide-white/6">
@@ -212,7 +214,9 @@ export function SidebarSearchDialog({ isOnline }: { isOnline: boolean }) {
                           {result.threadTitle}
                         </span>
                         {result.projectName ? (
-                          <span className="text-xs text-white/42">in {result.projectName}</span>
+                          <span className="text-xs text-white/42">
+                            {t('sidebar.searchInProject', { projectName: result.projectName })}
+                          </span>
                         ) : null}
                       </div>
                       <p className="mt-1 line-clamp-2 text-sm leading-6 text-white/72">

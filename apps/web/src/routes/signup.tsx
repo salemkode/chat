@@ -29,7 +29,7 @@ export default function SignupPage() {
         </Show>
 
         <Show when="signed-out">
-          <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+          <div className="min-h-dvh flex items-center justify-center p-4 bg-background">
             <SignUp path="/signup" routing="path" signInUrl="/login" {...redirectProps} />
           </div>
         </Show>

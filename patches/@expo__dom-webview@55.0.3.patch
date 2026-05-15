@@ -1,0 +1,25 @@
+diff --git a/ios/DomWebView.swift b/ios/DomWebView.swift
+index 7a38d9f98bf8c37853b777dbf945a13d46560e30..3ebd8c06178d9fb705b4266733ca1d07b6202a82 100644
+--- a/ios/DomWebView.swift
++++ b/ios/DomWebView.swift
+@@ -1,6 +1,7 @@
+ // Copyright 2015-present 650 Industries. All rights reserved.
+ 
+ import ExpoModulesCore
++import React
+ import WebKit
+ 
+ internal final class DomWebView: ExpoView, UIScrollViewDelegate, WKUIDelegate, WKScriptMessageHandler {
+diff --git a/ios/ExpoDomWebView.podspec b/ios/ExpoDomWebView.podspec
+index bda695ef3d814eee6705a10dff2ad4fc674704d4..a980c93b3d87ca8cada91ce5ee7e8a9dcc2d478a 100644
+--- a/ios/ExpoDomWebView.podspec
++++ b/ios/ExpoDomWebView.podspec
+@@ -11,7 +11,7 @@ Pod::Spec.new do |s|
+   s.author         = package['author']
+   s.homepage       = package['homepage']
+   s.platforms       = {
+-    :ios => '15.1',
++    :ios => '17.0',
+   }
+   s.swift_version  = '5.9'
+   s.source         = { git: 'https://github.com/expo/expo.git' }

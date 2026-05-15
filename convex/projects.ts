@@ -7,19 +7,19 @@ import {
   type MutationCtx,
   type ActionCtx,
 } from './_generated/server'
-import { components, internal } from './_generated/api'
+import { internal } from './_generated/api'
 import type { Id } from './_generated/dataModel'
 import { v, ConvexError } from 'convex/values'
 import { createOpenRouter } from '@openrouter/ai-sdk-provider'
 import { generateObject } from 'ai'
 import { z } from 'zod'
 import { getAuthUserId } from './lib/auth'
-import { extractMessageText } from './functions/memoryShared'
 import {
   ensureProjectOwnerMembership,
   listAccessibleProjectIds,
   requireProjectRole,
 } from './lib/projectAccess'
+import { extractTextFromParts, normalizeChatThreadId } from './lib/chatEngine'
 
 async function requireUserId(ctx: QueryCtx | MutationCtx): Promise<Id<'users'> | null> {
   const userId = await getAuthUserId(ctx)
@@ -157,10 +157,18 @@ export const getProjectSuggestionContext = internalQuery({
         recentTranscript: undefined,
       }
     }
+    const requestedThreadId = args.threadId
+    const threadId = normalizeChatThreadId(ctx, requestedThreadId)
+    if (!threadId) {
+      throw new ConvexError({
+        code: 'NOT_FOUND',
+        message: 'Thread not found',
+      })
+    }
 
     const metadata = await ctx.db
       .query('threadMetadata')
-      .withIndex('by_threadId', (q) => q.eq('threadId', args.threadId!))
+      .withIndex('by_threadId', (q) => q.eq('threadId', requestedThreadId))
       .first()
 
     if (!metadata || metadata.userId !== userId) {
@@ -171,28 +179,22 @@ export const getProjectSuggestionContext = internalQuery({
     }
 
     const [thread, recentMessages] = await Promise.all([
-      ctx.runQuery(components.agent.threads.getThread, {
-        threadId: args.threadId,
-      }),
-      ctx.runQuery(components.agent.messages.listMessagesByThreadId, {
-        threadId: args.threadId,
-        statuses: ['success'],
-        excludeToolMessages: true,
-        order: 'desc',
-        paginationOpts: {
-          cursor: null,
-          numItems: 12,
-        },
-      }),
+      ctx.db.get(threadId),
+      ctx.db
+        .query('chatMessages')
+        .withIndex('by_thread_order', (q) => q.eq('threadId', threadId))
+        .order('desc')
+        .filter((q) => q.eq(q.field('status'), 'success'))
+        .take(12),
     ])
 
-    const recentTranscript = recentMessages.page
+    const recentTranscript = recentMessages
       .map((message) => {
         const role = message.message?.role
         if (role !== 'user' && role !== 'assistant') {
           return null
         }
-        const text = extractMessageText(message)
+        const text = message.text ?? extractTextFromParts(message.parts)
         if (!text) {
           return null
         }
@@ -600,9 +602,12 @@ export const listThreadsByProject = query({
 
     const threads = await Promise.all(
       ownedMetadata.map(async (item) => {
-        const thread = await ctx.runQuery(components.agent.threads.getThread, {
-          threadId: item.threadId,
-        })
+        const threadId = normalizeChatThreadId(ctx, item.threadId)
+        if (!threadId) {
+          return null
+        }
+
+        const thread = await ctx.db.get(threadId)
         if (!thread || thread.userId !== userId) {
           return null
         }

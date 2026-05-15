@@ -38,7 +38,7 @@ export default function LoginPage() {
 
         <Show when="signed-out">
           {!useExternalAuth ? (
-            <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+            <div className="min-h-dvh flex items-center justify-center p-4 bg-background">
               <SignIn path="/login" routing="path" signUpUrl="/signup" {...redirectProps} />
             </div>
           ) : null}

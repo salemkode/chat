@@ -72,8 +72,9 @@ The mobile app uses Expo Router for navigation and keeps route files thin.
 Entry and shell:
 
 - `apps/mobile/app/_layout.tsx`: global bootstrap, fonts, splash screen, root providers
-- `apps/mobile/src/providers/AppProviders.tsx`: Clerk + Convex + safe area providers
-- `apps/mobile/app/(app)/_layout.tsx`: authenticated drawer shell
+- `apps/mobile/src/providers/AppProviders.tsx`: Clerk + Convex + gesture handler + keyboard-controller + safe area providers
+- `apps/mobile/app/(app)/_layout.tsx`: authenticated stack shell for app routes such as profile, projects, legacy deep links, and the chat shell group
+- `apps/mobile/app/(app)/(pager)/_layout.tsx`: thin stack group kept for legacy path stability; the active chat route owns the template-style gesture drawer
 
 Chat architecture follows the repo rule set:
 
@@ -83,17 +84,25 @@ Chat architecture follows the repo rule set:
 
 Current chat composition:
 
-- `apps/mobile/app/(app)/chats.tsx`: new chat route
-- `apps/mobile/app/(app)/chat/[id].tsx`: existing thread route
-- both routes render `apps/mobile/src/components/chat/chat-page.tsx`
-- `ChatPage` composes `ChatHeader`, `MessageList`, `ChatComposer`, `OfflineBanner`, and `ModelPickerDialog`
+- `apps/mobile/app/(app)/(pager)/chat.tsx`: chat route that composes `ChatDrawerLayout`, `MobileSidebarPage`, and `ChatPage`
+- `apps/mobile/src/components/chat/chat-drawer-layout.tsx`: gesture-driven template-inspired drawer with live sidebar content behind the chat surface
+- `apps/mobile/app/(app)/(pager)/sidebar.tsx`: compatibility route that can render the same reusable sidebar page directly
+- legacy routes such as `apps/mobile/app/(app)/(chatTab)/chat/[id].tsx` now map deep links into the shared current-chat store and redirect into the chat shell route
+- top-level legacy routes under `apps/mobile/app/(tabs)` and `apps/mobile/app/sidebar` are redirect-only shims into the authenticated chat/projects/profile routes
+- the authenticated chat shell now uses a gesture drawer instead of swipe tabs: the sidebar slides from the left, while the main chat remains the default landing surface
+- `ChatPage` composes `ChatHeader`, `MessageList` or `NewChatEmptyState`, floating `ChatComposer`, `OfflineBanner`, and `ModelPickerDialog`
+- mobile chat input uses a Liquid Glass-aware floating `ChatComposer` dock with `react-native-keyboard-controller` positioning, multiline draft input, attachments, search, model access, and send/stop controls while `ModelPickerDialog` stays in `components/dialog` with a grouped, searchable list (Auto, Favorites, all models) on top of the same prop-driven boundaries as before
+- `MobileSidebarPage` composes the real mobile sidebar from reusable project, thread-list, and footer sections; the mobile list follows a ChatGPT-style structure with top shortcuts, pinned chats, compact expandable projects, relative-date chat sections, and long-press / overflow row actions
 - `use-chat-conversation.ts` assembles UI state, draft state, model state, project selection, send/replay logic, and inline error feedback
 
 Mobile data and offline layer:
 
 - `apps/mobile/src/mobile-data/*`: Convex-facing hooks for threads, messages, models, drafts, projects, and sending
 - `apps/mobile/src/offline/*`: SQLite-backed cache and offline record types
-- `apps/mobile/src/store/chat-optimistic-send.ts`: local optimistic send state and replay-based recovery
+- `apps/mobile/src/store/current-chat.ts`: shared current chat selection state for drawer-driven chat navigation
+- Convex optimistic mutation updates own thread/message handoff after send; failed sends are surfaced inline through rendered message failure state
+- `apps/mobile/src/components/chat/message-list.tsx` and `message-row.tsx`: native mobile message rendering that mirrors web row semantics for activity traces, failure presentation, stalled-generation recovery, and message actions while keeping touch-first presentation
+- `apps/mobile/src/components/chat/mobile-sidebar-*.tsx`: reusable native sidebar sections that consume the live thread and project model
 
 Important mobile rule already implemented:
 
@@ -116,7 +125,8 @@ Web feature areas:
 
 - `apps/web/src/routes/*`: route handlers for chat, auth, admin, share, signup, memory demo
 - `apps/web/src/components/*`: chat UI, sidebar, prompt input, auth redirect, settings, markdown, model UI
-- settings shell lives in `apps/web/src/components/settings-modal.tsx`; settings dropdown fields use the shared Shadcn `Select` pattern for consistent design
+- settings shell lives in `apps/web/src/components/settings-modal.tsx`; settings dropdown fields use the shared Shadcn `Select` pattern for consistent design, and appearance preferences now include theme mode, accent color, plus separately persisted English and Arabic font stacks restored from local storage before hydration
+- user-facing web copy now flows through a lightweight typed i18n layer in `apps/web/src/lib/i18n.ts` and `apps/web/src/components/i18n-provider.tsx`, which owns locale preference, `html[lang|dir]`, and translation dictionaries so adding a new language is mostly a dictionary change
 - `apps/web/src/components/chat-model-context.tsx`: model preference state; persists `default model` and `last used model` separately in `localStorage`
 - `apps/web/src/hooks/chat-data/*`: thread/message send flow, optimistic message list updates, local draft support
 - `apps/web/src/offline/*`: localStorage-backed offline snapshots
@@ -127,16 +137,27 @@ The web app is currently the richer admin surface:
 - memory and share routes
 - broader desktop-oriented UI primitives under `apps/web/src/components/ui`
 
+Streaming markdown rendering on web:
+
+- chat markdown is rendered with `streamdown` in `apps/web/src/components/chat-markdown.tsx`
+- code and mermaid support are enabled through `@streamdown/code` and `@streamdown/mermaid`
+- assistant replies and live reasoning use the same hybrid streaming path: committed markdown blocks render append-only through `Streamdown`, while the current unfinished block stays in a lightweight plain-text tail until it closes
+- web block commits are token-aware: paragraphs commit when a blank line or a new block starts after them, fenced code commits when the closing fence arrives, and active lists / tables / blockquotes stay in the tail until they are clearly closed
+- `ChatMessageList` keeps `dataVersion` structural so per-token stream text does not force full-list remeasurement
+
 ### 3. Shared Package
 
 `packages/shared` is intentionally small and contains code that should remain free of platform UI assumptions.
 
 Current responsibilities:
 
-- reusable hooks such as `use-online-status`
+- reusable hooks such as `use-online-status` and `use-smooth-text`
 - thread grouping logic
 - project mention parsing used by mobile chat composer
 - shared admin types
+- **chat parity (pure logic)**: pending-send handoff (`logic/pending-send-core`), optimistic **user** `listMessages` row shape (`logic/optimistic-list-messages-core`; assistant replies are not optimistic), generation stall and send-queue primitives (`logic/chat-generation-core`), optimistic thread id/title (`logic/optimistic-thread-core`), send pipeline helpers (`logic/send-pipeline-core`). Web and mobile merge persisted `listMessages` rows with first-party `listStreamingMessages` rows and sort by message order.
+
+Web and mobile keep **thin adapters**: Convex `insertAtPosition` and mutations stay in each app; web uses `PendingSendsProvider` (React state) while mobile uses Zustand for the same pending-send lifecycle. Mobile listens for `CHAT_STREAM_RESUME_EVENT` via `DeviceEventEmitter` (`apps/mobile/src/lib/chat-events.ts`) with the same event names as the web `window` dispatcher so stream-resume behavior aligns.
 
 This package should continue to hold pure logic and cross-platform primitives, not app-specific screen composition.
 
@@ -151,11 +172,14 @@ Convex is the central system of record. It owns:
 - memory extraction and retrieval
 - billing and admin helpers
 
+Chat storage is first-party Convex data. New chat threads live in `chatThreads`, persisted rows in `chatMessages`, active stream state in `chatStreamingMessages` and `chatStreamDeltas`, upload metadata in `chatFiles`, and optional semantic-search vectors in `chatMessageEmbeddings`. The old `@convex-dev/agent` component is deliberately outside the new data boundary: legacy component thread IDs are not migrated or dual-read, and paths that encounter non-`chatThreads` IDs skip them as stale history. For uploads, per-turn model choice, and how much history is sent to the model, see [Chat attachments, multi-model threads, and context](./chat-attachments-models-and-context.md).
+
 Primary modules:
 
 - `convex/schema.ts`: tables for users, providers, models, routing policy, projects, shares, and related records
 - `convex/agents.ts`: chat thread creation, generation, regeneration, upload URL creation, streaming lifecycle
-- `convex/chat.ts`: chat queries such as message listing
+- `convex/chat.ts`: chat queries such as message and active-stream listing
+- `convex/chatEngine.ts` and `convex/lib/chatEngine.ts`: first-party chat message, stream, UI-message, and embedding helpers
 - `convex/messages.ts`: message-oriented operations
 - `convex/projects.ts`: project data and project-thread relationships
 - `convex/modelSelection.ts`: model selection and routing
@@ -186,15 +210,14 @@ Backend:
 
 ### Mobile
 
-1. User lands in `chats.tsx` for a new conversation or `chat/[id].tsx` for an existing one.
-2. Route renders `ChatPage`.
+1. User lands on the `chat` shell route and opens the gesture drawer when they need history/projects.
+2. Route composes `ChatDrawerLayout`, live `MobileSidebarPage`, and `ChatPage`.
 3. `useChatConversation` combines thread state, draft state, selected model, project mention, attachments, and online status.
-4. `MessageList` reads merged live, cached, and optimistic messages.
-5. `ChatComposer` submits through `useSendMessage`.
-6. `useSendMessage` optionally creates a thread, uploads attachments, and calls Convex generation mutations.
-7. File picker options are derived from each model attachment policy (`supportedAttachmentMediaTypes` when configured, otherwise capability inference). Unsupported file types are blocked in the composer.
-8. Optimistic UI is inserted locally for thread and message rows.
-9. If a mutation fails, a failed assistant response is shown inline with error text and a replay action.
+4. `ChatComposer` submits through `useSendMessage`.
+5. `useSendMessage` optionally creates a thread, uploads attachments, and calls Convex generation mutations.
+6. File picker options are derived from each model attachment policy (`supportedAttachmentMediaTypes` when configured; an explicit empty list disables uploads; otherwise capability inference), then constrained by provider-specific runtime limits. Unsupported file types are blocked in the composer.
+7. Optimistic UI is inserted locally for thread and message rows.
+8. If a mutation fails, a failed assistant response is shown inline with error text and a replay action.
 
 ### Web
 
@@ -216,13 +239,20 @@ Mobile has a stronger local-first layer than web.
 - storage is backed by SQLite under `apps/mobile/src/offline/db.ts`
 - drafts are persisted separately
 - local thread IDs support optimistic sends before a server thread exists
-- `chat-optimistic-send` store merges pending and failed sends into the rendered message list
+- mobile send handoff mirrors web: local thread IDs exist only before server resolution, while Convex optimistic rows own the post-handoff state so route changes into a resolved thread do not duplicate messages or reset the visible chat shell
 
 This gives the mobile client:
 
 - offline readback of cached threads/messages
 - temporary local conversation continuity before server thread resolution
 - inline failed response recovery via replay actions
+- web-aligned assistant/user message semantics, including activity timeline rendering, failure-mode-aware UI, and stop/resend/repeat actions on persisted rows; the latest active assistant response is also flagged as stalled after the shared no-progress threshold so the row can expose Stop/Resend directly inside the message
+
+Mobile streaming markdown:
+
+- assistant responses render through the native message text component while streaming
+- Expo source config keeps New Architecture enabled in `apps/mobile/app.json`, matching the generated native mobile projects used by Reanimated 4
+- Reanimated worklets remain enabled through `react-native-worklets` in `apps/mobile/babel.config.js`
 
 ### Web
 
@@ -249,13 +279,15 @@ Generation path:
 
 1. client selects or resolves a model
 2. Convex loads the model and provider configuration
-3. backend creates the language model client for the provider
-4. message generation is streamed into the chat thread
-5. post-processing may trigger memory extraction or related bookkeeping
+3. backend saves the user prompt and a pending assistant row in `chatMessages`
+4. backend creates the language model client for the provider and calls AI SDK `streamText`
+5. UI-message chunks are stored in `chatStreamDeltas`, then the assistant row is finalized atomically when the stream completes
+6. a backend watchdog checks stream heartbeats and marks stalled generations failed after the no-progress window, which lets clients expose Stop/Resend recovery instead of leaving an infinite pending state
+7. post-processing may store search embeddings, trigger memory extraction, or run related bookkeeping
 
 This design lets admin configuration change model availability without redeploying clients.
 
-Model records now also carry attachment policy metadata (`supportedAttachmentMediaTypes`, validation status/message/timestamp). Admin settings can run a bulk validation pass to refresh per-model status for the admin models table.
+Model records now also carry attachment policy metadata (`supportedAttachmentMediaTypes`, validation status/message/timestamp). When `supportedAttachmentMediaTypes` is set explicitly (even to an empty list), it becomes the source of truth for whether uploads are enabled for that model. Admin settings can run a bulk validation pass to refresh per-model status for the admin models table. Attachment policy is runtime-aware as well, so provider adapters that are text-only today, such as the native DeepSeek adapter in this backend, override optimistic capability inference and disable file inputs until backend support exists.
 
 ## Memory Subsystem
 
@@ -289,6 +321,7 @@ These are the main architectural rules reflected in the current mobile code and 
 - keep mobile chat UI in reusable components under `apps/mobile/src/components/chat`
 - keep model dialogs under `apps/mobile/src/components/dialog`
 - keep route files thin and compositional
+- keep the authenticated chat shell drawer-first; account/profile belongs in sidebar-driven or pushed routes instead of primary tabs
 - share message row layout across chat modes
 - use Convex optimistic updates only on mutations
 - show inline, non-blocking failure feedback when optimistic mobile sends fail

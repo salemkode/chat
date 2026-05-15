@@ -1,7 +1,7 @@
-import { useUIMessages } from '@convex-dev/agent/react'
 import type { UsePaginatedQueryResult } from 'convex/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '@convex/_generated/api'
+import { usePaginatedQuery, useQuery } from '@/lib/convex-query-cache'
 import {
   buildMessageProgressSignature,
   getLatestActiveAssistant,
@@ -9,7 +9,6 @@ import {
 } from '@/lib/chat-generation'
 import { CHAT_STREAM_RESUME_EVENT } from '@/lib/chat-events'
 import { usePendingSends } from '@/hooks/chat-data/pending-sends'
-import { sortChatMessages } from '@/hooks/chat-data/message-order'
 import { readMessagesCache } from '@/offline/local-cache'
 import {
   cacheMessagesToLocal,
@@ -18,6 +17,29 @@ import {
   useConvexUserIdForCache,
   useOfflineCacheVersion,
 } from '@/hooks/chat-data/shared'
+
+function getMessageKey(message: Pick<ChatMessage, 'order' | 'stepOrder' | 'id'>) {
+  return `${message.order ?? message.id}:${message.stepOrder ?? 0}`
+}
+
+function mergeLiveMessages(baseMessages: ChatMessage[], streamingMessages: ChatMessage[]) {
+  const byKey = new Map(baseMessages.map((message) => [getMessageKey(message), message]))
+
+  for (const message of streamingMessages) {
+    const key = getMessageKey(message)
+    const existing = byKey.get(key)
+    if (!existing || existing.status === 'pending' || existing.status === 'streaming') {
+      byKey.set(key, message)
+    }
+  }
+
+  return Array.from(byKey.values()).sort(
+    (left, right) =>
+      (left.order ?? 0) - (right.order ?? 0) ||
+      (left.stepOrder ?? 0) - (right.stepOrder ?? 0) ||
+      (left.createdAt ?? 0) - (right.createdAt ?? 0),
+  )
+}
 
 export type UseMessagesResult = {
   messages: ChatMessage[]
@@ -37,10 +59,13 @@ export function useMessages(threadId?: string): UseMessagesResult {
   const stableSignatureRef = useRef('')
   const stableSnapshotCountRef = useRef(0)
   const queryArgs = threadId ? { threadId } : 'skip'
-  const paginatedMessages = useUIMessages(api.chat.listMessages, queryArgs, {
+  const paginatedMessages = usePaginatedQuery(api.chat.listMessages, queryArgs, {
     initialNumItems: 30,
-    stream: streamEnabled,
   }) as unknown as UsePaginatedQueryResult<ChatMessage>
+  const streamingMessages = useQuery(
+    api.chat.listStreamingMessages,
+    threadId && streamEnabled ? { threadId } : 'skip',
+  )
   const { results, status, loadMore } = paginatedMessages
 
   const cachedMessages = useMemo(() => {
@@ -72,20 +97,23 @@ export function useMessages(threadId?: string): UseMessagesResult {
     )
   }, [threadId, cacheUserId, cacheVersion])
 
-  const orderedCachedMessages = useMemo(() => sortChatMessages(cachedMessages), [cachedMessages])
-
-  const liveMessages = useMemo(
-    () =>
+  const liveMessages = useMemo(() => {
+    const persisted =
       threadId && results?.length
-        ? sortChatMessages(
-            results.map((message) => ({
-              ...message,
-              createdAt: message.order,
-            })),
-          )
-        : [],
-    [results, threadId],
-  )
+        ? results.map((message) => ({
+            ...message,
+            createdAt: message.order,
+          }))
+        : []
+    const streams =
+      threadId && streamingMessages?.length
+        ? streamingMessages.map((message: ChatMessage) => ({
+            ...message,
+            createdAt: message.order,
+          }))
+        : []
+    return mergeLiveMessages(persisted, streams)
+  }, [results, streamingMessages, threadId])
 
   const pendingCacheWriteRef = useRef<number | null>(null)
   const lastCachedSignatureRef = useRef('')
@@ -216,13 +244,13 @@ export function useMessages(threadId?: string): UseMessagesResult {
     }
   }, [cacheSignature, cacheUserId, hasStreamingMessages, liveMessages, threadId])
 
-  const resolvedMessages = liveMessages.length > 0 ? liveMessages : orderedCachedMessages
+  const resolvedMessages = liveMessages.length > 0 ? liveMessages : cachedMessages
   const pendingMessages = useMemo(
-    () => sortChatMessages(selectPendingMessages(threadKey, liveMessages)),
+    () => selectPendingMessages(threadKey, liveMessages),
     [liveMessages, selectPendingMessages, threadKey],
   )
   const mergedMessages = useMemo(
-    () => sortChatMessages([...resolvedMessages, ...pendingMessages]),
+    () => [...resolvedMessages, ...pendingMessages],
     [pendingMessages, resolvedMessages],
   )
 

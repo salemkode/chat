@@ -1,5 +1,6 @@
 import { Folder, MessageSquare, X } from '@/lib/icons'
 import { ShareChatDialog } from '@/components/chat/share-chat-dialog'
+import { useI18n } from '@/components/i18n-provider'
 import { Button } from '@/components/ui/button'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 
@@ -18,6 +19,8 @@ export function ChatThreadHeader({
   projectName,
   onRemoveFromProject,
 }: ChatThreadHeaderProps) {
+  const { t } = useI18n()
+
   return (
     <header className="flex h-14 shrink-0 items-center border-b border-border bg-background/80 px-2 backdrop-blur-sm sm:px-4">
       <div className="mx-auto flex h-full w-full items-center justify-between gap-3">
@@ -29,7 +32,7 @@ export function ChatThreadHeader({
             {projectId ? (
               <div className="flex items-center gap-2 rounded-full border bg-muted/60 px-2.5 py-1 text-xs text-muted-foreground">
                 <Folder className="size-3.5" />
-                <span>{projectName || 'Project'}</span>
+                <span>{projectName || t('common.project')}</span>
                 {onRemoveFromProject ? (
                   <Button
                     variant="ghost"

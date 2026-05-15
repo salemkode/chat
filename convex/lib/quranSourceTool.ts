@@ -1,4 +1,4 @@
-import { createTool } from '@convex-dev/agent'
+import { createTool } from './chatTool'
 import { z } from 'zod'
 
 const QURAN_API_BASE_URL = 'https://api.quran.com/api/v4'

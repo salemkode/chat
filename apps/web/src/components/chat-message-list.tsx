@@ -4,6 +4,7 @@ import type { ChatMessage } from '@/hooks/use-chat-data'
 import { buildPromptMessageIdsByIndex } from '@/lib/chat-generation'
 import { CHAT_FOLLOW_LATEST_EVENT } from '@/lib/chat-events'
 import { cn } from '@/lib/utils'
+import { useI18n } from '@/components/i18n-provider'
 import { Message } from './message'
 
 interface ChatMessageListProps {
@@ -27,6 +28,7 @@ export function ChatMessageList({
   activeAssistantMessageId,
   stalledAssistantMessageId,
 }: ChatMessageListProps) {
+  const { t } = useI18n()
   const listRef = useRef<LegendListRef | null>(null)
 
   const promptMessageIdByIndex = useMemo(() => buildPromptMessageIdsByIndex(messages), [messages])
@@ -48,7 +50,7 @@ export function ChatMessageList({
     window.addEventListener(CHAT_FOLLOW_LATEST_EVENT, handleFollowLatest)
     return () => window.removeEventListener(CHAT_FOLLOW_LATEST_EVENT, handleFollowLatest)
   }, [threadId])
-  const dataVersion = `${messages.length}:${latestMessage?.id ?? ''}:${latestMessage?.status ?? ''}:${latestMessage?.text ?? ''}:${activeAssistantMessageId ?? ''}:${stalledAssistantMessageId ?? ''}`
+  const dataVersion = `${messages.length}:${latestMessage?.id ?? ''}:${latestMessage?.status ?? ''}:${activeAssistantMessageId ?? ''}:${stalledAssistantMessageId ?? ''}`
 
   if (messages.length === 0) {
     return (
@@ -86,7 +88,7 @@ export function ChatMessageList({
           hasOlderMessages ? (
             <div className="flex justify-center pb-3">
               <div className="rounded-full border border-border/70 bg-background/90 px-3 py-1 text-xs text-muted-foreground shadow-sm backdrop-blur">
-                {isLoadingOlder ? 'Loading older messages...' : 'Scroll up to load older messages'}
+                {isLoadingOlder ? t('chat.loadingOlder') : t('chat.scrollToLoadOlder')}
               </div>
             </div>
           ) : null

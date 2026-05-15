@@ -1,4 +1,4 @@
-import { createTool, type ToolCtx } from '@convex-dev/agent'
+import { createTool, type ToolCtx } from './chatTool'
 import { z } from 'zod'
 import type { Id } from '../_generated/dataModel'
 import { internal } from '../_generated/api'

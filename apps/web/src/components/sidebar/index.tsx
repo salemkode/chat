@@ -29,6 +29,7 @@ import {
   SidebarSeparator,
 } from '@/components/ui/sidebar'
 import { Button } from '@/components/ui/button'
+import { useI18n } from '@/components/i18n-provider'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { SettingsDialog } from '@/components/settings-modal'
@@ -52,6 +53,7 @@ interface AppSidebarProps {
 }
 
 export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
+  const { t } = useI18n()
   const navigate = useNavigate()
   const [settingsOpen, setSettingsOpen] = React.useState(false)
   const [settingsTab, setSettingsTab] = React.useState<SettingsTab>('general')
@@ -196,12 +198,12 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
     <Sidebar className={cn('border-r border-sidebar-border', className)}>
       <SidebarHeader className="relative pb-2">
         <div className="flex items-center justify-center py-3">
-          <h1 className="text-lg font-semibold text-sidebar-foreground">Chat</h1>
+          <h1 className="text-lg font-semibold text-sidebar-foreground">{t('app.shortName')}</h1>
         </div>
 
         <Button onClick={handleNewChat} className="w-full">
           <Plus className="mr-2 h-4 w-4" />
-          New Chat
+          {t('sidebar.newChat')}
         </Button>
 
         <div className="mt-2 flex gap-2">
@@ -217,7 +219,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
             }
           >
             <Folder className="mr-2 h-4 w-4" />
-            New Project
+            {t('sidebar.newProject')}
           </Button>
         </div>
 
@@ -227,7 +229,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
       <SidebarContent>
         {projects.length > 0 ? (
           <SidebarGroup>
-            <SidebarGroupLabel>Projects</SidebarGroupLabel>
+            <SidebarGroupLabel>{t('sidebar.projects')}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu className="gap-1">
                 {projects.map((project) => {
@@ -244,7 +246,9 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
                               className="flex shrink-0 items-center"
                               onClick={() => toggleProjectExpanded(project.id)}
                               aria-label={
-                                expanded ? `Collapse ${project.name}` : `Expand ${project.name}`
+                                expanded
+                                  ? t('sidebar.collapseProject', { projectName: project.name })
+                                  : t('sidebar.expandProject', { projectName: project.name })
                               }
                             >
                               {expanded ? (
@@ -272,7 +276,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
                             </button>
                             <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover/project:opacity-100">
                               <IconActionButton
-                                label="New chat in project"
+                                label={t('sidebar.newChatInProject')}
                                 onClick={() => handleNewChatInProject(project.id)}
                                 icon={<Plus className="size-3.5" />}
                               />
@@ -307,7 +311,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
                                       setRemoveFromProjectDialog({
                                         projectName: project.name,
                                         threadId: thread.serverId!,
-                                        threadTitle: thread.title || 'Untitled chat',
+                                        threadTitle: thread.title || t('sidebar.untitledChat'),
                                       })
                                   : undefined
                               }
@@ -324,7 +328,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
         ) : null}
 
         <SidebarGroup>
-          <SidebarGroupLabel>Unfiled</SidebarGroupLabel>
+          <SidebarGroupLabel>{t('sidebar.unfiled')}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-1">
               <AnimatedThreadList
@@ -350,7 +354,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
               />
               {unfiledThreads.length === 0 ? (
                 <div className="rounded-md border border-dashed px-3 py-4 text-sm text-muted-foreground">
-                  No unfiled chats.
+                  {t('sidebar.noUnfiled')}
                 </div>
               ) : null}
             </SidebarMenu>
@@ -381,7 +385,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
                     <Avatar className="size-8 shrink-0">
                       <AvatarImage
                         src={viewer?.image || clerkUser?.imageUrl || undefined}
-                        alt={viewer?.name || clerkUser?.fullName || 'User'}
+                        alt={viewer?.name || clerkUser?.fullName || t('common.user')}
                         className="object-cover"
                       />
                       <AvatarFallback className="bg-primary text-xs font-medium text-primary-foreground">
@@ -399,7 +403,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
                     </Avatar>
                     <div className="min-w-0 flex-1 text-left">
                       <span className="block truncate text-sm font-medium text-foreground">
-                        {viewer?.name || clerkUser?.fullName || 'User'}
+                        {viewer?.name || clerkUser?.fullName || t('common.user')}
                       </span>
                       <span className="block truncate text-xs text-muted-foreground">
                         {viewer?.email || clerkUser?.primaryEmailAddress?.emailAddress || ''}
@@ -409,7 +413,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="top">
-                  <p>Settings</p>
+                  <p>{t('sidebar.userSettings')}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -421,7 +425,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
             onClick={() => navigate('/login')}
           >
             <LogIn className="h-4 w-4" />
-            Login
+            {t('common.login')}
           </Button>
         )}
       </SidebarFooter>

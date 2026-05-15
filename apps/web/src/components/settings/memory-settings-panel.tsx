@@ -3,6 +3,7 @@ import { api } from '@convex/_generated/api'
 import type { FunctionReturnType } from 'convex/server'
 import { useMemo, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
+import { useI18n } from '@/components/i18n-provider'
 import { Input } from '@/components/ui/input'
 import { ResponsiveSelectField } from '@/components/ui/responsive-select-field'
 import { useProjects, useThreads } from '@/hooks/use-chat-data'
@@ -15,6 +16,7 @@ type AggregatedMemoryItem = MemoryItem & {
 }
 
 export function MemorySettingsPanel() {
+  const { t } = useI18n()
   const { threads } = useThreads()
   const { projects } = useProjects()
   const [scope, setScope] = useState<MemoryScope>('all')
@@ -80,26 +82,26 @@ export function MemorySettingsPanel() {
         <ResponsiveSelectField
           value={scope}
           onValueChange={(value) => setScope(value as MemoryScope)}
-          title="Scope"
+          title={t('memory.scope')}
           className="w-full"
           options={[
-            { value: 'all', label: 'All' },
-            { value: 'user', label: 'User' },
-            { value: 'thread', label: 'Thread' },
-            { value: 'project', label: 'Project' },
+            { value: 'all', label: t('memory.scope.all') },
+            { value: 'user', label: t('memory.scope.user') },
+            { value: 'thread', label: t('memory.scope.thread') },
+            { value: 'project', label: t('memory.scope.project') },
           ]}
         />
         <Input
           value={searchValue}
           onChange={(event) => setSearchValue(event.target.value)}
-          placeholder="Search memories…"
+          placeholder={t('memory.searchPlaceholder')}
           className="w-full"
         />
       </div>
 
       {displayedMemories.length === 0 ? (
         <div className="rounded-lg border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
-          No memories match this filter.
+          {t('memory.empty')}
         </div>
       ) : (
         <ul className="space-y-3">

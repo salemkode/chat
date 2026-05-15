@@ -7,6 +7,7 @@ import { AlertCircle } from '@/lib/icons'
 import { matchesHotkeyBinding } from '@/lib/hotkeys'
 import { cn } from '@/lib/utils'
 import { useQuery } from '@/lib/convex-query-cache'
+import { useDocumentDirection, useI18n } from '@/components/i18n-provider'
 import { useHotkeys } from '@/components/hotkeys-provider'
 import {
   AttachmentGrid,
@@ -50,6 +51,7 @@ function ComposerContextMeter({
   modelDocId?: Id<'models'>
   mobile: boolean
 }) {
+  const direction = useDocumentDirection()
   const data = useQuery(
     api.agents.getThreadContextMeter,
     threadId && modelDocId ? { threadId, selectedModelId: modelDocId } : 'skip',
@@ -120,7 +122,12 @@ function ComposerContextMeter({
         <span className="pointer-events-none absolute text-[11px] font-semibold tabular-nums text-foreground/85">
           {progress}
         </span>
-        <div className="pointer-events-none absolute bottom-full right-0 z-10 mb-2 hidden whitespace-nowrap rounded-md border border-border/70 bg-background/95 px-2 py-1 text-[11px] text-muted-foreground shadow-sm backdrop-blur group-hover/context:block">
+        <div
+          className={cn(
+            'pointer-events-none absolute bottom-full z-10 mb-2 hidden whitespace-nowrap rounded-md border border-border/70 bg-background/95 px-2 py-1 text-[11px] text-muted-foreground shadow-sm backdrop-blur group-hover/context:block',
+            direction === 'rtl' ? 'left-0' : 'right-0',
+          )}
+        >
           {labelRight}
         </div>
       </div>
@@ -213,6 +220,8 @@ export function AIPromptInput({
   creatingProject = false,
   attachmentMediaTypes,
 }: AIPromptInputProps) {
+  const { t } = useI18n()
+  const direction = useDocumentDirection()
   const [internalValue, setInternalValue] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [searchEnabled, setSearchEnabled] = useState(false)
@@ -242,12 +251,17 @@ export function AIPromptInput({
   const imageAttachmentsSupported = allowedAttachmentMediaTypes.some((mediaType) =>
     mediaType.startsWith('image/'),
   )
-  const unsupportedImageMessage = `${
-    selectedModelLabel || 'Selected model'
-  } does not support image attachments. Remove images or choose a model with Vision support.`
+  const resolvedModelLabel = selectedModelLabel || t('composer.selectedModel')
+  const unsupportedImageMessage = t('composer.unsupportedImages', {
+    modelName: resolvedModelLabel,
+  })
   const unsupportedAttachmentTypeMessage = attachmentsSupported
-    ? `This model accepts: ${allowedAttachmentMediaTypes.join(', ')}`
-    : `${selectedModelLabel || 'Selected model'} does not support file attachments.`
+    ? t('composer.unsupportedAttachments', {
+        types: allowedAttachmentMediaTypes.join(', '),
+      })
+    : t('composer.attachmentsNotSupported', {
+        modelName: resolvedModelLabel,
+      })
   const selectedProject = projects.find((project) => project.id === selectedProjectId)
   const sendBinding = bindings.sendMessage
   const mentionOptions: MentionProjectOption[] = projectMention
@@ -681,12 +695,10 @@ export function AIPromptInput({
           />
           {pendingProjectDraft ? (
             <div className="w-full rounded-2xl border border-border/70 bg-background/75 p-3">
-              <div className="mb-2 text-sm font-medium text-foreground">
-                New project for this chat
-              </div>
+              <div className="mb-2 text-sm font-medium text-foreground">{t('composer.newProjectForChat')}</div>
               {pendingProjectDraft.loading ? (
                 <div className="mb-2 text-xs text-muted-foreground">
-                  Generating project suggestion...
+                  {t('composer.generatingProject')}
                 </div>
               ) : null}
               {pendingProjectDraft.error ? (
@@ -696,15 +708,21 @@ export function AIPromptInput({
                 <input
                   value={pendingProjectName}
                   onChange={(event) => setPendingProjectName(event.target.value)}
-                  placeholder="Project name"
-                  className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground outline-none ring-ring/20 placeholder:text-muted-foreground focus:ring-2"
+                  placeholder={t('composer.projectNamePlaceholder')}
+                  className={cn(
+                    'h-9 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground outline-none ring-ring/20 placeholder:text-muted-foreground focus:ring-2',
+                    direction === 'rtl' && 'text-right',
+                  )}
                   disabled={pendingProjectDraft.loading || creatingProject}
                 />
                 <textarea
                   value={pendingProjectDescription}
                   onChange={(event) => setPendingProjectDescription(event.target.value)}
-                  placeholder="Project description (optional)"
-                  className="min-h-[72px] w-full resize-none rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none ring-ring/20 placeholder:text-muted-foreground focus:ring-2"
+                  placeholder={t('composer.projectDescriptionPlaceholder')}
+                  className={cn(
+                    'min-h-[72px] w-full resize-none rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none ring-ring/20 placeholder:text-muted-foreground focus:ring-2',
+                    direction === 'rtl' && 'text-right',
+                  )}
                   disabled={pendingProjectDraft.loading || creatingProject}
                 />
                 <div className="flex items-center justify-end gap-2">
@@ -714,7 +732,7 @@ export function AIPromptInput({
                     className="rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted/50"
                     disabled={creatingProject}
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                   <button
                     type="button"
@@ -726,7 +744,7 @@ export function AIPromptInput({
                       creatingProject || pendingProjectDraft.loading || !pendingProjectName.trim()
                     }
                   >
-                    {creatingProject ? 'Creating…' : 'Create project'}
+                    {creatingProject ? t('composer.creatingProject') : t('project.create')}
                   </button>
                 </div>
               </div>
@@ -741,7 +759,7 @@ export function AIPromptInput({
           <textarea
             ref={textareaRef}
             name="input"
-            placeholder="Type your message here..."
+            placeholder={t('composer.messagePlaceholder')}
             value={value}
             onPaste={(event) => {
               const pastedImages = extractClipboardImageFiles(event.clipboardData)
@@ -830,10 +848,12 @@ export function AIPromptInput({
             disabled={disabled}
             className={cn(
               'w-full min-w-0 resize-none bg-transparent text-base leading-6 text-foreground outline-none placeholder:text-muted-foreground/60 disabled:opacity-50',
+              direction === 'rtl' ? 'text-right' : 'text-left',
               mobile &&
                 'min-h-[52px] text-[17px] leading-[1.35] placeholder:text-muted-foreground/55 sm:text-base',
             )}
-            aria-label="Message input"
+            aria-label={t('composer.messageInput')}
+            dir="auto"
             autoComplete="off"
             style={{ height: mobile ? '52px' : '48px' }}
           />

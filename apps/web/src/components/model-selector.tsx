@@ -6,6 +6,7 @@ import { Check, ChevronDown, Search, Star } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { useModels } from '@/hooks/use-chat-data'
 import { EntityIcon } from '@/components/admin/entity-icon'
+import { useDocumentDirection, useI18n } from '@/components/i18n-provider'
 import { ModelCapabilityBadges } from '@/components/model-capability-badges'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -39,6 +40,8 @@ export function ModelSelector({
   onModelChange?: (modelId: string) => void
   className?: string
 }) {
+  const { t } = useI18n()
+  const direction = useDocumentDirection()
   const { models } = useModels()
   const [open, setOpen] = useState(false)
   const autoSelected = isAutoModelSelection(selectedModel)
@@ -67,8 +70,8 @@ export function ModelSelector({
                 className="size-4 shrink-0"
               />
             ) : null}
-            <span className="min-w-0 flex-1 truncate text-left text-sm">
-              {autoSelected ? 'Auto' : currentModel?.displayName || 'Model'}
+            <span className={cn('min-w-0 flex-1 truncate text-sm', direction === 'rtl' ? 'text-right' : 'text-left')}>
+              {autoSelected ? t('settings.auto') : currentModel?.displayName || t('models.model')}
             </span>
             <ChevronDown className="size-4 shrink-0 opacity-50" />
           </ModelSelectorTrigger>
@@ -81,7 +84,7 @@ export function ModelSelector({
           sideOffset={8}
         >
           <div className="border-b border-border px-3 py-2.5">
-            <p className="text-sm font-medium">Models</p>
+            <p className="text-sm font-medium">{t('models.title')}</p>
           </div>
           <ModelSelectorPanel
             selectedModel={selectedModel}
@@ -102,6 +105,8 @@ export function ModelSelectorPanel({
   onSelectModel,
   className,
 }: ModelSelectorPanelProps) {
+  const { t } = useI18n()
+  const direction = useDocumentDirection()
   const { models, setFavorite, autoModelAvailable } = useModels()
   const [searchQuery, setSearchQuery] = useState('')
   const [filterTab, setFilterTab] = useState<'all' | 'favorites'>('all')
@@ -153,13 +158,21 @@ export function ModelSelectorPanel({
     <div className={cn('flex min-h-0 flex-col', className)}>
       <div className="shrink-0 space-y-2 border-b border-border px-3 py-2">
         <div className="relative">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Search
+            className={cn(
+              'pointer-events-none absolute top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground',
+              direction === 'rtl' ? 'right-2.5' : 'left-2.5',
+            )}
+          />
           <Input
             type="search"
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
-            className="h-9 rounded-full border-0 bg-muted/50 pl-8 text-sm focus-visible:ring-1"
-            placeholder="Search…"
+            className={cn(
+              'h-9 rounded-full border-0 bg-muted/50 text-sm focus-visible:ring-1',
+              direction === 'rtl' ? 'pr-8 text-right' : 'pl-8 text-left',
+            )}
+            placeholder={t('models.search')}
           />
         </div>
         <div className="flex gap-1.5">
@@ -168,14 +181,14 @@ export function ModelSelectorPanel({
             className={modelFilterPillClass(filterTab === 'all')}
             onClick={() => setFilterTab('all')}
           >
-            All
+            {t('models.all')}
           </button>
           <button
             type="button"
             className={modelFilterPillClass(filterTab === 'favorites')}
             onClick={() => setFilterTab('favorites')}
           >
-            Favorites
+            {t('models.favorites')}
           </button>
         </div>
       </div>
@@ -183,25 +196,28 @@ export function ModelSelectorPanel({
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
         {autoModelAvailable ? (
           <div className="mb-4">
-            <div className={modelSectionLabelClass()}>Routing</div>
+            <div className={modelSectionLabelClass()}>{t('models.routing')}</div>
             <div className={modelRowClass(autoSelected)}>
               <Button
                 type="button"
                 variant="plain"
                 size="none"
                 onClick={() => onSelectModel?.(AUTO_MODEL_ID)}
-                className="flex min-w-0 flex-1 items-start gap-2 rounded-full px-1 py-0.5 text-left hover:bg-transparent"
+                className={cn(
+                  'flex min-w-0 flex-1 items-start gap-2 rounded-full px-1 py-0.5 hover:bg-transparent',
+                  direction === 'rtl' ? 'text-right' : 'text-left',
+                )}
               >
                 <div className={modelIconTileClass(autoSelected)}>
                   <span className="text-sm font-semibold">A</span>
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
-                    <span className="truncate text-sm font-medium">Auto</span>
+                    <span className="truncate text-sm font-medium">{t('settings.auto')}</span>
                     {autoSelected ? <Check className="size-3.5 shrink-0 text-primary" /> : null}
                   </div>
                   <p className="truncate text-[11px] text-muted-foreground">
-                    Let the backend Python router choose the model.
+                    {t('models.autoDescription')}
                   </p>
                 </div>
               </Button>
@@ -210,7 +226,7 @@ export function ModelSelectorPanel({
         ) : null}
         {empty ? (
           <p className="px-2 py-8 text-center text-sm text-muted-foreground">
-            {filterTab === 'favorites' ? 'No favorites match.' : 'No models match.'}
+            {filterTab === 'favorites' ? t('models.noFavorites') : t('models.noModels')}
           </p>
         ) : (
           groupedModels.map(([providerName, providerModels]) => (
@@ -226,7 +242,10 @@ export function ModelSelectorPanel({
                         variant="plain"
                         size="none"
                         onClick={() => onSelectModel?.(model.modelId)}
-                        className="flex min-w-0 flex-1 items-start gap-2 rounded-full px-1 py-0.5 text-left hover:bg-transparent"
+                        className={cn(
+                          'flex min-w-0 flex-1 items-start gap-2 rounded-full px-1 py-0.5 hover:bg-transparent',
+                          direction === 'rtl' ? 'text-right' : 'text-left',
+                        )}
                       >
                         <div className={modelIconTileClass(isSelected)}>
                           <EntityIcon
@@ -272,7 +291,7 @@ export function ModelSelectorPanel({
                           event.stopPropagation()
                           void setFavorite(model.id, !model.isFavorite)
                         }}
-                        aria-label={model.isFavorite ? 'Remove favorite' : 'Favorite'}
+                        aria-label={model.isFavorite ? t('message.removeFavorite') : t('message.favorite')}
                       >
                         <Star className={cn('size-3.5', model.isFavorite && 'fill-current')} />
                       </Button>

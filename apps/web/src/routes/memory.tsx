@@ -12,7 +12,7 @@ export default function MemoryRedirectPage() {
   }, [navigate])
 
   return (
-    <div className="flex h-screen items-center justify-center bg-background text-foreground">
+    <div className="flex h-dvh items-center justify-center bg-background text-foreground">
       <Loader2 className="size-8 animate-spin" />
     </div>
   )

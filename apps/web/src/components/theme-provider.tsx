@@ -5,9 +5,13 @@ import {
   applyThemeSettings,
   DEFAULT_THEME_SETTINGS,
   normalizeHexColor,
+  parseArabicFont,
+  parseEnglishFont,
   parseStoredThemeSettings,
   serializeThemeSettings,
   THEME_STORAGE_KEY,
+  type ArabicFont,
+  type EnglishFont,
   type ResolvedTheme,
   type ThemeMode,
   type ThemeSettings,
@@ -19,6 +23,10 @@ interface ThemeContextType {
   resolvedTheme: ResolvedTheme
   primaryColor: string
   setPrimaryColor: (color: string) => void
+  englishFont: EnglishFont
+  setEnglishFont: (font: EnglishFont) => void
+  arabicFont: ArabicFont
+  setArabicFont: (font: ArabicFont) => void
   themeSettings: ThemeSettings
   setThemeSettings: React.Dispatch<React.SetStateAction<ThemeSettings>>
 }
@@ -89,6 +97,20 @@ export function ThemeProvider({
     }))
   }
 
+  const setEnglishFont = (font: EnglishFont) => {
+    setThemeSettings((current) => ({
+      ...current,
+      englishFont: parseEnglishFont(font, current.englishFont),
+    }))
+  }
+
+  const setArabicFont = (font: ArabicFont) => {
+    setThemeSettings((current) => ({
+      ...current,
+      arabicFont: parseArabicFont(font, current.arabicFont),
+    }))
+  }
+
   return (
     <ThemeContext.Provider
       value={{
@@ -97,6 +119,10 @@ export function ThemeProvider({
         resolvedTheme,
         primaryColor: themeSettings.primaryColor,
         setPrimaryColor,
+        englishFont: themeSettings.englishFont,
+        setEnglishFont,
+        arabicFont: themeSettings.arabicFont,
+        setArabicFont,
         themeSettings,
         setThemeSettings,
       }}

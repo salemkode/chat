@@ -1,8 +1,8 @@
-import { useSmoothText } from '@convex-dev/agent/react'
+import { useSmoothText } from '@chat/shared/hooks/use-smooth-text'
 import type { FunctionReturnType } from 'convex/server'
 import { useMemo, useState } from 'react'
 import { api } from '@convex/_generated/api'
-import { MarkdownContent } from '@/components/markdown-content'
+import { ChatMarkdown } from '@/components/chat-markdown'
 import {
   ChainOfThought,
   ChainOfThoughtContent,
@@ -166,6 +166,7 @@ function ReasoningRow({
   const [reasoningText] = useSmoothText(step.body, {
     startStreaming: showActiveLoading && step.status === 'running',
   })
+  const isStreaming = showActiveLoading && step.status === 'running'
   const leftIcon = isStepActivelyLoading(step, showActiveLoading) ? (
     <OriginalThinkingLoader />
   ) : (
@@ -194,8 +195,9 @@ function ReasoningRow({
               {step.body || 'The provider kept the reasoning private.'}
             </p>
           ) : (
-            <MarkdownContent
-              content={showActiveLoading && step.status === 'running' ? reasoningText : step.body}
+            <ChatMarkdown
+              text={isStreaming ? reasoningText : step.body}
+              isStreaming={isStreaming}
               className="max-w-none text-sm"
             />
           )}

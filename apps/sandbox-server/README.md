@@ -5,8 +5,8 @@ Custom Node.js server that executes small JavaScript snippets using `vm2`.
 ## Run
 
 ```bash
-pnpm --filter sandbox-server install
-pnpm --filter sandbox-server run dev
+bun --filter sandbox-server install
+bun --filter sandbox-server run dev
 ```
 
 Server URL:
