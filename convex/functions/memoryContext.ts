@@ -1,4 +1,4 @@
-import { internalAction, type ActionCtx } from '../_generated/server'
+import { internalAction } from '../_generated/server'
 import { v } from 'convex/values'
 import type { Id } from '../_generated/dataModel'
 import { internal } from '../_generated/api'
@@ -19,7 +19,7 @@ type ScopeHit = ReturnType<typeof formatMemory> & {
 }
 
 async function searchScopeHits(
-  ctx: ActionCtx,
+  ctx: any,
   args: {
     userId: Id<'users'>
     threadId: string

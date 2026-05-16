@@ -46,7 +46,7 @@ Uniwind brings Tailwind CSS v4 to React Native. All core React Native components
 
 ```bash
 # or other package manager
-bun install uniwind tailwindcss
+pnpm add uniwind tailwindcss
 ```
 
 Requires **Tailwind CSS v4+**.

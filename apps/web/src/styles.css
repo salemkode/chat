@@ -3,19 +3,6 @@
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 @import '@fontsource-variable/geist';
-@import '@fontsource/ibm-plex-sans-arabic/arabic.css';
-@import '@fontsource/ibm-plex-sans/400.css';
-@import '@fontsource/ibm-plex-sans/500.css';
-@import '@fontsource/ibm-plex-sans/600.css';
-@import '@fontsource/ibm-plex-sans/700.css';
-@import '@fontsource/noto-sans-arabic/400.css';
-@import '@fontsource/noto-sans-arabic/500.css';
-@import '@fontsource/noto-sans-arabic/600.css';
-@import 'streamdown/styles.css';
-
-@source "../../../node_modules/streamdown/dist/*.js";
-@source "../../../node_modules/@streamdown/code/dist/*.js";
-@source "../../../node_modules/@streamdown/mermaid/dist/*.js";
 
 @font-face {
   font-family: 'Inter';
@@ -93,21 +80,17 @@
 }
 
 :root {
-  --font-system-sans:
+  font-family:
+    'Geist Variable',
+    Inter,
     ui-sans-serif,
     system-ui,
     -apple-system,
     BlinkMacSystemFont,
     'Segoe UI',
     sans-serif;
-  --font-english-sans:
-    'Geist Variable',
-    Inter,
-    var(--font-system-sans);
-  --font-arabic-sans: 'IBM Plex Sans Arabic', 'Noto Sans Arabic';
-  --font-sans: var(--font-english-sans), var(--font-arabic-sans);
+  --font-sans: 'Geist Variable', sans-serif;
   --font-heading: var(--font-sans);
-  font-family: var(--font-sans);
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -154,26 +137,6 @@
   --overlay-max-width-md: 24rem;
   --overlay-max-width-lg: 28rem;
   --overlay-sheet-max-height: 92dvh;
-}
-
-:root[data-english-font='geist'] {
-  --font-english-sans: 'Geist Variable', Inter, var(--font-system-sans);
-}
-
-:root[data-english-font='inter'] {
-  --font-english-sans: Inter, 'Geist Variable', var(--font-system-sans);
-}
-
-:root[data-english-font='ibm-plex'] {
-  --font-english-sans: 'IBM Plex Sans', 'Geist Variable', Inter, var(--font-system-sans);
-}
-
-:root[data-arabic-font='ibm-plex-arabic'] {
-  --font-arabic-sans: 'IBM Plex Sans Arabic', 'Noto Sans Arabic';
-}
-
-:root[data-arabic-font='noto-sans'] {
-  --font-arabic-sans: 'Noto Sans Arabic';
 }
 
 .dark {

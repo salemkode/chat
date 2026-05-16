@@ -2,7 +2,6 @@
 import { useParams } from 'react-router'
 import { ChatMessageList } from '@/components/chat-message-list'
 import { ChatThreadHeader } from '@/components/chat/chat-thread-header'
-import { useI18n } from '@/components/i18n-provider'
 import { useGenerationState, useMessages, useProjects, useThread } from '@/hooks/use-chat-data'
 
 export default function ChatPage() {
@@ -10,13 +9,12 @@ export default function ChatPage() {
 }
 
 function AuthenticatedChatPage() {
-  const { t } = useI18n()
   const { chatId = '' } = useParams()
   const thread = useThread(chatId)
   const { removeThreadFromProject } = useProjects()
   const { messages, hasMore, isLoadingMore, loadOlderMessages } = useMessages(chatId)
   const { activeGeneration, isStalled } = useGenerationState(messages || [])
-  const threadTitle = thread?.title || t('chat.newChat')
+  const threadTitle = thread?.title || 'New Chat'
 
   return (
     <div className="flex h-full flex-col">
@@ -29,11 +27,7 @@ function AuthenticatedChatPage() {
           thread?.projectId
             ? () => {
                 if (
-                  window.confirm(
-                    t('chat.removeFromProjectConfirm', {
-                      projectName: thread?.projectName || t('chat.removeFromProjectFallback'),
-                    }),
-                  )
+                  window.confirm(`Remove this chat from ${thread?.projectName || 'its project'}?`)
                 ) {
                   void removeThreadFromProject(chatId)
                 }

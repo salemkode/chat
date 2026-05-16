@@ -2,7 +2,6 @@ import { useMutation } from 'convex/react'
 import { api } from '@convex/_generated/api'
 import { Check, Copy, ExternalLink, Loader2, Share2 } from '@/lib/icons'
 import { useMemo, useState } from 'react'
-import { useI18n } from '@/components/i18n-provider'
 import { useHotkeyAction } from '@/components/hotkeys-provider'
 import { Button } from '@/components/ui/button'
 import { DialogHeader } from '@/components/ui/dialog'
@@ -20,7 +19,6 @@ interface ShareChatDialogProps {
 }
 
 export function ShareChatDialog({ threadId, threadTitle }: ShareChatDialogProps) {
-  const { t } = useI18n()
   const createOrUpdateChatShare = useMutation(api.shares.createOrUpdateChatShare)
   const [open, setOpen] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
@@ -50,7 +48,7 @@ export function ShareChatDialog({ threadId, threadTitle }: ShareChatDialogProps)
       setShareToken(result.token)
       setMessageCount(result.messageCount)
     } catch (shareError) {
-      setError(shareError instanceof Error ? shareError.message : t('share.createError'))
+      setError(shareError instanceof Error ? shareError.message : 'Failed to create a share link')
     } finally {
       setIsCreating(false)
     }
@@ -81,13 +79,18 @@ export function ShareChatDialog({ threadId, threadTitle }: ShareChatDialogProps)
     <ResponsiveModal open={open} onOpenChange={handleOpenChange}>
       <Button variant="outline" size="sm" onClick={() => handleOpenChange(true)}>
         <Share2 className="size-4" />
-        <span>{t('common.share')}</span>
+        <span>Share</span>
       </Button>
 
       <ResponsiveModalContent size="small">
         <DialogHeader>
-          <ResponsiveModalTitle>{t('share.title')}</ResponsiveModalTitle>
-          <ResponsiveModalDescription>{t('share.description', { threadTitle })}</ResponsiveModalDescription>
+          <ResponsiveModalTitle>Share chat</ResponsiveModalTitle>
+          <ResponsiveModalDescription>
+            This link publishes only the chat transcript for{' '}
+            <span className="font-medium text-foreground">{threadTitle}</span>. It excludes sidebar,
+            projects, models, and other workspace context. The shared page is a fixed snapshot of
+            the current chat.
+          </ResponsiveModalDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -95,25 +98,29 @@ export function ShareChatDialog({ threadId, threadTitle }: ShareChatDialogProps)
             {isCreating ? (
               <div className="flex items-center gap-2 text-foreground">
                 <Loader2 className="size-4 animate-spin" />
-                <span>{t('share.preparing')}</span>
+                <span>Preparing your shared transcript...</span>
               </div>
             ) : error ? (
               <div className="space-y-3">
                 <p className="text-destructive">{error}</p>
                 <Button variant="outline" size="sm" onClick={() => void generateShare()}>
-                  {t('share.tryAgain')}
+                  Try again
                 </Button>
               </div>
             ) : shareUrl ? (
               <div className="space-y-3">
                 <p>
+                  Anyone with this link can view the full shared chat.
                   {typeof messageCount === 'number'
-                    ? t('share.snapshotWithCount', { count: messageCount })
-                    : t('share.snapshotWithoutCount')}
+                    ? ` Current snapshot: ${messageCount} messages.`
+                    : ''}
                 </p>
-                <p>{t('share.handoff')}</p>
+                <p>
+                  The shared page includes a handoff sidebar for ChatGPT, Gemini, Claude, and T3
+                  Chat.
+                </p>
                 <div className="flex gap-2">
-                  <Input value={shareUrl} readOnly aria-label={t('share.urlAria')} />
+                  <Input value={shareUrl} readOnly aria-label="Share URL" />
                   <Button
                     type="button"
                     variant="outline"
@@ -121,7 +128,7 @@ export function ShareChatDialog({ threadId, threadTitle }: ShareChatDialogProps)
                     onClick={() => void handleCopy()}
                   >
                     {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
-                    <span className="sr-only">{t('share.copy')}</span>
+                    <span className="sr-only">Copy share link</span>
                   </Button>
                 </div>
               </div>
@@ -129,7 +136,10 @@ export function ShareChatDialog({ threadId, threadTitle }: ShareChatDialogProps)
           </div>
 
           <div className="flex items-center justify-between gap-3">
-            <p className="text-sm text-muted-foreground">{t('share.snapshotNotice')}</p>
+            <p className="text-sm text-muted-foreground">
+              Later changes to this chat will not appear in this shared link. Create a new share if
+              you want an updated snapshot.
+            </p>
 
             {shareUrl ? (
               <Button
@@ -137,7 +147,7 @@ export function ShareChatDialog({ threadId, threadTitle }: ShareChatDialogProps)
                 onClick={() => window.open(shareUrl, '_blank', 'noopener,noreferrer')}
               >
                 <ExternalLink className="size-4" />
-                <span>{t('share.open')}</span>
+                <span>Open share page</span>
               </Button>
             ) : null}
           </div>

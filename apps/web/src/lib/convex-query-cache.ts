@@ -1,1 +1,5 @@
-export { usePaginatedQuery, useQueries, useQuery } from 'convex-helpers/react/cache/hooks'
+export {
+  usePaginatedQuery,
+  useQueries,
+  useQuery,
+} from '@chat/shared/convex-query-cache/hooks'

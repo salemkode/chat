@@ -499,7 +499,7 @@ export function AdminModelDialog({ state, actions }: AdminModelDialogProps) {
                         placeholder="image/*, application/pdf, text/plain"
                       />
                       <p className="text-xs text-muted-foreground">
-                        Optional. Leave empty to infer from capabilities. Enter "none" to disable.
+                        Optional. Leave empty to infer from capabilities.
                       </p>
                     </div>
 
@@ -620,11 +620,7 @@ export function useAdminModelDialog({
           ownedBy: model.ownedBy ?? '',
           contextWindow: model.contextWindow ? String(model.contextWindow) : '',
           maxOutputTokens: model.maxOutputTokens ? String(model.maxOutputTokens) : '',
-          supportedAttachmentMediaTypesText: model.supportedAttachmentMediaTypes
-            ? model.supportedAttachmentMediaTypes.length > 0
-              ? model.supportedAttachmentMediaTypes.join(', ')
-              : 'none'
-            : '',
+          supportedAttachmentMediaTypesText: model.supportedAttachmentMediaTypes?.join(', ') ?? '',
           rateLimit: model.rateLimit as RateLimitPolicy | undefined,
         })
       } else {
@@ -735,17 +731,10 @@ export function useAdminModelDialog({
       .split(',')
       .map((value) => value.trim())
       .filter(Boolean)
-    const supportedAttachmentMediaTypesText = modelForm.supportedAttachmentMediaTypesText.trim()
-    const supportedAttachmentMediaTypesLower = supportedAttachmentMediaTypesText.toLowerCase()
-    const supportedAttachmentMediaTypes =
-      supportedAttachmentMediaTypesLower === 'none' ||
-      supportedAttachmentMediaTypesLower === 'disabled' ||
-      supportedAttachmentMediaTypesLower === 'off'
-        ? []
-        : supportedAttachmentMediaTypesText
-            .split(',')
-            .map((value) => value.trim().toLowerCase())
-            .filter(Boolean)
+    const supportedAttachmentMediaTypes = modelForm.supportedAttachmentMediaTypesText
+      .split(',')
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean)
     const payload = {
       modelId: modelIdTrim,
       displayName: displayNameTrim,
@@ -762,7 +751,7 @@ export function useAdminModelDialog({
           : undefined,
       capabilities: capabilities.length > 0 ? capabilities : undefined,
       supportedAttachmentMediaTypes:
-        supportedAttachmentMediaTypesText.length === 0 ? undefined : supportedAttachmentMediaTypes,
+        supportedAttachmentMediaTypes.length > 0 ? supportedAttachmentMediaTypes : undefined,
       supportsReasoning: modelForm.supportsReasoning,
       reasoningLevels: modelForm.supportsReasoning ? modelForm.reasoningLevels : undefined,
       defaultReasoningLevel: modelForm.supportsReasoning ? modelForm.defaultReasoningLevel : 'off',

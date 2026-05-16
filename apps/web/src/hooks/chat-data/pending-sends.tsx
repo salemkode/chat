@@ -10,7 +10,6 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { hasLiveHandoffMatch as hasLiveHandoffMatchCore } from '@chat/shared/logic/pending-send-core'
 import type { ChatMessage } from '@/hooks/chat-data/shared'
 
 export type PendingThreadKey = string
@@ -69,6 +68,81 @@ function toMessageParts(attachments: PendingSendAttachment[]) {
     mediaType: attachment.mediaType,
     filename: attachment.filename,
   }))
+}
+
+function getAttachmentFingerprints(parts: Array<Record<string, unknown>>) {
+  return parts
+    .filter((part) => part.type === 'file')
+    .map((part) => {
+      const filename = typeof part.filename === 'string' ? part.filename : undefined
+      const mediaType =
+        typeof part.mediaType === 'string' ? part.mediaType : 'application/octet-stream'
+      return `${filename ?? ''}:${mediaType}`
+    })
+    .sort()
+}
+
+/**
+ * Pending sends include local file metadata, but Convex `generateMessage` optimistic
+ * updates may omit file parts on the user row until the mutation persists. Treat "live
+ * has no file parts yet" as compatible so we hand off to the server list instead of
+ * duplicating bubbles.
+ */
+function attachmentsMatchForHandoff(record: PendingSendRecord, liveParts: ChatMessage['parts']) {
+  const pending = record.attachments
+    .map(
+      (attachment) =>
+        `${attachment.filename ?? ''}:${attachment.mediaType || 'application/octet-stream'}`,
+    )
+    .sort()
+  const live = getAttachmentFingerprints(liveParts)
+  if (pending.length === 0) {
+    return live.length === 0
+  }
+  if (live.length === 0) {
+    return true
+  }
+  if (pending.length !== live.length) {
+    return false
+  }
+  return pending.every((value, index) => value === live[index])
+}
+
+function hasLiveHandoffMatch(record: PendingSendRecord, liveMessages: ChatMessage[]) {
+  for (let index = liveMessages.length - 1; index >= 0; index -= 1) {
+    const message = liveMessages[index]
+    if (!message || message.role !== 'user') {
+      continue
+    }
+    if (message.text !== record.prompt) {
+      continue
+    }
+
+    if (!attachmentsMatchForHandoff(record, message.parts)) {
+      continue
+    }
+
+    for (
+      let assistantIndex = index + 1;
+      assistantIndex < liveMessages.length;
+      assistantIndex += 1
+    ) {
+      const assistant = liveMessages[assistantIndex]
+      if (assistant?.role !== 'assistant') {
+        continue
+      }
+
+      if (
+        assistant.status === 'streaming' ||
+        assistant.status === 'pending' ||
+        assistant.status === 'success'
+      ) {
+        return true
+      }
+    }
+  }
+
+  return false
 }
 
 export function PendingSendsProvider({ children }: { children: ReactNode }) {
@@ -197,10 +271,7 @@ export function PendingSendsProvider({ children }: { children: ReactNode }) {
         .sort((left, right) => left.createdAt - right.createdAt)
 
       for (const record of records) {
-        if (
-          record.phase === 'handoff' &&
-          hasLiveHandoffMatchCore(record.prompt, record.attachments, liveMessages)
-        ) {
+        if (record.phase === 'handoff' && hasLiveHandoffMatch(record, liveMessages)) {
           continue
         }
 

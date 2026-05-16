@@ -11,7 +11,7 @@ const config = defineConfig({
   },
   resolve: {
     tsconfigPaths: true,
-    dedupe: ['react', 'react-dom'],
+    dedupe: ['react', 'react-dom', 'convex'],
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
       '@convex': fileURLToPath(new URL('../../convex', import.meta.url)),

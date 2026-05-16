@@ -823,33 +823,7 @@ export declare const api: {
       { threadId: string },
       any
     >;
-    getThread: FunctionReference<
-      "query",
-      "public",
-      { threadId: string },
-      null | {
-        _creationTime: number;
-        _id: string;
-        lastMessageAt: number;
-        metadata: null | {
-          _creationTime: number;
-          _id: Id<"threadMetadata">;
-          clientThreadKey?: string;
-          emoji: string;
-          icon?: string;
-          lastLabelUpdateAt: number;
-          lastMessageAt?: number;
-          projectId?: Id<"projects">;
-          sectionId?: Id<"sections">;
-          sortOrder: number;
-          threadId: string;
-          userId: Id<"users">;
-        };
-        project: null | { description?: string; id: string; name: string };
-        title?: string;
-        userId?: string;
-      }
-    >;
+    getThread: FunctionReference<"query", "public", { threadId: string }, any>;
     listMessages: FunctionReference<
       "query",
       "public",
@@ -862,14 +836,14 @@ export declare const api: {
           maximumRowsRead?: number;
           numItems: number;
         };
+        streamArgs?:
+          | { kind: "list"; startOrder?: number }
+          | {
+              cursors: Array<{ cursor: number; streamId: string }>;
+              kind: "deltas";
+            };
         threadId: string;
       },
-      any
-    >;
-    listStreamingMessages: FunctionReference<
-      "query",
-      "public",
-      { startOrder?: number; threadId: string },
       any
     >;
     listThreads: FunctionReference<
@@ -2127,18 +2101,6 @@ export declare const internal: {
       },
       { emoji: string; icon?: string; title?: string; updated: boolean }
     >;
-    checkStalledGeneration: FunctionReference<
-      "mutation",
-      "internal",
-      {
-        lastProgressAt: number;
-        lastProgressSignature: string;
-        pendingMessageId?: string;
-        promptMessageId?: string;
-        threadId: Id<"chatThreads">;
-      },
-      any
-    >;
     createToolPolicyEvent: FunctionReference<
       "mutation",
       "internal",
@@ -2212,7 +2174,6 @@ export declare const internal: {
         modelDocId: Id<"models">;
         modelId: string;
         modelName: string;
-        pendingMessageId: Id<"chatMessages">;
         projectId?: Id<"projects">;
         prompt?: string;
         promptMessageId?: string;
@@ -2222,7 +2183,7 @@ export declare const internal: {
         routerDecisionId?: string;
         searchEnabled?: boolean;
         searchMode?: "auto" | "required";
-        threadId: Id<"chatThreads">;
+        threadId: string;
         userId: Id<"users">;
       },
       any
@@ -2238,112 +2199,6 @@ export declare const internal: {
         satisfiedActions?: Array<string>;
         status?: "evaluated" | "completed" | "skipped" | "failed";
       },
-      null
-    >;
-  };
-  chatEngine: {
-    appendStreamDelta: FunctionReference<
-      "mutation",
-      "internal",
-      {
-        end: number;
-        parts: Array<any>;
-        start: number;
-        streamId: Id<"chatStreamingMessages">;
-      },
-      boolean
-    >;
-    createStream: FunctionReference<
-      "mutation",
-      "internal",
-      {
-        agentName?: string;
-        model?: string;
-        order: number;
-        provider?: string;
-        providerOptions?: any;
-        stepOrder: number;
-        threadId: Id<"chatThreads">;
-        userId?: Id<"users">;
-      },
-      Id<"chatStreamingMessages">
-    >;
-    deleteResponseStepsForPrompt: FunctionReference<
-      "mutation",
-      "internal",
-      {
-        promptOrder: number;
-        promptStepOrder: number;
-        threadId: Id<"chatThreads">;
-      },
-      null
-    >;
-    failPendingMessagesByOrder: FunctionReference<
-      "mutation",
-      "internal",
-      { error: string; order: number; threadId: Id<"chatThreads"> },
-      number
-    >;
-    finalizeAssistantMessage: FunctionReference<
-      "mutation",
-      "internal",
-      {
-        finishReason?: string;
-        messageId: Id<"chatMessages">;
-        parts: Array<any>;
-        providerMetadata?: any;
-        streamId: Id<"chatStreamingMessages">;
-        text: string;
-        usage?: any;
-      },
-      boolean
-    >;
-    getConversationSnapshot: FunctionReference<
-      "query",
-      "internal",
-      { pendingPrompt: string; threadId: Id<"chatThreads"> },
-      any
-    >;
-    getMessagesByIds: FunctionReference<
-      "query",
-      "internal",
-      { messageIds: Array<string> },
-      any
-    >;
-    getThreadById: FunctionReference<
-      "query",
-      "internal",
-      { threadId: string },
-      any
-    >;
-    listContextMessages: FunctionReference<
-      "query",
-      "internal",
-      { limit?: number; threadId: Id<"chatThreads"> },
-      any
-    >;
-    listMessagesAfterOrder: FunctionReference<
-      "query",
-      "internal",
-      { afterOrder: number; limit?: number; threadId: string },
-      any
-    >;
-    listPendingMessagesForThread: FunctionReference<
-      "query",
-      "internal",
-      { limit?: number; threadId: Id<"chatThreads"> },
-      any
-    >;
-    listStreamingMessagesForThread: FunctionReference<
-      "query",
-      "internal",
-      { startOrder?: number; threadId: Id<"chatThreads"> },
-      any
-    >;
-    storeMessageEmbedding: FunctionReference<
-      "mutation",
-      "internal",
-      { messageId: Id<"chatMessages">; model: string; vector: Array<number> },
       null
     >;
   };
@@ -3029,34 +2884,17 @@ export declare const internal: {
     >;
   };
   sidebarSearch: {
-    getEmbeddingMessages: FunctionReference<
-      "query",
-      "internal",
-      { embeddingIds: Array<string> },
-      any
-    >;
-    getSearchUserId: FunctionReference<
-      "query",
-      "internal",
-      {},
-      Id<"users"> | null
-    >;
+    getSearchUserId: FunctionReference<"query", "internal", {}, string | null>;
     getThreadSearchMetadata: FunctionReference<
       "query",
       "internal",
-      { threadIds: Array<string>; userId: Id<"users"> },
+      { threadIds: Array<string>; userId: string },
       Array<{
         projectId?: string;
         projectName?: string;
         threadId: string;
         threadTitle: string;
       }>
-    >;
-    searchMessagesByText: FunctionReference<
-      "query",
-      "internal",
-      { limit: number; query: string; userId: Id<"users"> },
-      any
     >;
   };
   users: {
@@ -3072,6 +2910,7 @@ export declare const internal: {
 };
 
 export declare const components: {
+  agent: import("@convex-dev/agent/_generated/component.js").ComponentApi<"agent">;
   rag: import("@convex-dev/rag/_generated/component.js").ComponentApi<"rag">;
   rateLimiter: import("@convex-dev/rate-limiter/_generated/component.js").ComponentApi<"rateLimiter">;
   stripe: import("@convex-dev/stripe/_generated/component.js").ComponentApi<"stripe">;

@@ -31,7 +31,6 @@ import {
   ResponsiveModalContent,
   ResponsiveModalTitle,
 } from '@/components/ui/responsive-overlay'
-import { useI18n } from '@/components/i18n-provider'
 
 export type ProjectDraftState = {
   name: string
@@ -46,22 +45,22 @@ export type RemoveFromProjectState = {
 
 const PROJECT_TEMPLATE_OPTIONS = [
   {
-    translationKey: 'project.template.investing',
+    label: 'Investing',
     icon: CircleDollarSign,
     className: 'text-emerald-300',
   },
   {
-    translationKey: 'project.template.homework',
+    label: 'Homework',
     icon: GraduationCap,
     className: 'text-sky-300',
   },
   {
-    translationKey: 'project.template.writing',
+    label: 'Writing',
     icon: NotebookPen,
     className: 'text-violet-300',
   },
   {
-    translationKey: 'project.template.travel',
+    label: 'Travel',
     icon: Plane,
     className: 'text-amber-300',
   },
@@ -84,8 +83,6 @@ export function ProjectCreateDialog({
   onDraftChange,
   onSave,
 }: ProjectCreateDialogProps) {
-  const { t } = useI18n()
-
   return (
     <ResponsiveModal open={open} onOpenChange={onOpenChange}>
       <ResponsiveModalContent
@@ -97,10 +94,10 @@ export function ProjectCreateDialog({
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-1">
               <ResponsiveModalTitle className="text-[1.45rem] font-semibold tracking-tight text-foreground">
-                {t('project.create')}
+                Create project
               </ResponsiveModalTitle>
               <p className="text-sm text-muted-foreground">
-                {t('project.createDescription')}
+                Group related chats, files, and instructions in one place.
               </p>
             </div>
             <ResponsiveModalClose asChild>
@@ -109,7 +106,7 @@ export function ProjectCreateDialog({
                 variant="outline"
                 size="icon"
                 className="rounded-full"
-                aria-label={t('project.dialog.close')}
+                aria-label="Close project dialog"
               >
                 <X className="size-4" />
               </Button>
@@ -118,7 +115,7 @@ export function ProjectCreateDialog({
         </DialogHeader>
         <div className="space-y-5 px-6 py-5">
           <div className="space-y-2">
-            <Label className="text-sm font-medium text-foreground">{t('project.name')}</Label>
+            <Label className="text-sm font-medium text-foreground">Project name</Label>
             <div className="relative">
               <Folder className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -133,7 +130,7 @@ export function ProjectCreateDialog({
                       : current,
                   )
                 }
-                placeholder={t('project.namePlaceholder')}
+                placeholder="Copenhagen Trip"
                 className="h-11 rounded-2xl border-border bg-background pl-10"
               />
             </div>
@@ -146,7 +143,7 @@ export function ProjectCreateDialog({
 
                 return (
                   <Button
-                    key={option.translationKey}
+                    key={option.label}
                     type="button"
                     variant="outline"
                     className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/40 px-4 py-2 text-sm text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
@@ -155,14 +152,14 @@ export function ProjectCreateDialog({
                         current
                           ? {
                               ...current,
-                              name: current.name || t(option.translationKey),
+                              name: current.name || option.label,
                             }
                           : current,
                       )
                     }
                   >
                     <Icon className={cn('size-4', option.className)} />
-                    {t(option.translationKey)}
+                    {option.label}
                   </Button>
                 )
               })}
@@ -170,7 +167,7 @@ export function ProjectCreateDialog({
           ) : null}
 
           <div className="space-y-2">
-            <Label className="text-sm font-medium text-foreground">{t('project.description')}</Label>
+            <Label className="text-sm font-medium text-foreground">Description</Label>
             <Textarea
               value={draft?.description || ''}
               onChange={(event) =>
@@ -183,7 +180,7 @@ export function ProjectCreateDialog({
                     : current,
                 )
               }
-              placeholder={t('project.descriptionPlaceholder')}
+              placeholder="Add context, instructions, or what this project is for."
               className="min-h-24 rounded-2xl border-border bg-background"
             />
           </div>
@@ -192,7 +189,10 @@ export function ProjectCreateDialog({
             <div className="mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
               <Lightbulb className="size-4 text-primary" />
             </div>
-            <p className="leading-6">{t('project.tip')}</p>
+            <p className="leading-6">
+              Projects keep chats, files, and custom instructions in one place so long-running work
+              stays organized.
+            </p>
           </div>
         </div>
         <div className="flex justify-end border-t border-border bg-muted/20 px-6 py-4">
@@ -201,7 +201,7 @@ export function ProjectCreateDialog({
             onClick={onSave}
             className="h-11 rounded-full px-5 text-sm font-semibold"
           >
-            {t('project.create')}
+            Create project
           </Button>
         </div>
       </ResponsiveModalContent>
@@ -220,25 +220,20 @@ export function RemoveFromProjectDialog({
   onOpenChange,
   onConfirm,
 }: RemoveFromProjectDialogProps) {
-  const { t } = useI18n()
-
   return (
     <AlertDialog open={state !== null} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>{t('project.removeTitle')}</AlertDialogTitle>
+          <AlertDialogTitle>Remove chat from project?</AlertDialogTitle>
           <AlertDialogDescription>
             {state
-              ? t('project.removeDescriptionWithNames', {
-                  threadTitle: state.threadTitle,
-                  projectName: state.projectName,
-                })
-              : t('project.removeDescriptionFallback')}
+              ? `"${state.threadTitle}" will be removed from "${state.projectName}", but the chat will still be kept.`
+              : 'The chat will be removed from this project, but it will still be kept.'}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm}>{t('common.remove')}</AlertDialogAction>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirm}>Remove</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

@@ -24,7 +24,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { useDocumentDirection, useI18n } from '@/components/i18n-provider'
 import { cn } from '@/lib/utils'
 import { useState, type ReactNode } from 'react'
 import {
@@ -49,7 +48,6 @@ export function SelectedProjectBadge({
   mobile: boolean
   onClear: () => void
 }) {
-  const { t } = useI18n()
   if (!selectedProject) {
     return null
   }
@@ -70,7 +68,7 @@ export function SelectedProjectBadge({
         size="none"
         onClick={onClear}
         className="inline-flex size-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-        aria-label={t('composer.clearSelectedProject')}
+        aria-label="Clear selected project"
       >
         <X className="size-3" />
       </Button>
@@ -87,7 +85,6 @@ export function AttachmentGrid({
   mobile: boolean
   onRemove: (attachmentId: string) => void
 }) {
-  const { t } = useI18n()
   if (attachments.length === 0) {
     return null
   }
@@ -127,7 +124,7 @@ export function AttachmentGrid({
             size="none"
             onClick={() => onRemove(attachment.id)}
             className="inline-flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            aria-label={t('composer.removeAttachment', { filename: attachment.file.name })}
+            aria-label={`Remove ${attachment.file.name}`}
           >
             <X className="size-3.5" />
           </Button>
@@ -171,12 +168,10 @@ function TextAttachmentCard({
   mobile: boolean
   onRemove: () => void
 }) {
-  const { t, locale } = useI18n()
   const [expanded, setExpanded] = useState(false)
   const preview = getTextAttachmentPreview(attachment.text, 3)
   const charCount = attachment.text.length
   const lineCount = attachment.text.split('\n').length
-  const lineLabel = lineCount === 1 ? t('composer.line') : t('composer.lines')
 
   return (
     <div
@@ -192,11 +187,8 @@ function TextAttachmentCard({
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-medium text-foreground">{attachment.label}</div>
           <div className="mt-0.5 text-xs text-muted-foreground">
-            {t('composer.charsLines', {
-              chars: charCount.toLocaleString(locale),
-              lines: lineCount.toLocaleString(locale),
-              lineLabel,
-            })}
+            {charCount.toLocaleString()} chars · {lineCount.toLocaleString()}{' '}
+            {lineCount === 1 ? 'line' : 'lines'}
           </div>
         </div>
         <div className="flex items-center gap-1">
@@ -206,7 +198,7 @@ function TextAttachmentCard({
             size="none"
             onClick={() => setExpanded((v) => !v)}
             className="inline-flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            aria-label={expanded ? t('composer.collapse') : t('composer.expand')}
+            aria-label={expanded ? 'Collapse' : 'Expand'}
           >
             {expanded ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
           </Button>
@@ -216,7 +208,7 @@ function TextAttachmentCard({
             size="none"
             onClick={onRemove}
             className="inline-flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            aria-label={t('composer.removePastedText')}
+            aria-label="Remove pasted text"
           >
             <X className="size-3.5" />
           </Button>
@@ -252,8 +244,6 @@ export function ProjectMentionPopup({
   mobile?: boolean
   onSelect: (optionId: string) => void
 }) {
-  const { t } = useI18n()
-  const direction = useDocumentDirection()
   if (!projectMention) {
     return null
   }
@@ -264,10 +254,7 @@ export function ProjectMentionPopup({
         'absolute z-40 overflow-hidden rounded-2xl border border-border/70 bg-card/95 p-1.5 shadow-2xl backdrop-blur-xl',
         mobile
           ? 'bottom-[calc(100%+8px)] left-0 right-0'
-          : cn(
-              'bottom-[calc(100%+10px)] w-[min(19rem,calc(100vw-2rem))]',
-              direction === 'rtl' ? 'right-0' : 'left-0',
-            ),
+          : 'bottom-[calc(100%+10px)] left-0 w-[min(19rem,calc(100vw-2rem))]',
       )}
     >
       <div className="max-h-56 overflow-y-auto">
@@ -316,7 +303,7 @@ export function ProjectMentionPopup({
             )
           })
         ) : (
-          <div className="px-2.5 py-3 text-sm text-muted-foreground">{t('composer.noMatchingProjects')}</div>
+          <div className="px-2.5 py-3 text-sm text-muted-foreground">No matching projects.</div>
         )}
       </div>
     </div>
@@ -370,23 +357,20 @@ export function ComposerActionRow({
   sendBlockedReason?: string
   contextMeter?: ReactNode
 }) {
-  const { t } = useI18n()
-  const direction = useDocumentDirection()
   const hasContent = value.trim() || attachments.length > 0 || textAttachments.length > 0
   const attachmentsSupported = attachmentMediaTypes.length > 0
   const attachmentAccept = attachmentMediaTypes.join(',')
   const attachmentsLabel = attachmentsSupported
     ? imageAttachmentsSupported
-      ? t('composer.attachSupportedFiles')
-      : t('composer.attachUnsupportedTypes', { types: attachmentMediaTypes.join(', ') })
-    : t('composer.attachUnsupported')
+      ? 'Attach supported files'
+      : `This model accepts: ${attachmentMediaTypes.join(', ')}`
+    : 'This model does not support file attachments'
 
   return (
     <div
       className={cn(
         'flex w-full min-w-0 items-center justify-between',
-        mobile ? 'mt-1 gap-3' : 'mt-2',
-        direction === 'rtl' ? 'flex-row' : 'flex-row-reverse',
+        mobile ? 'mt-1 flex-row-reverse gap-3' : 'mt-2 flex-row-reverse',
       )}
     >
       <div className="inline-flex items-center gap-2">
@@ -397,12 +381,12 @@ export function ComposerActionRow({
           disabled={disabled || isSubmitting || !hasContent || Boolean(sendBlockedReason)}
           aria-label={
             isSubmitting
-              ? t('composer.sendingMessage')
+              ? 'Sending message'
               : sendBlockedReason
                 ? sendBlockedReason
                 : hasContent
-                  ? t('composer.sendMessage')
-                  : t('composer.messageRequiresContent')
+                  ? 'Send message'
+                  : 'Message requires text or a supported file'
           }
           className={cn(
             'inline-flex items-center justify-center bg-primary font-semibold text-primary-foreground transition-colors hover:bg-primary/90 active:bg-primary disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-primary disabled:active:bg-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
@@ -432,7 +416,7 @@ export function ComposerActionRow({
           variant="plain"
           size="none"
           onClick={onToggleSearch}
-          aria-label={searchEnabled ? t('composer.disableSearch') : t('composer.enableSearch')}
+          aria-label={searchEnabled ? 'Disable search' : 'Enable search'}
           className={cn(
             'inline-flex items-center justify-center text-xs font-medium transition-colors hover:bg-muted/60 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
             mobile ? 'h-11 rounded-full border border-border/70 px-3.5' : 'h-8 rounded-full px-2.5',
@@ -454,7 +438,7 @@ export function ComposerActionRow({
             <Switch
               checked={reasoningEnabled}
               onCheckedChange={onToggleReasoning}
-              aria-label={t('composer.toggleReasoning')}
+              aria-label="Toggle reasoning"
             />
             {reasoningEnabled ? (
               <Select
@@ -491,7 +475,7 @@ export function ComposerActionRow({
             mobile ? 'h-11 rounded-full border border-border/70 px-3.5' : 'h-8 rounded-full px-2.5',
             !attachmentsSupported && 'cursor-not-allowed opacity-50',
           )}
-          aria-label={t('composer.attachFile')}
+          aria-label="Attach a file"
         >
           {/* Native file inputs are required for the browser file picker. */}
           <Input
@@ -509,7 +493,7 @@ export function ComposerActionRow({
           <Paperclip className="size-4" aria-hidden="true" />
         </Label>
         {!attachmentsSupported ? (
-          <span className="text-[10px] font-medium text-muted-foreground">{t('composer.noFiles')}</span>
+          <span className="text-[10px] font-medium text-muted-foreground">No files</span>
         ) : !imageAttachmentsSupported ? (
           <span className="text-[10px] font-medium text-muted-foreground">
             {attachmentMediaTypes.join(', ')}

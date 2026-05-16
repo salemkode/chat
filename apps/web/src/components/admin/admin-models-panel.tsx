@@ -85,11 +85,9 @@ export function AdminModelsPanel({ dashboard, onOpenModelDialog }: AdminModelsPa
                         {model.attachmentValidationStatus ?? 'pending'}
                       </Badge>
                       <p className="truncate text-xs text-muted-foreground">
-                        {Array.isArray(model.supportedAttachmentMediaTypes)
-                          ? model.supportedAttachmentMediaTypes.length > 0
-                            ? model.supportedAttachmentMediaTypes.join(', ')
-                            : 'none'
-                          : model.attachmentValidationMessage || 'Inferred from capabilities'}
+                        {model.supportedAttachmentMediaTypes?.join(', ') ||
+                          model.attachmentValidationMessage ||
+                          'Inferred from capabilities'}
                       </p>
                     </div>
                   </TableCell>

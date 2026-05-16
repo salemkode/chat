@@ -1,14 +1,6 @@
-import { internal } from './_generated/api'
-import {
-  embedMany,
-  smoothStream,
-  stepCountIs,
-  streamText,
-  type FilePart,
-  type ImagePart,
-  type ModelMessage,
-  type TextPart,
-} from 'ai'
+import { components, internal } from './_generated/api'
+import { Agent, saveMessage, getFile } from '@convex-dev/agent'
+import type { FilePart, ImagePart, TextPart } from 'ai'
 import { createOpenRouter } from '@openrouter/ai-sdk-provider'
 import {
   type ActionCtx,
@@ -21,6 +13,7 @@ import {
 } from './_generated/server'
 import { v, type Infer } from 'convex/values'
 import { getAuthUserId } from './lib/auth'
+import { createThread } from '@convex-dev/agent'
 import { match } from 'ts-pattern'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { openai } from '@ai-sdk/openai'
@@ -38,6 +31,7 @@ import { rateLimiter } from './lib/rateLimiter'
 import { threadMetadataTools } from './lib/threadMetadataTools'
 import { quranDocsTool } from './lib/quranDocsTool'
 import { quranSourceTool } from './lib/quranSourceTool'
+import { extractMessageText } from './functions/memoryShared'
 import { threadMetadataValidator } from './lib/validators'
 import { isModelUsableForPlan } from './lib/appPlan'
 import { resolveEffectiveAppPlan } from './lib/billing'
@@ -57,14 +51,6 @@ import {
   resolveModelAttachmentMediaTypes,
   type ModelAttachmentValidationStatus,
 } from './lib/modelAttachmentPolicy'
-import {
-  buildAssistantPartsFromChunks,
-  buildStoredMessage,
-  buildUserParts,
-  extractTextFromParts,
-  normalizeChatThreadId,
-} from './lib/chatEngine'
-import { bindChatTools } from './lib/chatTool'
 
 // Random emoji picker for new chats
 const CHAT_EMOJIS = [
@@ -98,16 +84,12 @@ const THREAD_TITLE_MAX_LENGTH = 60
 export const GENERATION_STOPPED_BY_USER = 'GENERATION_STOPPED_BY_USER'
 const GENERATION_FAILED_FALLBACK_MESSAGE = 'The model could not complete this response.'
 const GENERATION_REPLACED_BY_RESEND = 'Regenerating response.'
-const GENERATION_STALLED_BY_WATCHDOG =
-  'Generation stalled with no streamed progress. Resend to continue.'
-const GENERATION_STALL_WATCHDOG_MS = 90_000
 const reasoningLevelValidator = v.union(v.literal('low'), v.literal('medium'), v.literal('high'))
 const reasoningConfigValidator = v.object({
   enabled: v.boolean(),
   level: v.optional(reasoningLevelValidator),
 })
 const searchModeValidator = v.union(v.literal('auto'), v.literal('required'))
-const SEARCH_EMBEDDING_MODEL = 'openai/text-embedding-3-small'
 
 const chatAttachmentValidator = v.object({
   storageId: v.id('_storage'),
@@ -145,21 +127,113 @@ function summarizeForPrompt(text: string, maxLength = 240) {
   return `${normalized.slice(0, maxLength - 1).trimEnd()}…`
 }
 
+function isInvalidThreadIdError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false
+  }
+  const message = error.message
+  return (
+    message.includes('does not match the table name in validator') ||
+    (message.includes('Value does not match validator') &&
+      message.includes('Validator: v.id("threads")'))
+  )
+}
+
 async function getConversationSnapshot(
   ctx: Pick<import('./_generated/server').ActionCtx, 'runQuery'>,
-  threadId: Id<'chatThreads'>,
+  threadId: string,
   pendingPrompt: string,
 ) {
-  return await ctx.runQuery(internal.chatEngine.getConversationSnapshot, {
-    threadId,
-    pendingPrompt,
-  })
+  let cursor: string | null = null
+  let messageCount = 0
+  let firstUserMessage = ''
+  const recentMessages: Array<{ role: string; text: string }> = []
+
+  while (true) {
+    const batch = (await ctx.runQuery(components.agent.messages.listMessagesByThreadId, {
+      threadId,
+      order: 'asc',
+      excludeToolMessages: true,
+      statuses: ['success'],
+      paginationOpts: {
+        cursor,
+        numItems: 100,
+      },
+    })) as {
+      continueCursor: string
+      isDone: boolean
+      page: Array<{
+        text?: string
+        message?: {
+          role?: string
+          content?: unknown
+        }
+      }>
+    }
+
+    for (const message of batch.page) {
+      const role = message.message?.role
+      const text = extractMessageText(message)
+      if (!text || (role !== 'user' && role !== 'assistant')) {
+        continue
+      }
+
+      messageCount += 1
+      if (!firstUserMessage && role === 'user') {
+        firstUserMessage = text
+      }
+
+      recentMessages.push({ role, text })
+      if (recentMessages.length > 8) {
+        recentMessages.shift()
+      }
+    }
+
+    if (batch.isDone) {
+      break
+    }
+
+    cursor = batch.continueCursor
+  }
+
+  const trimmedPrompt = pendingPrompt.trim()
+  if (trimmedPrompt) {
+    messageCount += 1
+    if (!firstUserMessage) {
+      firstUserMessage = trimmedPrompt
+    }
+    recentMessages.push({ role: 'user', text: trimmedPrompt })
+    if (recentMessages.length > 8) {
+      recentMessages.shift()
+    }
+  }
+
+  return {
+    messageCount,
+    firstUserMessage,
+    recentTranscript: recentMessages
+      .map((message) => `${message.role}: ${summarizeForPrompt(message.text, 180)}`)
+      .join('\n'),
+  }
 }
 
 // Create OpenRouter provider with API key from environment
 const openrouter = createOpenRouter({
   apiKey: process.env.OPENROUTER_API_KEY!,
 })
+
+function createAuthorAgent(
+  model: NonNullable<ConstructorParameters<typeof Agent>[1]['languageModel']>,
+) {
+  return new Agent(components.agent, {
+    name: 'Author',
+    languageModel: model,
+    embeddingModel: process.env.OPENROUTER_API_KEY
+      ? openrouter.textEmbeddingModel('openai/text-embedding-3-small')
+      : undefined,
+    maxSteps: 10, // Alternative to stopWhen: stepCountIs(10)
+  })
+}
 
 function getErrorMessage(error: unknown) {
   if (error instanceof Error) {
@@ -206,7 +280,7 @@ function extractAccessDeniedModel(message: string) {
 async function markPendingGenerationFailed(
   ctx: Pick<ActionCtx, 'runQuery' | 'runMutation'>,
   args: {
-    threadId: Id<'chatThreads'>
+    threadId: string
     promptMessageId?: string
     error: string
   },
@@ -224,13 +298,13 @@ async function markPendingGenerationFailed(
     return { order: undefined, stopped: false }
   }
 
-  const failedCount = await ctx.runMutation(internal.chatEngine.failPendingMessagesByOrder, {
+  const stopped = await failPendingMessagesByOrder(ctx, {
     threadId: args.threadId,
     order: resolvedOrder,
     error: args.error,
   })
 
-  return { order: resolvedOrder, stopped: failedCount > 0 }
+  return { order: resolvedOrder, stopped }
 }
 
 async function resolvePromptOrder(
@@ -243,7 +317,7 @@ async function resolvePromptOrder(
     return undefined
   }
 
-  const [promptMessage] = await ctx.runQuery(internal.chatEngine.getMessagesByIds, {
+  const [promptMessage] = await ctx.runQuery(components.agent.messages.getMessagesByIds, {
     messageIds: [args.promptMessageId],
   })
   return promptMessage?.order
@@ -252,165 +326,70 @@ async function resolvePromptOrder(
 async function resolvePendingOrder(
   ctx: Pick<ActionCtx, 'runQuery'>,
   args: {
-    threadId: Id<'chatThreads'>
+    threadId: string
     targetOrder?: number
   },
 ) {
-  const pendingMessages = await ctx.runQuery(internal.chatEngine.listPendingMessagesForThread, {
+  const pendingMessages = await ctx.runQuery(components.agent.messages.listMessagesByThreadId, {
     threadId: args.threadId,
-    limit: 20,
+    statuses: ['pending'],
+    order: 'desc',
+    paginationOpts: {
+      cursor: null,
+      numItems: 20,
+    },
   })
 
   const fallbackOrder = pendingMessages.page[0]?.order
   return args.targetOrder ?? fallbackOrder
 }
 
-async function failPendingMessagesByOrderInMutation(
-  ctx: MutationCtx,
+async function failPendingMessagesByOrder(
+  ctx: Pick<ActionCtx, 'runQuery' | 'runMutation'>,
   args: {
-    threadId: Id<'chatThreads'>
+    threadId: string
     order: number
     error: string
   },
 ) {
-  const pendingMessages = await ctx.db
-    .query('chatMessages')
-    .withIndex('by_thread_status_order', (q) =>
-      q.eq('threadId', args.threadId).eq('status', 'pending').eq('order', args.order),
-    )
-    .collect()
+  const pendingMessages = await ctx.runQuery(components.agent.messages.listMessagesByThreadId, {
+    threadId: args.threadId,
+    statuses: ['pending'],
+    order: 'desc',
+    paginationOpts: {
+      cursor: null,
+      numItems: 20,
+    },
+  })
 
-  for (const message of pendingMessages) {
-    await ctx.db.patch(message._id, {
-      status: 'failed',
-      error: args.error || GENERATION_FAILED_FALLBACK_MESSAGE,
-    })
-  }
+  const matchingPendingMessages = pendingMessages.page.filter(
+    (message: (typeof pendingMessages.page)[number]) => message.order === args.order,
+  )
 
-  const streams = await ctx.db
-    .query('chatStreamingMessages')
-    .withIndex('by_thread_state_order', (q) =>
-      q.eq('threadId', args.threadId).eq('state.kind', 'streaming').eq('order', args.order),
-    )
-    .collect()
+  await Promise.all([
+    ctx.runMutation(components.agent.streams.abortByOrder, {
+      threadId: args.threadId,
+      order: args.order,
+      reason: args.error || GENERATION_FAILED_FALLBACK_MESSAGE,
+    }),
+    ...matchingPendingMessages.map((message: (typeof matchingPendingMessages)[number]) =>
+      ctx.runMutation(components.agent.messages.finalizeMessage, {
+        messageId: message._id,
+        result: {
+          status: 'failed',
+          error: args.error || GENERATION_FAILED_FALLBACK_MESSAGE,
+        },
+      }),
+    ),
+  ])
 
-  for (const stream of streams) {
-    await ctx.db.patch(stream._id, {
-      state: {
-        kind: 'aborted',
-        reason: args.error || GENERATION_FAILED_FALLBACK_MESSAGE,
-      },
-    })
-  }
-
-  return pendingMessages.length
+  return matchingPendingMessages.length > 0
 }
-
-function buildPendingGenerationProgressSignature(message: {
-  text?: string
-  message?: { content?: unknown }
-}) {
-  const text = message.text ?? ''
-  let contentLength = 0
-
-  try {
-    contentLength = JSON.stringify(message.message?.content ?? null).length
-  } catch {
-    contentLength = 0
-  }
-
-  return `${text.length}:${contentLength}:${text.slice(-96)}`
-}
-
-export const checkStalledGeneration = internalMutation({
-  args: {
-    threadId: v.id('chatThreads'),
-    promptMessageId: v.optional(v.string()),
-    pendingMessageId: v.optional(v.string()),
-    lastProgressSignature: v.string(),
-    lastProgressAt: v.number(),
-  },
-  handler: async (ctx, args) => {
-    const promptMessageId = args.promptMessageId
-      ? ctx.db.normalizeId('chatMessages', args.promptMessageId)
-      : null
-    const promptMessage = promptMessageId ? await ctx.db.get(promptMessageId) : null
-    const targetOrder = promptMessage?.order
-    const pendingMessages =
-      targetOrder === undefined
-        ? await ctx.db
-            .query('chatMessages')
-            .withIndex('by_thread_status_order', (q) =>
-              q.eq('threadId', args.threadId).eq('status', 'pending'),
-            )
-            .order('desc')
-            .take(1)
-        : await ctx.db
-            .query('chatMessages')
-            .withIndex('by_thread_status_order', (q) =>
-              q.eq('threadId', args.threadId).eq('status', 'pending').eq('order', targetOrder),
-            )
-            .take(1)
-    const pendingMessage = pendingMessages[0]
-
-    if (!pendingMessage) {
-      return null
-    }
-
-    const pendingMessageId = args.pendingMessageId
-      ? ctx.db.normalizeId('chatMessages', args.pendingMessageId)
-      : null
-    if (pendingMessageId && pendingMessage._id !== pendingMessageId) {
-      return null
-    }
-
-    const now = Date.now()
-    const activeStream = await ctx.db
-      .query('chatStreamingMessages')
-      .withIndex('by_thread_state_order', (q) =>
-        q
-          .eq('threadId', args.threadId)
-          .eq('state.kind', 'streaming')
-          .eq('order', pendingMessage.order),
-      )
-      .order('desc')
-      .first()
-    const progressSignature = activeStream?.state.kind === 'streaming'
-      ? `${activeStream._id}:${activeStream.state.lastHeartbeat}`
-      : buildPendingGenerationProgressSignature(pendingMessage)
-    const hasProgress =
-      !args.pendingMessageId || progressSignature !== args.lastProgressSignature
-    const lastProgressAt = hasProgress ? now : args.lastProgressAt
-
-    if (!hasProgress && now - args.lastProgressAt >= GENERATION_STALL_WATCHDOG_MS) {
-      await failPendingMessagesByOrderInMutation(ctx, {
-        threadId: args.threadId,
-        order: pendingMessage.order,
-        error: GENERATION_STALLED_BY_WATCHDOG,
-      })
-      return null
-    }
-
-    await ctx.scheduler.runAfter(
-      GENERATION_STALL_WATCHDOG_MS,
-      internal.agents.checkStalledGeneration,
-      {
-        threadId: args.threadId,
-        promptMessageId: args.promptMessageId,
-        pendingMessageId: pendingMessage._id,
-        lastProgressSignature: progressSignature,
-        lastProgressAt,
-      },
-    )
-
-    return null
-  },
-})
 
 async function getAssistantResponsePartsForPrompt(
   ctx: Pick<ActionCtx, 'runQuery'>,
   args: {
-    threadId: Id<'chatThreads'>
+    threadId: string
     promptMessageId?: string
   },
 ) {
@@ -418,13 +397,18 @@ async function getAssistantResponsePartsForPrompt(
     promptMessageId: args.promptMessageId,
   })
 
-  const messages = await ctx.runQuery(internal.chatEngine.listContextMessages, {
+  const messages = await ctx.runQuery(components.agent.messages.listMessagesByThreadId, {
     threadId: args.threadId,
-    limit: 20,
+    statuses: ['success'],
+    order: 'desc',
+    paginationOpts: {
+      cursor: null,
+      numItems: 20,
+    },
   })
 
-  const assistantMessage = [...messages].reverse().find((message) => {
-    if (message.role !== 'assistant') {
+  const assistantMessage = messages.page.find((message) => {
+    if (message.message?.role !== 'assistant') {
       return false
     }
 
@@ -432,10 +416,19 @@ async function getAssistantResponsePartsForPrompt(
       return true
     }
 
-    return message.order >= promptOrder
+    return message.order > promptOrder
   })
 
-  return assistantMessage?.parts ?? []
+  const content = assistantMessage?.message?.content
+  if (!Array.isArray(content)) {
+    return []
+  }
+
+  return content.flatMap((part) =>
+    part && typeof part === 'object' && !Array.isArray(part)
+      ? [part as Record<string, unknown>]
+      : [],
+  )
 }
 
 const toolPolicyEventStatusValidator = v.union(
@@ -547,13 +540,10 @@ export const getThreadPresentation = internalQuery({
   },
   returns: threadPresentationValidator,
   handler: async (ctx, args) => {
-    const threadId = normalizeChatThreadId(ctx, args.threadId)
-    if (!threadId) {
-      return null
-    }
-
     const [thread, metadata] = await Promise.all([
-      ctx.db.get(threadId),
+      ctx.runQuery(components.agent.threads.getThread, {
+        threadId: args.threadId,
+      }),
       ctx.db
         .query('threadMetadata')
         .withIndex('by_threadId', (q) => q.eq('threadId', args.threadId))
@@ -662,22 +652,17 @@ export const applyThreadMetadataUpdate = internalMutation({
     updated: v.boolean(),
   }),
   handler: async (ctx, args) => {
-    const threadId = normalizeChatThreadId(ctx, args.threadId)
-    if (!threadId) {
-      throw new ConvexError({
-        code: 'NOT_FOUND',
-        message: 'Thread not found',
-      })
-    }
-
-    const thread = await ctx.db.get(threadId)
+    const thread = await ctx.runQuery(components.agent.threads.getThread, {
+      threadId: args.threadId,
+    })
 
     const metadata = await ctx.db
       .query('threadMetadata')
       .withIndex('by_threadId', (q) => q.eq('threadId', args.threadId))
       .first()
 
-    const ownerUserId = metadata?.userId || args.userId || thread?.userId
+    const threadUserId = thread?.userId as Id<'users'> | undefined
+    const ownerUserId = metadata?.userId || args.userId || threadUserId
     if (!ownerUserId) {
       throw new ConvexError({
         code: 'NOT_FOUND',
@@ -702,8 +687,9 @@ export const applyThreadMetadataUpdate = internalMutation({
     const iconChanged = args.icon !== undefined && nextIcon !== (metadata?.icon || undefined)
 
     if (titleChanged) {
-      await ctx.db.patch(threadId, {
-        title: nextTitle,
+      await ctx.runMutation(components.agent.threads.updateThread, {
+        threadId: args.threadId,
+        patch: { title: nextTitle },
       })
     }
 
@@ -866,22 +852,6 @@ async function resolveGenerationDependencies(
     })
   }
 
-  const threadId = normalizeChatThreadId(ctx, args.threadId)
-  if (!threadId) {
-    throw new ConvexError({
-      code: 'NOT_FOUND',
-      message: 'Thread not found',
-    })
-  }
-
-  const thread = await ctx.db.get(threadId)
-  if (!thread || thread.userId !== userId) {
-    throw new ConvexError({
-      code: 'NOT_FOUND',
-      message: 'Thread not found',
-    })
-  }
-
   const model = await ctx.db.get(args.modelId)
   if (!model) {
     throw new ConvexError({
@@ -962,14 +932,14 @@ async function resolveGenerationDependencies(
     .withIndex('by_threadId', (q) => q.eq('threadId', args.threadId))
     .first()
 
-  if (metadata && metadata.userId !== userId) {
+  if (!metadata || metadata.userId !== userId) {
     throw new ConvexError({
       code: 'NOT_FOUND',
       message: 'Thread not found',
     })
   }
 
-  let resolvedProjectId = metadata?.projectId
+  let resolvedProjectId = metadata.projectId
 
   if (args.projectId) {
     const access = await getProjectRole(ctx, args.projectId, userId)
@@ -987,17 +957,7 @@ async function resolveGenerationDependencies(
       })
     }
 
-    if (!metadata) {
-      await ctx.db.insert('threadMetadata', {
-        threadId,
-        emoji: getRandomEmoji(),
-        lastLabelUpdateAt: Date.now(),
-        lastMessageAt: Date.now(),
-        projectId: args.projectId,
-        userId,
-        sortOrder: 0,
-      })
-    } else if (metadata.projectId !== args.projectId) {
+    if (metadata.projectId !== args.projectId) {
       const now = Date.now()
       await ctx.db.patch(metadata._id, {
         projectId: args.projectId,
@@ -1025,7 +985,6 @@ async function resolveGenerationDependencies(
 
   return {
     userId,
-    threadId,
     model,
     provider,
     resolvedProjectId,
@@ -1068,38 +1027,28 @@ async function resolveRequestReasoning(
 async function deleteResponseStepsForPrompt(
   ctx: MutationCtx,
   args: {
-    threadId: Id<'chatThreads'>
+    threadId: string
     promptOrder: number
     promptStepOrder: number
   },
 ) {
-  const messages = await ctx.db
-    .query('chatMessages')
-    .withIndex('by_thread_order', (q) =>
-      q.eq('threadId', args.threadId).eq('order', args.promptOrder),
-    )
-    .collect()
+  let startOrder = args.promptOrder
+  let startStepOrder = args.promptStepOrder + 1
 
-  for (const message of messages) {
-    if (message.stepOrder > args.promptStepOrder) {
-      await ctx.db.delete(message._id)
-    }
-  }
-
-  const streams = await ctx.db
-    .query('chatStreamingMessages')
-    .withIndex('by_thread_state_order', (q) =>
-      q.eq('threadId', args.threadId).eq('state.kind', 'streaming').eq('order', args.promptOrder),
-    )
-    .collect()
-
-  for (const stream of streams) {
-    await ctx.db.patch(stream._id, {
-      state: {
-        kind: 'aborted',
-        reason: GENERATION_REPLACED_BY_RESEND,
-      },
+  while (true) {
+    const result = await ctx.runMutation(components.agent.messages.deleteByOrder, {
+      threadId: args.threadId,
+      startOrder,
+      startStepOrder,
+      endOrder: args.promptOrder + 1,
     })
+
+    if (result.isDone) {
+      return
+    }
+
+    startOrder = result.lastOrder ?? startOrder
+    startStepOrder = result.lastStepOrder ?? startStepOrder
   }
 }
 
@@ -1108,7 +1057,6 @@ async function registerChatAttachments(
   args: {
     attachments: Array<Infer<typeof chatAttachmentValidator>>
     model: {
-      providerType?: string
       capabilities?: string[]
       supportedAttachmentMediaTypes?: string[]
       attachmentValidationStatus?: ModelAttachmentValidationStatus
@@ -1116,7 +1064,6 @@ async function registerChatAttachments(
   },
 ) {
   const allowedMediaTypes = resolveModelAttachmentMediaTypes({
-    providerType: args.model.providerType,
     capabilities: args.model.capabilities,
     supportedAttachmentMediaTypes: args.model.supportedAttachmentMediaTypes,
     attachmentValidationStatus: args.model.attachmentValidationStatus,
@@ -1129,7 +1076,7 @@ async function registerChatAttachments(
   }
 
   const registered: Array<{
-    fileId: Id<'chatFiles'>
+    fileId: string
     filename?: string
     mediaType: string
     storageId: Id<'_storage'>
@@ -1153,36 +1100,23 @@ async function registerChatAttachments(
     }
 
     const filename = attachment.filename?.trim() || undefined
-    const existing = await ctx.db
-      .query('chatFiles')
-      .withIndex('by_hash', (q) => q.eq('hash', metadata.sha256))
-      .first()
+    const existing = await ctx.runMutation(components.agent.files.useExistingFile, {
+      hash: metadata.sha256,
+      filename,
+    })
 
-    const now = Date.now()
     const fileId =
-      existing?._id ??
-      (await ctx.db.insert('chatFiles', {
-        storageId: attachment.storageId,
-        hash: metadata.sha256,
-        filename,
-        mediaType,
-        refcount: 0,
-        lastTouchedAt: now,
-      }))
+      existing?.fileId ??
+      (
+        await ctx.runMutation(components.agent.files.addFile, {
+          storageId: attachment.storageId,
+          hash: metadata.sha256,
+          filename,
+          mediaType,
+        })
+      ).fileId
 
-    if (existing) {
-      await ctx.db.patch(existing._id, {
-        filename: filename ?? existing.filename,
-        refcount: existing.refcount + 1,
-        lastTouchedAt: now,
-      })
-    } else {
-      await ctx.db.patch(fileId, {
-        refcount: 1,
-      })
-    }
-
-    const storageId = existing?.storageId || attachment.storageId
+    const storageId = (existing?.storageId || attachment.storageId) as Id<'_storage'>
     if (!(await ctx.storage.getUrl(storageId))) {
       throw new ConvexError({
         code: 'NOT_FOUND',
@@ -1199,222 +1133,6 @@ async function registerChatAttachments(
   }
 
   return registered
-}
-
-function promptContentHasAttachments(content: unknown) {
-  if (!Array.isArray(content)) {
-    return false
-  }
-
-  return content.some((part) => {
-    if (!part || typeof part !== 'object') {
-      return false
-    }
-    const typedPart = part as { type?: unknown }
-    return typedPart.type === 'file' || typedPart.type === 'image'
-  })
-}
-
-function ensureProviderSupportsPromptAttachments(args: {
-  providerType: string
-  promptContent: unknown
-}) {
-  if (args.providerType !== 'deepseek') {
-    return
-  }
-
-  if (!promptContentHasAttachments(args.promptContent)) {
-    return
-  }
-
-  throw new ConvexError({
-    code: 'VALIDATION_ERROR',
-    message:
-      'DeepSeek in this backend currently supports text-only prompts. Choose another model for PDF or image attachments.',
-  })
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
-}
-
-function getString(value: unknown) {
-  return typeof value === 'string' ? value : undefined
-}
-
-async function getNextMessageOrder(ctx: MutationCtx, threadId: Id<'chatThreads'>) {
-  const latest = await ctx.db
-    .query('chatMessages')
-    .withIndex('by_thread_order', (q) => q.eq('threadId', threadId))
-    .order('desc')
-    .first()
-
-  return latest ? latest.order + 1 : 0
-}
-
-async function saveUserPromptMessage(
-  ctx: MutationCtx,
-  args: {
-    threadId: Id<'chatThreads'>
-    userId: Id<'users'>
-    text?: string
-    files?: Array<{
-      fileId: Id<'chatFiles'>
-      storageId: Id<'_storage'>
-      filename?: string
-      mediaType: string
-    }>
-  },
-) {
-  const fileParts: Array<{
-    url: string
-    mediaType: string
-    filename?: string
-  }> = []
-  for (const file of args.files ?? []) {
-    const url = await ctx.storage.getUrl(file.storageId)
-    if (!url) {
-      throw new ConvexError({
-        code: 'NOT_FOUND',
-        message: 'Uploaded file is no longer available',
-      })
-    }
-    fileParts.push({
-      url,
-      mediaType: file.mediaType,
-      filename: file.filename,
-    })
-  }
-
-  const parts = buildUserParts({
-    text: args.text,
-    files: fileParts,
-  })
-
-  if (parts.length === 0) {
-    return null
-  }
-
-  const order = await getNextMessageOrder(ctx, args.threadId)
-  const text = extractTextFromParts(parts)
-
-  return await ctx.db.insert('chatMessages', {
-    threadId: args.threadId,
-    userId: args.userId,
-    order,
-    stepOrder: 0,
-    fileIds: args.files?.map((file) => file.fileId),
-    status: 'success',
-    agentName: 'Author',
-    tool: false,
-    text,
-    parts,
-    message: buildStoredMessage('user', parts),
-  })
-}
-
-async function createPendingAssistantMessage(
-  ctx: MutationCtx,
-  args: {
-    threadId: Id<'chatThreads'>
-    userId: Id<'users'>
-    promptOrder: number
-    promptStepOrder: number
-    model?: string
-    provider?: string
-  },
-) {
-  return await ctx.db.insert('chatMessages', {
-    threadId: args.threadId,
-    userId: args.userId,
-    order: args.promptOrder,
-    stepOrder: args.promptStepOrder + 1,
-    status: 'pending',
-    agentName: 'Author',
-    model: args.model,
-    provider: args.provider,
-    tool: false,
-    text: '',
-    parts: [],
-    message: buildStoredMessage('assistant', []),
-  })
-}
-
-function convertChatPartsToModelUserContent(parts: Array<Record<string, unknown>>) {
-  const content: Array<TextPart | FilePart | ImagePart> = []
-
-  for (const part of parts) {
-    if (part.type === 'text') {
-      const text = getString(part.text)
-      if (text?.trim()) {
-        content.push({
-          type: 'text',
-          text,
-        })
-      }
-      continue
-    }
-
-    if (part.type === 'file') {
-      const url = getString(part.url)
-      const mediaType = getString(part.mediaType)
-      if (!url || !mediaType) {
-        continue
-      }
-
-      content.push({
-        type: 'file',
-        data: url,
-        mediaType,
-      })
-    }
-  }
-
-  return content
-}
-
-function convertPublicMessagesToModelMessages(
-  messages: Array<{
-    role: 'system' | 'user' | 'assistant'
-    text: string
-    parts: Array<Record<string, unknown>>
-  }>,
-): ModelMessage[] {
-  const output: ModelMessage[] = []
-
-  for (const message of messages) {
-    if (message.role === 'system') {
-      continue
-    }
-
-    if (message.role === 'assistant') {
-      const content = message.text.trim()
-      if (content) {
-        output.push({
-          role: 'assistant',
-          content,
-        })
-      }
-      continue
-    }
-
-    const content = convertChatPartsToModelUserContent(message.parts)
-    if (content.length === 0 && message.text.trim()) {
-      content.push({
-        type: 'text',
-        text: message.text,
-      })
-    }
-
-    if (content.length > 0) {
-      output.push({
-        role: 'user',
-        content,
-      })
-    }
-  }
-
-  return output
 }
 
 async function recordMessageArtifactContextLinks(
@@ -1541,8 +1259,7 @@ export const streamMessage = internalAction({
     modelId: v.string(),
     prompt: v.optional(v.string()),
     promptMessageId: v.optional(v.string()),
-    pendingMessageId: v.id('chatMessages'),
-    threadId: v.id('chatThreads'),
+    threadId: v.string(),
     projectId: v.optional(v.id('projects')),
     contextArtifactIds: v.optional(v.array(v.id('projectArtifacts'))),
     searchEnabled: v.optional(v.boolean()),
@@ -1575,23 +1292,13 @@ export const streamMessage = internalAction({
       const searchEnabled = args.searchEnabled === true
       const searchMode = args.searchMode === 'required' ? 'required' : 'auto'
       let resolvedPrompt = args.prompt?.trim() || ''
-      const [promptMessage, pendingMessage] = await ctx.runQuery(
-        internal.chatEngine.getMessagesByIds,
-        {
-          messageIds: [args.promptMessageId ?? '', args.pendingMessageId],
-        },
-      )
-
-      if (!pendingMessage || pendingMessage.status !== 'pending') {
-        throw new Error('Pending assistant message not found')
-      }
 
       if (args.promptMessageId && !resolvedPrompt) {
-        resolvedPrompt = promptMessage?.text?.trim() || ''
-        ensureProviderSupportsPromptAttachments({
-          providerType: args.agent,
-          promptContent: promptMessage?.parts,
+        const [promptMessage] = await ctx.runQuery(components.agent.messages.getMessagesByIds, {
+          messageIds: [args.promptMessageId],
         })
+
+        resolvedPrompt = promptMessage?.text?.trim() || ''
       }
 
       const provider = match(args.agent)
@@ -1772,6 +1479,9 @@ export const streamMessage = internalAction({
           throw new Error('Replicate provider not yet implemented - requires different SDK')
         })
         .exhaustive()
+
+      // Create the agent
+      const agent = createAuthorAgent(provider)
 
       const linkedProjects = (await ctx.runQuery(
         internal.functions.memoryInternal.listProjectsForThread,
@@ -1974,136 +1684,43 @@ export const streamMessage = internalAction({
         ...(searchEnabled ? { exa_web_search: exaWebSearchTool } : {}),
       }
 
-      const contextMessages = await ctx.runQuery(internal.chatEngine.listContextMessages, {
-        threadId: args.threadId,
-        limit: 40,
-      })
-      const messages = convertPublicMessagesToModelMessages(contextMessages)
-      if (messages.length === 0 && resolvedPrompt) {
-        messages.push({
-          role: 'user',
-          content: [{ type: 'text', text: resolvedPrompt }],
-        })
-      }
-
-      const streamId = await ctx.runMutation(internal.chatEngine.createStream, {
-        threadId: args.threadId,
-        userId: args.userId,
-        agentName: 'Author',
-        model: args.modelName,
-        provider: args.providerName,
-        order: pendingMessage.order,
-        stepOrder: pendingMessage.stepOrder,
-      })
-      const chunks: unknown[] = []
-      let cursor = 0
-
-      const result = streamText({
-        model: provider,
-        messages,
-        system,
-        tools: bindChatTools(
-          {
-            ...ctx,
-            userId: args.userId.toString(),
-            threadId: args.threadId.toString(),
-            messageId: args.pendingMessageId.toString(),
-            promptMessageId: args.promptMessageId,
-          },
+      // Stream the response
+      await agent.streamText(
+        ctx,
+        { threadId: args.threadId, userId: args.userId },
+        // @ts-ignore types are strict
+        {
+          ...(args.promptMessageId
+            ? { promptMessageId: args.promptMessageId }
+            : { prompt: resolvedPrompt }),
           tools,
-        ),
-        stopWhen: stepCountIs(10),
-        experimental_transform: smoothStream({
-          delayInMs: null,
-          chunking: /[\p{P}\s]/u,
-        }),
-      })
-
-      for await (const chunk of result.toUIMessageStream()) {
-        chunks.push(chunk)
-        const start = cursor
-        cursor += 1
-        const didAppend = await ctx.runMutation(internal.chatEngine.appendStreamDelta, {
-          streamId,
-          start,
-          end: cursor,
-          parts: [chunk],
-        })
-
-        if (!didAppend) {
-          throw new Error(GENERATION_STOPPED_BY_USER)
-        }
-      }
-
-      const usage = await result.usage
-      await ctx.runMutation(internal.admin.recordModelUsage, {
-        userId: args.userId,
-        threadId: args.threadId,
-        providerId: args.providerDocId,
-        modelId: args.modelDocId,
-        providerType: args.agent,
-        providerName: args.providerName,
-        modelName: args.modelName,
-        routerDecisionId: args.routerDecisionId,
-        promptTokens: usage.inputTokens ?? 0,
-        completionTokens: usage.outputTokens ?? 0,
-        totalTokens: usage.totalTokens ?? 0,
-        createdAt: Date.now(),
-      })
-
-      const assistantMessageParts = buildAssistantPartsFromChunks(chunks)
-      const assistantText = extractTextFromParts(assistantMessageParts)
-      await ctx.runMutation(internal.chatEngine.finalizeAssistantMessage, {
-        messageId: args.pendingMessageId,
-        streamId,
-        parts: assistantMessageParts,
-        text: assistantText,
-        usage,
-        finishReason: await result.finishReason,
-        providerMetadata: await result.providerMetadata,
-      })
-
-      if (process.env.OPENROUTER_API_KEY) {
-        const embeddingTargets = [
-          ...(promptMessage?.text
-            ? [
-                {
-                  messageId: promptMessage._id,
-                  text: promptMessage.text,
-                },
-              ]
-            : []),
-          ...(assistantText
-            ? [
-                {
-                  messageId: args.pendingMessageId,
-                  text: assistantText,
-                },
-              ]
-            : []),
-        ]
-
-        if (embeddingTargets.length > 0) {
-          try {
-            const embeddingResult = await embedMany({
-              model: openrouter.textEmbeddingModel(SEARCH_EMBEDDING_MODEL),
-              values: embeddingTargets.map((target) => target.text),
+          system,
+        },
+        {
+          saveStreamDeltas: true,
+          usageHandler: async (usageCtx, usageArgs) => {
+            await usageCtx.runMutation(internal.admin.recordModelUsage, {
+              userId: args.userId,
+              threadId: args.threadId,
+              providerId: args.providerDocId,
+              modelId: args.modelDocId,
+              providerType: args.agent,
+              providerName: args.providerName,
+              modelName: args.modelName,
+              routerDecisionId: args.routerDecisionId,
+              promptTokens: usageArgs.usage.inputTokens ?? 0,
+              completionTokens: usageArgs.usage.outputTokens ?? 0,
+              totalTokens: usageArgs.usage.totalTokens ?? 0,
+              createdAt: Date.now(),
             })
-            await Promise.all(
-              embeddingTargets.map((target, index) =>
-                ctx.runMutation(internal.chatEngine.storeMessageEmbedding, {
-                  messageId: target.messageId,
-                  vector: embeddingResult.embeddings[index] ?? [],
-                  model: SEARCH_EMBEDDING_MODEL,
-                }),
-              ),
-            )
-          } catch (error) {
-            console.error('Failed to store chat message embeddings:', error)
-          }
-        }
-      }
+          },
+        },
+      )
 
+      const assistantMessageParts = await getAssistantResponsePartsForPrompt(ctx, {
+        threadId: args.threadId,
+        promptMessageId: args.promptMessageId,
+      })
       const finalizedPolicy = finalizeToolPolicyEvaluation({
         requiredActions: toolPolicyRequiredActions,
         automaticActions: policyAutomaticActions,
@@ -2180,7 +1797,7 @@ export const generateMessage = mutation({
     const result = await resolveGenerationDependencies(ctx, args)
     if (!result) return null
 
-    const { userId, threadId, model, provider, resolvedProjectId } = result
+    const { userId, model, provider, resolvedProjectId } = result
     const existingReceipt = await getClientMutationReceipt(ctx, {
       userId,
       clientRequestId: args.clientRequestId,
@@ -2200,62 +1817,69 @@ export const generateMessage = mutation({
     })
     const now = Date.now()
 
-    let promptMessageId: Id<'chatMessages'> | undefined
-    let pendingMessageId: Id<'chatMessages'> | undefined
+    let promptMessageId: string | undefined
 
     if (args.attachments && args.attachments.length > 0) {
       const registeredAttachments = await registerChatAttachments(ctx, {
         attachments: args.attachments,
-        model: {
-          providerType: provider.providerType,
-          capabilities: model.capabilities,
-          supportedAttachmentMediaTypes: model.supportedAttachmentMediaTypes,
-          attachmentValidationStatus: model.attachmentValidationStatus,
+        model,
+      })
+      const content: Array<TextPart | FilePart | ImagePart> = []
+      const trimmedPrompt = args.prompt.trim()
+
+      if (trimmedPrompt) {
+        content.push({
+          type: 'text',
+          text: trimmedPrompt,
+        })
+      }
+
+      for (const attachment of registeredAttachments) {
+        const { filePart, imagePart } = await getFile(ctx, components.agent, attachment.fileId)
+        content.push(imagePart ?? filePart)
+      }
+
+      if (content.length === 0) {
+        return null
+      }
+
+      const saved = await saveMessage(ctx, components.agent, {
+        threadId: args.threadId,
+        userId,
+        message: {
+          role: 'user',
+          content,
+        } satisfies {
+          role: 'user'
+          content: Array<TextPart | FilePart | ImagePart>
+        },
+        metadata: {
+          fileIds: registeredAttachments.map((attachment) => attachment.fileId),
         },
       })
-      const trimmedPrompt = args.prompt.trim()
-      promptMessageId =
-        (await saveUserPromptMessage(ctx, {
-          threadId,
-          userId,
-          text: trimmedPrompt,
-          files: registeredAttachments,
-        })) ?? undefined
+
+      promptMessageId = saved.messageId
     } else {
       const trimmedPrompt = args.prompt.trim()
       if (!trimmedPrompt) {
         return null
       }
 
-      promptMessageId =
-        (await saveUserPromptMessage(ctx, {
-          threadId,
-          userId,
-          text: trimmedPrompt,
-        })) ?? undefined
-    }
+      const saved = await saveMessage(ctx, components.agent, {
+        threadId: args.threadId,
+        userId,
+        message: {
+          role: 'user',
+          content: [{ type: 'text', text: trimmedPrompt }],
+        },
+      })
 
-    if (!promptMessageId) {
-      return null
+      promptMessageId = saved.messageId
     }
-
-    const promptMessage = await ctx.db.get(promptMessageId)
-    if (!promptMessage) {
-      return null
-    }
-
-    pendingMessageId = await createPendingAssistantMessage(ctx, {
-      threadId,
-      userId,
-      promptOrder: promptMessage.order,
-      promptStepOrder: promptMessage.stepOrder,
-      model: model.displayName,
-      provider: provider.name,
-    })
 
     await recordMessageArtifactContextLinks(ctx, {
       userId,
-      threadId,
+      threadId: args.threadId,
       messageId: promptMessageId,
       projectId: resolvedProjectId,
       artifactIds: args.contextArtifactIds,
@@ -2270,14 +1894,13 @@ export const generateMessage = mutation({
       await ctx.db.patch(metadata._id, { lastMessageAt: now })
     }
 
-    // Stream the response from the AI SDK into first-party Convex tables.
+    // Use the agent to stream the response
     await ctx.scheduler.runAfter(0, internal.agents.streamMessage, {
       agent: provider.providerType,
       modelId: model.modelId,
       prompt: args.prompt,
       promptMessageId,
-      pendingMessageId,
-      threadId,
+      threadId: args.threadId,
       projectId: resolvedProjectId,
       contextArtifactIds: args.contextArtifactIds,
       searchEnabled: args.searchEnabled ?? false,
@@ -2300,17 +1923,6 @@ export const generateMessage = mutation({
       routerDecisionId: args.routerDecisionId,
       config: provider.config,
     })
-    await ctx.scheduler.runAfter(
-      GENERATION_STALL_WATCHDOG_MS,
-      internal.agents.checkStalledGeneration,
-      {
-        threadId,
-        promptMessageId,
-        pendingMessageId,
-        lastProgressSignature: '',
-        lastProgressAt: Date.now(),
-      },
-    )
     await recordClientMutationReceipt(ctx, {
       userId,
       clientRequestId: args.clientRequestId,
@@ -2336,7 +1948,7 @@ export const regenerateMessage = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const { userId, threadId, model, provider, resolvedProjectId } = await resolveGenerationDependencies(
+    const { userId, model, provider, resolvedProjectId } = await resolveGenerationDependencies(
       ctx,
       args,
     )
@@ -2359,12 +1971,13 @@ export const regenerateMessage = mutation({
     })
     const now = Date.now()
 
-    const promptMessageId = ctx.db.normalizeId('chatMessages', args.promptMessageId)
-    const promptMessage = promptMessageId ? await ctx.db.get(promptMessageId) : null
+    const [promptMessage] = await ctx.runQuery(components.agent.messages.getMessagesByIds, {
+      messageIds: [args.promptMessageId],
+    })
 
     if (
       !promptMessage ||
-      promptMessage.threadId !== threadId ||
+      promptMessage.threadId !== args.threadId ||
       promptMessage.userId !== userId ||
       promptMessage.message?.role !== 'user' ||
       !promptMessage.text?.trim()
@@ -2375,30 +1988,16 @@ export const regenerateMessage = mutation({
       })
     }
 
-    ensureProviderSupportsPromptAttachments({
-      providerType: provider.providerType,
-      promptContent: promptMessage.parts,
-    })
-
-    await failPendingMessagesByOrderInMutation(ctx, {
-      threadId,
-      order: promptMessage.order,
+    await markPendingGenerationFailed(ctx, {
+      threadId: args.threadId,
+      promptMessageId: args.promptMessageId,
       error: GENERATION_REPLACED_BY_RESEND,
     })
 
     await deleteResponseStepsForPrompt(ctx, {
-      threadId,
+      threadId: args.threadId,
       promptOrder: promptMessage.order,
       promptStepOrder: promptMessage.stepOrder,
-    })
-
-    const pendingMessageId = await createPendingAssistantMessage(ctx, {
-      threadId,
-      userId,
-      promptOrder: promptMessage.order,
-      promptStepOrder: promptMessage.stepOrder,
-      model: model.displayName,
-      provider: provider.name,
     })
 
     const metadata = await ctx.db
@@ -2415,8 +2014,7 @@ export const regenerateMessage = mutation({
       modelId: model.modelId,
       prompt: promptMessage.text,
       promptMessageId: args.promptMessageId,
-      pendingMessageId,
-      threadId,
+      threadId: args.threadId,
       projectId: resolvedProjectId,
       contextArtifactIds: args.contextArtifactIds,
       searchEnabled: args.searchEnabled ?? false,
@@ -2439,20 +2037,9 @@ export const regenerateMessage = mutation({
       routerDecisionId: args.routerDecisionId,
       config: provider.config,
     })
-    await ctx.scheduler.runAfter(
-      GENERATION_STALL_WATCHDOG_MS,
-      internal.agents.checkStalledGeneration,
-      {
-        threadId,
-        promptMessageId: args.promptMessageId,
-        pendingMessageId,
-        lastProgressSignature: '',
-        lastProgressAt: Date.now(),
-      },
-    )
     await recordMessageArtifactContextLinks(ctx, {
       userId,
-      threadId,
+      threadId: args.threadId,
       messageId: args.promptMessageId,
       projectId: resolvedProjectId,
       artifactIds: args.contextArtifactIds,
@@ -2486,69 +2073,27 @@ export const stopGeneration = mutation({
       })
     }
 
-    const threadId = normalizeChatThreadId(ctx, args.threadId)
-    if (!threadId) {
-      throw new ConvexError({
-        code: 'NOT_FOUND',
-        message: 'Thread not found',
-      })
-    }
-    const thread = await ctx.db.get(threadId)
-    if (!thread || thread.userId !== userId) {
-      throw new ConvexError({
-        code: 'NOT_FOUND',
-        message: 'Thread not found',
-      })
-    }
-
     const metadata = await ctx.db
       .query('threadMetadata')
       .withIndex('by_threadId', (q) => q.eq('threadId', args.threadId))
       .first()
 
-    if (metadata && metadata.userId !== userId) {
+    if (!metadata || metadata.userId !== userId) {
       throw new ConvexError({
         code: 'NOT_FOUND',
         message: 'Thread not found',
       })
     }
 
-    const promptMessageId = args.promptMessageId
-      ? ctx.db.normalizeId('chatMessages', args.promptMessageId)
-      : null
-    const promptMessage = promptMessageId ? await ctx.db.get(promptMessageId) : null
-    const pendingMessage =
-      promptMessage?.order === undefined
-        ? await ctx.db
-            .query('chatMessages')
-            .withIndex('by_thread_status_order', (q) =>
-              q.eq('threadId', threadId).eq('status', 'pending'),
-            )
-            .order('desc')
-            .first()
-        : await ctx.db
-            .query('chatMessages')
-            .withIndex('by_thread_status_order', (q) =>
-              q.eq('threadId', threadId).eq('status', 'pending').eq('order', promptMessage.order),
-            )
-            .first()
-
-    if (!pendingMessage) {
-      return {
-        stopped: false,
-        order: undefined,
-      }
-    }
-
-    const failedCount = await failPendingMessagesByOrderInMutation(ctx, {
-      threadId,
-      order: pendingMessage.order,
+    const result = await markPendingGenerationFailed(ctx, {
+      threadId: args.threadId,
+      promptMessageId: args.promptMessageId,
       error: GENERATION_STOPPED_BY_USER,
     })
 
     return {
-      stopped: failedCount > 0,
-      order: pendingMessage.order,
+      stopped: result.stopped,
+      order: result.order,
     }
   },
 })
@@ -2584,17 +2129,16 @@ export const createChatThread = mutation({
         .query('threadMetadata')
         .withIndex('by_userId_clientThreadKey', (q) =>
           q.eq('userId', userId).eq('clientThreadKey', normalizedClientThreadKey),
-      )
+        )
         .first()
-      if (existing?.threadId && normalizeChatThreadId(ctx, existing.threadId)) {
+      if (existing?.threadId) {
         return existing.threadId
       }
     }
 
-    const threadId = await ctx.db.insert('chatThreads', {
+    const threadId = await createThread(ctx, components.agent, {
       title: args.title,
       userId,
-      status: 'active',
     })
 
     // Create thread metadata with random emoji
@@ -2639,11 +2183,7 @@ export const resolveThreadIdByClientKey = query({
       )
       .first()
 
-    if (!metadata?.threadId || !normalizeChatThreadId(ctx, metadata.threadId)) {
-      return null
-    }
-
-    return metadata.threadId
+    return metadata?.threadId ?? null
   },
 })
 
@@ -2660,15 +2200,6 @@ export const updateThreadSection = mutation({
       throw new ConvexError({
         code: 'UNAUTHORIZED',
         message: 'You must be logged in to update a thread',
-      })
-    }
-
-    const threadId = normalizeChatThreadId(ctx, args.threadId)
-    const thread = threadId ? await ctx.db.get(threadId) : null
-    if (!thread || thread.userId !== userId) {
-      throw new ConvexError({
-        code: 'NOT_FOUND',
-        message: 'Thread not found or you do not have permission to update it',
       })
     }
 
@@ -2703,15 +2234,6 @@ export const togglePinThread = mutation({
       throw new ConvexError({
         code: 'UNAUTHORIZED',
         message: 'You must be logged in to pin a thread',
-      })
-    }
-
-    const threadId = normalizeChatThreadId(ctx, args.threadId)
-    const thread = threadId ? await ctx.db.get(threadId) : null
-    if (!thread || thread.userId !== userId) {
-      throw new ConvexError({
-        code: 'NOT_FOUND',
-        message: 'Thread metadata not found',
       })
     }
 
@@ -2761,15 +2283,6 @@ export const setThreadPinned = mutation({
       })
     }
 
-    const threadId = normalizeChatThreadId(ctx, args.threadId)
-    const thread = threadId ? await ctx.db.get(threadId) : null
-    if (!thread || thread.userId !== userId) {
-      throw new ConvexError({
-        code: 'NOT_FOUND',
-        message: 'Thread metadata not found',
-      })
-    }
-
     const metadata = await ctx.db
       .query('threadMetadata')
       .withIndex('by_threadId', (q) => q.eq('threadId', args.threadId))
@@ -2813,15 +2326,6 @@ export const updateThreadIcon = mutation({
       })
     }
 
-    const threadId = normalizeChatThreadId(ctx, args.threadId)
-    const thread = threadId ? await ctx.db.get(threadId) : null
-    if (!thread || thread.userId !== userId) {
-      throw new ConvexError({
-        code: 'NOT_FOUND',
-        message: 'Thread metadata not found',
-      })
-    }
-
     // Find the metadata for this thread
     const metadata = await ctx.db
       .query('threadMetadata')
@@ -2860,11 +2364,10 @@ export const listThreadsWithMetadata = query({
     if (!userId) return []
 
     const [threads, metadata] = await Promise.all([
-      ctx.db
-        .query('chatThreads')
-        .withIndex('by_userId', (q) => q.eq('userId', userId))
-        .order('desc')
-        .take(100),
+      ctx.runQuery(components.agent.threads.listThreadsByUserId, {
+        userId,
+        paginationOpts: { numItems: 100, cursor: null },
+      }),
       ctx.db
         .query('threadMetadata')
         .withIndex('by_userId_sortOrder_lastMessageAt', (q) => q.eq('userId', userId))
@@ -2872,7 +2375,7 @@ export const listThreadsWithMetadata = query({
         .collect(),
     ])
 
-    const threadsById = new Map(threads.map((thread) => [thread._id.toString(), thread]))
+    const threadsById = new Map(threads.page.map((thread) => [thread._id, thread]))
     const metadataByThreadId = new Map(metadata.map((item) => [item.threadId, item]))
     const projectIds = Array.from(
       new Set(
@@ -2891,11 +2394,7 @@ export const listThreadsWithMetadata = query({
     const orderedResults: Array<Infer<typeof threadListItemValidator>> = []
 
     for (const itemMetadata of metadata) {
-      const normalizedThreadId = normalizeChatThreadId(ctx, itemMetadata.threadId)
-      if (!normalizedThreadId) {
-        continue
-      }
-      const thread = threadsById.get(normalizedThreadId.toString())
+      const thread = threadsById.get(itemMetadata.threadId)
       if (!thread) {
         continue
       }
@@ -2913,7 +2412,7 @@ export const listThreadsWithMetadata = query({
         _creationTime: thread._creationTime,
         lastMessageAt: itemMetadata.lastMessageAt ?? thread._creationTime,
         title: thread.title,
-        userId: thread.userId?.toString(),
+        userId: thread.userId,
         metadata: itemMetadata,
         project:
           project && canViewProject(projectRole)
@@ -2926,8 +2425,8 @@ export const listThreadsWithMetadata = query({
       })
     }
 
-    for (const thread of threads) {
-      if (metadataByThreadId.has(thread._id.toString())) {
+    for (const thread of threads.page) {
+      if (metadataByThreadId.has(thread._id)) {
         continue
       }
 
@@ -2936,7 +2435,7 @@ export const listThreadsWithMetadata = query({
         _creationTime: thread._creationTime,
         lastMessageAt: thread._creationTime,
         title: thread.title,
-        userId: thread.userId?.toString(),
+        userId: thread.userId,
         metadata: null,
         project: null,
       })
@@ -2968,16 +2467,6 @@ export const listVisibleThreadLastMessages = query({
 
     const results = await Promise.all(
       threadIds.map(async (threadId) => {
-        const normalizedThreadId = normalizeChatThreadId(ctx, threadId)
-        if (!normalizedThreadId) {
-          return null
-        }
-
-        const thread = await ctx.db.get(normalizedThreadId)
-        if (!thread || thread.userId !== userId) {
-          return null
-        }
-
         const metadata = await ctx.db
           .query('threadMetadata')
           .withIndex('by_threadId', (q) => q.eq('threadId', threadId))
@@ -2987,17 +2476,44 @@ export const listVisibleThreadLastMessages = query({
           return null
         }
 
-        const latest = await ctx.db
-          .query('chatMessages')
-          .withIndex('by_thread_order', (q) => q.eq('threadId', normalizedThreadId))
-          .order('desc')
-          .filter((q) => q.eq(q.field('status'), 'success'))
-          .take(10)
+        if (!metadata) {
+          try {
+            const thread = await ctx.runQuery(components.agent.threads.getThread, {
+              threadId,
+            })
+            if (!thread || thread.userId !== userId) {
+              return null
+            }
+          } catch (error) {
+            if (isInvalidThreadIdError(error)) {
+              return null
+            }
+            throw error
+          }
+        }
 
-        const message = latest.find((candidate) => {
-          const role = candidate.message?.role
-          return role === 'user' || role === 'assistant'
-        })
+        const latest = (await ctx.runQuery(components.agent.messages.listMessagesByThreadId, {
+          threadId,
+          order: 'desc',
+          excludeToolMessages: true,
+          paginationOpts: {
+            cursor: null,
+            numItems: 1,
+          },
+        })) as {
+          page: Array<{
+            _id: string
+            _creationTime: number
+            order?: number
+            message?: {
+              role?: string
+              content?: unknown
+            }
+            text?: string
+          }>
+        }
+
+        const message = latest.page[0]
         if (!message) {
           return null
         }
@@ -3007,14 +2523,14 @@ export const listVisibleThreadLastMessages = query({
           return null
         }
 
-        const text = message.text ?? extractTextFromParts(message.parts)
+        const text = extractMessageText(message)
         if (!text) {
           return null
         }
 
         return {
           threadId,
-          messageId: message._id.toString(),
+          messageId: message._id,
           role,
           text,
           createdAt: typeof message.order === 'number' ? message.order : message._creationTime,

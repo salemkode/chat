@@ -184,7 +184,7 @@ export default function AdminLayoutRoute() {
 
   if (isLoading || (isAuthenticated && !isUserReady)) {
     return (
-      <div className="flex h-dvh w-full items-center justify-center">
+      <div className="flex h-screen w-full items-center justify-center">
         <Loader2 className="size-8 animate-spin" />
       </div>
     )
@@ -195,7 +195,7 @@ export default function AdminLayoutRoute() {
   }
 
   return (
-    <div className="relative min-h-dvh overflow-hidden bg-background text-foreground">
+    <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
       <AdminBackdrop />
       <AdminDiscoveryProvider models={models}>
         <AdminLayoutShell

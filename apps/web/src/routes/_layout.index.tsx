@@ -1,15 +1,13 @@
 import { ChatMessageList } from '@/components/chat-message-list'
 import { ChatThreadHeader } from '@/components/chat/chat-thread-header'
-import { useI18n } from '@/components/i18n-provider'
 import { useMessages } from '@/hooks/use-chat-data'
 
 export default function NewChatIndex() {
-  const { t } = useI18n()
   const { messages } = useMessages()
 
   return (
     <div className="flex h-full flex-col">
-      <ChatThreadHeader title={t('chat.newChat')} />
+      <ChatThreadHeader title="New Chat" />
 
       <div className="pointer-events-none absolute inset-0 hidden bg-[linear-gradient(to_right,var(--border)_1px,transparent_1px),linear-gradient(to_bottom,var(--border)_1px,transparent_1px)] bg-size-[4rem_4rem] mask-[radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-[0.05] md:block" />
 

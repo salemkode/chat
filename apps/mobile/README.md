@@ -45,19 +45,22 @@ cp .env.example .env
 ### Install & Run
 
 ```bash
-# Install dependencies
-bun install
+# From the repository root (installs the whole workspace)
+pnpm install
 
-# Start the dev server
-bun start
+# Metro / Expo dev server
+pnpm run mobile:dev
 
-# Run on a specific platform
-bun run ios
-bun run android
-bun run web
+# Or from apps/mobile after install:
+pnpm start
+
+# Platform targets — from repo root (`ios` / `android`), or web from the app folder
+pnpm run ios
+pnpm run android
+cd apps/mobile && pnpm run web
 ```
 
-> Requires [Bun](https://bun.sh) and the [Expo CLI](https://docs.expo.dev/get-started/installation/). For iOS, you'll need Xcode and a simulator or device.
+> Requires Node.js 20+, pnpm (`corepack enable` recommended), and the [Expo CLI](https://docs.expo.dev/get-started/installation/). For iOS, you'll need Xcode and a simulator or device.
 
 ## Customization
 

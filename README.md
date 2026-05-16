@@ -1,6 +1,6 @@
 # Salemkode Chat
 
-Salemkode Chat is a Bun + Turbo monorepo for a Convex-powered AI chat product with:
+Salemkode Chat is a pnpm + Turbo monorepo for a Convex-powered AI chat product with:
 
 - Clerk authentication
 - Expo mobile app
@@ -13,7 +13,7 @@ Salemkode Chat is a Bun + Turbo monorepo for a Convex-powered AI chat product wi
 
 - [Architecture overview](./docs/architecture.md)
 - [Research docs](./docs/research/README.md)
-- [Development setup](./DEVELOPMENT.md)
+- [Running Locally](#running-locally)
 - [Cloudflare Pages deploy](./docs/cloudflare-pages.md)
 
 ## Tech Stack
@@ -36,19 +36,19 @@ Salemkode Chat is a Bun + Turbo monorepo for a Convex-powered AI chat product wi
 
 ## Running Locally
 
-This repo uses Bun as the package manager.
+This repo uses pnpm as the package manager (`corepack enable` is recommended so the pinned version in `package.json` is used).
 
 ```bash
-bun install
-bun run dev
+pnpm install
+pnpm run dev
 ```
 
 Mobile:
 
 ```bash
-bun run mobile:dev
-bun run ios
-bun run android
+pnpm run mobile:dev
+pnpm run ios
+pnpm run android
 ```
 
 The Expo mobile dev server uses port `8083` to avoid colliding with other local Metro servers that may already be using `8081`.
@@ -56,10 +56,10 @@ The Expo mobile dev server uses port `8083` to avoid colliding with other local 
 Useful commands:
 
 ```bash
-bun run build
-bun run test
-bun run lint
-bun run dev:scan
+pnpm run build
+pnpm run test
+pnpm run lint
+pnpm run dev:scan
 ```
 
 `pnpm run dev:scan` enables `react-scan` locally so you can inspect unnecessary renders and hot paths without changing app code.
@@ -77,4 +77,4 @@ Some backend features also require provider API keys, for example:
 - `OPENROUTER_API_KEY`
 - `EXA_API_KEY` for in-chat web search
 
-See [DEVELOPMENT.md](./DEVELOPMENT.md) and the Convex environment configuration for the rest of the setup.
+See [Cloudflare Pages deploy](./docs/cloudflare-pages.md) and [Architecture overview](./docs/architecture.md) for broader setup context, plus the Convex dashboard for backend environment variables.

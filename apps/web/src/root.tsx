@@ -4,17 +4,15 @@ import { ClerkProvider } from '@clerk/react-router'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 import { ConvexClientProvider } from '@/components/convex-client-provider'
 import { HotkeysProvider } from '@/components/hotkeys-provider'
-import { I18nProvider } from '@/components/i18n-provider'
 import { ThemeProvider } from '@/components/theme-provider'
-import { getDocumentLocale, translate } from '@chat/shared/logic/i18n'
 import { getRequiredEnv } from '@/lib/parsers'
 import appCss from '@/styles.css?url'
-
+import { useConvex } from 'convex/react'
 export const links = () => [{ rel: 'stylesheet', href: appCss }]
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" dir="ltr" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <head suppressHydrationWarning>
         <meta charSet="utf-8" />
         <meta
@@ -31,8 +29,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta name="msapplication-tap-highlight" content="no" />
         <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" href="/logo192.png" />
-        <title>Salemkode Chat</title>
-        <script src="/i18n-init.js" />
+        <title>Chat App</title>
         <script src="/theme-init.js" />
         <Meta />
         <Links />
@@ -47,9 +44,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export function HydrateFallback() {
-  return <div className="min-h-dvh w-full bg-[#050505]" />
+  return <div className="min-h-screen w-full bg-[#050505]" />
 }
 
+function TestConvex() {
+  const convex = useConvex()
+  useEffect(() => {
+    console.log('Convex client in TestConvex:', convex)
+  }, [convex])
+  return null
+}
 export default function App() {
   const [showDevtools, setShowDevtools] = useState(false)
 
@@ -59,36 +63,34 @@ export default function App() {
 
   return (
     <ClerkProvider publishableKey={getRequiredEnv(import.meta.env, 'VITE_CLERK_PUBLISHABLE_KEY')}>
-      <I18nProvider>
-        <ThemeProvider>
-          <HotkeysProvider>
-            <ConvexClientProvider>
-              <Outlet />
-              {showDevtools ? (
-                <TanStackDevtools
-                  config={{
-                    position: 'bottom-right',
-                  }}
-                />
-              ) : null}
-            </ConvexClientProvider>
-          </HotkeysProvider>
-        </ThemeProvider>
-      </I18nProvider>
+      <ThemeProvider>
+        <HotkeysProvider>
+          <ConvexClientProvider>
+            <TestConvex />
+            <Outlet />
+            {showDevtools ? (
+              <TanStackDevtools
+                config={{
+                  position: 'bottom-right',
+                }}
+              />
+            ) : null}
+          </ConvexClientProvider>
+        </HotkeysProvider>
+      </ThemeProvider>
     </ClerkProvider>
   )
 }
 
 export function ErrorBoundary({ error }: { error: unknown }) {
-  const locale = getDocumentLocale()
-  let message = translate(locale, 'error.oops')
-  let details = translate(locale, 'error.unexpected')
+  let message = 'Oops!'
+  let details = 'An unexpected error occurred.'
   let stack: string | undefined
 
   if (isRouteErrorResponse(error)) {
     message = error.status === 404 ? '404' : 'Error'
     details =
-      error.status === 404 ? translate(locale, 'error.notFound') : error.statusText || details
+      error.status === 404 ? 'The requested page could not be found.' : error.statusText || details
   } else if (import.meta.env.DEV && error && error instanceof Error) {
     details = error.message
     stack = error.stack

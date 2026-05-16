@@ -4,14 +4,11 @@ import { Loader2, MessageSquareText, MoveRight } from '@/lib/icons'
 import { useEffect } from 'react'
 import { api } from '@convex/_generated/api'
 import { SharedChatSidebar } from '@/components/chat/shared-chat-sidebar'
-import { useDocumentDirection, useI18n } from '@/components/i18n-provider'
 import { MarkdownContent } from '@/components/markdown-content'
 import { Button } from '@/components/ui/button'
 import { usePaginatedQuery, useQuery } from '@/lib/convex-query-cache'
 
 export default function SharedChatPage() {
-  const { t } = useI18n()
-  const direction = useDocumentDirection()
   const { shareId = '' } = useParams()
   const share = useQuery(api.shares.getChatShare, { token: shareId })
   const shareUrl = typeof window === 'undefined' ? '' : window.location.href
@@ -36,22 +33,20 @@ export default function SharedChatPage() {
   }
 
   return (
-    <main className="min-h-dvh bg-background text-foreground">
-      <div className="mx-auto flex min-h-dvh w-full max-w-7xl flex-col px-4 py-6 sm:px-6 sm:py-8">
+    <main className="min-h-screen bg-background text-foreground">
+      <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-6 sm:px-6 sm:py-8">
         <header className="flex flex-col gap-4 border-b border-border/70 pb-6 sm:flex-row sm:items-end sm:justify-between">
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-muted/30 px-3 py-1 text-xs font-medium text-muted-foreground">
               <MessageSquareText className="size-3.5" />
-              <span>{t('share.sharedChat')}</span>
+              <span>Shared chat</span>
             </div>
             <div>
               <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{share.title}</h1>
               <p className="mt-2 text-sm text-muted-foreground">
-                {t('share.messagesShared', {
-                  count: share.messageCount,
-                  time: formatDistanceToNow(new Date(share.updatedAt), {
-                    addSuffix: true,
-                  }),
+                {share.messageCount} messages shared{' '}
+                {formatDistanceToNow(new Date(share.updatedAt), {
+                  addSuffix: true,
                 })}
               </p>
             </div>
@@ -59,8 +54,8 @@ export default function SharedChatPage() {
 
           <Button asChild className="self-start sm:self-auto">
             <Link to="/">
-              <span>{t('share.continueOnChat')}</span>
-              <MoveRight className={direction === 'rtl' ? 'size-4 rotate-180' : 'size-4'} />
+              <span>Continue on chat</span>
+              <MoveRight className="size-4" />
             </Link>
           </Button>
         </header>
@@ -89,7 +84,7 @@ export default function SharedChatPage() {
                 {status === 'LoadingFirstPage' || status === 'LoadingMore' ? (
                   <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
                     <Loader2 className="mr-2 size-4 animate-spin" />
-                    <span>{t('share.loadingTranscript')}</span>
+                    <span>Loading transcript...</span>
                   </div>
                 ) : null}
               </div>
@@ -108,31 +103,28 @@ export default function SharedChatPage() {
 }
 
 function SharedChatLoadingState() {
-  const { t } = useI18n()
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-background text-foreground">
+    <main className="flex min-h-screen items-center justify-center bg-background text-foreground">
       <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-muted/30 px-5 py-4 text-sm text-muted-foreground">
         <Loader2 className="size-4 animate-spin" />
-        <span>{t('auth.loadingSharedChat')}</span>
+        <span>Loading shared chat...</span>
       </div>
     </main>
   )
 }
 
 function SharedChatNotFoundState() {
-  const { t } = useI18n()
-  const direction = useDocumentDirection()
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-background px-4 text-foreground">
+    <main className="flex min-h-screen items-center justify-center bg-background px-4 text-foreground">
       <div className="w-full max-w-md rounded-3xl border border-border/70 bg-background p-6 text-center shadow-xs">
-        <h1 className="text-xl font-semibold">{t('share.notFoundTitle')}</h1>
+        <h1 className="text-xl font-semibold">Shared chat not found</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          {t('share.notFoundDescription')}
+          This link is unavailable or no longer exists.
         </p>
         <Button asChild className="mt-5">
           <Link to="/">
-            <span>{t('share.continueOnChat')}</span>
-            <MoveRight className={direction === 'rtl' ? 'size-4 rotate-180' : 'size-4'} />
+            <span>Continue on chat</span>
+            <MoveRight className="size-4" />
           </Link>
         </Button>
       </div>

@@ -1,4 +1,4 @@
-import { createTool } from './chatTool'
+import { createTool } from '@convex-dev/agent'
 import { z } from 'zod'
 
 const TOOL_TIMEOUT_MS = 15_000

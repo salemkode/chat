@@ -34,7 +34,7 @@ npm uninstall nativewind react-native-css-interop
 # or
 yarn remove nativewind react-native-css-interop
 # or
-bun remove nativewind react-native-css-interop
+pnpm remove nativewind react-native-css-interop
 ```
 
 **CRITICAL**: `react-native-css-interop` is a NativeWind dependency that must be removed. It is commonly missed during migration. Search the entire codebase for any imports from it:
@@ -52,7 +52,7 @@ npm install uniwind tailwindcss@latest
 # or
 yarn add uniwind tailwindcss@latest
 # or
-bun add uniwind tailwindcss@latest
+pnpm add uniwind tailwindcss@latest
 ```
 
 Ensure `tailwindcss` is version 4+.

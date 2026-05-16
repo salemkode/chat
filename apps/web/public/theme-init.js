@@ -1,8 +1,6 @@
 ;(function () {
   const STORAGE_KEY = 'theme-preference'
   const DEFAULT_PRIMARY = '#8b5cf6'
-  const DEFAULT_ENGLISH_FONT = 'geist'
-  const DEFAULT_ARABIC_FONT = 'ibm-plex-arabic'
   const root = document.documentElement
   const storedValue = localStorage.getItem(STORAGE_KEY)
 
@@ -36,59 +34,24 @@
     return luminance >= 160 ? '#111827' : '#f8fafc'
   }
 
-  function parseArabicFont(value) {
-    if (value === 'ibm-plex-arabic' || value === 'noto-sans') {
-      return value
-    }
-
-    if (value === 'thmanyah') {
-      return DEFAULT_ARABIC_FONT
-    }
-
-    return DEFAULT_ARABIC_FONT
-  }
-
-  function parseEnglishFont(value) {
-    return value === 'geist' || value === 'inter' || value === 'ibm-plex'
-      ? value
-      : DEFAULT_ENGLISH_FONT
-  }
-
   function parseThemeSettings(value) {
     if (!value) {
-      return {
-        mode: 'system',
-        primaryColor: DEFAULT_PRIMARY,
-        englishFont: DEFAULT_ENGLISH_FONT,
-        arabicFont: DEFAULT_ARABIC_FONT,
-      }
+      return { mode: 'system', primaryColor: DEFAULT_PRIMARY }
     }
 
     if (value === 'system') {
       return {
         mode: 'system',
         primaryColor: DEFAULT_PRIMARY,
-        englishFont: DEFAULT_ENGLISH_FONT,
-        arabicFont: DEFAULT_ARABIC_FONT,
       }
     }
 
     if (value === 'light' || value === 'dark' || value === 'system') {
-      return {
-        mode: value,
-        primaryColor: DEFAULT_PRIMARY,
-        englishFont: DEFAULT_ENGLISH_FONT,
-        arabicFont: DEFAULT_ARABIC_FONT,
-      }
+      return { mode: value, primaryColor: DEFAULT_PRIMARY }
     }
 
     if (value === 'custom') {
-      return {
-        mode: 'system',
-        primaryColor: DEFAULT_PRIMARY,
-        englishFont: DEFAULT_ENGLISH_FONT,
-        arabicFont: DEFAULT_ARABIC_FONT,
-      }
+      return { mode: 'system', primaryColor: DEFAULT_PRIMARY }
     }
 
     try {
@@ -103,16 +66,9 @@
       return {
         mode,
         primaryColor: normalizeHexColor(parsed && parsed.primaryColor, DEFAULT_PRIMARY),
-        englishFont: parseEnglishFont(parsed && parsed.englishFont),
-        arabicFont: parseArabicFont(parsed && parsed.arabicFont),
       }
     } catch {
-      return {
-        mode: 'system',
-        primaryColor: DEFAULT_PRIMARY,
-        englishFont: DEFAULT_ENGLISH_FONT,
-        arabicFont: DEFAULT_ARABIC_FONT,
-      }
+      return { mode: 'system', primaryColor: DEFAULT_PRIMARY }
     }
   }
 
@@ -132,6 +88,4 @@
 
   root.style.setProperty('--custom-primary', settings.primaryColor)
   root.style.setProperty('--custom-primary-foreground', getContrastTextColor(settings.primaryColor))
-  root.dataset.englishFont = settings.englishFont
-  root.dataset.arabicFont = settings.arabicFont
 })()

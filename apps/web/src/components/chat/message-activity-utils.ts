@@ -1,3 +1,5 @@
+import type { FunctionReturnType } from 'convex/server'
+import { api } from '@convex/_generated/api'
 import {
   BookMarked,
   Database,
@@ -10,30 +12,187 @@ import {
   type AppIcon,
 } from '@/lib/icons'
 import { cn } from '@/lib/utils'
-import {
-  buildActivitySteps,
-  getLastIncompleteStepId,
-  getSearchEmptyState,
-  isSearchTool,
-  isStepActivelyLoading,
-  type ActivityStatus,
-  type ActivityStep,
-  type ReasoningStep,
-  type SearchSource,
-  type ToolStep,
-} from '@chat/shared/logic/message-activity-core'
 
-export {
-  buildActivitySteps,
-  getLastIncompleteStepId,
-  getSearchEmptyState,
-  isSearchTool,
-  isStepActivelyLoading,
-  type ActivityStatus,
-  type ActivityStep,
-  type ReasoningStep,
-  type SearchSource,
-  type ToolStep,
+type ChatMessage = FunctionReturnType<typeof api.chat.listMessages>['page'][number]
+type PartRecord = Record<string, unknown>
+
+export type ActivityStatus = 'complete' | 'running' | 'pending' | 'error'
+
+export type ReasoningStep = {
+  id: string
+  kind: 'reasoning'
+  title: string
+  status: ActivityStatus
+  body: string
+  count: number
+  redacted?: boolean
+}
+
+export type SearchSource = {
+  id: string
+  url: string
+  title: string
+  description: string
+}
+
+export type ToolStep = {
+  id: string
+  kind: 'tool'
+  title: string
+  status: ActivityStatus
+  toolName: string
+  count: number
+  sources?: SearchSource[]
+}
+
+export type ActivityStep = ReasoningStep | ToolStep
+
+export function buildActivitySteps(
+  parts: ChatMessage['parts'],
+  messageStatus: ChatMessage['status'],
+) {
+  const steps: ActivityStep[] = []
+  const toolSteps = new Map<string, ToolStep>()
+  const toolStepKeysByCallId = new Map<string, string>()
+  const countedToolCallIds = new Set<string>()
+  let reasoningStep: ReasoningStep | null = null
+
+  const safeParts = Array.isArray(parts) ? parts : []
+
+  for (const [index, rawPart] of safeParts.entries()) {
+    const part = toPartRecord(rawPart)
+    const partType = getPartType(part)
+
+    if (partType === 'reasoning') {
+      const reasoningText = getString(part['text']) || ''
+      const reasoningStatus = messageStatus === 'streaming' ? 'running' : 'complete'
+
+      if (!reasoningStep) {
+        reasoningStep = {
+          id: 'reasoning',
+          kind: 'reasoning',
+          title: 'Reasoning',
+          status: reasoningStatus,
+          body: reasoningText,
+          count: 1,
+        }
+        steps.push(reasoningStep)
+      } else {
+        reasoningStep.status = mergeActivityStatus(reasoningStep.status, reasoningStatus)
+        reasoningStep.body = reasoningStep.redacted
+          ? reasoningText || reasoningStep.body
+          : appendReasoningText(reasoningStep.body, reasoningText)
+        reasoningStep.count += 1
+        reasoningStep.redacted = false
+      }
+      continue
+    }
+
+    if (partType === 'redacted-reasoning') {
+      const reasoningStatus = messageStatus === 'streaming' ? 'running' : 'complete'
+
+      if (!reasoningStep) {
+        reasoningStep = {
+          id: 'reasoning',
+          kind: 'reasoning',
+          title: 'Reasoning',
+          status: reasoningStatus,
+          body: 'This provider returned a redacted reasoning trace.',
+          count: 1,
+          redacted: true,
+        }
+        steps.push(reasoningStep)
+      } else {
+        reasoningStep.status = mergeActivityStatus(reasoningStep.status, reasoningStatus)
+        reasoningStep.count += 1
+      }
+      continue
+    }
+
+    if (isToolCallLikePart(partType)) {
+      const toolCallId = getString(part['toolCallId']) || `tool-${index}`
+      const toolName = getToolName(part, partType)
+      const stepKey = `tool:${toolName}`
+      const existingStep = toolSteps.get(stepKey)
+
+      toolStepKeysByCallId.set(toolCallId, stepKey)
+
+      if (existingStep) {
+        existingStep.status = mergeActivityStatus(
+          existingStep.status,
+          getToolCallStatus(part, messageStatus),
+        )
+        if (!countedToolCallIds.has(toolCallId)) {
+          existingStep.count += 1
+          countedToolCallIds.add(toolCallId)
+        }
+        continue
+      }
+
+      const step: ToolStep = {
+        id: stepKey,
+        kind: 'tool',
+        title: getToolDisplayTitle(toolName),
+        status: getToolCallStatus(part, messageStatus),
+        toolName,
+        count: 1,
+        sources: isSearchTool(toolName) ? [] : undefined,
+      }
+
+      countedToolCallIds.add(toolCallId)
+      toolSteps.set(stepKey, step)
+      steps.push(step)
+      continue
+    }
+
+    if (partType === 'tool-result') {
+      const toolCallId = getString(part['toolCallId']) || `tool-result-${index}`
+      const toolName = getString(part['toolName']) || 'tool'
+      const stepKey = toolStepKeysByCallId.get(toolCallId) || `tool:${toolName}`
+      const existing = toolSteps.get(stepKey)
+
+      if (existing) {
+        existing.status = mergeActivityStatus(
+          existing.status,
+          getBoolean(part['isError']) ? 'error' : 'complete',
+        )
+        if (isSearchTool(existing.toolName)) {
+          existing.sources = mergeSearchSources(
+            existing.sources,
+            extractSearchSources(part['result']),
+          )
+        }
+        continue
+      }
+
+      const step: ToolStep = {
+        id: stepKey,
+        kind: 'tool',
+        title: getToolDisplayTitle(toolName),
+        status: getBoolean(part['isError']) ? 'error' : 'complete',
+        toolName,
+        count: 1,
+        sources: isSearchTool(toolName) ? extractSearchSources(part['result']) : undefined,
+      }
+
+      toolStepKeysByCallId.set(toolCallId, stepKey)
+      toolSteps.set(stepKey, step)
+      steps.push(step)
+    }
+  }
+
+  return steps
+}
+
+export function getLastIncompleteStepId(steps: ActivityStep[]) {
+  for (let index = steps.length - 1; index >= 0; index -= 1) {
+    const step = steps[index]
+    if (step && (step.status === 'running' || step.status === 'pending')) {
+      return step.id
+    }
+  }
+
+  return null
 }
 
 export function getStepIcon(step: ActivityStep): AppIcon {
@@ -68,6 +227,10 @@ export function getStepIcon(step: ActivityStep): AppIcon {
   return Wrench
 }
 
+export function isStepActivelyLoading(step: ActivityStep, showActiveLoading: boolean) {
+  return showActiveLoading && (step.status === 'running' || step.status === 'pending')
+}
+
 export function getStepIconClassName(step: ActivityStep, showActiveLoading: boolean) {
   const isTool = step.kind === 'tool'
   const isSearchToolStep = isTool && isSearchTool(step.toolName)
@@ -87,4 +250,254 @@ export function getStepIconClassName(step: ActivityStep, showActiveLoading: bool
       'text-teal-600 dark:text-teal-300',
     step.status === 'error' && 'text-destructive',
   )
+}
+
+export function isSearchTool(toolName: string) {
+  return (
+    toolName === 'exa_web_search' ||
+    toolName === 'web_search' ||
+    toolName === 'quran_docs_search' ||
+    toolName === 'quran_source_lookup'
+  )
+}
+
+export function getSearchEmptyState(toolName: string, status: ActivityStatus) {
+  const subject =
+    toolName === 'quran_docs_search'
+      ? 'Quran docs'
+      : toolName === 'quran_source_lookup'
+        ? 'Quran sources'
+        : 'the web for sources'
+
+  if (status === 'running' || status === 'pending') {
+    return `Searching ${subject}...`
+  }
+
+  if (status === 'error') {
+    return `Search failed before any ${
+      toolName === 'quran_docs_search'
+        ? 'Quran docs'
+        : toolName === 'quran_source_lookup'
+          ? 'Quran sources'
+          : 'sources'
+    } were returned.`
+  }
+
+  return `No ${
+    toolName === 'quran_docs_search'
+      ? 'Quran docs'
+      : toolName === 'quran_source_lookup'
+        ? 'Quran sources'
+        : 'sources'
+  } were returned for this search.`
+}
+
+function getPartType(part: Record<string, unknown>) {
+  return typeof part['type'] === 'string' ? part['type'] : ''
+}
+
+function isToolCallLikePart(partType: string) {
+  return (
+    partType === 'tool-call' ||
+    (partType.startsWith('tool-') && partType !== 'tool-result' && partType !== 'tool-calls')
+  )
+}
+
+function getToolName(part: PartRecord, partType: string) {
+  const explicitToolName = getString(part['toolName'])
+
+  if (explicitToolName) {
+    return explicitToolName
+  }
+
+  if (partType.startsWith('tool-') && partType !== 'tool-call') {
+    return partType.slice(5)
+  }
+
+  return 'tool'
+}
+
+function getToolCallStatus(part: PartRecord, messageStatus: ChatMessage['status']): ActivityStatus {
+  const state = getString(part['state'])?.toLowerCase()
+
+  if (state) {
+    if (state.includes('error') || state.includes('failed') || state.includes('denied')) {
+      return 'error'
+    }
+
+    if (
+      state.includes('done') ||
+      state.includes('complete') ||
+      state.includes('output-available')
+    ) {
+      return 'complete'
+    }
+
+    if (
+      state.includes('input-available') ||
+      state.includes('running') ||
+      state.includes('started') ||
+      state.includes('in-progress')
+    ) {
+      return 'running'
+    }
+  }
+
+  if (messageStatus === 'failed') {
+    return 'error'
+  }
+
+  return messageStatus === 'streaming' || messageStatus === 'pending' ? 'running' : 'pending'
+}
+
+function mergeActivityStatus(current: ActivityStatus, next: ActivityStatus): ActivityStatus {
+  if (next === 'pending' && current === 'running') {
+    return current
+  }
+
+  return next
+}
+
+function appendReasoningText(current: string, next: string) {
+  if (!next) {
+    return current
+  }
+
+  if (!current) {
+    return next
+  }
+
+  if (current === next || current.includes(next)) {
+    return current
+  }
+
+  if (next.includes(current)) {
+    return next
+  }
+
+  return `${current}\n\n${next}`
+}
+
+function getToolDisplayTitle(toolName: string) {
+  if (toolName === 'quran_docs_search') {
+    return 'Quran Docs'
+  }
+
+  if (toolName === 'quran_source_lookup') {
+    return 'Quran Source'
+  }
+
+  if (isSearchTool(toolName)) {
+    return 'Search'
+  }
+
+  if (toolName === 'memory_search') {
+    return 'Memory'
+  }
+
+  if (toolName === 'memory_add') {
+    return 'Save Memory'
+  }
+
+  if (toolName === 'memory_update') {
+    return 'Update Memory'
+  }
+
+  if (toolName === 'memory_delete') {
+    return 'Delete Memory'
+  }
+
+  return formatToolName(toolName)
+}
+
+function formatToolName(toolName: string) {
+  const normalized = toolName.replace(/^tool-/, '')
+  const words = normalized
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .split(/[_-\s]+/)
+    .filter(Boolean)
+
+  if (words.length === 0) {
+    return 'Tool'
+  }
+
+  return words
+    .map((word) => (/^[A-Z0-9]+$/.test(word) ? word : word.charAt(0).toUpperCase() + word.slice(1)))
+    .join(' ')
+}
+
+function extractSearchSources(result: unknown): SearchSource[] {
+  if (!isRecord(result) || !Array.isArray(result.results)) {
+    return []
+  }
+
+  const seenUrls = new Set<string>()
+
+  return result.results
+    .flatMap((item, index) => {
+      if (!isRecord(item)) {
+        return []
+      }
+
+      const url = getString(item.url)
+      if (!url || seenUrls.has(url)) {
+        return []
+      }
+
+      seenUrls.add(url)
+
+      return [
+        {
+          id: `${url}-${index}`,
+          url,
+          title: getString(item.title) || getDomainLabel(url),
+          description:
+            getString(item.snippet) || getString(item.description) || getString(item.text) || url,
+        },
+      ]
+    })
+    .slice(0, 8)
+}
+
+function mergeSearchSources(
+  current: SearchSource[] | undefined,
+  next: SearchSource[],
+): SearchSource[] {
+  const merged = [...(current ?? [])]
+  const seenUrls = new Set(merged.map((source) => source.url))
+
+  for (const source of next) {
+    if (seenUrls.has(source.url)) {
+      continue
+    }
+
+    seenUrls.add(source.url)
+    merged.push(source)
+  }
+
+  return merged.slice(0, 8)
+}
+
+function getDomainLabel(url: string) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return url
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function toPartRecord(value: unknown): PartRecord {
+  return isRecord(value) ? value : {}
+}
+
+function getBoolean(value: unknown) {
+  return typeof value === 'boolean' ? value : false
+}
+
+function getString(value: unknown) {
+  return typeof value === 'string' ? value : undefined
 }

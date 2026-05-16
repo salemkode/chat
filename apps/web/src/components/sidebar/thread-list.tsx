@@ -3,7 +3,6 @@
 import * as React from 'react'
 import { PushPinSimple } from '@phosphor-icons/react'
 import { Pin, X } from '@/lib/icons'
-import { useI18n } from '@/components/i18n-provider'
 import { Button } from '@/components/ui/button'
 import { SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar'
 import { cn } from '@/lib/utils'
@@ -60,8 +59,6 @@ export function ThreadRow({
   onTogglePinned: () => void
   onRemoveFromProject?: () => void
 }) {
-  const { t } = useI18n()
-
   return (
     <SidebarMenuItem className="group/thread">
       <SidebarMenuButton
@@ -80,7 +77,7 @@ export function ThreadRow({
             onClick={onOpen}
           >
             <span className="shrink-0">{thread.emoji}</span>
-            <span className="truncate text-sm">{thread.title || t('sidebar.untitledChat')}</span>
+            <span className="truncate text-sm">{thread.title || 'Untitled chat'}</span>
           </Button>
           <div
             className={cn(
@@ -89,7 +86,7 @@ export function ThreadRow({
             )}
           >
             <IconActionButton
-              label={thread.pinned ? t('sidebar.unpinChat') : t('sidebar.pinChat')}
+              label={thread.pinned ? 'Unpin chat' : 'Pin chat'}
               onClick={onTogglePinned}
               icon={
                 thread.pinned ? (
@@ -102,7 +99,7 @@ export function ThreadRow({
             />
             {onRemoveFromProject ? (
               <IconActionButton
-                label={t('sidebar.removeFromProject')}
+                label="Remove from project"
                 onClick={onRemoveFromProject}
                 icon={<X className="size-3.5" />}
               />

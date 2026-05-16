@@ -10,12 +10,10 @@ import {
   createHotkeyBindingFromEvent,
   type HotkeyActionId,
 } from '@/lib/hotkeys'
-import { useI18n } from '@/components/i18n-provider'
 import { useHotkeys } from '@/components/hotkeys-provider'
 import { Button } from '@/components/ui/button'
 
 function KeyboardShortcutField({ actionId }: { actionId: HotkeyActionId }) {
-  const { t } = useI18n()
   const definition = getHotkeyDefinition(actionId)
   const { bindings, resetBinding, updateBinding } = useHotkeys()
   const [isRecording, setIsRecording] = React.useState(false)
@@ -55,7 +53,7 @@ function KeyboardShortcutField({ actionId }: { actionId: HotkeyActionId }) {
 
     if (conflictActionId) {
       const conflictDefinition = getHotkeyDefinition(conflictActionId)
-      setError(t('keyboard.alreadyUsedBy', { label: conflictDefinition.label }))
+      setError(`Already used by ${conflictDefinition.label}.`)
       return
     }
 
@@ -97,7 +95,7 @@ function KeyboardShortcutField({ actionId }: { actionId: HotkeyActionId }) {
             onKeyDown={handleRecording}
             className="inline-flex h-10 min-w-36 items-center justify-center rounded-lg border border-border bg-background px-3 font-mono text-sm text-foreground shadow-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            {isRecording ? t('keyboard.recording') : formatHotkeyBinding(binding)}
+            {isRecording ? 'Press keys…' : formatHotkeyBinding(binding)}
           </button>
 
           <Button
@@ -108,7 +106,7 @@ function KeyboardShortcutField({ actionId }: { actionId: HotkeyActionId }) {
               resetBinding(actionId)
               setError(null)
             }}
-            aria-label={t('keyboard.resetShortcut', { label: definition.label })}
+            aria-label={`Reset ${definition.label} shortcut`}
           >
             <RotateCcw className="size-4" />
           </Button>
@@ -121,7 +119,7 @@ function KeyboardShortcutField({ actionId }: { actionId: HotkeyActionId }) {
               updateBinding(actionId, null)
               setError(null)
             }}
-            aria-label={t('keyboard.clearShortcut', { label: definition.label })}
+            aria-label={`Clear ${definition.label} shortcut`}
           >
             <Trash2 className="size-4" />
           </Button>
@@ -132,20 +130,19 @@ function KeyboardShortcutField({ actionId }: { actionId: HotkeyActionId }) {
 }
 
 export function KeyboardSettingsPanel() {
-  const { t } = useI18n()
   const { resetAllBindings } = useHotkeys()
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-2 rounded-xl border border-border bg-card/60 p-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-sm font-medium text-foreground">{t('keyboard.customShortcuts')}</p>
+          <p className="text-sm font-medium text-foreground">Custom shortcuts</p>
           <p className="text-xs leading-5 text-muted-foreground">
-            {t('keyboard.customShortcutsHint')}
+            Click any binding, press a new combo, or use Delete to clear it.
           </p>
         </div>
         <Button type="button" variant="outline" onClick={resetAllBindings}>
-          {t('keyboard.resetAll')}
+          Reset all
         </Button>
       </div>
 

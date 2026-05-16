@@ -1,19 +1,26 @@
-import { paginationOptsValidator } from 'convex/server'
-import { ConvexError, v } from 'convex/values'
-import { internal } from './_generated/api'
-import { mutation, query, type QueryCtx } from './_generated/server'
+import { query, mutation } from './_generated/server'
+import { v } from 'convex/values'
 import { getAuthUserId } from './lib/auth'
+import { components } from './_generated/api'
+import { paginationOptsValidator, type FunctionArgs } from 'convex/server'
+import {
+  listMessages as listAgentMessages,
+  syncStreams,
+  toUIMessages,
+  vStreamArgs,
+} from '@convex-dev/agent'
+import { ConvexError } from 'convex/values'
 import { threadMetadataValidator } from './lib/validators'
 import { GENERATION_STOPPED_BY_USER } from './agents'
 import { canViewProject, getProjectRole } from './lib/projectAccess'
-import { normalizeChatThreadId, publicChatMessage } from './lib/chatEngine'
+
+type AgentThreadId = FunctionArgs<typeof components.agent.threads.getThread>['threadId']
 
 const threadDetailValidator = v.union(
   v.null(),
   v.object({
     _id: v.string(),
     _creationTime: v.number(),
-    lastMessageAt: v.number(),
     title: v.optional(v.string()),
     userId: v.optional(v.string()),
     metadata: v.union(v.null(), threadMetadataValidator),
@@ -28,47 +35,33 @@ const threadDetailValidator = v.union(
   }),
 )
 
-function emptyMessagesPage() {
-  return { page: [], isDone: true, continueCursor: '' }
+function isInvalidThreadIdError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false
+  }
+  const message = error.message
+  return (
+    message.includes('does not match the table name in validator') ||
+    (message.includes('Value does not match validator') &&
+      message.includes('Validator: v.id("threads")'))
+  )
 }
 
-async function canReadThread(ctx: QueryCtx, threadId: string, userId: string) {
-  const normalizedThreadId = normalizeChatThreadId(ctx, threadId)
-  if (!normalizedThreadId) {
-    return null
-  }
-
-  const thread = await ctx.db.get(normalizedThreadId)
-  if (!thread || thread.userId !== userId) {
-    return null
-  }
-
-  return thread
+function emptyMessagesPage() {
+  return { page: [], isDone: true, continueCursor: '', streams: [] }
 }
 
 export const listThreads = query({
   args: { paginationOpts: paginationOptsValidator },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
+    // Return empty list if not authenticated to prevent errors during load
     if (!userId) return { page: [], isDone: true, continueCursor: '' }
 
-    const threads = await ctx.db
-      .query('chatThreads')
-      .withIndex('by_userId', (q) => q.eq('userId', userId))
-      .order('desc')
-      .paginate(args.paginationOpts)
-
-    return {
-      ...threads,
-      page: threads.page.map((thread) => ({
-        _id: thread._id,
-        _creationTime: thread._creationTime,
-        title: thread.title,
-        summary: thread.summary,
-        status: thread.status,
-        userId: thread.userId?.toString(),
-      })),
-    }
+    return await ctx.runQuery(components.agent.threads.listThreadsByUserId, {
+      userId,
+      paginationOpts: args.paginationOpts,
+    })
   },
 })
 
@@ -80,48 +73,25 @@ export const deleteThread = mutation({
       return null
     }
 
-    const threadId = normalizeChatThreadId(ctx, args.threadId)
-    if (!threadId) {
+    let thread
+    try {
+      thread = await ctx.runQuery(components.agent.threads.getThread, {
+        threadId: args.threadId as AgentThreadId,
+      })
+    } catch (error) {
+      if (isInvalidThreadIdError(error)) {
+        return null
+      }
       return null
     }
 
-    const thread = await ctx.db.get(threadId)
     if (!thread || thread.userId !== userId) {
       return null
     }
 
-    const messages = await ctx.db
-      .query('chatMessages')
-      .withIndex('by_thread_order', (q) => q.eq('threadId', threadId))
-      .take(500)
-    for (const message of messages) {
-      await ctx.db.delete(message._id)
-    }
-
-    const streams = await ctx.db
-      .query('chatStreamingMessages')
-      .withIndex('by_thread_state_order', (q) => q.eq('threadId', threadId))
-      .take(500)
-    for (const stream of streams) {
-      const deltas = await ctx.db
-        .query('chatStreamDeltas')
-        .withIndex('by_stream_start', (q) => q.eq('streamId', stream._id))
-        .take(1000)
-      for (const delta of deltas) {
-        await ctx.db.delete(delta._id)
-      }
-      await ctx.db.delete(stream._id)
-    }
-
-    const metadata = await ctx.db
-      .query('threadMetadata')
-      .withIndex('by_threadId', (q) => q.eq('threadId', args.threadId))
-      .first()
-    if (metadata) {
-      await ctx.db.delete(metadata._id)
-    }
-
-    await ctx.db.delete(threadId)
+    await ctx.runMutation(components.agent.threads.deleteAllForThreadIdAsync, {
+      threadId: thread._id,
+    })
     return null
   },
 })
@@ -130,65 +100,62 @@ export const listMessages = query({
   args: {
     threadId: v.string(),
     paginationOpts: paginationOptsValidator,
+    streamArgs: vStreamArgs,
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
-    if (!userId || !args.threadId) {
+    if (!userId) {
       return emptyMessagesPage()
     }
 
-    const thread = await canReadThread(ctx, args.threadId, userId)
-    if (!thread) {
+    // If no threadId, return empty page structure
+    if (!args.threadId) {
       return emptyMessagesPage()
     }
 
-    const paginated = await ctx.db
-      .query('chatMessages')
-      .withIndex('by_thread_order', (q) => q.eq('threadId', thread._id))
-      .order('desc')
-      .paginate(args.paginationOpts)
-
+    let paginated: Awaited<ReturnType<typeof listAgentMessages>>
+    try {
+      paginated = await listAgentMessages(ctx, components.agent, args)
+    } catch (error) {
+      if (isInvalidThreadIdError(error)) {
+        return emptyMessagesPage()
+      }
+      throw error
+    }
     const failedErrorsByOrder = new Map<number, string>()
+
     for (const message of paginated.page) {
       if (message.status === 'failed' && message.error) {
         failedErrorsByOrder.set(message.order, message.error)
       }
     }
 
-    return {
-      ...paginated,
-      page: paginated.page.flatMap((message) => {
-        const failure =
-          message.status === 'failed'
-            ? buildFailureMetadata(failedErrorsByOrder.get(message.order), message.text)
-            : undefined
-        const publicMessage = publicChatMessage(message, failure)
-        return publicMessage ? [publicMessage] : []
-      }),
-    }
-  },
-})
+    const page = toUIMessages(paginated.page).map((message) => {
+      if (message.status !== 'failed') {
+        return message
+      }
 
-export const listStreamingMessages = query({
-  args: {
-    threadId: v.string(),
-    startOrder: v.optional(v.number()),
-  },
-  handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx)
-    if (!userId || !args.threadId) {
-      return []
-    }
+      const failure = buildFailureMetadata(failedErrorsByOrder.get(message.order), message.text)
 
-    const thread = await canReadThread(ctx, args.threadId, userId)
-    if (!thread) {
-      return []
-    }
-
-    return await ctx.runQuery(internal.chatEngine.listStreamingMessagesForThread, {
-      threadId: thread._id,
-      startOrder: args.startOrder,
+      return {
+        ...message,
+        failureKind: failure.kind,
+        failureMode: failure.mode,
+        failureNote: failure.note,
+      }
     })
+
+    let streams: Awaited<ReturnType<typeof syncStreams>>
+    try {
+      streams = await syncStreams(ctx, components.agent, args)
+    } catch (error) {
+      if (isInvalidThreadIdError(error)) {
+        return { ...paginated, page, streams: [] }
+      }
+      throw error
+    }
+
+    return { ...paginated, page, streams }
   },
 })
 
@@ -200,10 +167,11 @@ export const createThread = mutation({
       return ''
     }
 
-    return await ctx.db.insert('chatThreads', {
+    const thread = await ctx.runMutation(components.agent.threads.createThread, {
       userId,
-      status: 'active',
     })
+
+    return thread._id
   },
 })
 
@@ -211,38 +179,48 @@ export const getThread = query({
   args: {
     threadId: v.string(),
   },
-  returns: threadDetailValidator,
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
-    if (!userId || !args.threadId) {
+    if (!userId) {
       return null
     }
 
-    const threadId = normalizeChatThreadId(ctx, args.threadId)
-    if (!threadId) {
+    if (!args.threadId) {
       return null
     }
 
-    const thread = await ctx.db.get(threadId)
-    if (!thread || thread.userId !== userId) {
+    let thread
+    try {
+      thread = await ctx.runQuery(components.agent.threads.getThread, {
+        threadId: args.threadId as AgentThreadId,
+      })
+    } catch (error) {
+      if (isInvalidThreadIdError(error)) {
+        return null
+      }
       return null
     }
 
+    if (!thread) {
+      return null
+    }
+
+    // Get thread metadata
     const metadata = await ctx.db
       .query('threadMetadata')
       .withIndex('by_threadId', (q) => q.eq('threadId', thread._id))
       .first()
 
     const project = metadata?.projectId ? await ctx.db.get(metadata.projectId) : null
+
     const role =
       project && metadata?.projectId ? await getProjectRole(ctx, metadata.projectId, userId) : null
 
     return {
       _id: thread._id,
       _creationTime: thread._creationTime,
-      lastMessageAt: metadata?.lastMessageAt ?? thread._creationTime,
       title: thread.title,
-      userId: thread.userId?.toString(),
+      userId: thread.userId,
       metadata: metadata ?? null,
       project:
         project && canViewProject(role)
@@ -270,7 +248,6 @@ function buildFailureMetadata(
   const kind: FailureKind = isStoppedFailure(error) ? 'stopped' : 'error'
   const hasGeneratedContent = Boolean(text?.trim())
   const mode: FailureMode = hasGeneratedContent ? 'clarify' : 'replace'
-  const locale = inferFailureLocale(text, error)
 
   if (kind === 'stopped') {
     return {
@@ -280,7 +257,7 @@ function buildFailureMetadata(
     }
   }
 
-  const cleaned = sanitizeFailedMessage(error, locale)
+  const cleaned = sanitizeFailedMessage(error)
 
   return {
     kind,
@@ -302,7 +279,7 @@ function isStoppedFailure(error: string | undefined) {
   )
 }
 
-function sanitizeFailedMessage(error: string | undefined, locale: 'en' | 'ar'): string {
+function sanitizeFailedMessage(error: string | undefined): string {
   if (!error) {
     return ''
   }
@@ -313,16 +290,12 @@ function sanitizeFailedMessage(error: string | undefined, locale: 'en' | 'ar'): 
     .trim()
 
   if (isRetryableProviderRateLimit(normalized)) {
-    return locale === 'ar'
-      ? 'النموذج المحدد يواجه حالياً تقييداً مؤقتاً من المزود. يرجى إعادة المحاولة بعد قليل.'
-      : 'The selected model is temporarily rate-limited upstream. Please try again shortly.'
+    return 'The selected model is temporarily rate-limited upstream. Please try again shortly.'
   }
 
   const accessDeniedModel = extractAccessDeniedModel(normalized)
   if (accessDeniedModel) {
-    return locale === 'ar'
-      ? `حساب المزود الخاص بك لا يملك صلاحية الوصول إلى ${accessDeniedModel}. اختر نموذجاً آخر أو قم بترقية خطة المزود.`
-      : `Your provider account does not have access to ${accessDeniedModel}. Choose another model or upgrade that provider plan.`
+    return `Your provider account does not have access to ${accessDeniedModel}. Choose another model or upgrade that provider plan.`
   }
 
   return normalized
@@ -330,14 +303,6 @@ function sanitizeFailedMessage(error: string | undefined, locale: 'en' | 'ar'): 
     .replace(/Provider returned error/gi, '')
     .replace(/\s+/g, ' ')
     .trim()
-}
-
-function inferFailureLocale(
-  text: string | undefined,
-  error: string | undefined,
-): 'en' | 'ar' {
-  const sample = `${text ?? ''} ${error ?? ''}`
-  return /[\u0600-\u06FF]/.test(sample) ? 'ar' : 'en'
 }
 
 function extractAccessDeniedModel(error: string) {

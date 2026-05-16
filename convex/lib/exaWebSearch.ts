@@ -1,4 +1,4 @@
-import { createTool } from './chatTool'
+import { createTool } from '@convex-dev/agent'
 import { z } from 'zod'
 
 const EXA_SEARCH_ENDPOINT = 'https://api.exa.ai/search'
