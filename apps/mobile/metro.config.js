@@ -1,41 +1,57 @@
 const { getDefaultConfig } = require("expo/metro-config");
 const { withUniwindConfig } = require("uniwind/metro");
+const { getBundleModeMetroConfig } = require("react-native-worklets/bundleMode");
 const path = require("path");
 const fs = require("fs");
-
-/** @type {import('expo/metro-config').MetroConfig} */
-const config = getDefaultConfig(__dirname);
 
 const workspaceRoot = path.resolve(__dirname, "../..");
 const backendConvexDir = path.join(workspaceRoot, "packages/backend/convex");
 const localConvexDir = path.join(__dirname, "convex");
 
-// Only add watchFolders if backend directory exists (for local development)
+const config = getDefaultConfig(__dirname);
+
 if (fs.existsSync(backendConvexDir)) {
   config.watchFolders = [workspaceRoot];
 }
 
+config.watchFolders = config.watchFolders || [];
+config.watchFolders.push(
+  path.resolve(
+    __dirname,
+    "node_modules/react-native-worklets/.worklets",
+  ),
+);
+
+const bundleModeMetroConfig = getBundleModeMetroConfig(config);
+
+const existingResolver = config.resolver.resolveRequest;
+const bundleModeResolver = bundleModeMetroConfig.resolver.resolveRequest;
+
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (moduleName === "@convex" || moduleName.startsWith("@convex/")) {
-    // For EAS builds, use local convex directory
     const localConvexModulePath =
       moduleName === "@convex"
         ? localConvexDir
         : path.join(localConvexDir, moduleName.slice("@convex/".length));
 
-    // For local development, use backend workspace directory
     const backendConvexModulePath =
       moduleName === "@convex"
         ? backendConvexDir
         : path.join(backendConvexDir, moduleName.slice("@convex/".length));
 
-    // Check if local directory exists (for EAS builds)
     if (fs.existsSync(localConvexDir)) {
       return context.resolveRequest(context, localConvexModulePath, platform);
     }
 
-    // Fallback to backend directory (for local development)
     return context.resolveRequest(context, backendConvexModulePath, platform);
+  }
+
+  if (
+    moduleName.startsWith(
+      path.join("react-native-worklets", ".worklets"),
+    )
+  ) {
+    return bundleModeResolver(context, moduleName, platform);
   }
 
   if (
@@ -46,10 +62,27 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
       type: "empty",
     };
   }
+
+  if (existingResolver) {
+    return existingResolver(context, moduleName, platform);
+  }
   return context.resolveRequest(context, moduleName, platform);
 };
 
-module.exports = withUniwindConfig(config, {
-  cssEntryFile: "./src/global.css",
-  debug: true,
-});
+module.exports = withUniwindConfig(
+  Object.assign(config, {
+    resolver: {
+      ...config.resolver,
+      ...bundleModeMetroConfig.resolver,
+      resolveRequest: config.resolver.resolveRequest,
+    },
+    transformer: {
+      ...config.transformer,
+      ...bundleModeMetroConfig.transformer,
+    },
+  }),
+  {
+    cssEntryFile: "./src/global.css",
+    debug: true,
+  },
+);

@@ -10,6 +10,7 @@
     "lint": "expo lint"
   },
   "dependencies": {
+    "@0xbanky/react-native-streamdown": "workspace:^",
     "@clerk/expo": "^3.2.10",
     "@convex-dev/agent": "0.6.0-alpha.1",
     "@expo/dom-webview": "^55.0.6",
@@ -52,6 +53,7 @@
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "react-native": "0.83.6",
+    "react-native-enriched-markdown": "0.4.0",
     "react-native-gesture-handler": "~2.30.0",
     "react-native-keyboard-controller": "1.20.7",
     "react-native-reanimated": "^4.3.1",
@@ -61,6 +63,7 @@
     "react-native-web": "~0.21.0",
     "react-native-worklets": "^0.8.1",
     "react-syntax-highlighter": "^16.1.1",
+    "remend": "1.2.2",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4",
     "uniwind": "^1.6.1",
@@ -73,5 +76,10 @@
     "eslint-config-expo": "~55.0.0",
     "typescript": "~5.9.2"
   },
-  "private": true
+  "private": true,
+  "worklets": {
+    "staticFeatureFlags": {
+      "BUNDLE_MODE_ENABLED": true
+    }
+  }
 }
