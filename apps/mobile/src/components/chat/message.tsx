@@ -1,13 +1,20 @@
-import { ChatMarkdown } from "@/components/markdown";
+import { StreamdownText } from "@0xbanky/react-native-streamdown";
+import * as WebBrowser from "expo-web-browser";
 import type { ReactNode } from "react";
-import { Text } from "react-native";
+import { Linking, Platform, Text } from "react-native";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
+import { useCSSVariable } from "uniwind";
 
-/**
- * Wrapper for a single chat message. Styles automatically based on the sender
- * role – user messages render as right-aligned blue bubbles, assistant messages
- * render full-width.
- */
+const VAR_NAMES = [
+  "--app-foreground",
+  "--app-muted-foreground",
+  "--app-border",
+  "--app-secondary",
+  "--app-muted",
+  "--app-accent",
+  "--color-blue-400",
+] as const;
+
 export function Message({
   from,
   children,
@@ -48,10 +55,61 @@ export function Message({
   );
 }
 
-/**
- * Renders markdown content for an assistant message. Wraps `<ChatMarkdown />`
- * with appropriate defaults.
- */
 export function MessageResponse({ children }: { children: string }) {
-  return <ChatMarkdown>{children || "..."}</ChatMarkdown>;
+  const [text, text2, border, bg2, bg3, fill3, link] = useCSSVariable(
+    VAR_NAMES as unknown as string[],
+  ) as string[];
+
+  return (
+    <StreamdownText
+      markdown={children || "..."}
+      flavor="github"
+      streamingAnimation={false}
+      markdownStyle={{
+        paragraph: { color: text, fontSize: 16, lineHeight: 22 },
+        h1: { color: text },
+        h2: { color: text },
+        h3: { color: text },
+        h4: { color: text },
+        h5: { color: text },
+        h6: { color: text },
+        blockquote: {
+          backgroundColor: bg3,
+          borderColor: border,
+        },
+        codeBlock: {
+          backgroundColor: fill3,
+          borderColor: border,
+          color: text,
+        },
+        code: {
+          color: text,
+          backgroundColor: fill3,
+        },
+        link: { color: link },
+        list: {
+          bulletColor: text2,
+          markerColor: text2,
+        },
+        strong: { color: text },
+        em: { color: text },
+        thematicBreak: { color: border },
+        table: {
+          borderColor: border,
+          headerBackgroundColor: bg2,
+          headerTextColor: text,
+        },
+      }}
+      onLinkPress={({ url }) => {
+        if (Platform.OS === "web") {
+          Linking.openURL(url);
+        } else {
+          WebBrowser.openBrowserAsync(url, {
+            presentationStyle:
+              WebBrowser.WebBrowserPresentationStyle.AUTOMATIC,
+          });
+        }
+      }}
+    />
+  );
 }
