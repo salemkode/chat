@@ -871,9 +871,10 @@ export function AIPromptInput({
           attachmentMediaTypes={allowedAttachmentMediaTypes}
           imageAttachmentsSupported={imageAttachmentsSupported}
           sendBlockedReason={
-            !attachmentsSupported
+            attachments.length > 0 && !attachmentsSupported
               ? unsupportedAttachmentTypeMessage
-              : !imageAttachmentsSupported &&
+              : attachments.length > 0 &&
+                  !imageAttachmentsSupported &&
                   attachments.some((attachment) => attachment.file.type.startsWith('image/'))
                 ? unsupportedImageMessage
                 : attachments.some(

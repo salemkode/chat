@@ -265,7 +265,7 @@ export function DrawerLayout({
   );
 
   return (
-    <GestureHandlerRootView className="flex-1">
+    <GestureHandlerRootView className="flex-1 bg-sidebar">
       <GestureDetector gesture={pan}>
         <Animated.View className="flex-1 overflow-hidden">
           <Animated.View

@@ -6,49 +6,71 @@ import type { Id } from "@convex/_generated/dataModel";
 const LAST_USED_MODEL_KEY = "last-used-model-id";
 
 export type Model = {
-  id: string;
+  id: Id<"models">;
   label: string;
   subtitle?: string;
 };
 
+export type ModelCollection = {
+  id: string;
+  name: string;
+  modelIds: Id<"models">[];
+};
+
 type ModelContextValue = {
   models: Model[];
+  collections: ModelCollection[];
   selectedModel: string;
-  selectedModelId: string | undefined;
+  selectedModelId: Id<"models"> | undefined;
   extendedThinking: boolean;
   setExtendedThinking: (value: boolean) => void;
-  setSelectedModel: (modelId: string) => void;
+  setSelectedModel: (modelId: Id<"models">) => void;
 };
 
 const ModelContext = createContext<ModelContextValue | null>(null);
 
 export function ModelProvider({ children }: { children: React.ReactNode }) {
-  const { models: apiModels } = useModels();
-  const [selectedModelId, setSelectedModelIdState] = useState<string | undefined>(undefined);
+  const { models: apiModels, collections: apiCollections } = useModels();
+  const [selectedModelId, setSelectedModelIdState] = useState<Id<"models"> | undefined>(
+    undefined,
+  );
   const [extendedThinking, setExtendedThinking] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     AsyncStorage.getItem(LAST_USED_MODEL_KEY).then((stored) => {
-      if (stored) setSelectedModelIdState(stored);
+      if (!stored) {
+        setHydrated(true);
+        return;
+      }
+      const existing = apiModels.find((model) => model._id === stored);
+      if (existing) {
+        setSelectedModelIdState(existing._id);
+      } else {
+        const legacyModel = apiModels.find((model) => model.modelId === stored);
+        if (legacyModel) {
+          setSelectedModelIdState(legacyModel._id);
+          AsyncStorage.setItem(LAST_USED_MODEL_KEY, legacyModel._id);
+        }
+      }
       setHydrated(true);
     });
-  }, []);
+  }, [apiModels]);
 
   useEffect(() => {
     if (!hydrated || apiModels.length === 0) return;
     if (selectedModelId) {
-      const exists = apiModels.some((m) => m.modelId === selectedModelId);
+      const exists = apiModels.some((m) => m._id === selectedModelId);
       if (exists) return;
     }
-    const fallback = apiModels[0]?.modelId;
+    const fallback = apiModels[0]?._id;
     if (fallback) {
       setSelectedModelIdState(fallback);
       AsyncStorage.setItem(LAST_USED_MODEL_KEY, fallback);
     }
   }, [hydrated, apiModels, selectedModelId]);
 
-  const setSelectedModel = useCallback((modelId: string) => {
+  const setSelectedModel = useCallback((modelId: Id<"models">) => {
     setSelectedModelIdState(modelId);
     AsyncStorage.setItem(LAST_USED_MODEL_KEY, modelId);
   }, []);
@@ -56,22 +78,32 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
   const models = useMemo<Model[]>(
     () =>
       apiModels.map((m) => ({
-        id: m.modelId,
+        id: m._id,
         label: m.displayName,
         subtitle: m.description,
       })),
     [apiModels],
   );
+  const collections = useMemo<ModelCollection[]>(
+    () =>
+      apiCollections.map((collection) => ({
+        id: collection._id,
+        name: collection.name,
+        modelIds: collection.modelIds,
+      })),
+    [apiCollections],
+  );
 
   const selectedModel =
-    apiModels.find((m) => m.modelId === selectedModelId)?.displayName ?? "Auto";
+    apiModels.find((m) => m._id === selectedModelId)?.displayName ?? "Auto";
 
   return (
     <ModelContext
       value={{
         models,
+        collections,
         selectedModel,
-        selectedModelId: selectedModelId as Id<"models"> | undefined,
+        selectedModelId,
         extendedThinking,
         setExtendedThinking,
         setSelectedModel,

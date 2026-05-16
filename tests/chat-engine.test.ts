@@ -4,7 +4,7 @@ import {
   dedupePublicMessages,
   extractTextFromParts,
   type PublicChatMessage,
-} from '../convex/lib/chatEngine'
+} from '../packages/backend/convex/lib/chatEngine'
 
 function message(overrides: Partial<PublicChatMessage>): PublicChatMessage {
   return {

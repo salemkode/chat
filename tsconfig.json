@@ -4,6 +4,6 @@
     { "path": "./apps/web/tsconfig.app.json" },
     { "path": "./apps/mobile/tsconfig.json" },
     { "path": "./packages/shared/tsconfig.json" },
-    { "path": "./convex/tsconfig.json" }
+    { "path": "./packages/backend/convex/tsconfig.json" }
   ]
 }

@@ -59,7 +59,7 @@ export function useThreads() {
     [deleteThreadMutation],
   );
 
-  return { threads, setPinned, deleteThread };
+  return { threads, setPinned, deleteThread, isLoading: liveThreads === undefined };
 }
 
 export function useThread(threadId?: string) {

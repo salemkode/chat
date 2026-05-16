@@ -38,6 +38,6 @@
     "**/coverage/**",
     "**/ios/**",
     "**/android/**",
-    "convex/_generated/**"
+    "packages/backend/convex/_generated/**"
   ]
 }

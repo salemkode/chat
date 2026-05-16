@@ -17,14 +17,25 @@ import {
 import { Icon } from "@/components/icon";
 import { MainHeader } from "@/components/main-header";
 import { useModel } from "@/components/model-context";
+import { selectThread, threadSelection$ } from "@/state/thread-selection";
 import { useMessages, useSendMessage } from "@/hooks/use-chat-data";
+import { useSelector } from "@legendapp/state/react";
 import * as Haptics from "expo-haptics";
-import { Link } from "expo-router";
+import { Link, useLocalSearchParams } from "expo-router";
 import { Plus } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export default function ChatScreen() {
-  const [threadId, setThreadId] = useState<string | undefined>(undefined);
+  const params = useLocalSearchParams<{
+    threadId?: string | string[];
+  }>();
+  const routeThreadId = Array.isArray(params.threadId)
+    ? params.threadId[0]
+    : params.threadId;
+  const selectedThreadId = useSelector(() =>
+    threadSelection$.selectedThreadId.get(),
+  );
+  const threadId = selectedThreadId || routeThreadId || undefined;
   const [input, setInput] = useState("");
   const { selectedModelId } = useModel();
   const { send } = useSendMessage();
@@ -66,10 +77,10 @@ export default function ChatScreen() {
       const result = await send({
         text,
         threadId,
-        modelDocId: selectedModelId as any,
+        modelDocId: selectedModelId,
       });
-      if (result.threadId && !threadId) {
-        setThreadId(result.threadId);
+      if (!threadId && result.threadId) {
+        selectThread(result.threadId);
       }
     } catch (err) {
       console.error("Send error:", err);

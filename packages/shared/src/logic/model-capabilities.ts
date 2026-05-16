@@ -20,7 +20,8 @@ const ATTACHMENT_INPUT_CAPABILITIES = new Set([
 
 const GENERIC_FILE_INPUT_CAPABILITIES = new Set(['attachment', 'attachments', 'file', 'files'])
 const DOCUMENT_INPUT_CAPABILITIES = new Set(['document', 'documents', 'pdf'])
-const DEFAULT_ATTACHMENT_MEDIA_TYPES = ['image/*', 'application/pdf'] as const
+const DEFAULT_ATTACHMENT_MEDIA_TYPES: readonly string[] = []
+const IMAGES_AND_PDF = ['image/*', 'application/pdf'] as const
 
 export type ModelAttachmentValidationStatus = 'pending' | 'valid' | 'invalid'
 
@@ -141,7 +142,7 @@ export function inferAttachmentMediaTypesFromCapabilities(
   }
 
   return modelSupportsAnyAttachments(normalizedCapabilities)
-    ? [...DEFAULT_ATTACHMENT_MEDIA_TYPES]
+    ? [...IMAGES_AND_PDF]
     : []
 }
 
@@ -171,5 +172,5 @@ export function resolveModelAttachmentMediaTypes(args: {
     return inferred
   }
 
-  return [...DEFAULT_ATTACHMENT_MEDIA_TYPES]
+  return [...DEFAULT_ATTACHMENT_MEDIA_TYPES] as string[]
 }

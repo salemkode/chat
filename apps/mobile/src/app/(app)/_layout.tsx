@@ -6,9 +6,11 @@ import {
 import { DrawerLayout } from "@/components/drawer-layout";
 import { AuthGate } from "@/components/auth-gate";
 import { ModelProvider } from "@/components/model-context";
+import { hydrateThreadSelection } from "@/state/thread-selection";
 import { useSystemBackgroundColor } from "@/utils/use-system-background-color";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Stack, useRouter } from "expo-router";
+import { useEffect } from "react";
 import { useColorScheme } from "react-native";
 import {
   DarkTheme,
@@ -30,6 +32,10 @@ function ThemeProvider(props: { children: React.ReactNode }) {
 }
 
 export default function AppLayout() {
+  useEffect(() => {
+    void hydrateThreadSelection();
+  }, []);
+
   return (
     <AuthGate>
       <ThemeProvider>

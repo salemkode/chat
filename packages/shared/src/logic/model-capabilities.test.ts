@@ -30,4 +30,16 @@ describe('resolveModelAttachmentMediaTypes', () => {
       }),
     ).toEqual([])
   })
+
+  it('returns empty array by default when no capabilities or config are provided', () => {
+    expect(resolveModelAttachmentMediaTypes({})).toEqual([])
+  })
+
+  it('returns empty array when capabilities have no attachment-related entries', () => {
+    expect(
+      resolveModelAttachmentMediaTypes({
+        capabilities: ['text-generation'],
+      }),
+    ).toEqual([])
+  })
 })

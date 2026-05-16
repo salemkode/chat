@@ -1,56 +1,35 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { useCallback, useMemo } from "react";
+import type { FunctionReturnType } from "convex/server";
 import type { Id } from "@convex/_generated/dataModel";
 
-type ModelRecord = {
-  _id: string;
-  modelId: string;
-  displayName: string;
-  description?: string;
-  capabilities?: string[];
-  supportedAttachmentMediaTypes?: string[];
-  supportsReasoning?: boolean;
-  reasoningLevels?: Array<"low" | "medium" | "high">;
-  defaultReasoningLevel?: "off" | "low" | "medium" | "high";
-  sortOrder: number;
-  isFavorite: boolean;
-  isFree: boolean;
-  icon?: string;
-  iconType?: string;
-  iconUrl?: string;
-  provider?: {
-    _id: string;
-    name: string;
-    icon?: string;
-    iconType?: string;
-    iconUrl?: string;
-  };
-};
+type ModelsWithProviders = FunctionReturnType<typeof api.admin.listModelsWithProviders>;
 
 export function useModels() {
-  const data = useQuery(api.admin.listModelsWithProviders) as
-    | (ModelRecord[] & { autoModelAvailable?: boolean })
-    | undefined;
+  const data = useQuery(api.admin.listModelsWithProviders) as ModelsWithProviders | undefined;
   const setFavoriteModel = useMutation(api.admin.setFavoriteModel);
 
   const models = useMemo(
-    () => (Array.isArray(data) ? data : []),
-    [data],
+    () => (Array.isArray(data?.models) ? data.models : []),
+    [data?.models],
+  );
+  const collections = useMemo(
+    () => (Array.isArray(data?.collections) ? data.collections : []),
+    [data?.collections],
   );
 
   const setFavorite = useCallback(
-    async (modelId: string, isFavorite: boolean) => {
-      await setFavoriteModel({ modelId: modelId as Id<"models">, isFavorite });
+    async (modelId: Id<"models">, isFavorite: boolean) => {
+      await setFavoriteModel({ modelId, isFavorite });
     },
     [setFavoriteModel],
   );
 
   return {
     models,
+    collections,
     setFavorite,
-    autoModelAvailable:
-      (data as unknown as { autoModelAvailable?: boolean })
-        ?.autoModelAvailable ?? false,
+    autoModelAvailable: data?.autoModelAvailable ?? false,
   };
 }

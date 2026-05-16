@@ -1,4 +1,6 @@
 import { useModel } from "@/components/model-context";
+import { threadSelection$ } from "@/state/thread-selection";
+import { useSelector } from "@legendapp/state/react";
 import {
   Button,
   Host,
@@ -20,15 +22,23 @@ import { useColorScheme } from "react-native";
 import { useDrawer } from "./drawer-content";
 
 function HeaderTitleMenu() {
-  const { models, selectedModel, extendedThinking, setExtendedThinking } =
+  const { models, selectedModel, selectedModelId, setSelectedModel, extendedThinking, setExtendedThinking } =
     useModel();
+  const selectedThreadId = useSelector(() =>
+    threadSelection$.selectedThreadId.get(),
+  );
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const headerFg = isDark ? "#fff" : "#000";
   const headerFgMuted = isDark ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.5)";
 
-  const selected = models.find((m) => m.id === selectedModel);
-  const subtitle = extendedThinking ? "Extended" : undefined;
+  const selected = models.find((m) => m.id === selectedModelId);
+  const shortThreadId = selectedThreadId
+    ? selectedThreadId.slice(-6)
+    : "new";
+  const subtitle = extendedThinking
+    ? `Extended • ${shortThreadId}`
+    : shortThreadId;
   return (
     <Host
       style={{
@@ -61,20 +71,15 @@ function HeaderTitleMenu() {
         }
         modifiers={[controlSize("regular")]}
       >
-        <Section title="Existing tools for iOS app tech stack detection">
-          <Button
-            systemImage="archivebox"
-            label="Add to project"
-            onPress={() => {}}
-          />
-          <Button systemImage="star" label="Star" onPress={() => {}} />
-          <Button systemImage="pencil" label="Rename" onPress={() => {}} />
-          <Button
-            systemImage="trash"
-            label="Delete"
-            role="destructive"
-            onPress={() => {}}
-          />
+        <Section title="Select Model">
+          {models.map((model) => (
+            <Button
+              key={model.id}
+              systemImage={model.id === selectedModelId ? "checkmark" : "circle"}
+              label={model.label}
+              onPress={() => setSelectedModel(model.id)}
+            />
+          ))}
         </Section>
         <Toggle isOn={extendedThinking} onIsOnChange={setExtendedThinking}>
           <SUIText>Extended thinking</SUIText>

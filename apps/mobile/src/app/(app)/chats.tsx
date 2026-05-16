@@ -1,9 +1,10 @@
 import { useDrawer } from "@/components/drawer-content";
 import { Icon } from "@/components/icon";
+import { selectThread } from "@/state/thread-selection";
 import { Image } from "@/components/tw";
 import { useThreads } from "@/hooks/use-threads";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
-import { Color, Link, Stack, useRouter } from "expo-router";
+import { Color, Stack, useRouter } from "expo-router";
 import { ChevronRight, Menu, Search } from "lucide-react-native";
 import { useCallback, useMemo, useState } from "react";
 import { Alert, FlatList, Pressable, Text, View } from "react-native";
@@ -39,53 +40,36 @@ function ChatRow({
   starred: boolean;
 }) {
   return (
-    <Link href="/" asChild>
-      <Link.Trigger>
-        <Pressable
-          className="flex-row items-center px-5 py-4 active:bg-card"
-          onPress={onNavigate}
+    <Pressable
+      className="flex-row items-center px-5 py-4 active:bg-card"
+      onPress={onNavigate}
+      onLongPress={onStar}
+    >
+      <Text className="text-lg mr-3">{emoji}</Text>
+      <View className="flex-1 gap-0.5 mr-3">
+        <Text
+          numberOfLines={1}
+          className="text-[17px] text-foreground dark:text-foreground"
+          selectable
         >
-          <Text className="text-lg mr-3">{emoji}</Text>
-          <View className="flex-1 gap-0.5 mr-3">
-            <Text
-              numberOfLines={1}
-              className="text-[17px] text-foreground dark:text-foreground"
-              selectable
-            >
-              {title}
-            </Text>
-            <Text className="text-[13px] text-muted-foreground dark:text-muted-foreground">
-              {subtitle}
-            </Text>
-          </View>
-          {process.env.EXPO_OS === "ios" ? (
-            <Image
-              source="sf:chevron.right"
-              className="w-2.5 h-4 font-medium text-muted-foreground dark:text-muted-foreground"
-            />
-          ) : (
-            <Icon
-              icon={ChevronRight}
-              className="w-2.5 h-4 text-muted-foreground dark:text-muted-foreground"
-            />
-          )}
-        </Pressable>
-      </Link.Trigger>
-
-      <Link.Menu>
-        <Link.MenuAction
-          title={starred ? "Unstar" : "Star"}
-          icon={starred ? "star.fill" : "star"}
-          onPress={onStar}
+          {title}
+        </Text>
+        <Text className="text-[13px] text-muted-foreground dark:text-muted-foreground">
+          {subtitle}
+        </Text>
+      </View>
+      {process.env.EXPO_OS === "ios" ? (
+        <Image
+          source="sf:chevron.right"
+          className="w-2.5 h-4 font-medium text-muted-foreground dark:text-muted-foreground"
         />
-        <Link.MenuAction
-          title="Delete"
-          icon="trash"
-          destructive
-          onPress={onDelete}
+      ) : (
+        <Icon
+          icon={ChevronRight}
+          className="w-2.5 h-4 text-muted-foreground dark:text-muted-foreground"
         />
-      </Link.Menu>
-    </Link>
+      )}
+    </Pressable>
   );
 }
 
@@ -101,6 +85,7 @@ function EmptySearch({ query }: { query: string }) {
 }
 
 export default function ChatsScreen() {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const insets = useSafeAreaInsets();
@@ -152,7 +137,12 @@ export default function ChatsScreen() {
             emoji={item.emoji}
             subtitle={formatTimeAgo(item.lastMessageAt)}
             starred={item.pinned}
-            onNavigate={() => {}}
+            onNavigate={() =>
+              {
+                selectThread(item.id);
+                router.navigate("/");
+              }
+            }
             onDelete={() => handleDelete(item.id, item.title || "Untitled")}
             onStar={() => setPinned(item.id, !item.pinned)}
           />
@@ -240,7 +230,10 @@ function BottomToolbar() {
       <Stack.Toolbar.Button
         tintColor={Color.ios.label}
         icon="square.and.pencil"
-        onPress={() => router.navigate("/")}
+        onPress={() => {
+          selectThread(undefined);
+          router.navigate("/");
+        }}
         separateBackground
       />
     </Stack.Toolbar>

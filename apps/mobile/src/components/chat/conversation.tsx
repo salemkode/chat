@@ -74,6 +74,10 @@ export function Conversation({
   // -- Keyboard tracking --------------------------------------------------
 
   const scrollToBottomRef = useRef<() => void>(() => {});
+  const scrollToBottomStable = useCallback(
+    () => scrollToBottomRef.current(),
+    [],
+  );
   const keyboardHeight = useSharedValue(0);
   // Separate value for contentInset that freezes during interactive dismiss
   // to prevent the scroll view from snapping when the user is overscrolled.
@@ -109,9 +113,9 @@ export function Conversation({
         keyboardHeight.value = e.height;
         keyboardHeightForInset.value = withTiming(e.height, { duration: 250 });
         wasInteractive.value = false;
-        if (shouldScroll) {
-          runOnJS(scrollToBottomRef.current)();
-        }
+          if (shouldScroll) {
+            runOnJS(scrollToBottomStable)();
+          }
       },
     },
     [],
@@ -267,6 +271,7 @@ export function Conversation({
         >
           <AnimatedLegendList
             ref={listRef}
+            className="flex-1"
             data={messages}
             renderItem={renderMessage as any}
             keyExtractor={(item) => (item as ChatMessage).id}
@@ -284,10 +289,9 @@ export function Conversation({
             onScroll={onScroll}
             scrollEventThrottle={16}
             onContentSizeChange={onContentSizeChange}
+            ListEmptyComponent={emptyState}
             ListFooterComponent={
-              <Animated.View style={footerSpacerStyle}>
-                {!messages.length && emptyState}
-              </Animated.View>
+              <Animated.View style={footerSpacerStyle} />
             }
           />
         </KeyboardGestureArea>

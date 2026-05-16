@@ -5,11 +5,11 @@
     "types": ["vite/client", "vite-plugin-pwa/client"],
     "paths": {
       "@/*": ["./src/*"],
-      "@convex/*": ["../../convex/*"],
+      "@convex/*": ["../../packages/backend/convex/*"],
       "@chat/shared": ["../../packages/shared/src/index.ts"],
       "@chat/shared/*": ["../../packages/shared/src/*"]
     }
   },
   "files": [],
-  "references": [{ "path": "../../convex/tsconfig.json" }]
+  "references": [{ "path": "../../packages/backend/convex/tsconfig.json" }]
 }

@@ -1,14 +1,23 @@
 import { Icon } from "@/components/icon";
 import { useModel } from "@/components/model-context";
+import { threadSelection$ } from "@/state/thread-selection";
+import { useSelector } from "@legendapp/state/react";
 import { Link, Stack } from "expo-router";
 import { ChevronDown, Glasses, Menu } from "lucide-react-native";
 import { Pressable, Text, View } from "react-native";
 import { useDrawer } from "./drawer-content";
 
 function HeaderTitleMenu() {
-  const { models, selectedModel, extendedThinking } = useModel();
-  const selected = models.find((m) => m.id === selectedModel);
-  const subtitle = extendedThinking ? "Extended" : undefined;
+  const { selectedModel, extendedThinking } = useModel();
+  const selectedThreadId = useSelector(() =>
+    threadSelection$.selectedThreadId.get(),
+  );
+  const shortThreadId = selectedThreadId
+    ? selectedThreadId.slice(-6)
+    : "new";
+  const subtitle = extendedThinking
+    ? `Extended • ${shortThreadId}`
+    : shortThreadId;
 
   return (
     <Link href="/model-picker" asChild>
@@ -18,7 +27,7 @@ function HeaderTitleMenu() {
       >
         <View className="flex-row items-center gap-1">
           <Text className="text-[17px] font-semibold text-foreground">
-            {selected?.label ?? "Model"}
+            {selectedModel}
           </Text>
           <Icon icon={ChevronDown} className="w-3 h-3 text-foreground" />
         </View>
