@@ -349,19 +349,19 @@ function ResponsivePopupClose({
 
 export {
   ResponsiveModal,
-  ResponsiveModalBody,
+  
   ResponsiveModalClose,
   ResponsiveModalContent,
   ResponsiveModalDescription,
-  ResponsiveModalFooter,
+  
   ResponsiveModalHeader,
   ResponsiveModalTitle,
   ResponsiveModalTrigger,
   ResponsivePopup,
-  ResponsivePopupClose,
+  
   ResponsivePopupContent,
-  ResponsivePopupDescription,
-  ResponsivePopupHeader,
-  ResponsivePopupTitle,
+  
+  
+  
   ResponsivePopupTrigger,
 }

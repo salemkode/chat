@@ -1,4 +1,4 @@
-export type MemoryContextHit = {
+type MemoryContextHit = {
   contentHash: string
 }
 

@@ -1,4 +1,4 @@
-export type SelectionPricing = {
+type SelectionPricing = {
   inputPer1M: number
   outputPer1M: number
   currency?: string

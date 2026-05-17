@@ -8,7 +8,9 @@
   ],
   "type": "module",
   "scripts": {
-    "dev": "turbo run dev --filter=web",
+    "dev": "turbo run dev",
+    "dev:web": "turbo run dev --filter=web",
+    "dev:mobile": "turbo run dev --filter=mobile",
     "dev:ios": "pnpm run ios",
     "dev:scan": "turbo run dev:scan --filter=web",
     "dev:sandbox-server": "cd apps/sandbox-server && pnpm run dev",
@@ -42,11 +44,9 @@
     "docs:deploy:cloudflare": "cd docs && pnpm run deploy:cloudflare",
     "ship": "node scripts/ship.mjs"
   },
-  "dependencies": {},
   "devDependencies": {
-    "@babel/preset-typescript": "^7.28.5",
-    "@types/node": "^25.0.9",
-    "knip": "^5.81.0",
+    "@types/node": "^25.8.0",
+    "knip": "^5.88.1",
     "oxfmt": "^0.41.0",
     "oxlint": "^1.42.0",
     "turbo": "^2.5.8",

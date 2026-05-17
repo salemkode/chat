@@ -25,7 +25,7 @@ export interface OfflineThreadRecord {
   version: number
 }
 
-export interface OfflineMessageRecord {
+interface OfflineMessageRecord {
   id: string
   threadId: string
   role: 'user' | 'assistant'
@@ -102,7 +102,7 @@ export interface OfflineSettingsRecord {
   updatedAt: number
 }
 
-export interface OfflineDraftRecord {
+interface OfflineDraftRecord {
   threadId: string
   value: string
   updatedAt: number

@@ -1,5 +1,5 @@
 export const THEME_STORAGE_KEY = 'theme-preference'
-export const DEFAULT_CUSTOM_PRIMARY = '#8b5cf6'
+const DEFAULT_CUSTOM_PRIMARY = '#8b5cf6'
 
 export type ThemeMode = 'light' | 'dark' | 'system'
 export type ResolvedTheme = 'light' | 'dark'
@@ -14,14 +14,14 @@ export const DEFAULT_THEME_SETTINGS: ThemeSettings = {
   primaryColor: DEFAULT_CUSTOM_PRIMARY,
 }
 
-export function parseThemeMode(
+function parseThemeMode(
   value: unknown,
   fallback: ThemeMode = DEFAULT_THEME_SETTINGS.mode,
 ): ThemeMode {
   return value === 'light' || value === 'dark' || value === 'system' ? value : fallback
 }
 
-export function getSystemResolvedTheme(): ResolvedTheme {
+function getSystemResolvedTheme(): ResolvedTheme {
   if (typeof window === 'undefined') {
     return 'light'
   }
@@ -53,7 +53,7 @@ export function normalizeHexColor(
   return fallback
 }
 
-export function parseThemeSettings(
+function parseThemeSettings(
   value: unknown,
   fallback: ThemeSettings = DEFAULT_THEME_SETTINGS,
 ): ThemeSettings {
@@ -93,7 +93,7 @@ export function serializeThemeSettings(settings: ThemeSettings): string {
   })
 }
 
-export function resolveThemeMode(mode: ThemeMode): ResolvedTheme {
+function resolveThemeMode(mode: ThemeMode): ResolvedTheme {
   if (mode === 'system') {
     return getSystemResolvedTheme()
   }
@@ -101,7 +101,7 @@ export function resolveThemeMode(mode: ThemeMode): ResolvedTheme {
   return mode
 }
 
-export function getContrastTextColor(hexColor: string): string {
+function getContrastTextColor(hexColor: string): string {
   const { red, green, blue } = hexToRgb(normalizeHexColor(hexColor))
   const luminance = (red * 299 + green * 587 + blue * 114) / 1000
   return luminance >= 160 ? '#111827' : '#f8fafc'

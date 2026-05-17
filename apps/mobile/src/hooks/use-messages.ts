@@ -3,7 +3,7 @@ import type { UsePaginatedQueryResult } from "convex/react";
 import { useMemo } from "react";
 import { api } from "@convex/_generated/api";
 
-export type ChatMessage = {
+type ChatMessage = {
   id: string;
   role: "user" | "assistant";
   text: string;

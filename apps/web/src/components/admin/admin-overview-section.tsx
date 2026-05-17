@@ -76,7 +76,7 @@ export function useAdminOverviewUserControls({
   }
 }
 
-export type AdminOverviewUserControls = ReturnType<typeof useAdminOverviewUserControls>
+type AdminOverviewUserControls = ReturnType<typeof useAdminOverviewUserControls>
 
 interface AdminOverviewSectionProps {
   summary: DashboardData['summary'] | undefined

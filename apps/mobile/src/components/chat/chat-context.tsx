@@ -2,7 +2,7 @@ import { createContext, use } from "react";
 import type { StreamingStore } from "./streaming-store";
 import type { ChatMessage } from "./types";
 
-export type ChatContextValue = {
+type ChatContextValue = {
   messages: ChatMessage[];
   input: string;
   setInput: (value: string) => void;

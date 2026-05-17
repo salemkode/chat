@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils'
 import { ChevronDown, Circle } from '@/lib/icons'
 import React from 'react'
 
-export type ChainOfThoughtItemProps = React.ComponentProps<'div'>
+type ChainOfThoughtItemProps = React.ComponentProps<'div'>
 
 export function ChainOfThoughtItem({ children, className, ...props }: ChainOfThoughtItemProps) {
   return (
@@ -13,7 +13,7 @@ export function ChainOfThoughtItem({ children, className, ...props }: ChainOfTho
   )
 }
 
-export type ChainOfThoughtTriggerProps = React.ComponentProps<typeof CollapsibleTrigger> & {
+type ChainOfThoughtTriggerProps = React.ComponentProps<typeof CollapsibleTrigger> & {
   leftIcon?: React.ReactNode
   swapIconOnHover?: boolean
 }
@@ -61,7 +61,7 @@ export function ChainOfThoughtTrigger({
   )
 }
 
-export type ChainOfThoughtContentProps = React.ComponentProps<typeof CollapsibleContent>
+type ChainOfThoughtContentProps = React.ComponentProps<typeof CollapsibleContent>
 
 export function ChainOfThoughtContent({
   children,
@@ -109,7 +109,7 @@ export function ChainOfThought({
   )
 }
 
-export type ChainOfThoughtStepProps = {
+type ChainOfThoughtStepProps = {
   children: React.ReactNode
   className?: string
   isLast?: boolean

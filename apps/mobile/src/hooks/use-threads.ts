@@ -2,7 +2,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { useMemo, useCallback } from "react";
 
-export type ThreadSummary = {
+type ThreadSummary = {
   id: string;
   title?: string;
   emoji: string;
@@ -62,7 +62,7 @@ export function useThreads() {
   return { threads, setPinned, deleteThread, isLoading: liveThreads === undefined };
 }
 
-export function useThread(threadId?: string) {
+function useThread(threadId?: string) {
   const liveThread = useQuery(
     api.chat.getThread,
     threadId ? { threadId } : "skip",

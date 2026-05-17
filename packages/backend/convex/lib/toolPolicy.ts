@@ -6,16 +6,16 @@ const AUTO_METADATA_COOLDOWN_MS = 30 * 60 * 1000
 const PLACEHOLDER_TITLES = new Set(['new chat', 'untitled', 'untitled chat'])
 const WEAK_TITLES = new Set(['chat', 'question', 'help', 'discussion', 'conversation', 'project'])
 
-export const TOOL_POLICY_VERSION = 'phase1-memory-metadata-v1'
+const TOOL_POLICY_VERSION = 'phase1-memory-metadata-v1'
 
-export type ToolPolicyRequiredAction =
+type ToolPolicyRequiredAction =
   | 'memory_search_required'
   | 'memory_add_required'
   | 'memory_update_required'
   | 'memory_delete_required'
   | 'metadata_update_required'
 
-export type ToolPolicyDetectedIntent =
+type ToolPolicyDetectedIntent =
   | 'memory_search'
   | 'memory_add'
   | 'memory_update'
@@ -23,9 +23,9 @@ export type ToolPolicyDetectedIntent =
   | 'metadata_refresh'
   | 'none'
 
-export type ToolPolicyAutomaticAction = 'metadata_update_applied' | 'metadata_update_failed'
+type ToolPolicyAutomaticAction = 'metadata_update_applied' | 'metadata_update_failed'
 
-export type ToolPolicyEvaluation = {
+type ToolPolicyEvaluation = {
   detectedIntent: ToolPolicyDetectedIntent
   requiredActions: ToolPolicyRequiredAction[]
   systemAddendum: string
@@ -36,7 +36,7 @@ export type ToolPolicyEvaluation = {
   policyTrace: string[]
 }
 
-export type ThreadMetadataPolicyDecision = {
+type ThreadMetadataPolicyDecision = {
   requiredActions: ToolPolicyRequiredAction[]
   detectedIntent: Extract<ToolPolicyDetectedIntent, 'metadata_refresh' | 'none'>
   update: null | {
@@ -47,7 +47,7 @@ export type ThreadMetadataPolicyDecision = {
   policyTrace: string[]
 }
 
-export type ToolPolicyFinalization = {
+type ToolPolicyFinalization = {
   observedTools: string[]
   satisfiedActions: ToolPolicyRequiredAction[]
   status: 'completed' | 'skipped' | 'failed'
@@ -356,7 +356,7 @@ export function evaluateToolPolicy(args: {
   } satisfies ToolPolicyEvaluation
 }
 
-export function extractObservedTools(parts: Array<Record<string, unknown>>) {
+function extractObservedTools(parts: Array<Record<string, unknown>>) {
   const seen = new Set<string>()
   const observed: string[] = []
 
@@ -414,7 +414,7 @@ function actionToToolName(action: ToolPolicyRequiredAction) {
   }
 }
 
-export function finalizeToolPolicyEvaluation(args: {
+function finalizeToolPolicyEvaluation(args: {
   requiredActions: ToolPolicyRequiredAction[]
   automaticActions: ToolPolicyAutomaticAction[]
   messageParts: Array<Record<string, unknown>>

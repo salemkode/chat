@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-export type ResponsiveSelectOption = {
+type ResponsiveSelectOption = {
   value: string
   label: string
 }

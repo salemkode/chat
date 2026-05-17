@@ -1,4 +1,4 @@
-export type StreamingMarkdownSegments = {
+type StreamingMarkdownSegments = {
   stableMarkdown: string
   streamTail: string
   hasUnstableTail: boolean

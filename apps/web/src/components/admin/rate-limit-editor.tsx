@@ -17,7 +17,7 @@ const DEFAULT_POLICY: RateLimitPolicy = {
   shards: 1,
 }
 
-export function createDefaultRateLimitPolicy(overrides?: Partial<RateLimitPolicy>) {
+function createDefaultRateLimitPolicy(overrides?: Partial<RateLimitPolicy>) {
   return {
     ...DEFAULT_POLICY,
     ...overrides,

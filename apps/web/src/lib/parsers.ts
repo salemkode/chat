@@ -9,18 +9,18 @@ import {
   type RateLimitPolicy,
 } from '@chat/shared/admin-types'
 
-export type Theme = 'dark' | 'light' | 'system'
+type Theme = 'dark' | 'light' | 'system'
 
-export type RedirectSearch = {
+type RedirectSearch = {
   redirect?: string
   redirect_url?: string
 }
 
-export function parseTheme(value: unknown, fallback: Theme = 'system'): Theme {
+function parseTheme(value: unknown, fallback: Theme = 'system'): Theme {
   return value === 'dark' || value === 'light' || value === 'system' ? value : fallback
 }
 
-export function parseRouteSearchRedirects(search: Record<string, unknown>): RedirectSearch {
+function parseRouteSearchRedirects(search: Record<string, unknown>): RedirectSearch {
   return {
     redirect: getOptionalString(search.redirect),
     redirect_url: getOptionalString(search.redirect_url),
@@ -35,7 +35,7 @@ export function parseUploadResponse(value: unknown): { storageId: string } {
   return { storageId: value.storageId }
 }
 
-export function parseJsonRecord(text: string): Record<string, string> | undefined {
+function parseJsonRecord(text: string): Record<string, string> | undefined {
   const trimmed = text.trim()
   if (!trimmed) {
     return undefined
@@ -76,7 +76,7 @@ export function getRequiredEnv(env: Record<string, string | undefined>, key: str
   return value
 }
 
-export function parseProviderType(value: unknown): ProviderType {
+function parseProviderType(value: unknown): ProviderType {
   if (!isProviderType(value)) {
     throw new Error('Invalid provider type')
   }
@@ -84,7 +84,7 @@ export function parseProviderType(value: unknown): ProviderType {
   return value
 }
 
-export function parseIconType(value: unknown): IconType | undefined {
+function parseIconType(value: unknown): IconType | undefined {
   if (value === undefined || value === null || value === '') {
     return undefined
   }
@@ -96,7 +96,7 @@ export function parseIconType(value: unknown): IconType | undefined {
   return value
 }
 
-export function parseRateLimitPolicy(value: unknown): RateLimitPolicy | undefined {
+function parseRateLimitPolicy(value: unknown): RateLimitPolicy | undefined {
   if (value === undefined || value === null) {
     return undefined
   }
@@ -124,7 +124,7 @@ export function parseRateLimitKind(value: unknown): RateLimitPolicy['kind'] {
   return value
 }
 
-export function toTypedRouteSearch(search: Record<string, string>): RedirectSearch | undefined {
+function toTypedRouteSearch(search: Record<string, string>): RedirectSearch | undefined {
   const parsed = parseRouteSearchRedirects(search)
   return parsed.redirect || parsed.redirect_url ? parsed : undefined
 }

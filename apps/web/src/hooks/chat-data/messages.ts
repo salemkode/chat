@@ -19,7 +19,7 @@ import {
   useOfflineCacheVersion,
 } from '@/hooks/chat-data/shared'
 
-export type UseMessagesResult = {
+type UseMessagesResult = {
   messages: ChatMessage[]
   status: UsePaginatedQueryResult<ChatMessage>['status']
   hasMore: boolean

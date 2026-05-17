@@ -86,7 +86,7 @@ export function createPastedTextFile(text: string): File {
 
 let textAttachmentCounter = 0
 
-export function createTextAttachment(text: string): TextAttachment {
+function createTextAttachment(text: string): TextAttachment {
   textAttachmentCounter += 1
   const lineCount = text.split('\n').length
   const label =

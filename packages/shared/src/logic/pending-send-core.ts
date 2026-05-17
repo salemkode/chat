@@ -3,12 +3,12 @@
  * Storage (Context vs Zustand) and attachment lifecycle stay in each app.
  */
 
-export type PendingAttachmentFingerprintSource = {
+type PendingAttachmentFingerprintSource = {
   filename?: string
   mediaType?: string
 }
 
-export type LiveMessageForHandoff = {
+type LiveMessageForHandoff = {
   role: string
   text?: string
   status?: string
@@ -37,7 +37,7 @@ function getSortedFingerprintsFromLiveParts(parts: unknown): string[] {
   return out.sort()
 }
 
-export function getSortedFingerprintsFromPendingAttachments(
+function getSortedFingerprintsFromPendingAttachments(
   attachments: ReadonlyArray<PendingAttachmentFingerprintSource>,
 ): string[] {
   return attachments

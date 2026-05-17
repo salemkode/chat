@@ -21,7 +21,7 @@ import { fnv1a32 } from '@/lib/fnv1a32'
 import { LRUCache } from '@/lib/lruCache'
 import { cn } from '@/lib/utils'
 
-export interface ChatMarkdownProps {
+interface ChatMarkdownProps {
   text: string
   /** When true, highlighted HTML is not written to the LRU cache (matches T3 Code behavior). */
   isStreaming?: boolean

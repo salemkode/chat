@@ -20,7 +20,7 @@ const AnimatedEXGlassView = Animated.createAnimatedComponent(XGlassView);
 
 const BlurView = withUniwind(EXBlurView);
 
-export const InnerAppleGlassView = withUniwind(BetterGlassView);
+const InnerAppleGlassView = withUniwind(BetterGlassView);
 const GLASS_ENABLED = isLiquidGlassAvailable();
 
 type FallbackAppleGlassViewProps = React.ComponentProps<
@@ -65,7 +65,7 @@ function BetterGlassView(
   return <AnimatedEXGlassView {...{ ...props, style, ...converted }} />;
 }
 
-export const GlassView = withUniwind(XGlassView);
+const GlassView = withUniwind(XGlassView);
 
 function convertStylesToProps(
   style: React.ComponentProps<typeof AnimatedEXGlassView>["style"],

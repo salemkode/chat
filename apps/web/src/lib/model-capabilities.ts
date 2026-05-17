@@ -2,7 +2,7 @@
  * Capability slugs stored on Convex `models.capabilities` (comma-separated in admin UI).
  * Use lowercase kebab or single words for consistency.
  */
-export const MODEL_CAPABILITY_META: Record<
+const MODEL_CAPABILITY_META: Record<
   string,
   { label: string; tone: 'default' | 'amber' | 'sky' }
 > = {

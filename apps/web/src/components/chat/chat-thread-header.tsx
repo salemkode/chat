@@ -3,7 +3,7 @@ import { ShareChatDialog } from '@/components/chat/share-chat-dialog'
 import { Button } from '@/components/ui/button'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 
-export type ChatThreadHeaderProps = {
+type ChatThreadHeaderProps = {
   title: string
   threadId?: string
   projectId?: string

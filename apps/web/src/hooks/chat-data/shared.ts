@@ -215,7 +215,7 @@ export function normalizeModelCollection(
   }
 }
 
-export function normalizeProject(project: ProjectRecord): OfflineProjectRecord {
+function normalizeProject(project: ProjectRecord): OfflineProjectRecord {
   return {
     id: project.id,
     name: project.name,

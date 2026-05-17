@@ -7,7 +7,7 @@ import type { AdminProviderDialogProps } from '@/components/admin/admin-provider
 import { AdminProviderDialog } from '@/components/admin/admin-provider-dialog'
 import { Button } from '@/components/ui/button'
 
-export type AdminPageHeaderProps = {
+type AdminPageHeaderProps = {
   onNavigateHome: () => void
   providerDialog: AdminProviderDialogProps
   modelDialog: AdminModelDialogProps

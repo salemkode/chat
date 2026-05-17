@@ -1,7 +1,7 @@
 import type { FunctionReturnType } from 'convex/server'
 import type { api } from '@convex/_generated/api'
 
-export type MessageData = FunctionReturnType<typeof api.chat.listMessages>['page'][number]
+type MessageData = FunctionReturnType<typeof api.chat.listMessages>['page'][number]
 
 export type MessageFilePart = {
   url: string

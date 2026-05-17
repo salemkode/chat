@@ -12,8 +12,8 @@ import {
 } from 'react'
 import type { ChatMessage } from '@/hooks/chat-data/shared'
 
-export type PendingThreadKey = string
-export type PendingSendPhase = 'pending' | 'handoff' | 'failed'
+type PendingThreadKey = string
+type PendingSendPhase = 'pending' | 'handoff' | 'failed'
 
 type PendingSendAttachment = {
   filename?: string

@@ -18,7 +18,7 @@ function getServerSnapshot() {
   return false
 }
 
-export type ResponsiveOverlayMode = 'sheet' | 'desktop'
+type ResponsiveOverlayMode = 'sheet' | 'desktop'
 
 export function useResponsiveOverlayMode(): {
   isMobile: boolean

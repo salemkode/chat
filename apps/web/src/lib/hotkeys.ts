@@ -11,9 +11,9 @@ export type HotkeyActionId =
 export type HotkeyBinding = string | null
 
 export type HotkeyBindings = Record<HotkeyActionId, HotkeyBinding>
-export type HotkeyPlatform = 'apple' | 'other' | 'unknown'
+type HotkeyPlatform = 'apple' | 'other' | 'unknown'
 
-export type HotkeyDefinition = {
+type HotkeyDefinition = {
   id: HotkeyActionId
   label: string
   description: string

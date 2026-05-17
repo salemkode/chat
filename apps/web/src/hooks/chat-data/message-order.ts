@@ -14,7 +14,7 @@ function getStepOrder(message: ChatMessage) {
   return typeof message.stepOrder === 'number' ? message.stepOrder : 0
 }
 
-export function compareChatMessages(left: ChatMessage, right: ChatMessage) {
+function compareChatMessages(left: ChatMessage, right: ChatMessage) {
   const primaryDelta = getPrimaryOrder(left) - getPrimaryOrder(right)
   if (primaryDelta !== 0) {
     return primaryDelta

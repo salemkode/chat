@@ -1,6 +1,6 @@
 import type { DashboardData } from '@/components/admin/types'
 
-export const usageChartConfig = {
+const usageChartConfig = {
   requests: {
     label: 'Requests',
     color: 'hsl(var(--chart-1))',

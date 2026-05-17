@@ -19,7 +19,7 @@ const manifest = Constants.expoConfig;
 
 const polyfillSymbol = Symbol.for("expo.polyfillFetchWithWindowLocation");
 
-export function wrapFetchWithWindowLocation(
+function wrapFetchWithWindowLocation(
   fetch: Function & { [polyfillSymbol]?: boolean },
 ) {
   if (fetch[polyfillSymbol]) {

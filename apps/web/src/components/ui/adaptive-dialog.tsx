@@ -9,7 +9,7 @@ import {
   type ResponsiveModalSize,
 } from '@/components/ui/responsive-overlay'
 
-export type AdaptiveDialogProps = {
+type AdaptiveDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   /** Shown to assistive tech; keep concise. */

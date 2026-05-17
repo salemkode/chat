@@ -1,13 +1,13 @@
 import type { FunctionReturnType } from 'convex/server'
 import { api } from '@convex/_generated/api'
 
-export const STALL_THRESHOLD_MS = 20_000
+const STALL_THRESHOLD_MS = 20_000
 export const QUEUE_CAPACITY = 3
 
-export type ChatMessage = FunctionReturnType<typeof api.chat.listMessages>['page'][number]
+type ChatMessage = FunctionReturnType<typeof api.chat.listMessages>['page'][number]
 
-export type MessageFailureKind = 'stopped' | 'error'
-export type MessageFailureMode = 'replace' | 'clarify'
+type MessageFailureKind = 'stopped' | 'error'
+type MessageFailureMode = 'replace' | 'clarify'
 
 export type QueuedMessage = {
   text: string

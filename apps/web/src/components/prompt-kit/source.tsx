@@ -19,7 +19,7 @@ function useSourceContext() {
   return context
 }
 
-export type SourceProps = {
+type SourceProps = {
   href: string
   children: ReactNode
 }
@@ -42,7 +42,7 @@ export function Source({ href, children }: SourceProps) {
   )
 }
 
-export type SourceTriggerProps = {
+type SourceTriggerProps = {
   label?: string | number
   showFavicon?: boolean
   className?: string
@@ -79,7 +79,7 @@ export function SourceTrigger({ label, showFavicon = false, className }: SourceT
   )
 }
 
-export type SourceContentProps = {
+type SourceContentProps = {
   title: string
   description: string
   className?: string
