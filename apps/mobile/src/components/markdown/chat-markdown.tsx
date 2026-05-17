@@ -2,6 +2,7 @@ import * as WebBrowser from "expo-web-browser";
 import React from "react";
 import { Linking, Platform, StyleSheet, Text, View } from "react-native";
 import { useCSSVariable } from "uniwind";
+import { isArabic } from "@/lib/is-arabic";
 import Markdown from "./markdown";
 
 const VAR_NAMES = [
@@ -73,41 +74,45 @@ export function ChatMarkdown({ children }: { children: string }) {
     tableHeaderCellText: { color: text },
   };
 
+  const dir = isArabic(children) ? "rtl" : "ltr";
+
   return (
-    <Markdown
-      styles={markdownStyles}
-      onLinkPress={(url) => {
-        if (process.env.EXPO_OS === "web") {
-          Linking.openURL(url);
-        } else {
-          WebBrowser.openBrowserAsync(url, {
-            presentationStyle: WebBrowser.WebBrowserPresentationStyle.AUTOMATIC,
-          });
-        }
-      }}
-      renderRules={{
-        listItem: ({ node, styles, children, extras }) => (
-          <View key={node.key} style={styles.listItem as any}>
-            {extras?.customListStyleType ? (
-              extras.customListStyleType
-            ) : (
-              <Text
-                style={[
-                  styles.listBullet as any,
-                  extras?.ordered
-                    ? fullStyles.orderedBullet
-                    : fullStyles.unorderedBullet,
-                ]}
-              >
-                {extras?.listStyleType}
-              </Text>
-            )}
-            <View style={styles.listItemContent as any}>{children}</View>
-          </View>
-        ),
-      }}
-      markdown={preserveNewlines(children)}
-    />
+    <View style={{ direction: dir }}>
+      <Markdown
+        styles={markdownStyles}
+        onLinkPress={(url) => {
+          if (process.env.EXPO_OS === "web") {
+            Linking.openURL(url);
+          } else {
+            WebBrowser.openBrowserAsync(url, {
+              presentationStyle: WebBrowser.WebBrowserPresentationStyle.AUTOMATIC,
+            });
+          }
+        }}
+        renderRules={{
+          listItem: ({ node, styles, children, extras }) => (
+            <View key={node.key} style={styles.listItem as any}>
+              {extras?.customListStyleType ? (
+                extras.customListStyleType
+              ) : (
+                <Text
+                  style={[
+                    styles.listBullet as any,
+                    extras?.ordered
+                      ? fullStyles.orderedBullet
+                      : fullStyles.unorderedBullet,
+                  ]}
+                >
+                  {extras?.listStyleType}
+                </Text>
+              )}
+              <View style={styles.listItemContent as any}>{children}</View>
+            </View>
+          ),
+        }}
+        markdown={preserveNewlines(children)}
+      />
+    </View>
   );
 }
 

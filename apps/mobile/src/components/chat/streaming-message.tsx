@@ -3,34 +3,45 @@ import { useSmoothText } from "@convex-dev/agent/react";
 import * as WebBrowser from "expo-web-browser";
 import { Linking, Platform } from "react-native";
 import { useCSSVariable } from "uniwind";
+import { isArabic } from "@/lib/is-arabic";
 import type { StreamingStore } from "./streaming-store";
 import { useSyncExternalStore } from "react";
-
-const VAR_NAMES = [
-  "--app-foreground",
-  "--app-muted-foreground",
-  "--app-border",
-  "--app-secondary",
-  "--app-muted",
-  "--app-accent",
-  "--color-blue-400",
-] as const;
 
 export function StreamingMessage({ store }: { store: StreamingStore }) {
   const rawText = useSyncExternalStore(store.subscribe, store.get);
   const [smoothedText] = useSmoothText(rawText, {
     startStreaming: true,
   });
-  const [text, text2, border, bg2, bg3, fill3, link] = useCSSVariable(
-    VAR_NAMES as unknown as string[],
-  ) as string[];
+  const [text, text2, border, bg2, bg3, fill3, link] = [
+    "#333333",
+    "#333333",
+    "#333333",
+    "#333333",
+    "#333333",
+    "#333333",
+    "#333333",
+  ]
+/*   useCSSVariable(
+    ["--app-foreground",
+    "--app-muted-foreground",
+    "--app-border",
+    "--app-secondary",
+    "--app-muted",
+    "--app-accent",
+    "--color-blue-400",]
+  ) as string[]; */
+
+  const message = smoothedText || "";
 
   return (
     <StreamdownText
-      markdown={smoothedText || ""}
+      markdown={message}
       flavor="github"
       streamingAnimation={false}
       selectable={false}
+      containerStyle={{
+        writingDirection: isArabic(message) ? "rtl" : "ltr",
+      }}
       markdownStyle={{
         paragraph: { color: text, fontSize: 16, lineHeight: 22 },
         h1: { color: text },

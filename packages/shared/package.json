@@ -10,6 +10,7 @@
     "./hooks/use-online-status": "./src/hooks/use-online-status.ts",
     "./logic/client-keys": "./src/logic/client-keys.ts",
     "./logic/project-mention": "./src/logic/project-mention.ts",
+    "./logic/sidebar-threads": "./src/logic/sidebar-threads.ts",
     "./logic/thread-groups": "./src/logic/thread-groups.ts",
     "./logic/convex-ids": "./src/logic/convex-ids.ts",
     "./quran-ayah": "./src/quran-ayah.ts",

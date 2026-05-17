@@ -29,12 +29,15 @@ function TouchableGlassNative({
   const tap = Gesture.Tap()
     .enabled(!disabled)
     .onBegin(() => {
+      "worklet";
       if (onPressIn) scheduleOnRN(onPressIn);
     })
     .onEnd((_e, success) => {
+      "worklet";
       if (success && onPress) scheduleOnRN(onPress);
     })
     .onFinalize(() => {
+      "worklet";
       if (onPressOut) scheduleOnRN(onPressOut);
     });
 
@@ -64,7 +67,7 @@ function TouchableGlassFallback({
   ...rest
 }: TouchableGlassProps) {
   // Pick only View-compatible props, stripping glass-specific ones
-  const { fallbackTint, fallbackIntensity, glassEffectStyle, tintColor, isInteractive, colorScheme, animatedProps, ...viewProps } = rest as Record<string, unknown>;
+  const { fallbackTint: _fallbackTint, fallbackIntensity: _fallbackIntensity, glassEffectStyle: _glassEffectStyle, tintColor: _tintColor, isInteractive: _isInteractive, colorScheme: _colorScheme, animatedProps: _animatedProps, ...viewProps } = rest as Record<string, unknown>;
   const safeViewProps = viewProps as ViewOnlyProps;
   const [pressed, setPressed] = useState(false);
   const onTouchBegin = () => {

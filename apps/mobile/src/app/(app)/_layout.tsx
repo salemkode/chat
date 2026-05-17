@@ -5,6 +5,7 @@ import {
 } from "@/components/drawer-content";
 import { DrawerLayout } from "@/components/drawer-layout";
 import { AuthGate } from "@/components/auth-gate";
+import { ChatAttachmentsProvider } from "@/components/chat/attachment-context";
 import { ModelProvider } from "@/components/model-context";
 import { hydrateThreadSelection } from "@/state/thread-selection";
 import { useSystemBackgroundColor } from "@/utils/use-system-background-color";
@@ -18,6 +19,8 @@ import {
   ThemeProvider as RNTheme,
 } from "@react-navigation/native";
 import { useCSSVariable } from "uniwind";
+import { ChatCoreProvider } from "@chat/chat-core";
+import { chatCoreApiRefs } from "@/lib/chat-core-api";
 
 const GLASS = isLiquidGlassAvailable();
 const IS_ANDROID = process.env.EXPO_OS === "android";
@@ -39,11 +42,15 @@ export default function AppLayout() {
   return (
     <AuthGate>
       <ThemeProvider>
-        <ModelProvider>
-          <DrawerProvider>
-            <RootDrawer />
-          </DrawerProvider>
-        </ModelProvider>
+        <ChatCoreProvider apiRefs={chatCoreApiRefs}>
+          <ModelProvider>
+            <ChatAttachmentsProvider>
+              <DrawerProvider>
+                <RootDrawer />
+              </DrawerProvider>
+            </ChatAttachmentsProvider>
+          </ModelProvider>
+        </ChatCoreProvider>
       </ThemeProvider>
     </AuthGate>
   );

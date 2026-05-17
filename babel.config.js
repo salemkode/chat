@@ -11,7 +11,6 @@ export default function (api) {
         {
           strictGlobal: true,
           bundleMode: true,
-          workletizableModules: ['remend'],
         },
       ],
     ],

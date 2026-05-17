@@ -11,7 +11,8 @@ export {
 } from "./conversation";
 
 // Message
-export { Message, MessageResponse } from "./message";
+export { Message, MessageAttachments, MessageResponse } from "./message";
+export { AttachmentChipList } from "./attachment-chip-list";
 
 // Prompt Input
 export {

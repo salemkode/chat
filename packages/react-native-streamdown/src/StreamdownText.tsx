@@ -5,8 +5,7 @@ import type { StreamdownTextProps } from './types';
 /**
  * Streaming-ready markdown component.
  *
- * Processes markdown through remend on a worklet thread,
- * then renders via EnrichedMarkdownText.
+ * Repairs incomplete markdown with remend, then renders via EnrichedMarkdownText.
  */
 export function StreamdownText({
   markdown,
@@ -14,19 +13,26 @@ export function StreamdownText({
   selectable = true,
   flavor = 'commonmark',
   streamingAnimation,
-  ...enrichedMarkdownProps
+  //...enrichedMarkdownProps
 }: StreamdownTextProps) {
   const { processedMarkdown, isStreaming } = useStreamdownMarkdown(markdown, {
     remendConfig,
   });
 
   return (
-    <EnrichedMarkdownText
-      flavor={flavor}
+    <EnrichedMarkdownText 
+      flavor="github"
+      
       markdown={processedMarkdown}
+      markdownStyle={{
+        paragraph: {
+          color: "red"
+        }
+      }}
       streamingAnimation={streamingAnimation ?? flavor === 'commonmark'}
       selectable={!isStreaming && selectable}
-      {...enrichedMarkdownProps}
+      
+      //{...enrichedMarkdownProps}
     />
   );
 }

@@ -3,13 +3,21 @@ import "@/global.css";
 import { Icon } from "@/components/icon";
 import { TouchableGlass } from "@/components/touchable-glass";
 import { SafeAreaView } from "@/components/tw";
-import { useThreads, type ThreadSummary } from "@/hooks/use-threads";
 import { useViewer } from "@/hooks/use-viewer";
 import { selectThread, threadSelection$ } from "@/state/thread-selection";
 import { cn } from "@/utils/tailwind";
 import { useSelector } from "@legendapp/state/react";
+import { useChatProjects, useChatThreads, useChatCoreContext } from "@chat/chat-core";
+import type { ProjectSummary, ThreadSummary } from "@chat/chat-core/types";
 import type { Href } from "expo-router";
-import { Pin, Plus } from "lucide-react-native";
+import {
+  ChevronDown,
+  ChevronRight,
+  FolderOpen,
+  Folder,
+  Pin,
+  Plus,
+} from "lucide-react-native";
 import React, {
   createContext,
   use,
@@ -54,10 +62,23 @@ export function useDrawer() {
   return context;
 }
 
-function DrawerHeader() {
+function DrawerHeader({
+  onCreateProject,
+}: {
+  onCreateProject: () => void;
+}) {
   return (
-    <View className="px-4 pt-2 pb-3">
+    <View className="px-4 pt-2 pb-3 flex-row items-center justify-between">
       <Text className="text-[28px] font-bold text-foreground">Chat</Text>
+      <Pressable
+        onPress={onCreateProject}
+        className="px-2.5 py-1 rounded-[8px] active:bg-accent flex-row items-center gap-1"
+      >
+        <Icon icon={Folder} className="w-3.5 h-3.5 text-muted-foreground" />
+        <Text className="text-[13px] text-muted-foreground font-medium">
+          New Project
+        </Text>
+      </Pressable>
     </View>
   );
 }
@@ -119,6 +140,75 @@ function DrawerThreadRow({
         />
       )}
     </Pressable>
+  );
+}
+
+function DrawerProjectSection({
+  project,
+  threads,
+  isExpanded,
+  onToggle,
+  onThreadPress,
+  onThreadLongPress,
+  onNewChatInProject,
+  selectedThreadId,
+}: {
+  project: ProjectSummary;
+  threads: ThreadSummary[];
+  isExpanded: boolean;
+  onToggle: () => void;
+  onThreadPress: (thread: ThreadSummary) => void;
+  onThreadLongPress: (thread: ThreadSummary) => void;
+  onNewChatInProject: () => void;
+  selectedThreadId: string | undefined;
+}) {
+  return (
+    <View className="mb-1">
+      <Pressable
+        onPress={onToggle}
+        className="flex-row items-center px-4 py-2 mx-2 rounded-[8px] active:bg-accent"
+      >
+        <Icon
+          icon={isExpanded ? ChevronDown : ChevronRight}
+          className="w-4 h-4 text-muted-foreground mr-1"
+        />
+        <Icon
+          icon={isExpanded ? FolderOpen : Folder}
+          className="w-4 h-4 text-muted-foreground mr-2"
+        />
+        <Text
+          numberOfLines={1}
+          className="flex-1 text-[13px] font-semibold text-foreground/80"
+        >
+          {project.name}
+        </Text>
+        <View className="px-1.5 py-0.5 rounded-full bg-muted mr-1.5">
+          <Text className="text-[11px] text-muted-foreground">
+            {threads.length}
+          </Text>
+        </View>
+        <Pressable
+          onPress={(e) => {
+            e.stopPropagation();
+            onNewChatInProject();
+          }}
+          hitSlop={8}
+          className="w-6 h-6 rounded-full items-center justify-center active:bg-accent"
+        >
+          <Icon icon={Plus} className="w-3.5 h-3.5 text-muted-foreground" />
+        </Pressable>
+      </Pressable>
+      {isExpanded &&
+        threads.map((thread) => (
+          <DrawerThreadRow
+            key={thread.id}
+            thread={thread}
+            active={selectedThreadId === thread.id}
+            onPress={() => onThreadPress(thread)}
+            onLongPress={() => onThreadLongPress(thread)}
+          />
+        ))}
+    </View>
   );
 }
 
@@ -186,6 +276,28 @@ function DrawerFooter({
   );
 }
 
+function useProjectCreateDialog(createProject: (args: { name: string; description?: string }) => Promise<unknown>) {
+  return useCallback(() => {
+    Alert.prompt(
+      "New Project",
+      "Enter a name for your project",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Create",
+          onPress: (name) => {
+            const trimmed = name?.trim();
+            if (trimmed) {
+              createProject({ name: trimmed }).catch(() => {});
+            }
+          },
+        },
+      ],
+      "plain-text",
+    );
+  }, [createProject]);
+}
+
 export function DrawerContent({
   onNavigate,
   onOpenModal,
@@ -193,14 +305,39 @@ export function DrawerContent({
   onNavigate: (path: Href) => void;
   onOpenModal: (path: Href) => void;
 }) {
-  const { threads, setPinned, deleteThread, isLoading } = useThreads();
+  const { projects, createProject } = useChatProjects();
+  const {
+    threadsByProject,
+    unfiledThreads,
+    setPinned,
+    deleteThread,
+    isLoading,
+  } = useChatThreads();
+  const { setPendingProjectId } = useChatCoreContext();
   const viewer = useViewer();
   const selectedThreadId = useSelector(() =>
     threadSelection$.selectedThreadId.get(),
   );
   const [error, setError] = useState<string | null>(null);
+  const [expandedProjectIds, setExpandedProjectIds] = useState<Set<string>>(
+    () => new Set(),
+  );
 
   const clearError = useCallback(() => setError(null), []);
+
+  const showCreateProject = useProjectCreateDialog(createProject);
+
+  const toggleProject = useCallback((projectId: string) => {
+    setExpandedProjectIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(projectId)) {
+        next.delete(projectId);
+      } else {
+        next.add(projectId);
+      }
+      return next;
+    });
+  }, []);
 
   const handlePin = useCallback(
     (thread: ThreadSummary) => {
@@ -266,8 +403,26 @@ export function DrawerContent({
 
   const handleNewChat = useCallback(() => {
     selectThread(undefined);
+    setPendingProjectId(null);
     onNavigate("/");
-  }, [onNavigate]);
+  }, [onNavigate, setPendingProjectId]);
+
+  const handleNewChatInProject = useCallback(
+    (projectId: string) => {
+      selectThread(undefined);
+      setPendingProjectId(projectId);
+      onNavigate("/");
+    },
+    [onNavigate, setPendingProjectId],
+  );
+
+  const handleThreadPress = useCallback(
+    (thread: ThreadSummary) => {
+      selectThread(thread.id);
+      onNavigate("/");
+    },
+    [onNavigate],
+  );
 
   const userInitials = viewer?.name
     ? viewer.name
@@ -278,9 +433,11 @@ export function DrawerContent({
         .slice(0, 2)
     : "??";
 
+  const hasProjects = projects.length > 0;
+
   return (
     <SafeAreaView className="flex-1" edges={["top", "bottom", "left"]}>
-      <DrawerHeader />
+      <DrawerHeader onCreateProject={showCreateProject} />
 
       {error && (
         <DrawerErrorBanner message={error} onDismiss={clearError} />
@@ -290,26 +447,63 @@ export function DrawerContent({
         className="flex-1"
         contentContainerStyle={{ paddingBottom: 8 }}
       >
-        <Text className="text-[13px] font-semibold text-foreground/70 px-6 pt-5 pb-1.5">
-          Recents
-        </Text>
         {isLoading ? (
           <DrawerLoadingRow />
-        ) : threads.length === 0 ? (
+        ) : threadsByProject.size === 0 && unfiledThreads.length === 0 ? (
           <DrawerEmptyState onNewChat={handleNewChat} />
         ) : (
-          threads.slice(0, 20).map((thread) => (
-            <DrawerThreadRow
-              key={thread.id}
-              thread={thread}
-              active={selectedThreadId === thread.id}
-              onPress={() => {
-                selectThread(thread.id);
-                onNavigate("/");
-              }}
-              onLongPress={() => handleLongPress(thread)}
-            />
-          ))
+          <>
+            {hasProjects && (
+              <Text className="text-[13px] font-semibold text-foreground/70 px-6 pt-5 pb-1.5">
+                Projects
+              </Text>
+            )}
+            {hasProjects &&
+              projects.map((project) => {
+                const projectThreads =
+                  threadsByProject.get(project.id) ?? [];
+                if (projectThreads.length === 0) return null;
+                const isExpanded = expandedProjectIds.has(project.id);
+                return (
+                  <DrawerProjectSection
+                    key={project.id}
+                    project={project}
+                    threads={projectThreads}
+                    isExpanded={isExpanded}
+                    onToggle={() => toggleProject(project.id)}
+                    onThreadPress={handleThreadPress}
+                    onThreadLongPress={handleLongPress}
+                    onNewChatInProject={() =>
+                      handleNewChatInProject(project.id)
+                    }
+                    selectedThreadId={selectedThreadId}
+                  />
+                );
+              })}
+
+            {hasProjects && (
+              <View className="mx-6 my-2 border-b border-border" />
+            )}
+
+            {hasProjects && (
+              <Text className="text-[13px] font-semibold text-foreground/70 px-6 pt-1 pb-1.5">
+                Unfiled
+              </Text>
+            )}
+            {(!hasProjects || unfiledThreads.length > 0) &&
+              unfiledThreads.map((thread) => (
+                <DrawerThreadRow
+                  key={thread.id}
+                  thread={thread}
+                  active={selectedThreadId === thread.id}
+                  onPress={() => handleThreadPress(thread)}
+                  onLongPress={() => handleLongPress(thread)}
+                />
+              ))}
+            {!hasProjects && unfiledThreads.length === 0 && (
+              <DrawerEmptyState onNewChat={handleNewChat} />
+            )}
+          </>
         )}
       </ScrollView>
 

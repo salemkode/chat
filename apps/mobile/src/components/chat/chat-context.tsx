@@ -7,6 +7,7 @@ export type ChatContextValue = {
   input: string;
   setInput: (value: string) => void;
   isGenerating: boolean;
+  canSend: boolean;
   onSend: () => void;
   streamingStore: StreamingStore;
   error?: Error | null;

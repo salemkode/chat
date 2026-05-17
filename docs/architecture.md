@@ -212,12 +212,12 @@ Backend:
 
 1. User lands on the `chat` shell route and opens the gesture drawer when they need history/projects.
 2. Route composes `ChatDrawerLayout`, live `MobileSidebarPage`, and `ChatPage`.
-3. `useChatConversation` combines thread state, draft state, selected model, project mention, attachments, and online status.
+3. The route and the attachments sheet share `ChatAttachmentsProvider`, so selected files survive sheet dismissal and remain visible in the composer until send or removal.
 4. `ChatComposer` submits through `useSendMessage`.
-5. `useSendMessage` optionally creates a thread, uploads attachments, and calls Convex generation mutations.
-6. File picker options are derived from each model attachment policy (`supportedAttachmentMediaTypes` when configured; an explicit empty list disables uploads; otherwise capability inference), then constrained by provider-specific runtime limits. Unsupported file types are blocked in the composer.
-7. Optimistic UI is inserted locally for thread and message rows.
-8. If a mutation fails, a failed assistant response is shown inline with error text and a replay action.
+5. `useSendMessage` optionally creates a thread, uploads attachment URIs through `agents.generateAttachmentUploadUrl`, and calls Convex generation mutations.
+6. File picker options are derived from each selected model attachment policy (`supportedAttachmentMediaTypes` when configured; an explicit empty list disables uploads; otherwise capability inference). Unsupported files are rejected in the sheet before upload, and the composer shows non-blocking inline errors for picker or upload failures.
+7. Successful user messages render stored file parts from `chatMessages.parts`, so attachments remain visible in the transcript after send.
+8. If a mutation fails, the composer restores the draft text, keeps the selected attachments, and shows inline error text.
 
 ### Web
 
@@ -253,6 +253,7 @@ Mobile streaming markdown:
 - assistant responses render through the native message text component while streaming
 - Expo source config keeps New Architecture enabled in `apps/mobile/app.json`, matching the generated native mobile projects used by Reanimated 4
 - Reanimated worklets remain enabled through `react-native-worklets` in `apps/mobile/babel.config.js`
+- streaming markdown repair runs on the RN JS thread before native text rendering; it does not call `remend` from a worklet/runtime thread
 
 ### Web
 

@@ -1,5 +1,6 @@
 import { SymbolImage } from "@/components/symbol-image";
 import { TouchableGlass } from "@/components/touchable-glass";
+import { AttachmentChipList } from "./attachment-chip-list";
 import {
   GlassContainer,
   GlassView,
@@ -31,6 +32,7 @@ export function PromptInput({ children }: { children: ReactNode }) {
       style={[{ position: "absolute", left: 0, right: 0 }, promptInputStyle]}
     >
       {error && <PromptInputError message={error.message} />}
+      <AttachmentChipList />
       <AnimatedGlassContainer
         style={{
           flex: 1,
@@ -173,8 +175,8 @@ export function PromptInputTextarea({
  * is generating. Reads state from `ChatContext`.
  */
 export function PromptInputSubmit() {
-  const { input, isGenerating, onSend } = useChatContext();
-  const disabled = !input.trim() || isGenerating;
+  const { canSend, isGenerating, onSend } = useChatContext();
+  const disabled = !canSend || isGenerating;
 
   return (
     <Pressable

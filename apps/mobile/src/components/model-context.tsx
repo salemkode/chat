@@ -2,6 +2,11 @@ import React, { createContext, use, useCallback, useEffect, useMemo, useState } 
 import { useModels } from "@/hooks/use-models";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { Id } from "@convex/_generated/dataModel";
+import {
+  mediaTypeMatchesPattern,
+  resolveModelAttachmentMediaTypes,
+  type ModelAttachmentValidationStatus,
+} from "@chat/shared";
 
 const LAST_USED_MODEL_KEY = "last-used-model-id";
 
@@ -9,6 +14,10 @@ export type Model = {
   id: Id<"models">;
   label: string;
   subtitle?: string;
+  attachmentValidationStatus?: ModelAttachmentValidationStatus;
+  capabilities?: string[];
+  providerType?: string | null;
+  supportedAttachmentMediaTypes?: string[];
 };
 
 export type ModelCollection = {
@@ -22,6 +31,9 @@ type ModelContextValue = {
   collections: ModelCollection[];
   selectedModel: string;
   selectedModelId: Id<"models"> | undefined;
+  attachmentMediaTypes: string[];
+  attachmentsSupported: boolean;
+  imageAttachmentsSupported: boolean;
   extendedThinking: boolean;
   setExtendedThinking: (value: boolean) => void;
   setSelectedModel: (modelId: Id<"models">) => void;
@@ -81,6 +93,10 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
         id: m._id,
         label: m.displayName,
         subtitle: m.description,
+        attachmentValidationStatus: m.attachmentValidationStatus,
+        capabilities: m.capabilities,
+        providerType: m.provider?.providerType ?? null,
+        supportedAttachmentMediaTypes: m.supportedAttachmentMediaTypes,
       })),
     [apiModels],
   );
@@ -96,6 +112,25 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
 
   const selectedModel =
     apiModels.find((m) => m._id === selectedModelId)?.displayName ?? "Auto";
+  const selectedModelInfo = apiModels.find((model) => model._id === selectedModelId);
+  const attachmentMediaTypes = useMemo(
+    () =>
+      selectedModelInfo
+        ? resolveModelAttachmentMediaTypes({
+            providerType: selectedModelInfo.provider?.providerType,
+            capabilities: selectedModelInfo.capabilities,
+            supportedAttachmentMediaTypes:
+              selectedModelInfo.supportedAttachmentMediaTypes,
+            attachmentValidationStatus:
+              selectedModelInfo.attachmentValidationStatus,
+          })
+        : [],
+    [selectedModelInfo],
+  );
+  const attachmentsSupported = attachmentMediaTypes.length > 0;
+  const imageAttachmentsSupported = attachmentMediaTypes.some((pattern) =>
+    mediaTypeMatchesPattern("image/jpeg", pattern),
+  );
 
   return (
     <ModelContext
@@ -104,6 +139,9 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
         collections,
         selectedModel,
         selectedModelId,
+        attachmentMediaTypes,
+        attachmentsSupported,
+        imageAttachmentsSupported,
         extendedThinking,
         setExtendedThinking,
         setSelectedModel,

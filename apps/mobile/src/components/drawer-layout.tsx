@@ -22,6 +22,7 @@ import Animated, {
   interpolate,
   ReduceMotion,
   runOnJS,
+  runOnUI,
   useAnimatedProps,
   useAnimatedStyle,
   useDerivedValue,
@@ -106,7 +107,7 @@ export function DrawerLayout({
   // Track the current `open` prop on the UI thread
   const openValue = useSharedValue(open);
 
-  const toggleDrawer = React.useCallback(
+  const animateDrawer = React.useCallback(
     (isOpen: boolean, velocity?: number) => {
       "worklet";
 
@@ -122,40 +123,51 @@ export function DrawerLayout({
         overshootClamping: true,
         reduceMotion: ReduceMotion.Never,
       });
+    },
+    [drawerWidth, touchStartX, touchX, translationX],
+  );
 
+  const notifyDrawerState = React.useCallback(
+    (isOpen: boolean) => {
       if (isOpen) {
-        runOnJS(callOnOpen)();
+        callOnOpen();
       } else {
-        runOnJS(callOnClose)();
+        callOnClose();
       }
     },
-    [drawerWidth, callOnOpen, callOnClose, touchStartX, touchX, translationX],
+    [callOnOpen, callOnClose],
+  );
+
+  const closeDrawerFromRN = React.useCallback(() => {
+    runOnUI(animateDrawer)(false);
+    notifyDrawerState(false);
+  }, [animateDrawer, notifyDrawerState]);
+
+  const finishDrawerGestureOnRN = React.useCallback(
+    (nextOpen: boolean) => {
+      endInteraction();
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      notifyDrawerState(nextOpen);
+      if (nextOpen) {
+        Keyboard.dismiss();
+      }
+    },
+    [endInteraction, notifyDrawerState],
   );
 
   // Animate to match `open` prop
   React.useEffect(() => {
     openValue.value = open;
-    toggleDrawer(open);
+    runOnUI(animateDrawer)(open);
     if (open) {
       Keyboard.dismiss();
     }
-  }, [open, toggleDrawer, openValue]);
+  }, [animateDrawer, open, openValue]);
 
   const onGestureBegin = React.useCallback(() => {
     startInteraction();
     Keyboard.dismiss();
   }, [startInteraction]);
-
-  const onGestureFinish = React.useCallback(
-    (nextOpen: boolean) => {
-      endInteraction();
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      if (nextOpen) {
-        Keyboard.dismiss();
-      }
-    },
-    [endInteraction],
-  );
 
   const pan = React.useMemo(() => {
     const gesture = Gesture.Pan()
@@ -192,8 +204,8 @@ export function DrawerLayout({
               (event.velocityX === 0 ? event.translationX : event.velocityX) > 0
             : openValue.value;
 
-        toggleDrawer(nextOpen, event.velocityX);
-        runOnJS(onGestureFinish)(nextOpen);
+        animateDrawer(nextOpen, event.velocityX);
+        runOnJS(finishDrawerGestureOnRN)(nextOpen);
       })
       .activeOffsetX([-SWIPE_MIN_OFFSET, SWIPE_MIN_OFFSET])
       .failOffsetY([-SWIPE_MIN_OFFSET, SWIPE_MIN_OFFSET])
@@ -210,12 +222,12 @@ export function DrawerLayout({
     drawerWidth,
     gestureState,
     onGestureBegin,
-    onGestureFinish,
+    finishDrawerGestureOnRN,
     open,
     openValue,
     startX,
     swipeEnabled,
-    toggleDrawer,
+    animateDrawer,
     touchStartX,
     touchX,
     translationX,
@@ -282,7 +294,7 @@ export function DrawerLayout({
             <View aria-hidden={open} className="flex-1 overflow-hidden">
               {children}
             </View>
-            <Overlay progress={progress} onPress={() => toggleDrawer(false)} />
+            <Overlay progress={progress} onPress={closeDrawerFromRN} />
           </Animated.View>
           <Animated.View
             aria-hidden={!open}

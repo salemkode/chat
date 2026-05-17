@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
-import { processRemendInWorklet } from '../worklets/remendWorklet';
+import { useEffect, useRef, useState } from 'react';
 import type { RemendOptions } from 'remend';
+import { processStreamingMarkdown } from '../markdownProcessor';
 
 interface UseStreamdownMarkdownOptions {
   remendConfig?: RemendOptions;
@@ -28,17 +28,12 @@ export function useStreamdownMarkdown(
 
     setIsStreaming(true);
     const currentVersion = ++versionRef.current;
+    const processed = processStreamingMarkdown(markdown, options?.remendConfig);
 
-    processRemendInWorklet(
-      markdown,
-      (result) => {
-        if (currentVersion === versionRef.current) {
-          setProcessedMarkdown(result);
-          setIsStreaming(false);
-        }
-      },
-      options?.remendConfig
-    );
+    if (currentVersion === versionRef.current) {
+      setProcessedMarkdown(processed);
+      setIsStreaming(false);
+    }
   }, [markdown, options?.remendConfig]);
 
   return { processedMarkdown, isStreaming };

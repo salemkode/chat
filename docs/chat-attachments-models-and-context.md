@@ -7,7 +7,7 @@ This page describes how file uploads are ingested, how the same thread can use d
 ### Client flow
 
 - **Web** (`apps/web/src/hooks/chat-data/send.ts`): the UI obtains a Convex file upload URL from `agents.generateAttachmentUploadUrl`, then `POST`s each selected `File` to that URL with a `Content-Type` matching the file. The JSON response yields a `storageId` that is sent to `agents.generateMessage` inside the `attachments` array.
-- **Mobile** (`apps/mobile/src/mobile-data/use-send-message.ts` + `attachments.ts`): the same Convex upload URL pattern is used after converting local assets to blobs. **Images** picked from the library are resized and re-encoded to JPEG on-device (quality/size loop targeting ~500KB) before upload. **Documents** (for example PDFs) are uploaded as returned by the document picker without that image-specific pipeline.
+- **Mobile** (`apps/mobile/src/components/chat/attachment-sheet.tsx`, `apps/mobile/src/components/chat/attachment-context.tsx`, `apps/mobile/src/hooks/use-send-message.ts`): the attachment sheet adds files from the system document picker, photo library, or camera into shared composer state. The selected model’s resolved attachment media types gate which picks are accepted. On send, the app fetches each local URI, converts it to a blob, uploads it through `agents.generateAttachmentUploadUrl`, and forwards `{ storageId, filename, mediaType }` to `agents.generateMessage`.
 
 ### Server flow (`convex/agents.ts`)
 
