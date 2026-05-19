@@ -21,6 +21,7 @@
     "./logic/attachment-metadata": "./src/logic/attachment-metadata.ts",
     "./logic/send-pipeline-core": "./src/logic/send-pipeline-core.ts",
     "./logic/user-facing-errors": "./src/logic/user-facing-errors.ts",
+    "./logic/user-facing-error-catalog": "./src/logic/user-facing-error-catalog.ts",
     "./logic/chat-generation-core": "./src/logic/chat-generation-core.ts",
     "./quran-ayah": "./src/quran-ayah.ts",
     "./convex-query-cache/provider": "./src/convex-query-cache/provider.tsx",

@@ -25,6 +25,8 @@ import { MainHeader } from "@/components/main-header";
 import { useModel } from "@/components/model-context";
 import { validateAttachmentsForSend } from "@/lib/attachment-capability-messages";
 import {
+  CHAT_PROJECT_ASSIGN_FAILED_MESSAGE,
+  CHAT_STOP_GENERATION_FAILED_MESSAGE,
   formatMessageFailureNote,
   formatUserFacingError,
 } from "@chat/shared/logic/user-facing-errors";
@@ -120,7 +122,7 @@ export default function ChatScreen() {
         promptMessageId: activeGeneration?.promptMessageId,
       });
       if (!result.stopped) {
-        setError(new Error("Could not stop generation. Try again in a moment."));
+        setError(new Error(CHAT_STOP_GENERATION_FAILED_MESSAGE));
         return;
       }
       setError(null);
@@ -146,7 +148,7 @@ export default function ChatScreen() {
       imageAttachmentsSupported,
     });
     if (attachmentError) {
-      setError(new Error(attachmentError));
+      setError(new Error(formatUserFacingError(attachmentError)));
       return;
     }
 
@@ -181,7 +183,7 @@ export default function ChatScreen() {
         if (pendingProjectId) {
           void assignThreadToProject(result.threadId, pendingProjectId)
             .catch(() => {
-              setError(new Error("Could not add this chat to the selected project"));
+              setError(new Error(CHAT_PROJECT_ASSIGN_FAILED_MESSAGE));
             })
             .finally(() => setPendingProjectId(null));
         }

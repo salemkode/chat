@@ -6,7 +6,7 @@ import { FileText, ChevronDown, ChevronUp } from '@/lib/icons'
 import { memo, useMemo, useState } from 'react'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { canStopActiveGeneration } from '@chat/shared/logic/chat-generation-core'
-import { getMessageFailurePresentation } from '@/lib/chat-generation'
+import { formatMessageFailureNote } from '@chat/shared/logic/user-facing-errors'
 import { cn } from '@/lib/utils'
 import { ChatInlineError } from './chat/chat-inline-error'
 import { QuranAyahCard } from './chat/quran-ayah-card'
@@ -37,11 +37,6 @@ export const Message = memo(function Message({
   })
   const visibleText = shouldSmoothText ? smoothedText : message.text
   const isFailedAssistant = message.role === 'assistant' && message.status === 'failed'
-  const failurePresentation = getMessageFailurePresentation(message)
-  const shouldReplaceWithFailureMessage =
-    isFailedAssistant && failurePresentation?.mode === 'replace'
-  const shouldShowFailureClarification =
-    isFailedAssistant && failurePresentation?.mode === 'clarify'
   const hasActivity = useMemo(
     () =>
       message.parts.some((part: Record<string, unknown>) => {
@@ -60,9 +55,21 @@ export const Message = memo(function Message({
   const ayahCard = useMemo(() => getQuranAyahCardFromParts(message.parts), [message.parts])
 
   if (message.role === 'assistant') {
+    if (isFailedAssistant) {
+      const failureNote = formatMessageFailureNote(
+        typeof message.failureNote === 'string' ? message.failureNote : undefined,
+        message.failureKind === 'stopped' ? 'stopped' : 'error',
+      )
+
+      return (
+        <div className={cn('mx-auto w-full max-w-3xl', isMobile && 'px-0.5')}>
+          <ChatInlineError message={failureNote} />
+        </div>
+      )
+    }
+
     const disableRepeat = message.status === 'streaming' || message.status === 'pending'
-    const failureNote = failurePresentation?.note || 'This response could not be generated.'
-    const shouldShowResend = isFailedAssistant || isStalled
+    const shouldShowResend = isStalled
     const canStop = isActiveGeneration
       ? canStopActiveGeneration({ message, isStalled })
       : false
@@ -73,25 +80,18 @@ export const Message = memo(function Message({
           <MessageActivityTimeline parts={message.parts} messageStatus={message.status} />
         ) : null}
 
-        {shouldReplaceWithFailureMessage ? (
-          <ChatInlineError message={failureNote} />
-        ) : (
-          <div
-            dir="auto"
-            className={cn('space-y-3 px-1 py-1', isMobile && 'space-y-3.5 px-0.5 py-1.5')}
-          >
-            {ayahCard ? <QuranAyahCard ayah={ayahCard} /> : null}
-            {visibleText.trim() ? (
-              <ChatMarkdown
-                text={visibleText}
-                isStreaming={message.status === 'streaming' || message.status === 'pending'}
-              />
-            ) : null}
-          </div>
-        )}
-        {shouldShowFailureClarification ? (
-          <ChatInlineError message={failureNote} className="mt-3" />
-        ) : null}
+        <div
+          dir="auto"
+          className={cn('space-y-3 px-1 py-1', isMobile && 'space-y-3.5 px-0.5 py-1.5')}
+        >
+          {ayahCard ? <QuranAyahCard ayah={ayahCard} /> : null}
+          {visibleText.trim() ? (
+            <ChatMarkdown
+              text={visibleText}
+              isStreaming={message.status === 'streaming' || message.status === 'pending'}
+            />
+          ) : null}
+        </div>
 
         {fileParts.length > 0 ? (
           <div className="mt-3">

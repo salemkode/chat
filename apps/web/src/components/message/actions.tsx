@@ -10,6 +10,11 @@ import { Button } from '@/components/ui/button'
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
 import type { MessageFilePart } from '@/components/message/utils'
 import { getSelectionTierFromAppPlan } from '@/lib/model-routing'
+import {
+  CHAT_STOP_GENERATION_FAILED_MESSAGE,
+  formatUserFacingError,
+} from '@chat/shared/logic/user-facing-errors'
+import { dispatchComposerError } from '@/lib/chat-events'
 
 const LONG_PRESS_DELAY_MS = 450
 const HOVER_CLOSE_DELAY_MS = 120
@@ -295,7 +300,13 @@ export function StopButton({
 
         setIsStopping(true)
         try {
-          await stop({ threadId, promptMessageId })
+          const result = await stop({ threadId, promptMessageId })
+          if (!result.stopped) {
+            dispatchComposerError(CHAT_STOP_GENERATION_FAILED_MESSAGE)
+            return
+          }
+        } catch (error) {
+          dispatchComposerError(formatUserFacingError(error))
         } finally {
           setIsStopping(false)
         }

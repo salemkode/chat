@@ -218,6 +218,7 @@ Backend:
 6. File picker options are derived from each selected model attachment policy (`supportedAttachmentMediaTypes` when configured; an explicit empty list disables uploads; otherwise capability inference). Unsupported files are rejected in the sheet before upload, and the composer shows non-blocking inline errors for picker or upload failures.
 7. Successful user messages render stored file parts from `chatMessages.parts`, so attachments remain visible in the transcript after send.
 8. If a mutation fails, the composer restores the draft text, keeps the selected attachments, and shows inline error text.
+9. Raw Convex/provider errors are normalized for users through `packages/shared/src/logic/user-facing-error-catalog.ts` (`formatUserFacingError`, `formatMessageFailureNote`) before they reach `ChatInlineError` on web and mobile.
 
 ### Web
 

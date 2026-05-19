@@ -7,6 +7,10 @@ import { matchesHotkeyBinding } from '@/lib/hotkeys'
 import { cn } from '@/lib/utils'
 import { useQuery } from '@/lib/convex-query-cache'
 import { ChatInlineError } from '@/components/chat/chat-inline-error'
+import {
+  CHAT_COMPOSER_ERROR_EVENT,
+  type ChatComposerErrorDetail,
+} from '@/lib/chat-events'
 import { useHotkeys } from '@/components/hotkeys-provider'
 import {
   AttachmentGrid,
@@ -620,6 +624,19 @@ export function AIPromptInput({
   }, [submitError])
 
   useEffect(() => {
+    const onComposerError = (event: Event) => {
+      const detail = (event as CustomEvent<ChatComposerErrorDetail>).detail
+      if (!detail?.message) {
+        return
+      }
+      setSubmitError(detail.message)
+    }
+
+    window.addEventListener(CHAT_COMPOSER_ERROR_EVENT, onComposerError)
+    return () => window.removeEventListener(CHAT_COMPOSER_ERROR_EVENT, onComposerError)
+  }, [])
+
+  useEffect(() => {
     return () => {
       for (const attachment of attachmentsRef.current) {
         if (attachment.previewUrl) {
@@ -632,7 +649,7 @@ export function AIPromptInput({
   return (
     <div className={cn('pointer-events-auto mb-1 w-full', mobile ? 'bg-transparent' : '')}>
       {submitError ? (
-        <div className={cn('mb-2 px-3 pb-2', mobile && 'px-2')}>
+        <div className={cn('px-3 pb-2', mobile && 'px-2')}>
           <ChatInlineError variant="composer" message={submitError} />
         </div>
       ) : null}

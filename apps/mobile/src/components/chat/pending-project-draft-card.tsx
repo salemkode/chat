@@ -7,6 +7,7 @@ import {
   View,
 } from "react-native";
 
+import { ChatInlineError } from "./chat-inline-error";
 import { ComposerFloatingInsetSurface } from "./composer-floating-surface";
 
 export function PendingProjectDraftCard({
@@ -47,7 +48,11 @@ export function PendingProjectDraftCard({
         </View>
       ) : null}
       {draft.error ? (
-        <Text className="mb-2 text-xs text-destructive">{draft.error}</Text>
+        <ChatInlineError
+          variant="composer"
+          message={draft.error}
+          className="mb-2 px-0"
+        />
       ) : null}
       <TextInput
         value={name}

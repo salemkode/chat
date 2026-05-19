@@ -1,3 +1,4 @@
+import { resolveChatInlineErrorMessage } from "@chat/shared/logic/user-facing-errors";
 import { cn } from "@/utils/tailwind";
 import { Text, View } from "react-native";
 
@@ -43,7 +44,7 @@ export function ChatInlineError({
         )}
         numberOfLines={variant === "composer" ? 2 : undefined}
       >
-        {message || "Something went wrong. Try again."}
+        {resolveChatInlineErrorMessage(message)}
       </Text>
     </View>
   );

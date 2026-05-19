@@ -1,3 +1,4 @@
+import { resolveChatInlineErrorMessage } from '@chat/shared/logic/user-facing-errors'
 import { cn } from '@/lib/utils'
 
 type ChatInlineErrorProps = {
@@ -12,7 +13,7 @@ export function ChatInlineError({
   variant = 'message',
   className,
 }: ChatInlineErrorProps) {
-  const copy = message.trim() || 'Something went wrong. Try again.'
+  const copy = resolveChatInlineErrorMessage(message)
 
   return (
     <div
@@ -34,7 +35,7 @@ export function ChatInlineError({
       <p
         className={cn(
           'flex-1 text-muted-foreground',
-          variant === 'composer' ? 'text-xs leading-4' : 'text-sm leading-5',
+          variant === 'composer' ? 'line-clamp-2 text-xs leading-4' : 'text-sm leading-5',
         )}
       >
         {copy}
