@@ -38,10 +38,7 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
-          "dark": {
-            "backgroundColor": "#000000"
-          }
+          "backgroundColor": "#ffffff"
         }
       ],
       "expo-asset",
@@ -51,8 +48,9 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow $(PRODUCT_NAME) to access your photos for chat attachments.",
-          "cameraPermission": "Allow $(PRODUCT_NAME) to use your camera for chat attachments."
+          "photosPermission": "Choose photos to use in the app.",
+          "cameraPermission": "Allow $(PRODUCT_NAME) to use your camera for chat attachments.",
+          "microphonePermission": false
         }
       ],
       "expo-secure-store",

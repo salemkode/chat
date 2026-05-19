@@ -2,9 +2,9 @@ import { ClerkProvider } from "@clerk/expo";
 import { ConvexClientProvider } from "@/lib/convex-provider";
 import { resourceCache, tokenCache } from "@/lib/clerk";
 import "@/global.css";
-import "@/utils/fetch-polyfill";
+import { ThemedStatusBar } from "@/components/themed-status-bar";
+import { ThemePreferenceBootstrap } from "@/components/theme-preference-bootstrap";
 import { Stack } from "expo-router";
-import { StatusBar } from "expo-status-bar";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 
 const CLERK_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
@@ -21,12 +21,13 @@ export default function RootLayout() {
       __experimental_resourceCache={resourceCache}
     >
       <ConvexClientProvider>
+        <ThemePreferenceBootstrap />
         <KeyboardProvider>
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="(auth)" />
             <Stack.Screen name="(app)" />
           </Stack>
-          <StatusBar style="auto" />
+          <ThemedStatusBar />
         </KeyboardProvider>
       </ConvexClientProvider>
     </ClerkProvider>

@@ -6,9 +6,9 @@ const AUTO_METADATA_COOLDOWN_MS = 30 * 60 * 1000
 const PLACEHOLDER_TITLES = new Set(['new chat', 'untitled', 'untitled chat'])
 const WEAK_TITLES = new Set(['chat', 'question', 'help', 'discussion', 'conversation', 'project'])
 
-const TOOL_POLICY_VERSION = 'phase1-memory-metadata-v1'
+export const TOOL_POLICY_VERSION = 'phase1-memory-metadata-v1'
 
-type ToolPolicyRequiredAction =
+export type ToolPolicyRequiredAction =
   | 'memory_search_required'
   | 'memory_add_required'
   | 'memory_update_required'
@@ -23,7 +23,9 @@ type ToolPolicyDetectedIntent =
   | 'metadata_refresh'
   | 'none'
 
-type ToolPolicyAutomaticAction = 'metadata_update_applied' | 'metadata_update_failed'
+export type ToolPolicyAutomaticAction =
+  | 'metadata_update_applied'
+  | 'metadata_update_failed'
 
 type ToolPolicyEvaluation = {
   detectedIntent: ToolPolicyDetectedIntent
@@ -414,7 +416,7 @@ function actionToToolName(action: ToolPolicyRequiredAction) {
   }
 }
 
-function finalizeToolPolicyEvaluation(args: {
+export function finalizeToolPolicyEvaluation(args: {
   requiredActions: ToolPolicyRequiredAction[]
   automaticActions: ToolPolicyAutomaticAction[]
   messageParts: Array<Record<string, unknown>>

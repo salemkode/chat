@@ -2355,6 +2355,39 @@ export const updateThreadIcon = mutation({
   },
 })
 
+export const updateThreadTitle = mutation({
+  args: {
+    threadId: v.string(),
+    title: v.string(),
+  },
+  returns: v.string(),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId) {
+      throw new ConvexError({
+        code: 'UNAUTHORIZED',
+        message: 'You must be logged in to rename this thread',
+      })
+    }
+
+    const result = await ctx.runMutation(internal.agents.applyThreadMetadataUpdate, {
+      threadId: args.threadId,
+      userId,
+      title: args.title,
+    })
+
+    const nextTitle = result.title?.trim()
+    if (!nextTitle) {
+      throw new ConvexError({
+        code: 'INVALID_ARGUMENT',
+        message: 'Thread title cannot be empty',
+      })
+    }
+
+    return nextTitle
+  },
+})
+
 // List threads with metadata (grouped by section)
 export const listThreadsWithMetadata = query({
   args: {},

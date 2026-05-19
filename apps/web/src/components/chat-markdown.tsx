@@ -375,6 +375,8 @@ export const ChatMarkdown = React.memo(function ChatMarkdown({
       className={cn(
         'chat-markdown w-full min-w-0 max-w-none overflow-hidden text-foreground/90 wrap-anywhere',
         'prose prose-sm dark:prose-invert',
+        'prose-code:text-foreground prose-code:bg-muted prose-code:font-normal prose-code:before:content-none prose-code:after:content-none',
+        'prose-pre:text-foreground prose-headings:text-foreground prose-strong:text-foreground',
         className,
       )}
     >

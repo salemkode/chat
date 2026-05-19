@@ -11,12 +11,11 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  useColorScheme,
   View,
   type TextStyle,
 } from "react-native";
 import SyntaxHighlighter from "react-syntax-highlighter";
-import { githubGist, irBlack } from "react-syntax-highlighter/dist/esm/styles/hljs";
+import { githubGist } from "react-syntax-highlighter/dist/esm/styles/hljs";
 
 type HighlighterStyleSheet = { [key: string]: TextStyle };
 type ReactStyle = { [key: string]: CSSProperties };
@@ -71,8 +70,7 @@ function trimNewlines(string: string): string {
   return start > 0 || end < string.length ? string.slice(start, end) : string;
 }
 
-// Pre-compute stylesheets for both themes
-const darkStylesheet = getRNStylesFromHljsStyle(irBlack as ReactStyle);
+// Pre-compute stylesheet for light theme
 const lightStylesheet = getRNStylesFromHljsStyle(githubGist as ReactStyle);
 
 interface CodeBlockProps {
@@ -84,26 +82,23 @@ export const CodeBlock = memo(function CodeBlock({
   code,
   language,
 }: CodeBlockProps) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-
-  const stylesheet = isDark ? darkStylesheet : lightStylesheet;
+  const stylesheet = lightStylesheet;
 
   const baseStyle = useMemo(
     () =>
       StyleSheet.flatten([
         styles.text,
-        { color: stylesheet.hljs?.color || (isDark ? "#f8f8f2" : "#333") },
+        { color: stylesheet.hljs?.color || "#333" },
       ]),
-    [stylesheet, isDark],
+    [stylesheet],
   );
 
   const containerStyle = useMemo(
     () => [
       styles.container,
-      { backgroundColor: isDark ? "#1a1a1a" : "#f6f8fa" },
+      { backgroundColor: "#f6f8fa" },
     ],
-    [isDark],
+    [],
   );
 
   const getStylesForNode = useCallback(

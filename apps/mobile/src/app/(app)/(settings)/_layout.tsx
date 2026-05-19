@@ -1,4 +1,3 @@
-import * as Application from "expo-application";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Stack, useRouter } from "expo-router";
 import { useCSSVariable } from "uniwind";
@@ -34,27 +33,6 @@ export default function SettingsLayout() {
         <Stack.Toolbar placement="left">
           <Stack.Toolbar.Button icon="xmark" onPress={() => router.back()} />
         </Stack.Toolbar>
-        <Stack.Toolbar placement="right">
-          <Stack.Toolbar.Menu icon="info.circle">
-            <Stack.Toolbar.MenuAction icon={"app"}>
-              {`${Application.applicationName} v${Application.nativeApplicationVersion} (${Application.nativeBuildVersion})`}
-            </Stack.Toolbar.MenuAction>
-            <Stack.Toolbar.Menu inline>
-              <Stack.Toolbar.MenuAction icon="doc.text">
-                Acceptable Use Policy
-              </Stack.Toolbar.MenuAction>
-              <Stack.Toolbar.MenuAction icon="arrow.up.forward.square">
-                Consumer Terms
-              </Stack.Toolbar.MenuAction>
-              <Stack.Toolbar.MenuAction icon="arrow.up.forward.square">
-                Privacy Policy
-              </Stack.Toolbar.MenuAction>
-            </Stack.Toolbar.Menu>
-            <Stack.Toolbar.MenuAction icon="arrow.up.forward.square">
-              Help & Support
-            </Stack.Toolbar.MenuAction>
-          </Stack.Toolbar.Menu>
-        </Stack.Toolbar>
       </Stack.Screen>
       <Stack.Screen
         name="profile"
@@ -63,9 +41,21 @@ export default function SettingsLayout() {
         }}
       />
       <Stack.Screen
-        name="capabilities"
+        name="appearance"
         options={{
-          title: "Capabilities",
+          title: "Theme",
+        }}
+      />
+      <Stack.Screen
+        name="models"
+        options={{
+          title: "Models & reasoning",
+        }}
+      />
+      <Stack.Screen
+        name="memory"
+        options={{
+          title: "Memory",
         }}
       />
     </Stack>

@@ -1,29 +1,29 @@
-import { Icon } from "@/components/icon";
-import { Link } from "expo-router";
-import type { LucideIcon } from "lucide-react-native";
 import {
-  Bell,
-  ChevronRight,
-  CircleDollarSign,
-  CircleUser,
-  Globe,
-  LayoutGrid,
-  Link2,
-  LogOut,
-  ShieldCheck,
-  SlidersHorizontal,
-  SunMoon,
-  TrendingUp,
-  Users,
-  Vibrate,
-} from "lucide-react-native";
+  SettingsRow,
+  SettingsSectionDivider,
+} from "@/components/settings/settings-row";
+import { useThemePreference } from "@/hooks/use-theme-preference";
+import { useViewer } from "@/hooks/use-viewer";
 import { useAuth } from "@clerk/expo";
-import { useState } from "react";
-import { Alert, Pressable, ScrollView, Switch, Text, View } from "react-native";
+import {
+  Brain,
+  CircleUser,
+  Database,
+  LogOut,
+  Palette,
+} from "lucide-react-native";
+import { Alert, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+function themeModeLabel(mode: string) {
+  if (mode === "light") return "Light";
+  if (mode === "dark") return "Dark";
+  return "System";
+}
+
 export default function SettingsScreen() {
-  const [hapticFeedback, setHapticFeedback] = useState(true);
+  const viewer = useViewer();
+  const { settings: themeSettings } = useThemePreference();
   const insets = useSafeAreaInsets();
   const { signOut } = useAuth();
 
@@ -36,63 +36,40 @@ export default function SettingsScreen() {
           process.env.EXPO_OS === "android" ? insets.bottom : undefined,
       }}
     >
-      {/* Email */}
-      <View
-        className="mx-5 mt-4 mb-5 bg-muted dark:bg-muted rounded-xl px-4 py-3"
-        style={{ borderCurve: "continuous" }}
-      >
-        <Text
-          selectable
-          className="text-[15px] text-foreground dark:text-foreground"
+      {viewer?.email ? (
+        <View
+          className="mx-5 mt-4 mb-5 bg-muted rounded-xl px-4 py-3"
+          style={{ borderCurve: "continuous" }}
         >
-          developer@expo.dev
-        </Text>
-      </View>
+          <Text selectable className="text-[15px] text-foreground">
+            {viewer.email}
+          </Text>
+        </View>
+      ) : null}
 
-      {/* Account */}
       <SettingsRow
         icon={CircleUser}
-        label="Profile"
+        label="Account"
         href="/(settings)/profile"
       />
-      <SettingsRow icon={CircleDollarSign} label="Billing" detail="Max plan" />
-      <SettingsRow icon={TrendingUp} label="Usage" />
-
-      <SectionDivider />
-
-      {/* Features */}
       <SettingsRow
-        icon={SlidersHorizontal}
-        label="Capabilities"
-        href="/(settings)/capabilities"
+        icon={Palette}
+        label="Theme"
+        detail={themeModeLabel(themeSettings.mode)}
+        href="/(settings)/appearance"
       />
-      <SettingsRow icon={LayoutGrid} label="Connectors" />
-      <SettingsRow icon={Users} label="Permissions" />
-
-      <SectionDivider />
-
-      {/* Preferences */}
-      <SettingsRow icon={SunMoon} label="Appearance" detail="System" />
-      <SettingsRow icon={Globe} label="Speech language" detail="EN" />
-      <SettingsRow icon={Bell} label="Notifications" />
-      <SettingsRow icon={ShieldCheck} label="Privacy" />
-      <SettingsRow icon={Link2} label="Shared links" />
-
-      <SectionDivider />
-
-      {/* Toggles */}
-      <SettingsToggleRow
-        icon={Vibrate}
-        label="Haptic feedback"
-        value={hapticFeedback}
-        onValueChange={setHapticFeedback}
+      <SettingsRow
+        icon={Brain}
+        label="Models & reasoning"
+        href="/(settings)/models"
       />
+      <SettingsRow icon={Database} label="Memory" href="/(settings)/memory" />
 
-      <SectionDivider />
+      <SettingsSectionDivider />
 
-      {/* Log out */}
-      <Pressable
-        className="flex-row items-center px-5 py-3.5 gap-4 active:bg-muted"
+      <SettingsRow
+        icon={LogOut}
+        label="Log out"
         onPress={() => {
           Alert.alert("Sign Out", "Are you sure you want to sign out?", [
             { text: "Cancel", style: "cancel" },
@@ -103,87 +80,7 @@ export default function SettingsScreen() {
             },
           ]);
         }}
-      >
-        <Icon
-          icon={LogOut}
-          className="w-5 h-5 text-foreground dark:text-foreground"
-        />
-        <Text className="text-[17px] text-foreground dark:text-foreground">
-          Log out
-        </Text>
-      </Pressable>
+      />
     </ScrollView>
-  );
-}
-
-function SectionDivider() {
-  return <View className="h-px bg-border dark:bg-border mx-5" />;
-}
-
-function SettingsRow({
-  icon,
-  label,
-  detail,
-  href,
-}: {
-  icon: LucideIcon;
-  label: string;
-  detail?: string;
-  href?: string;
-}) {
-  const content = (
-    <View className="flex-row items-center px-5 py-3.5 gap-4 active:bg-muted">
-      <Icon
-        icon={icon}
-        className="w-5 h-5 text-foreground dark:text-foreground"
-      />
-      <Text className="flex-1 text-[17px] text-foreground dark:text-foreground">
-        {label}
-      </Text>
-      {detail && (
-        <Text className="text-[15px] text-muted-foreground dark:text-muted-foreground">
-          {detail}
-        </Text>
-      )}
-      <Icon
-        icon={ChevronRight}
-        className="w-3.5 h-3.5 text-muted-foreground dark:text-muted-foreground"
-      />
-    </View>
-  );
-
-  if (href) {
-    return (
-      <Link href={href as any} asChild>
-        <Pressable>{content}</Pressable>
-      </Link>
-    );
-  }
-
-  return <Pressable>{content}</Pressable>;
-}
-
-function SettingsToggleRow({
-  icon,
-  label,
-  value,
-  onValueChange,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: boolean;
-  onValueChange: (v: boolean) => void;
-}) {
-  return (
-    <View className="flex-row items-center px-5 py-3 gap-4">
-      <Icon
-        icon={icon}
-        className="w-5 h-5 text-foreground dark:text-foreground"
-      />
-      <Text className="flex-1 text-[17px] text-foreground dark:text-foreground">
-        {label}
-      </Text>
-      <Switch value={value} onValueChange={onValueChange} />
-    </View>
   );
 }

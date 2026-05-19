@@ -6,15 +6,15 @@ import {
 import { DrawerLayout } from "@/components/drawer-layout";
 import { AuthGate } from "@/components/auth-gate";
 import { ChatAttachmentsProvider } from "@/components/chat/attachment-context";
+import { ChatComposerOptionsProvider } from "@/components/chat/composer-options-context";
+import { ComposerToastProvider } from "@/components/composer-toast";
 import { ModelProvider } from "@/components/model-context";
 import { hydrateThreadSelection } from "@/state/thread-selection";
 import { useSystemBackgroundColor } from "@/utils/use-system-background-color";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Stack, useRouter } from "expo-router";
 import { useEffect } from "react";
-import { useColorScheme } from "react-native";
 import {
-  DarkTheme,
   DefaultTheme,
   ThemeProvider as RNTheme,
 } from "@react-navigation/native";
@@ -26,9 +26,8 @@ const GLASS = isLiquidGlassAvailable();
 const IS_ANDROID = process.env.EXPO_OS === "android";
 
 function ThemeProvider(props: { children: React.ReactNode }) {
-  const colorScheme = useColorScheme();
   return (
-    <RNTheme value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+    <RNTheme value={DefaultTheme}>
       {props.children}
     </RNTheme>
   );
@@ -44,11 +43,15 @@ export default function AppLayout() {
       <ThemeProvider>
         <ChatCoreProvider apiRefs={chatCoreApiRefs}>
           <ModelProvider>
-            <ChatAttachmentsProvider>
-              <DrawerProvider>
-                <RootDrawer />
-              </DrawerProvider>
-            </ChatAttachmentsProvider>
+            <ChatComposerOptionsProvider>
+              <ChatAttachmentsProvider>
+                <ComposerToastProvider>
+                  <DrawerProvider>
+                    <RootDrawer />
+                  </DrawerProvider>
+                </ComposerToastProvider>
+              </ChatAttachmentsProvider>
+            </ChatComposerOptionsProvider>
           </ModelProvider>
         </ChatCoreProvider>
       </ThemeProvider>
@@ -127,7 +130,7 @@ function StackLayout() {
         options={{
           title: "Add to chat",
           presentation: "formSheet",
-          sheetAllowedDetents: [0.55],
+          sheetAllowedDetents: "fitToContents",
           sheetCornerRadius: IS_ANDROID ? 28 : undefined,
           sheetGrabberVisible: true,
           headerTransparent: GLASS,

@@ -31,8 +31,8 @@ describe('resolveModelAttachmentMediaTypes', () => {
     ).toEqual([])
   })
 
-  it('returns empty array by default when no capabilities or config are provided', () => {
-    expect(resolveModelAttachmentMediaTypes({})).toEqual([])
+  it('returns image and PDF media types by default when no capabilities or config are provided', () => {
+    expect(resolveModelAttachmentMediaTypes({})).toEqual(['image/*', 'application/pdf'])
   })
 
   it('returns empty array when capabilities have no attachment-related entries', () => {

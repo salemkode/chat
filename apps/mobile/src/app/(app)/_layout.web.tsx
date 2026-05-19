@@ -10,7 +10,7 @@ export default function WebAppLayout() {
 
   return (
     <AuthGate>
-      <View className="flex h-dvh w-full flex-row bg-sidebar">
+      <View className="flex h-screen w-full flex-row bg-sidebar">
         <Sidebar
           isOpen={sidebarOpen}
           onToggle={() => setSidebarOpen((v) => !v)}

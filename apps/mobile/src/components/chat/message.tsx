@@ -4,22 +4,12 @@ import type { ReactNode } from "react";
 import { useCallback, useState } from "react";
 import { Linking, Platform, Pressable, Text, View } from "react-native";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
-import { useCSSVariable } from "uniwind";
 import { isArabic } from "@/lib/is-arabic";
 import * as Clipboard from "expo-clipboard";
 import { Copy, Check, File } from "lucide-react-native";
 import { Icon } from "@/components/icon";
 import { Image } from "@/components/tw";
-
-const VAR_NAMES = [
-  "--app-foreground",
-  "--app-muted-foreground",
-  "--app-border",
-  "--app-secondary",
-  "--app-muted",
-  "--app-accent",
-  "--color-blue-400",
-] as const;
+import { useAssistantMarkdownStyle } from "@/hooks/use-assistant-markdown-style";
 
 type MessageFilePart = {
   filename?: string;
@@ -80,9 +70,7 @@ export function Message({
 }
 
 export function MessageResponse({ children }: { children: string }) {
-  const [text, text2, border, bg2, bg3, fill3, link] = useCSSVariable(
-    VAR_NAMES as unknown as string[],
-  ) as string[];
+  const { style: markdownStyle, themeKey } = useAssistantMarkdownStyle();
   const [copied, setCopied] = useState(false);
 
   const message = children || "...";
@@ -96,47 +84,14 @@ export function MessageResponse({ children }: { children: string }) {
   return (
     <View>
       <StreamdownText
+        key={themeKey}
         markdown={message}
         flavor="github"
         streamingAnimation={false}
         containerStyle={{
           writingDirection: isArabic(message) ? "rtl" : "ltr",
         }}
-        markdownStyle={{
-          paragraph: { color: text, fontSize: 16, lineHeight: 22 },
-          h1: { color: text },
-          h2: { color: text },
-          h3: { color: text },
-          h4: { color: text },
-          h5: { color: text },
-          h6: { color: text },
-          blockquote: {
-            backgroundColor: bg3,
-            borderColor: border,
-          },
-          codeBlock: {
-            backgroundColor: fill3,
-            borderColor: border,
-            color: text,
-          },
-          code: {
-            color: text,
-            backgroundColor: fill3,
-          },
-          link: { color: link },
-          list: {
-            bulletColor: text2,
-            markerColor: text2,
-          },
-          strong: { color: text },
-          em: { color: text },
-          thematicBreak: { color: border },
-          table: {
-            borderColor: border,
-            headerBackgroundColor: bg2,
-            headerTextColor: text,
-          },
-        }}
+        markdownStyle={markdownStyle}
         onLinkPress={({ url }) => {
           if (Platform.OS === "web") {
             Linking.openURL(url);
@@ -154,11 +109,11 @@ export function MessageResponse({ children }: { children: string }) {
         className="mt-1 self-start flex-row items-center gap-1 rounded-md px-1.5 py-1 active:opacity-60"
       >
         {copied ? (
-          <Check size={13} className="text-muted-foreground" />
+          <Check size={13} className="text-foreground/70" />
         ) : (
-          <Copy size={13} className="text-muted-foreground" />
+          <Copy size={13} className="text-foreground/70" />
         )}
-        <Text className="text-xs text-muted-foreground">
+        <Text className="text-xs text-foreground/70">
           {copied ? "Copied" : "Copy"}
         </Text>
       </Pressable>

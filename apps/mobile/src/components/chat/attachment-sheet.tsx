@@ -10,24 +10,38 @@ import {
   type LocalAttachmentSource,
 } from "@/components/chat/attachment-types";
 import { useChatAttachments } from "@/components/chat/attachment-context";
+import { useChatComposerOptions } from "@/components/chat/composer-options-context";
+import { useComposerToast } from "@/components/composer-toast";
+import {
+  unsupportedAttachmentsMessage,
+  unsupportedFileAttachmentsMessage,
+  unsupportedImageAttachmentsMessage,
+} from "@/lib/attachment-capability-messages";
+import { useChatCoreContext, useChatProjects } from "@chat/chat-core";
+import { api } from "@convex/_generated/api";
 import { isAttachmentMediaTypeAllowed } from "@chat/shared";
+import { useQuery } from "convex/react";
+import type { LucideIcon } from "lucide-react-native";
 import * as DocumentPicker from "expo-document-picker";
 import * as Haptics from "expo-haptics";
-import * as ImagePicker from "expo-image-picker";
+import { pickMultipleImages, takePhoto } from "@/lib/image-picker";
 import { useRouter } from "expo-router";
 import {
   AlertCircle,
+  Archive,
   Camera,
-  Check,
+  ChevronRight,
   File,
+  Globe,
   Image as ImageIcon,
   Info,
-  Paperclip,
   TriangleAlert,
   X,
 } from "lucide-react-native";
 import { useCallback, useMemo, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, Switch, Text, View } from "react-native";
+import { useSelector } from "@legendapp/state/react";
+import { threadSelection$ } from "@/state/thread-selection";
 
 type SheetStatusKind =
   | "idle"
@@ -82,13 +96,13 @@ function createLocalAttachment(args: {
   };
 }
 
-function AttachmentSourceButton({
+function AttachmentButton({
   icon,
   label,
   disabled,
   onPress,
 }: {
-  icon: typeof Camera;
+  icon: LucideIcon;
   label: string;
   disabled?: boolean;
   onPress: () => void;
@@ -96,14 +110,63 @@ function AttachmentSourceButton({
   return (
     <Pressable
       onPress={onPress}
-      disabled={disabled}
-      className="flex-1 items-center gap-2 rounded-2xl border border-border/70 bg-card px-3 py-4 active:bg-muted"
-      style={{ borderCurve: "continuous", opacity: disabled ? 0.45 : 1 }}
+      className={`flex-1 items-center gap-2 rounded-xl border border-border bg-card py-3 active:bg-muted border-continuous ${disabled ? "opacity-50" : ""}`}
     >
-      <View className="h-11 w-11 items-center justify-center rounded-2xl bg-secondary">
-        <Icon icon={icon} className="h-5 w-5 text-foreground" />
-      </View>
-      <Text className="text-[13px] font-medium text-foreground">{label}</Text>
+      <Icon icon={icon} className="h-6 w-6 text-foreground" />
+      <Text className="text-[13px] text-foreground">{label}</Text>
+    </Pressable>
+  );
+}
+
+function ToggleRow({
+  icon,
+  label,
+  badge,
+  value,
+  onValueChange,
+}: {
+  icon: LucideIcon;
+  label: string;
+  badge?: string;
+  value: boolean;
+  onValueChange: (v: boolean) => void;
+}) {
+  return (
+    <View className="flex-row items-center gap-3.5 px-5 py-3">
+      <Icon icon={icon} className="h-5 w-5 text-foreground" />
+      <Text className="flex-1 text-[17px] text-foreground">{label}</Text>
+      {badge ? (
+        <View className="rounded bg-muted px-1.5 py-0.5">
+          <Text className="text-[11px] font-medium text-muted-foreground">
+            {badge}
+          </Text>
+        </View>
+      ) : null}
+      <Switch value={value} onValueChange={onValueChange} />
+    </View>
+  );
+}
+
+function DisclosureRow({
+  icon,
+  label,
+  detail,
+  onPress,
+}: {
+  icon: LucideIcon;
+  label: string;
+  detail: string;
+  onPress?: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      className="flex-row items-center gap-3.5 px-5 py-3.5 active:bg-muted"
+    >
+      <Icon icon={icon} className="h-5 w-5 text-foreground" />
+      <Text className="flex-1 text-[17px] text-foreground">{label}</Text>
+      <Text className="text-[15px] text-muted-foreground">{detail}</Text>
+      <Icon icon={ChevronRight} className="h-3 w-3 text-muted-foreground" />
     </Pressable>
   );
 }
@@ -190,6 +253,15 @@ function AttachmentPreviewRow({
 export function ChatAttachmentSheet() {
   const router = useRouter();
   const { attachments, addAttachments, removeAttachment } = useChatAttachments();
+  const { searchEnabled, setSearchEnabled } = useChatComposerOptions();
+  const { showComposerToast } = useComposerToast();
+  const { projects } = useChatProjects();
+  const { pendingProjectId } = useChatCoreContext();
+  const threadId = useSelector(() => threadSelection$.selectedThreadId.get());
+  const threadProject = useQuery(
+    api.projects.getProjectForThread,
+    threadId ? { threadId } : "skip",
+  );
   const {
     attachmentMediaTypes,
     attachmentsSupported,
@@ -197,17 +269,64 @@ export function ChatAttachmentSheet() {
     selectedModel,
   } = useModel();
   const [status, setStatus] = useState<SheetStatus>({ kind: "idle" });
-  const selectedCountLabel =
-    attachments.length === 1
-      ? "1 file selected"
-      : `${attachments.length} files selected`;
+
+  const projectDetail = useMemo(() => {
+    const projectId = threadId ? threadProject?.id : pendingProjectId;
+    if (!projectId) {
+      return "None";
+    }
+    return (
+      projects.find((project) => project.id === projectId)?.name ?? "None"
+    );
+  }, [pendingProjectId, projects, threadId, threadProject?.id]);
+
+  const showBlockedToast = useCallback(
+    (message: string) => {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      showComposerToast(message);
+    },
+    [showComposerToast],
+  );
+
+  const commitAttachments = useCallback(
+    (accepted: LocalAttachment[]) => {
+      if (accepted.length === 0) {
+        return;
+      }
+      Haptics.selectionAsync();
+      addAttachments(accepted);
+      router.back();
+    },
+    [addAttachments, router],
+  );
+
+  const onPressCamera = useCallback(() => {
+    if (!imageAttachmentsSupported) {
+      showBlockedToast(
+        unsupportedImageAttachmentsMessage(selectedModel, attachmentMediaTypes),
+      );
+    }
+  }, [
+    attachmentMediaTypes,
+    imageAttachmentsSupported,
+    selectedModel,
+    showBlockedToast,
+  ]);
+
+  const onPressPhotos = onPressCamera;
+
+  const onPressFiles = useCallback(() => {
+    if (!attachmentsSupported) {
+      showBlockedToast(unsupportedAttachmentsMessage(selectedModel));
+    }
+  }, [attachmentsSupported, selectedModel, showBlockedToast]);
 
   const validateAttachments = useCallback(
     (nextAttachments: LocalAttachment[]) => {
       if (!attachmentsSupported) {
         setStatus({
           kind: "unsupported",
-          message: `${selectedModel} does not accept attachments right now.`,
+          message: unsupportedAttachmentsMessage(selectedModel),
         });
         return [];
       }
@@ -222,7 +341,10 @@ export function ChatAttachmentSheet() {
           kind: "unsupported",
           message:
             rejectedCount > 0
-              ? `${selectedModel} only accepts ${attachmentMediaTypes.join(", ")}.`
+              ? unsupportedFileAttachmentsMessage(
+                  selectedModel,
+                  attachmentMediaTypes,
+                )
               : "No supported files were selected.",
         });
         return [];
@@ -246,10 +368,7 @@ export function ChatAttachmentSheet() {
 
   const onPickFiles = useCallback(async () => {
     if (!attachmentsSupported) {
-      setStatus({
-        kind: "unsupported",
-        message: `${selectedModel} does not accept attachments right now.`,
-      });
+      showBlockedToast(unsupportedAttachmentsMessage(selectedModel));
       return;
     }
 
@@ -280,10 +399,7 @@ export function ChatAttachmentSheet() {
         ),
       );
 
-      if (accepted.length > 0) {
-        Haptics.selectionAsync();
-        addAttachments(accepted);
-      }
+      commitAttachments(accepted);
     } catch (error) {
       setStatus({
         kind: "error",
@@ -294,48 +410,33 @@ export function ChatAttachmentSheet() {
       });
     }
   }, [
-    addAttachments,
+    commitAttachments,
     attachmentMediaTypes,
     attachmentsSupported,
     selectedModel,
+    showBlockedToast,
     validateAttachments,
   ]);
 
   const onPickPhotos = useCallback(async () => {
     if (!imageAttachmentsSupported) {
-      setStatus({
-        kind: "unsupported",
-        message: `${selectedModel} does not accept image attachments.`,
-      });
-      return;
-    }
-
-    const permission =
-      await ImagePicker.requestMediaLibraryPermissionsAsync(true);
-    if (!permission.granted) {
-      setStatus({
-        kind: "permission-denied",
-        message: "Photo library permission is required to choose images.",
-      });
+      showBlockedToast(
+        unsupportedImageAttachmentsMessage(selectedModel, attachmentMediaTypes),
+      );
       return;
     }
 
     setStatus({ kind: "loading", message: "Opening Photos…" });
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"],
-        allowsMultipleSelection: true,
-        quality: 1,
-        selectionLimit: 10,
-      });
+      const assets = await pickMultipleImages(10);
 
-      if (result.canceled) {
+      if (assets.length === 0) {
         setStatus({ kind: "cancelled", message: "Photo selection was cancelled." });
         return;
       }
 
       const accepted = validateAttachments(
-        result.assets.map((asset, index) =>
+        assets.map((asset, index) =>
           createLocalAttachment({
             source: "photos",
             uri: asset.uri,
@@ -350,10 +451,7 @@ export function ChatAttachmentSheet() {
         ),
       );
 
-      if (accepted.length > 0) {
-        Haptics.selectionAsync();
-        addAttachments(accepted);
-      }
+      commitAttachments(accepted);
     } catch (error) {
       setStatus({
         kind: "error",
@@ -364,178 +462,129 @@ export function ChatAttachmentSheet() {
       });
     }
   }, [
-    addAttachments,
+    commitAttachments,
+    attachmentMediaTypes,
     imageAttachmentsSupported,
     selectedModel,
+    showBlockedToast,
     validateAttachments,
   ]);
 
   const onTakePhoto = useCallback(async () => {
     if (!imageAttachmentsSupported) {
-      setStatus({
-        kind: "unsupported",
-        message: `${selectedModel} does not accept image attachments.`,
-      });
-      return;
-    }
-
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-    if (!permission.granted) {
-      setStatus({
-        kind: "permission-denied",
-        message: "Camera permission is required to capture a photo.",
-      });
+      showBlockedToast(
+        unsupportedImageAttachmentsMessage(selectedModel, attachmentMediaTypes),
+      );
       return;
     }
 
     setStatus({ kind: "loading", message: "Opening Camera…" });
     try {
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ["images"],
-        quality: 1,
-      });
+      const photo = await takePhoto();
 
-      if (result.canceled) {
-        setStatus({ kind: "cancelled", message: "Camera capture was cancelled." });
+      if (!photo.ok) {
+        setStatus({
+          kind:
+            photo.reason === "permission-denied"
+              ? "permission-denied"
+              : "cancelled",
+          message:
+            photo.reason === "permission-denied"
+              ? "Camera permission is required to capture a photo. Please enable it in Settings."
+              : "Camera capture was cancelled.",
+        });
         return;
       }
 
-      const accepted = validateAttachments(
-        result.assets.map((asset, index) =>
-          createLocalAttachment({
-            source: "camera",
-            uri: asset.uri,
-            filename: asset.fileName,
-            mediaType:
-              asset.mimeType ||
-              inferMediaTypeFromName(asset.fileName) ||
-              "image/jpeg",
-            size: asset.fileSize,
-            index,
-          }),
-        ),
-      );
+      const asset = photo.image;
+      const accepted = validateAttachments([
+        createLocalAttachment({
+          source: "camera",
+          uri: asset.uri,
+          filename: asset.fileName,
+          mediaType:
+            asset.mimeType ||
+            inferMediaTypeFromName(asset.fileName) ||
+            "image/jpeg",
+          size: asset.fileSize,
+          index: 0,
+        }),
+      ]);
 
-      if (accepted.length > 0) {
-        Haptics.selectionAsync();
-        addAttachments(accepted);
-      }
+      commitAttachments(accepted);
     } catch (error) {
       setStatus({
         kind: "error",
         message:
-          error instanceof Error
-            ? error.message
-            : "Unable to open the camera.",
+          error instanceof Error ? error.message : "Unable to open the camera.",
       });
     }
   }, [
-    addAttachments,
+    commitAttachments,
+    attachmentMediaTypes,
     imageAttachmentsSupported,
     selectedModel,
+    showBlockedToast,
     validateAttachments,
   ]);
 
-  const helperText = useMemo(() => {
-    if (!attachmentsSupported) {
-      return `${selectedModel} does not currently allow attachments.`;
-    }
-    return `Allowed for ${selectedModel}: ${attachmentMediaTypes.join(", ")}`;
-  }, [attachmentMediaTypes, attachmentsSupported, selectedModel]);
-
   return (
-    <View className="flex-1 bg-background">
-      <ScrollView
-        className="flex-1"
-        contentContainerClassName="pb-28"
-        contentInsetAdjustmentBehavior="automatic"
-      >
-        <AndroidGrabber />
+    <ScrollView className="flex-1" contentInsetAdjustmentBehavior="automatic">
+      <AndroidGrabber />
 
-        <View className="gap-2 px-5 pt-2">
-          <Text className="text-2xl font-semibold text-foreground">
-            Select file
-          </Text>
-          <Text className="text-sm leading-5 text-muted-foreground">
-            Add files now and send them with your next chat message.
-          </Text>
-        </View>
+      <StatusBanner status={status} />
 
-        <StatusBanner status={status} />
-
-        <View className="gap-3 px-5 pt-4">
-          <View className="flex-row gap-3">
-            <AttachmentSourceButton
-              icon={Camera}
-              label="Camera"
-              disabled={!imageAttachmentsSupported}
-              onPress={onTakePhoto}
-            />
-            <AttachmentSourceButton
-              icon={ImageIcon}
-              label="Photos"
-              disabled={!imageAttachmentsSupported}
-              onPress={onPickPhotos}
-            />
-            <AttachmentSourceButton
-              icon={Paperclip}
-              label="Files"
-              disabled={!attachmentsSupported}
-              onPress={onPickFiles}
-            />
-          </View>
-
-          <View
-            className="rounded-2xl border border-border/70 bg-card px-4 py-3"
-            style={{ borderCurve: "continuous" }}
-          >
-            <Text className="text-sm font-medium text-foreground">
-              {attachments.length > 0 ? selectedCountLabel : "No files selected"}
-            </Text>
-            <Text className="mt-1 text-xs leading-5 text-muted-foreground">
-              {helperText}
-            </Text>
-          </View>
-        </View>
-
-        <View className="gap-3 px-5 pt-4">
-          {attachments.length === 0 ? (
-            <View
-              className="items-center gap-2 rounded-2xl border border-dashed border-border/70 bg-card px-5 py-10"
-              style={{ borderCurve: "continuous" }}
-            >
-              <View className="h-12 w-12 items-center justify-center rounded-2xl bg-secondary">
-                <Icon icon={Check} className="h-5 w-5 text-muted-foreground" />
-              </View>
-              <Text className="text-sm font-medium text-foreground">
-                Your selected files will appear here
-              </Text>
-              <Text className="text-center text-xs leading-5 text-muted-foreground">
-                Pick files, photos, or a camera image and they will stay attached
-                until you send or remove them.
-              </Text>
-            </View>
-          ) : (
-            attachments.map((attachment) => (
-              <AttachmentPreviewRow
-                key={attachment.id}
-                attachment={attachment}
-                onRemove={removeAttachment}
-              />
-            ))
-          )}
-        </View>
-      </ScrollView>
-
-      <View className="absolute inset-x-0 bottom-0 border-t border-border/70 bg-background/95 px-5 pb-8 pt-4">
-        <Pressable
-          onPress={() => router.back()}
-          className="items-center justify-center rounded-2xl bg-foreground px-4 py-3 active:opacity-80"
-          style={{ borderCurve: "continuous" }}
-        >
-          <Text className="text-sm font-semibold text-background">Done</Text>
-        </Pressable>
+      <View className="flex-row gap-3 px-5 pt-2 pb-4">
+        <AttachmentButton
+          icon={Camera}
+          label="Camera"
+          disabled={!imageAttachmentsSupported}
+          onPress={
+            imageAttachmentsSupported ? onTakePhoto : onPressCamera
+          }
+        />
+        <AttachmentButton
+          icon={ImageIcon}
+          label="Photos"
+          disabled={!imageAttachmentsSupported}
+          onPress={imageAttachmentsSupported ? onPickPhotos : onPressPhotos}
+        />
+        <AttachmentButton
+          icon={File}
+          label="Files"
+          disabled={!attachmentsSupported}
+          onPress={attachmentsSupported ? onPickFiles : onPressFiles}
+        />
       </View>
-    </View>
+
+      {attachments.length > 0 ? (
+        <View className="gap-3 px-5 pb-2">
+          {attachments.map((attachment) => (
+            <AttachmentPreviewRow
+              key={attachment.id}
+              attachment={attachment}
+              onRemove={removeAttachment}
+            />
+          ))}
+        </View>
+      ) : null}
+
+      <ToggleRow
+        icon={Globe}
+        label="Web search"
+        badge="Beta"
+        value={searchEnabled}
+        onValueChange={setSearchEnabled}
+      />
+
+      <View className="mx-5 my-1 h-px bg-border" />
+
+      <DisclosureRow
+        icon={Archive}
+        label="Add to project"
+        detail={projectDetail}
+        onPress={() => router.push("/attachments/project-picker")}
+      />
+    </ScrollView>
   );
 }

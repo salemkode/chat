@@ -96,7 +96,7 @@ export function Sidebar({
       {/* Sidebar */}
       <View
         className={`
-          fixed left-0 top-0 z-50 flex h-dvh flex-col bg-sidebar
+          fixed left-0 top-0 z-50 flex h-screen flex-col bg-sidebar
           md:relative md:z-auto
           ${isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
         `}

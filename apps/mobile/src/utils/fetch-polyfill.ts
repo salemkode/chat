@@ -1,7 +1,5 @@
-// This MUST be first to ensure that `fetch` is defined in the React Native environment.
-import "react-native/Libraries/Core/InitializeCore";
-// This MUST be imported to ensure URL is installed.
-import "expo";
+// Do not import InitializeCore here — expo-router/entry already initializes the runtime.
+// Re-importing it can overflow the native stack before AppRegistry runs.
 // This file configures the runtime environment to increase compatibility with WinterCG.
 // https://wintercg.org/
 import Constants from "expo-constants";

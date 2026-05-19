@@ -20,8 +20,8 @@ const ATTACHMENT_INPUT_CAPABILITIES = new Set([
 
 const GENERIC_FILE_INPUT_CAPABILITIES = new Set(['attachment', 'attachments', 'file', 'files'])
 const DOCUMENT_INPUT_CAPABILITIES = new Set(['document', 'documents', 'pdf'])
-const DEFAULT_ATTACHMENT_MEDIA_TYPES: readonly string[] = []
 const IMAGES_AND_PDF = ['image/*', 'application/pdf'] as const
+const DEFAULT_ATTACHMENT_MEDIA_TYPES: readonly string[] = [...IMAGES_AND_PDF]
 
 export type ModelAttachmentValidationStatus = 'pending' | 'valid' | 'invalid'
 

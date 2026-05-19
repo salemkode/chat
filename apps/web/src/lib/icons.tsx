@@ -30,21 +30,21 @@ export const Loader2 = pickIcon(['Spinner'], 'Loader2')
 const Loader2Icon = Loader2
 const LoaderCircle = Loader2
 export const Check = pickIcon(['Check'], 'Check')
-export const CheckIcon = Check
+export { Check as CheckIcon }
 export const X = pickIcon(['X'], 'X')
-export const XIcon = X
+export { X as XIcon }
 export const ChevronDown = pickIcon(['CaretDown'], 'ChevronDown')
-export const ChevronDownIcon = ChevronDown
+export { ChevronDown as ChevronDownIcon }
 const ChevronLeft = pickIcon(['CaretLeft'], 'ChevronLeft')
 const ChevronLeftIcon = ChevronLeft
 export const ChevronUp = pickIcon(['CaretUp'], 'ChevronUp')
-export const ChevronUpIcon = ChevronUp
+export { ChevronUp as ChevronUpIcon }
 export const ChevronRight = pickIcon(['CaretRight'], 'ChevronRight')
 const ChevronRightIcon = ChevronRight
 export const Circle = pickIcon(['Circle'], 'Circle')
 const CircleIcon = Circle
 export const Search = pickIcon(['MagnifyingGlass'], 'Search')
-export const SearchIcon = Search
+export { Search as SearchIcon }
 export const PanelLeftIcon = pickIcon(['Sidebar'], 'PanelLeft')
 const GripVerticalIcon = pickIcon(['DotsSixVertical'], 'GripVertical')
 export const ArrowLeft = pickIcon(['ArrowLeft'], 'ArrowLeft')
@@ -66,7 +66,7 @@ export const MessageSquareText = pickIcon(
 )
 export const MoveRight = pickIcon(['ArrowRight'], 'MoveRight')
 export const RefreshCcw = pickIcon(['ArrowsClockwise'], 'RefreshCcw')
-export const RefreshCw = RefreshCcw
+export { RefreshCcw as RefreshCw }
 export const RotateCcw = pickIcon(['ArrowCounterClockwise'], 'RotateCcw')
 export const WandSparkles = pickIcon(['MagicWand'], 'WandSparkles')
 export const CircleDollarSign = pickIcon(['CurrencyDollar'], 'CircleDollarSign')

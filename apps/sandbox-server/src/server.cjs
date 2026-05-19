@@ -172,6 +172,17 @@ const server = http.createServer(async (req, res) => {
   }
 })
 
+server.on('error', (error) => {
+  if (error && error.code === 'EADDRINUSE') {
+    console.warn(
+      `Sandbox server port ${PORT} is already in use; skipping listen (another dev instance may be running).`,
+    )
+    return
+  }
+
+  throw error
+})
+
 server.listen(PORT, () => {
   console.log(`Sandbox server listening on http://localhost:${PORT}`)
 })

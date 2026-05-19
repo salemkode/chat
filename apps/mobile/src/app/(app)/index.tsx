@@ -16,11 +16,14 @@ import {
   type ChatMessage,
 } from "@/components/chat";
 import { useChatAttachments } from "@/components/chat/attachment-context";
+import { useChatComposerOptions } from "@/components/chat/composer-options-context";
 import { Icon } from "@/components/icon";
 import { MainHeader } from "@/components/main-header";
 import { useModel } from "@/components/model-context";
+import { validateAttachmentsForSend } from "@/lib/attachment-capability-messages";
 import { selectThread, threadSelection$ } from "@/state/thread-selection";
 import { useMessages, useSendMessage } from "@/hooks/use-chat-data";
+import { useSettings } from "@/hooks/use-settings";
 import { useSelector } from "@legendapp/state/react";
 import { useChatCoreContext } from "@chat/chat-core";
 import * as Haptics from "expo-haptics";
@@ -63,7 +66,15 @@ export default function ChatScreen() {
   const threadId = selectedThreadId || routeThreadId || undefined;
   const [input, setInput] = useState("");
   const [error, setError] = useState<Error | null>(null);
-  const { selectedModelId } = useModel();
+  const {
+    selectedModelId,
+    selectedModel,
+    attachmentMediaTypes,
+    attachmentsSupported,
+    imageAttachmentsSupported,
+  } = useModel();
+  const { searchEnabled } = useChatComposerOptions();
+  const { settings } = useSettings();
   const { send } = useSendMessage();
   const { attachments, clearAttachments } = useChatAttachments();
   const { messages, hasActiveStreaming } = useMessages(threadId);
@@ -108,6 +119,19 @@ export default function ChatScreen() {
 
   const onSend = useCallback(async () => {
     if (!canSend || isGenerating) return;
+
+    const attachmentError = validateAttachmentsForSend({
+      attachments,
+      modelName: selectedModel,
+      attachmentMediaTypes,
+      attachmentsSupported,
+      imageAttachmentsSupported,
+    });
+    if (attachmentError) {
+      setError(new Error(attachmentError));
+      return;
+    }
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setError(null);
 
@@ -115,18 +139,32 @@ export default function ChatScreen() {
     setInput("");
 
     try {
+      const reasoningLevel =
+        settings?.reasoningLevel === "low" ||
+        settings?.reasoningLevel === "medium" ||
+        settings?.reasoningLevel === "high"
+          ? settings.reasoningLevel
+          : "medium";
+
       const result = await send({
         text,
         threadId,
         modelDocId: selectedModelId,
         attachments,
+        searchEnabled,
+        searchMode: searchEnabled ? "required" : undefined,
+        reasoning: settings?.reasoningEnabled
+          ? { enabled: true, level: reasoningLevel }
+          : undefined,
       });
       clearAttachments();
       if (!threadId && result.threadId) {
         selectThread(result.threadId);
         if (pendingProjectId) {
-          assignThreadToProject(result.threadId, pendingProjectId)
-            .catch(() => {})
+          void assignThreadToProject(result.threadId, pendingProjectId)
+            .catch(() => {
+              setError(new Error("Could not add this chat to the selected project"));
+            })
             .finally(() => setPendingProjectId(null));
         }
       }
@@ -136,15 +174,22 @@ export default function ChatScreen() {
       console.error("Send error:", err);
     }
   }, [
+    attachmentMediaTypes,
     attachments,
+    attachmentsSupported,
     assignThreadToProject,
     canSend,
     clearAttachments,
+    imageAttachmentsSupported,
+    settings?.reasoningEnabled,
     input,
     isGenerating,
     pendingProjectId,
+    searchEnabled,
+    selectedModel,
     selectedModelId,
     send,
+    settings?.reasoningLevel,
     setPendingProjectId,
     threadId,
   ]);

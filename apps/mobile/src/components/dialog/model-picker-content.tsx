@@ -2,9 +2,9 @@ import { AndroidGrabber } from "@/components/grabber";
 import { Icon } from "@/components/icon";
 import type { Model, ModelCollection } from "@/components/model-context";
 import type { Id } from "@convex/_generated/dataModel";
-import { Check, Sparkles } from "lucide-react-native";
+import { Check } from "lucide-react-native";
 import { useMemo, useState } from "react";
-import { Pressable, ScrollView, Switch, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type ModelPickerContentProps = {
@@ -12,8 +12,6 @@ type ModelPickerContentProps = {
   collections: ModelCollection[];
   selectedModelId: Id<"models"> | undefined;
   onSelectModel: (modelId: Id<"models">) => void;
-  extendedThinking: boolean;
-  onExtendedThinkingChange: (value: boolean) => void;
 };
 
 function ModelRow({
@@ -48,8 +46,6 @@ export function ModelPickerContent({
   collections,
   selectedModelId,
   onSelectModel,
-  extendedThinking,
-  onExtendedThinkingChange,
 }: ModelPickerContentProps) {
   const insets = useSafeAreaInsets();
   const [selectedCollectionId, setSelectedCollectionId] = useState<string>("all");
@@ -125,17 +121,6 @@ export function ModelPickerContent({
         {visibleModels.length === 0 ? (
           <Text className="px-5 py-6 text-[13px] text-muted-foreground">No models in this category.</Text>
         ) : null}
-      </View>
-
-      <View className="h-px bg-border mx-5 my-1" />
-
-      <View className="flex-row items-center px-5 py-3 gap-3.5">
-        <Icon icon={Sparkles} className="w-5 h-5 text-foreground" />
-        <View className="flex-1">
-          <Text className="text-[17px] text-foreground">Extended thinking</Text>
-          <Text className="text-[13px] text-muted-foreground">Think longer for complex tasks</Text>
-        </View>
-        <Switch value={extendedThinking} onValueChange={onExtendedThinkingChange} />
       </View>
     </ScrollView>
   );

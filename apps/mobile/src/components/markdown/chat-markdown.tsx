@@ -1,20 +1,9 @@
 import * as WebBrowser from "expo-web-browser";
 import React from "react";
 import { Linking, Platform, StyleSheet, Text, View } from "react-native";
-import { useCSSVariable } from "uniwind";
+import { useNativeThemeColors } from "@/hooks/use-native-theme-colors";
 import { isArabic } from "@/lib/is-arabic";
 import Markdown from "./markdown";
-
-const VAR_NAMES = [
-  "--app-foreground",
-  "--app-muted-foreground",
-  "--app-border",
-  "--app-secondary",
-  "--app-muted",
-  "--app-accent",
-  // Tailwind blue
-  "--color-blue-400",
-] as const;
 
 /**
  * Convert single newlines to hard breaks (two trailing spaces) so they render
@@ -27,9 +16,16 @@ function preserveNewlines(md: string): string {
 }
 
 export function ChatMarkdown({ children }: { children: string }) {
-  const [text, text2, border, bg2, bg3, fill3, link] = useCSSVariable(
-    VAR_NAMES as unknown as string[],
-  ) as string[];
+  const {
+    foreground: text,
+    mutedForeground: text2,
+    border,
+    card,
+    secondary: bg2,
+    muted: bg3,
+    accent: fill3,
+    link,
+  } = useNativeThemeColors();
 
   const isWeb = process.env.EXPO_OS === "web";
   const baseFontSize = isWeb ? 13 : 16;
@@ -43,7 +39,12 @@ export function ChatMarkdown({ children }: { children: string }) {
     heading4: { fontSize: 16, color: text },
     heading5: { fontSize: 14, color: text },
     heading6: { fontSize: 12, color: text },
-    paragraph: { fontSize: baseFontSize, lineHeight: baseLineHeight, marginVertical: 8 },
+    paragraph: {
+      fontSize: baseFontSize,
+      lineHeight: baseLineHeight,
+      marginVertical: 8,
+      color: text,
+    },
     text: { color: text, fontSize: baseFontSize, lineHeight: baseLineHeight },
     thematicBreak: { backgroundColor: border },
     blockquote: { backgroundColor: bg3, borderColor: border, paddingHorizontal: 8 },
@@ -65,13 +66,13 @@ export function ChatMarkdown({ children }: { children: string }) {
     link: { fontSize: baseFontSize, color: link },
     image: { height: 200, aspectRatio: 16 / 9, backgroundColor: fill3, borderRadius: 8 },
     listBullet: { color: text2, fontVariant: ["tabular-nums" as const], marginRight: 8 },
-    table: { borderColor: border, borderRadius: 8 },
-    tableRow: { borderBottomColor: border },
+    table: { borderColor: border, borderRadius: 10, backgroundColor: card },
+    tableRow: { borderBottomColor: border, backgroundColor: card },
     tableHeaderRow: { backgroundColor: bg2 },
-    tableCell: { padding: 10, borderRightColor: border },
+    tableCell: { padding: 10, borderRightColor: border, backgroundColor: card },
     tableHeaderCell: { backgroundColor: bg2 },
     tableCellText: { color: text },
-    tableHeaderCellText: { color: text },
+    tableHeaderCellText: { color: text, fontWeight: "600" as const },
   };
 
   const dir = isArabic(children) ? "rtl" : "ltr";

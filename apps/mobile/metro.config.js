@@ -63,6 +63,17 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
     };
   }
 
+  if (
+    platform !== "android" &&
+    ["@expo/ui/jetpack-compose", "@expo/ui/jetpack-compose/modifiers"].includes(
+      moduleName,
+    )
+  ) {
+    return {
+      type: "empty",
+    };
+  }
+
   if (existingResolver) {
     return existingResolver(context, moduleName, platform);
   }

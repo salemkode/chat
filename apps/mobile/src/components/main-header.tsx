@@ -1,3 +1,1 @@
-export function MainHeader() {
-  return null;
-}
+export { MainHeader } from "./main-header.fallback";

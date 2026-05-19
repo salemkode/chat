@@ -34,8 +34,6 @@ type ModelContextValue = {
   attachmentMediaTypes: string[];
   attachmentsSupported: boolean;
   imageAttachmentsSupported: boolean;
-  extendedThinking: boolean;
-  setExtendedThinking: (value: boolean) => void;
   setSelectedModel: (modelId: Id<"models">) => void;
 };
 
@@ -46,7 +44,6 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
   const [selectedModelId, setSelectedModelIdState] = useState<Id<"models"> | undefined>(
     undefined,
   );
-  const [extendedThinking, setExtendedThinking] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -142,8 +139,6 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
         attachmentMediaTypes,
         attachmentsSupported,
         imageAttachmentsSupported,
-        extendedThinking,
-        setExtendedThinking,
         setSelectedModel,
       }}
     >

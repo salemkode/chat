@@ -1,24 +1,39 @@
 import { useViewer } from "@/hooks/use-viewer";
 import { useSettings } from "@/hooks/use-settings";
-import { useState, useEffect } from "react";
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { pickOneImage } from "@/lib/image-picker";
+import { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 
 export default function ProfileScreen() {
   const viewer = useViewer();
   const { settings, updateSettings } = useSettings();
-  const [fullName, setFullName] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
+  const [imageUri, setImageUri] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (viewer) {
-      setFullName(viewer.name || "");
+      setDisplayName(viewer.name || "");
+      setImageUri(viewer.image || null);
     }
   }, [viewer]);
 
   useEffect(() => {
     if (settings) {
       setBio(settings.bio || "");
+      if (settings.image) {
+        setImageUri(settings.image);
+      }
     }
   }, [settings]);
 
@@ -30,23 +45,31 @@ export default function ProfileScreen() {
     );
   }
 
-  const handleSaveProfile = async () => {
-    setSaving(true);
-    try {
-      await updateSettings({ displayName: fullName });
-    } catch (err) {
-      console.error("Failed to save:", err);
-    } finally {
-      setSaving(false);
+  const initials = (displayName || viewer.name || "U")
+    .split(" ")
+    .map((part: string) => part[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
+  const handlePickImage = async () => {
+    const image = await pickOneImage();
+    if (image) {
+      setImageUri(image.uri);
     }
   };
 
-  const handleSavePreferences = async () => {
+  const handleSave = async () => {
     setSaving(true);
     try {
-      await updateSettings({ bio });
+      await updateSettings({
+        displayName: displayName.trim() || undefined,
+        bio: bio.trim() || undefined,
+        image: imageUri || undefined,
+      });
     } catch (err) {
       console.error("Failed to save:", err);
+      Alert.alert("Error", "Could not save your account settings.");
     } finally {
       setSaving(false);
     }
@@ -59,67 +82,69 @@ export default function ProfileScreen() {
       contentContainerClassName="px-5 pb-10"
       keyboardDismissMode="interactive"
     >
-      {/* Full Name */}
-      <Text className="text-[13px] font-medium text-muted-foreground mt-6 mb-2">
-        Full Name
+      <Pressable
+        onPress={() => void handlePickImage()}
+        className="self-center mt-6 active:opacity-80"
+      >
+        {imageUri ? (
+          <Image
+            source={{ uri: imageUri }}
+            className="w-20 h-20 rounded-full bg-muted"
+          />
+        ) : (
+          <View className="w-20 h-20 rounded-full bg-foreground items-center justify-center">
+            <Text className="text-xl font-semibold text-background">
+              {initials}
+            </Text>
+          </View>
+        )}
+      </Pressable>
+      <Text className="text-[13px] text-muted-foreground text-center mt-2">
+        Tap to upload a new photo
+      </Text>
+
+      <Text className="text-[13px] font-medium text-muted-foreground mt-8 mb-2">
+        Display name
       </Text>
       <TextInput
-        value={fullName}
-        onChangeText={setFullName}
+        value={displayName}
+        onChangeText={setDisplayName}
         className="bg-muted rounded-xl px-4 py-3 text-[17px] text-foreground"
         style={{ borderCurve: "continuous" }}
         placeholderTextColor="#999"
       />
 
-      {/* Update Profile Button */}
-      <Pressable
-        className="bg-foreground rounded-xl mt-6 py-3.5 items-center active:opacity-80"
+      <Text className="text-[13px] font-medium text-muted-foreground mt-6 mb-2">
+        Email
+      </Text>
+      <TextInput
+        value={viewer.email ?? ""}
+        editable={false}
+        className="bg-muted rounded-xl px-4 py-3 text-[17px] text-muted-foreground"
         style={{ borderCurve: "continuous" }}
-        onPress={handleSaveProfile}
-        disabled={saving}
-      >
-        <Text className="text-[17px] font-semibold text-background">
-          {saving ? "Saving..." : "Update Profile"}
-        </Text>
-      </Pressable>
+      />
 
-      {/* Divider */}
-      <View className="h-px bg-border my-6" />
-
-      {/* Personal Preferences */}
-      <Text className="text-[15px] font-medium text-muted-foreground mb-2">
-        Personal Preferences
+      <Text className="text-[13px] font-medium text-muted-foreground mt-6 mb-2">
+        Bio
       </Text>
       <TextInput
         value={bio}
         onChangeText={setBio}
         multiline
-        className="bg-muted rounded-xl px-4 py-3 text-[15px] text-foreground leading-relaxed min-h-[140px]"
+        className="bg-muted rounded-xl px-4 py-3 text-[15px] text-foreground leading-relaxed min-h-[120px]"
         style={{ borderCurve: "continuous", textAlignVertical: "top" }}
         placeholderTextColor="#999"
       />
-      <Text className="text-[13px] text-muted-foreground mt-2 leading-relaxed">
-        Your preferences will apply to all conversations.
-      </Text>
 
-      {/* Save Preferences Button */}
       <Pressable
-        className="bg-muted rounded-xl mt-4 py-3.5 items-center active:opacity-80"
+        className="bg-foreground rounded-xl mt-8 py-3.5 items-center active:opacity-80"
         style={{ borderCurve: "continuous" }}
-        onPress={handleSavePreferences}
+        onPress={() => void handleSave()}
         disabled={saving}
       >
-        <Text className="text-[17px] font-semibold text-muted-foreground">
-          {saving ? "Saving..." : "Save Preferences"}
+        <Text className="text-[17px] font-semibold text-background">
+          {saving ? "Saving…" : "Save changes"}
         </Text>
-      </Pressable>
-
-      {/* Divider */}
-      <View className="h-px bg-border my-6" />
-
-      {/* Delete Account */}
-      <Pressable className="flex-row items-center gap-2 active:opacity-60">
-        <Text className="text-[17px] text-red-500">Delete account</Text>
       </Pressable>
     </ScrollView>
   );

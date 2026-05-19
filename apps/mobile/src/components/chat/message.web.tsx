@@ -15,7 +15,7 @@ export function Message({
   if (from === "user") {
     return (
       <View className="flex flex-col items-end gap-2 animate-fade-up">
-        <View className="max-w-[min(80%,56ch)] overflow-hidden wrap-break-word rounded-2xl rounded-br-lg border border-border/30 bg-linear-to-br from-secondary to-muted px-3.5 py-2 shadow-card">
+        <View className="max-w-[min(80%,28rem)] overflow-hidden wrap-break-word rounded-2xl rounded-br-lg border border-border/30 bg-linear-to-br from-secondary to-muted px-3.5 py-2 shadow-card">
           {typeof children === "string" ? (
             <Text
               selectable

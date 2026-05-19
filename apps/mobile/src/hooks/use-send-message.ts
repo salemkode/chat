@@ -113,6 +113,7 @@ export function useSendMessage() {
       threadId,
       modelDocId,
       searchEnabled,
+      searchMode,
       reasoning,
       attachments,
     }: {
@@ -120,6 +121,7 @@ export function useSendMessage() {
       threadId?: string;
       modelDocId?: Id<"models">;
       searchEnabled?: boolean;
+      searchMode?: "auto" | "required";
       reasoning?: { enabled: boolean; level?: "low" | "medium" | "high" };
       attachments?: LocalAttachment[];
     }) => {
@@ -166,11 +168,15 @@ export function useSendMessage() {
           ? await uploadAttachments(resolvedAttachments)
           : undefined;
 
+      const resolvedSearchMode =
+        searchEnabled === true ? (searchMode ?? "required") : undefined;
+
       await sendMessage({
         threadId: resolvedThreadId,
         prompt,
         modelId: resolvedModelDocId,
         searchEnabled: searchEnabled ?? false,
+        ...(resolvedSearchMode ? { searchMode: resolvedSearchMode } : {}),
         reasoning,
         attachments: uploadedAttachments,
       });

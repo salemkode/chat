@@ -13,26 +13,19 @@ export function StreamdownText({
   selectable = true,
   flavor = 'commonmark',
   streamingAnimation,
-  //...enrichedMarkdownProps
+  ...enrichedMarkdownProps
 }: StreamdownTextProps) {
   const { processedMarkdown, isStreaming } = useStreamdownMarkdown(markdown, {
     remendConfig,
   });
 
   return (
-    <EnrichedMarkdownText 
-      flavor="github"
-      
+    <EnrichedMarkdownText
+      flavor={flavor}
       markdown={processedMarkdown}
-      markdownStyle={{
-        paragraph: {
-          color: "red"
-        }
-      }}
       streamingAnimation={streamingAnimation ?? flavor === 'commonmark'}
       selectable={!isStreaming && selectable}
-      
-      //{...enrichedMarkdownProps}
+      {...enrichedMarkdownProps}
     />
   );
 }

@@ -3,9 +3,16 @@ import "@/global.css";
 import { Icon } from "@/components/icon";
 import { TouchableGlass } from "@/components/touchable-glass";
 import { SafeAreaView } from "@/components/tw";
+import {
+  DrawerSearchBar,
+  DrawerSearchResults,
+} from "@/components/drawer/drawer-sidebar-search";
+import { DrawerThreadRow } from "@/components/drawer/drawer-thread-row";
+import { useSidebarSearch } from "@/hooks/use-sidebar-search";
 import { useViewer } from "@/hooks/use-viewer";
 import { selectThread, threadSelection$ } from "@/state/thread-selection";
-import { cn } from "@/utils/tailwind";
+import { api } from "@convex/_generated/api";
+import { useMutation } from "convex/react";
 import { useSelector } from "@legendapp/state/react";
 import { useChatProjects, useChatThreads, useChatCoreContext } from "@chat/chat-core";
 import type { ProjectSummary, ThreadSummary } from "@chat/chat-core/types";
@@ -15,7 +22,6 @@ import {
   ChevronRight,
   FolderOpen,
   Folder,
-  Pin,
   Plus,
 } from "lucide-react-native";
 import React, {
@@ -62,23 +68,21 @@ export function useDrawer() {
   return context;
 }
 
-function DrawerHeader({
-  onCreateProject,
-}: {
-  onCreateProject: () => void;
-}) {
+function DrawerHeader({ onCreateProject }: { onCreateProject: () => void }) {
   return (
-    <View className="px-4 pt-2 pb-3 flex-row items-center justify-between">
-      <Text className="text-[28px] font-bold text-foreground">Chat</Text>
-      <Pressable
-        onPress={onCreateProject}
-        className="px-2.5 py-1 rounded-[8px] active:bg-accent flex-row items-center gap-1"
-      >
-        <Icon icon={Folder} className="w-3.5 h-3.5 text-muted-foreground" />
-        <Text className="text-[13px] text-muted-foreground font-medium">
-          New Project
-        </Text>
-      </Pressable>
+    <View className="px-4 pt-2 pb-1">
+      <View className="flex-row items-center justify-between">
+        <Text className="text-[28px] font-bold text-foreground">Chat</Text>
+        <Pressable
+          onPress={onCreateProject}
+          className="px-2.5 py-1 rounded-[8px] active:bg-accent flex-row items-center gap-1"
+        >
+          <Icon icon={Folder} className="w-3.5 h-3.5 text-muted-foreground" />
+          <Text className="text-[13px] text-muted-foreground font-medium">
+            New Project
+          </Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -100,56 +104,15 @@ function DrawerErrorBanner({
   );
 }
 
-function DrawerThreadRow({
-  thread,
-  active,
-  onPress,
-  onLongPress,
-}: {
-  thread: ThreadSummary;
-  active: boolean;
-  onPress: () => void;
-  onLongPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      onLongPress={onLongPress}
-      className={cn(
-        "flex-row items-center px-4 py-2.5 mx-2 rounded-[10px] active:bg-accent",
-        active && "bg-accent",
-      )}
-    >
-      <Text numberOfLines={1} className="text-[15px] mr-2">
-        {thread.emoji}
-      </Text>
-      <Text
-        numberOfLines={1}
-        className={cn(
-          "flex-1 text-[15px]",
-          active ? "text-foreground font-medium" : "text-foreground/85",
-        )}
-      >
-        {thread.title || "Untitled"}
-      </Text>
-      {thread.pinned && (
-        <Icon
-          icon={Pin}
-          className="w-3 h-3 text-muted-foreground"
-          strokeWidth={2.5}
-        />
-      )}
-    </Pressable>
-  );
-}
-
 function DrawerProjectSection({
   project,
   threads,
   isExpanded,
   onToggle,
   onThreadPress,
-  onThreadLongPress,
+  onThreadPin,
+  onThreadRemoveFromProject,
+  onThreadDelete,
   onNewChatInProject,
   selectedThreadId,
 }: {
@@ -158,7 +121,9 @@ function DrawerProjectSection({
   isExpanded: boolean;
   onToggle: () => void;
   onThreadPress: (thread: ThreadSummary) => void;
-  onThreadLongPress: (thread: ThreadSummary) => void;
+  onThreadPin: (thread: ThreadSummary) => void;
+  onThreadRemoveFromProject: (thread: ThreadSummary) => void;
+  onThreadDelete: (thread: ThreadSummary) => void;
   onNewChatInProject: () => void;
   selectedThreadId: string | undefined;
 }) {
@@ -205,7 +170,9 @@ function DrawerProjectSection({
             thread={thread}
             active={selectedThreadId === thread.id}
             onPress={() => onThreadPress(thread)}
-            onLongPress={() => onThreadLongPress(thread)}
+            onPin={() => onThreadPin(thread)}
+            onRemoveFromProject={() => onThreadRemoveFromProject(thread)}
+            onDelete={() => onThreadDelete(thread)}
           />
         ))}
     </View>
@@ -285,7 +252,7 @@ function useProjectCreateDialog(createProject: (args: { name: string; descriptio
         { text: "Cancel", style: "cancel" },
         {
           text: "Create",
-          onPress: (name) => {
+          onPress: (name?: string) => {
             const trimmed = name?.trim();
             if (trimmed) {
               createProject({ name: trimmed }).catch(() => {});
@@ -322,6 +289,16 @@ export function DrawerContent({
   const [expandedProjectIds, setExpandedProjectIds] = useState<Set<string>>(
     () => new Set(),
   );
+  const [searchActive, setSearchActive] = useState(false);
+  const {
+    query: searchQuery,
+    setQuery: setSearchQuery,
+    results: searchResults,
+    error: searchError,
+    isSearching,
+    reset: resetSearch,
+  } = useSidebarSearch(searchActive);
+  const removeThreadFromProject = useMutation(api.projects.removeThreadFromProject);
 
   const clearError = useCallback(() => setError(null), []);
 
@@ -378,27 +355,29 @@ export function DrawerContent({
     [deleteThread, selectedThreadId, onNavigate, clearError],
   );
 
-  const handleLongPress = useCallback(
+  const handleRemoveFromProject = useCallback(
     (thread: ThreadSummary) => {
+      if (!thread.projectId) {
+        return;
+      }
       Alert.alert(
-        thread.title || "Untitled",
-        undefined,
+        "Remove from project",
+        `Remove "${thread.title || "Untitled"}" from ${thread.projectName ?? "this project"}?`,
         [
-          {
-            text: thread.pinned ? "Unpin" : "Pin",
-            onPress: () => handlePin(thread),
-          },
-          {
-            text: "Delete",
-            style: "destructive",
-            onPress: () => confirmDelete(thread),
-          },
           { text: "Cancel", style: "cancel" },
+          {
+            text: "Remove",
+            style: "destructive",
+            onPress: () => {
+              removeThreadFromProject({ threadId: thread.id })
+                .then(clearError)
+                .catch(() => setError("Failed to remove chat from project"));
+            },
+          },
         ],
-        { cancelable: true },
       );
     },
-    [handlePin, confirmDelete],
+    [removeThreadFromProject, clearError],
   );
 
   const handleNewChat = useCallback(() => {
@@ -419,9 +398,25 @@ export function DrawerContent({
   const handleThreadPress = useCallback(
     (thread: ThreadSummary) => {
       selectThread(thread.id);
+      setPendingProjectId(null);
       onNavigate("/");
     },
-    [onNavigate],
+    [onNavigate, setPendingProjectId],
+  );
+
+  const handleCancelSearch = useCallback(() => {
+    setSearchActive(false);
+    resetSearch();
+  }, [resetSearch]);
+
+  const handleSelectSearchResult = useCallback(
+    (threadId: string) => {
+      selectThread(threadId);
+      setPendingProjectId(null);
+      handleCancelSearch();
+      onNavigate("/");
+    },
+    [handleCancelSearch, onNavigate, setPendingProjectId],
   );
 
   const userInitials = viewer?.name
@@ -439,6 +434,16 @@ export function DrawerContent({
     <SafeAreaView className="flex-1" edges={["top", "bottom", "left"]}>
       <DrawerHeader onCreateProject={showCreateProject} />
 
+      <View className="px-4 pb-3">
+        <DrawerSearchBar
+          active={searchActive}
+          query={searchQuery}
+          onQueryChange={setSearchQuery}
+          onActivate={() => setSearchActive(true)}
+          onCancel={handleCancelSearch}
+        />
+      </View>
+
       {error && (
         <DrawerErrorBanner message={error} onDismiss={clearError} />
       )}
@@ -446,8 +451,17 @@ export function DrawerContent({
       <ScrollView
         className="flex-1"
         contentContainerStyle={{ paddingBottom: 8 }}
+        keyboardShouldPersistTaps="handled"
       >
-        {isLoading ? (
+        {searchActive ? (
+          <DrawerSearchResults
+            query={searchQuery}
+            isSearching={isSearching}
+            error={searchError}
+            results={searchResults}
+            onSelectThread={handleSelectSearchResult}
+          />
+        ) : isLoading ? (
           <DrawerLoadingRow />
         ) : threadsByProject.size === 0 && unfiledThreads.length === 0 ? (
           <DrawerEmptyState onNewChat={handleNewChat} />
@@ -472,7 +486,9 @@ export function DrawerContent({
                     isExpanded={isExpanded}
                     onToggle={() => toggleProject(project.id)}
                     onThreadPress={handleThreadPress}
-                    onThreadLongPress={handleLongPress}
+                    onThreadPin={handlePin}
+                    onThreadRemoveFromProject={handleRemoveFromProject}
+                    onThreadDelete={confirmDelete}
                     onNewChatInProject={() =>
                       handleNewChatInProject(project.id)
                     }
@@ -497,7 +513,8 @@ export function DrawerContent({
                   thread={thread}
                   active={selectedThreadId === thread.id}
                   onPress={() => handleThreadPress(thread)}
-                  onLongPress={() => handleLongPress(thread)}
+                  onPin={() => handlePin(thread)}
+                  onDelete={() => confirmDelete(thread)}
                 />
               ))}
             {!hasProjects && unfiledThreads.length === 0 && (
@@ -510,9 +527,10 @@ export function DrawerContent({
       <DrawerFooter
         viewerInitials={userInitials}
         viewerName={viewer?.name || "Loading..."}
-        onSettings={() => onOpenModal("/(settings)/settings")}
+        onSettings={() => onOpenModal("/(settings)/settings" as Href)}
         onNewChat={handleNewChat}
       />
+
     </SafeAreaView>
   );
 }

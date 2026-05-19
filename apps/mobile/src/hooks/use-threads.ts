@@ -62,7 +62,7 @@ export function useThreads() {
   return { threads, setPinned, deleteThread, isLoading: liveThreads === undefined };
 }
 
-function useThread(threadId?: string) {
+export function useThread(threadId?: string) {
   const liveThread = useQuery(
     api.chat.getThread,
     threadId ? { threadId } : "skip",

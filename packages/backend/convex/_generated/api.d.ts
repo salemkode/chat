@@ -814,6 +814,12 @@ export declare const api: {
       { sectionId?: Id<"sections">; threadId: string },
       null
     >;
+    updateThreadTitle: FunctionReference<
+      "mutation",
+      "public",
+      { threadId: string; title: string },
+      string
+    >;
   };
   chat: {
     createThread: FunctionReference<"mutation", "public", {}, any>;
