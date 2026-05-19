@@ -109,15 +109,11 @@ export function MessageResponse({ children }: { children: string }) {
         className="mt-1 self-start flex-row items-center gap-1 rounded-md px-1.5 py-1 active:opacity-60"
       >
         {copied ? (
-          <Icon icon={Check} className="w-3.5 h-3.5 text-foreground" />
+          <Check size={13} className="text-foreground/70" />
         ) : (
-          <Icon icon={Copy} className="w-3.5 h-3.5 text-muted-foreground" />
+          <Copy size={13} className="text-foreground/70" />
         )}
-        <Text
-          className={
-            copied ? "text-xs text-foreground" : "text-xs text-muted-foreground"
-          }
-        >
+        <Text className="text-xs text-foreground/70">
           {copied ? "Copied" : "Copy"}
         </Text>
       </Pressable>

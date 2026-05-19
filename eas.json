@@ -39,11 +39,7 @@
       },
       "env": {
         "EXPO_NO_DOTENV": "1"
-      },
-      "config": {
-        "skipNativeBuild": false
-      },
-      "node": "20"
+      }
     }
   },
   "submit": {
