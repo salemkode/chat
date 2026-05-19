@@ -42,11 +42,9 @@ export type PendingAttachment = {
 export function SelectedProjectBadge({
   selectedProject,
   mobile,
-  onClear,
 }: {
   selectedProject?: { id: string; name: string }
   mobile: boolean
-  onClear: () => void
 }) {
   if (!selectedProject) {
     return null
@@ -62,16 +60,6 @@ export function SelectedProjectBadge({
     >
       <Folder className="size-3" />
       <span className="max-w-52 truncate">{selectedProject.name}</span>
-      <Button
-        type="button"
-        variant="plain"
-        size="none"
-        onClick={onClear}
-        className="inline-flex size-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-        aria-label="Clear selected project"
-      >
-        <X className="size-3" />
-      </Button>
     </Badge>
   )
 }
@@ -251,7 +239,7 @@ export function ProjectMentionPopup({
   return (
     <div
       className={cn(
-        'absolute z-40 overflow-hidden rounded-2xl border border-border/70 bg-card/95 p-1.5 shadow-2xl backdrop-blur-xl',
+        'absolute z-40 overflow-hidden rounded-2xl border border-border bg-card p-1.5 shadow-float',
         mobile
           ? 'bottom-[calc(100%+8px)] left-0 right-0'
           : 'bottom-[calc(100%+10px)] left-0 w-[min(19rem,calc(100vw-2rem))]',

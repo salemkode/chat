@@ -15,6 +15,7 @@ import {
   createStreamingStore,
   type ChatMessage,
 } from "@/components/chat";
+import { ComposerProjectProvider } from "@/components/chat/composer-project-context";
 import { useChatAttachments } from "@/components/chat/attachment-context";
 import { useChatComposerOptions } from "@/components/chat/composer-options-context";
 import { Icon } from "@/components/icon";
@@ -76,7 +77,8 @@ export default function ChatScreen() {
   const { searchEnabled } = useChatComposerOptions();
   const { settings } = useSettings();
   const { send } = useSendMessage();
-  const { attachments, clearAttachments } = useChatAttachments();
+  const { attachments, clearAttachments, hasUploadingAttachments } =
+    useChatAttachments();
   const { messages, hasActiveStreaming } = useMessages(threadId);
   const { pendingProjectId, setPendingProjectId, assignThreadToProject } =
     useChatCoreContext();
@@ -115,7 +117,8 @@ export default function ChatScreen() {
   }, [attachments.length, error, input]);
 
   const isGenerating = hasActiveStreaming;
-  const canSend = Boolean(input.trim() || attachments.length > 0);
+  const canSend =
+    Boolean(input.trim() || attachments.length > 0) && !hasUploadingAttachments;
 
   const onSend = useCallback(async () => {
     if (!canSend || isGenerating) return;
@@ -258,37 +261,39 @@ export default function ChatScreen() {
   return (
     <>
       <ChatProvider value={chat}>
-        <Conversation
-          renderMessage={renderMessage}
-          emptyState={
-            <ConversationEmptyState
-              title="Chat"
-              description="Send a message to get started"
-            />
-          }
-        >
-          <ConversationScrollButton />
-          <PromptInput>
-            <Link href="/attachments" asChild>
-              <PromptInputAction>
-                <View>
-                  <Icon icon={Plus} className="w-5 h-5 text-muted-foreground" />
-                  {attachments.length > 0 ? (
-                    <View className="absolute -right-2 -top-2 min-w-4 items-center rounded-full bg-foreground px-1">
-                      <Text className="text-[10px] font-semibold text-background">
-                        {attachments.length}
-                      </Text>
-                    </View>
-                  ) : null}
-                </View>
-              </PromptInputAction>
-            </Link>
-            <PromptInputBody>
-              <PromptInputTextarea />
-              <PromptInputSubmit />
-            </PromptInputBody>
-          </PromptInput>
-        </Conversation>
+        <ComposerProjectProvider threadId={threadId}>
+          <Conversation
+            renderMessage={renderMessage}
+            emptyState={
+              <ConversationEmptyState
+                title="Chat"
+                description="Send a message to get started"
+              />
+            }
+          >
+            <ConversationScrollButton />
+            <PromptInput>
+              <Link href="/attachments" asChild>
+                <PromptInputAction>
+                  <View>
+                    <Icon icon={Plus} className="w-5 h-5 text-muted-foreground" />
+                    {attachments.length > 0 ? (
+                      <View className="absolute -right-2 -top-2 min-w-4 items-center rounded-full bg-foreground px-1">
+                        <Text className="text-[10px] font-semibold text-background">
+                          {attachments.length}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                </PromptInputAction>
+              </Link>
+              <PromptInputBody>
+                <PromptInputTextarea placeholder="Type @ to link a project…" />
+                <PromptInputSubmit />
+              </PromptInputBody>
+            </PromptInput>
+          </Conversation>
+        </ComposerProjectProvider>
       </ChatProvider>
       <MainHeader />
     </>

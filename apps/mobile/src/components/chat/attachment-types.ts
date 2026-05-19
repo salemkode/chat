@@ -1,4 +1,12 @@
+import type { Id } from "@convex/_generated/dataModel";
+
 export type LocalAttachmentSource = "files" | "photos" | "camera";
+
+export type AttachmentUploadStatus =
+  | "pending"
+  | "uploading"
+  | "ready"
+  | "failed";
 
 export type LocalAttachment = {
   id: string;
@@ -7,6 +15,9 @@ export type LocalAttachment = {
   mediaType: string;
   size?: number;
   source: LocalAttachmentSource;
+  uploadStatus?: AttachmentUploadStatus;
+  storageId?: Id<"_storage">;
+  uploadError?: string;
 };
 
 const MIME_BY_EXTENSION: Record<string, string> = {

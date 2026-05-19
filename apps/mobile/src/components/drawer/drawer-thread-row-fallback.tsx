@@ -38,10 +38,11 @@ function showThreadContextMenu({
 
 export function DrawerThreadRowFallback(props: DrawerThreadRowProps) {
   return (
-    <DrawerThreadRowSimpleLayout>
+    <DrawerThreadRowSimpleLayout nested={props.nested}>
       <DrawerThreadRowTrigger
         thread={props.thread}
         active={props.active}
+        nested={props.nested}
         onPress={props.onPress}
         onLongPress={() => showThreadContextMenu(props)}
       />

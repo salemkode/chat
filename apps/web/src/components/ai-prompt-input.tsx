@@ -674,11 +674,7 @@ export function AIPromptInput({
         )}
       >
         <div className={cn('flex min-w-0 grow flex-col items-start gap-2', mobile && 'gap-3')}>
-          <SelectedProjectBadge
-            selectedProject={selectedProject}
-            mobile={mobile}
-            onClear={() => onProjectChange?.(undefined)}
-          />
+          <SelectedProjectBadge selectedProject={selectedProject} mobile={mobile} />
           {pendingProjectDraft ? (
             <div className="w-full rounded-2xl border border-border/70 bg-background/75 p-3">
               <div className="mb-2 text-sm font-medium text-foreground">

@@ -5,16 +5,29 @@ import {
   useChatHeaderActions,
   useChatHeaderLabels,
 } from "@/hooks/use-chat-header";
+import { selectThread, threadSelection$ } from "@/state/thread-selection";
+import { useChatCoreContext } from "@chat/chat-core";
+import { useSelector } from "@legendapp/state/react";
 import { Stack } from "expo-router";
-import { EllipsisVertical } from "lucide-react-native";
+import { EllipsisVertical, SquarePen } from "lucide-react-native";
 import { useCallback, useState } from "react";
 import { Alert, Pressable } from "react-native";
 
 export function useChatHeaderMenu() {
   const { threadTitle, threadId, canRename, canShare } = useChatHeaderLabels();
   const { promptRename, renameThread } = useChatHeaderActions();
+  const { setPendingProjectId } = useChatCoreContext();
+  const selectedThreadId = useSelector(() =>
+    threadSelection$.selectedThreadId.get(),
+  );
   const [renameOpen, setRenameOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const canNewChat = Boolean(selectedThreadId);
+
+  const onNewChat = useCallback(() => {
+    selectThread(undefined);
+    setPendingProjectId(null);
+  }, [setPendingProjectId]);
 
   const onRename = useCallback(() => {
     const result = promptRename();
@@ -35,12 +48,14 @@ export function useChatHeaderMenu() {
     threadId,
     canRename,
     canShare,
+    canNewChat,
     renameOpen,
     setRenameOpen,
     shareOpen,
     setShareOpen,
     onRename,
     onShare,
+    onNewChat,
     renameThread,
   };
 }
@@ -80,6 +95,43 @@ export function ChatHeaderMenuModals({
   );
 }
 
+type ChatHeaderNewChatButtonProps = {
+  variant: "native" | "fallback";
+  visible: boolean;
+  onPress: () => void;
+};
+
+export function ChatHeaderNewChatButton({
+  variant,
+  visible,
+  onPress,
+}: ChatHeaderNewChatButtonProps) {
+  if (!visible) {
+    return null;
+  }
+
+  if (variant === "native") {
+    return (
+      <Stack.Toolbar.Button
+        icon="square.and.pencil"
+        onPress={onPress}
+        accessibilityLabel="New chat"
+      />
+    );
+  }
+
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityLabel="New chat"
+      accessibilityRole="button"
+      className="p-2 active:opacity-60"
+    >
+      <Icon icon={SquarePen} className="w-6 h-6 text-foreground" />
+    </Pressable>
+  );
+}
+
 type ChatHeaderOverflowButtonProps = {
   variant: "native" | "fallback";
   canRename: boolean;
@@ -95,6 +147,10 @@ export function ChatHeaderOverflowButton({
   onRename,
   onShare,
 }: ChatHeaderOverflowButtonProps) {
+  if (!canRename && !canShare) {
+    return null;
+  }
+
   if (variant === "native") {
     return (
       <Stack.Toolbar.Menu icon="ellipsis">

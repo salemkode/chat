@@ -19,8 +19,8 @@ import {
   ThemeProvider as RNTheme,
 } from "@react-navigation/native";
 import { useCSSVariable } from "uniwind";
-import { ChatCoreProvider } from "@chat/chat-core";
-import { chatCoreApiRefs } from "@/lib/chat-core-api";
+import { OfflineSessionSync } from "@/components/offline-session-sync";
+import { MobileChatCoreProvider } from "@/components/mobile-chat-core-provider";
 
 const GLASS = isLiquidGlassAvailable();
 const IS_ANDROID = process.env.EXPO_OS === "android";
@@ -41,7 +41,8 @@ export default function AppLayout() {
   return (
     <AuthGate>
       <ThemeProvider>
-        <ChatCoreProvider apiRefs={chatCoreApiRefs}>
+        <MobileChatCoreProvider>
+          <OfflineSessionSync />
           <ModelProvider>
             <ChatComposerOptionsProvider>
               <ChatAttachmentsProvider>
@@ -53,7 +54,7 @@ export default function AppLayout() {
               </ChatAttachmentsProvider>
             </ChatComposerOptionsProvider>
           </ModelProvider>
-        </ChatCoreProvider>
+        </MobileChatCoreProvider>
       </ThemeProvider>
     </AuthGate>
   );
@@ -128,13 +129,11 @@ function StackLayout() {
       <Stack.Screen
         name="attachments"
         options={{
-          title: "Add to chat",
+          headerShown: false,
           presentation: "formSheet",
-          sheetAllowedDetents: "fitToContents",
+          sheetAllowedDetents: [0.55],
           sheetCornerRadius: IS_ANDROID ? 28 : undefined,
           sheetGrabberVisible: true,
-          headerTransparent: GLASS,
-          headerLargeTitleShadowVisible: false,
         }}
       />
 

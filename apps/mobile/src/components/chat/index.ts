@@ -1,5 +1,9 @@
 // Context
-export { ChatProvider,  } from "./chat-context";
+export { ChatProvider } from "./chat-context";
+export {
+  ComposerProjectProvider,
+  useComposerProject,
+} from "./composer-project-context";
 ;
 
 // Conversation

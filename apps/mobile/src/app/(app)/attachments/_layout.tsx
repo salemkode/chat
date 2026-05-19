@@ -23,11 +23,17 @@ export default function AttachmentsLayout() {
           : undefined,
       }}
     >
-      <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="index"
+        options={{
+          title: "Add to chat",
+          headerLargeTitleShadowVisible: false,
+        }}
+      />
       <Stack.Screen
         name="project-picker"
         options={{
-          title: "Project",
+          title: "Add to project",
           headerLargeTitleShadowVisible: false,
         }}
       />

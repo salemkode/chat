@@ -1,5 +1,6 @@
-import { createContext, useContext, useMemo, useCallback, useState } from 'react'
-import { useQuery, useMutation } from 'convex/react'
+import { createContext, useContext, useMemo, useCallback, useState, useEffect } from 'react'
+import { useMutation } from 'convex/react'
+import { useQuery } from '@chat/shared/convex-query-cache/hooks'
 import type { ProjectSummary, ThreadSummary } from './types'
 import { compareThreadsForSidebar } from './sidebar'
 
@@ -69,20 +70,32 @@ function normalizeThread(raw: Record<string, unknown>): ThreadSummary {
   }
 }
 
+export type ChatCoreCacheAccessors = {
+  readCachedThreads?: () => ThreadSummary[] | null
+  readCachedProjects?: () => ProjectSummary[] | null
+  writeCachedThreads?: (threads: ThreadSummary[]) => void
+  writeCachedProjects?: (projects: ProjectSummary[]) => void
+}
+
 export function ChatCoreProvider({
   apiRefs,
   isOnline = true,
+  cacheAccessors,
+  cacheRevision = 0,
   children,
 }: {
   apiRefs: ChatCoreApiRefs
   isOnline?: boolean
+  cacheAccessors?: ChatCoreCacheAccessors
+  /** Bump when platform offline cache changes so cached fallbacks re-read. */
+  cacheRevision?: number
   children: React.ReactNode
 }) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const refs = apiRefs as any
 
-  const liveProjects = useQuery(refs.projects.listProjects)
-  const liveThreads = useQuery(refs.agents.listThreadsWithMetadata)
+  const liveProjects = useQuery(refs.projects.listProjects, {})
+  const liveThreads = useQuery(refs.agents.listThreadsWithMetadata, {})
   const createProjectMutation = useMutation(refs.projects.createProject)
   const assignThreadToProjectMutation = useMutation(refs.projects.assignThreadToProject)
   const setThreadPinnedMutation = useMutation(refs.agents.setThreadPinned)
@@ -90,17 +103,50 @@ export function ChatCoreProvider({
 
   const [pendingProjectId, setPendingProjectId] = useState<string | null>(null)
 
+  const cachedProjects = useMemo(
+    () => cacheAccessors?.readCachedProjects?.() ?? null,
+    [cacheAccessors, cacheRevision],
+  )
+  const cachedThreads = useMemo(
+    () => cacheAccessors?.readCachedThreads?.() ?? null,
+    [cacheAccessors, cacheRevision],
+  )
+
   const projects = useMemo<ProjectSummary[]>(() => {
-    if (!liveProjects) return []
-    return (liveProjects as Record<string, unknown>[]).map(normalizeProject)
-  }, [liveProjects])
+    if (liveProjects) {
+      return (liveProjects as Record<string, unknown>[]).map(normalizeProject)
+    }
+    return cachedProjects ?? []
+  }, [cachedProjects, liveProjects])
 
   const threads = useMemo<ThreadSummary[]>(() => {
-    if (!liveThreads) return []
-    return [...(liveThreads as Record<string, unknown>[])]
-      .map(normalizeThread)
-      .sort(compareThreadsForSidebar)
-  }, [liveThreads])
+    if (liveThreads) {
+      return [...(liveThreads as Record<string, unknown>[])]
+        .map(normalizeThread)
+        .sort(compareThreadsForSidebar)
+    }
+    return cachedThreads ?? []
+  }, [cachedThreads, liveThreads])
+
+  useEffect(() => {
+    if (!liveProjects || !cacheAccessors?.writeCachedProjects) {
+      return
+    }
+    cacheAccessors.writeCachedProjects(
+      (liveProjects as Record<string, unknown>[]).map(normalizeProject),
+    )
+  }, [cacheAccessors, liveProjects])
+
+  useEffect(() => {
+    if (!liveThreads || !cacheAccessors?.writeCachedThreads) {
+      return
+    }
+    cacheAccessors.writeCachedThreads(
+      [...(liveThreads as Record<string, unknown>[])]
+        .map(normalizeThread)
+        .sort(compareThreadsForSidebar),
+    )
+  }, [cacheAccessors, liveThreads])
 
   const createProject = useCallback(
     async (args: { name: string; description?: string }) => {

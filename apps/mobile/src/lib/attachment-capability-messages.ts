@@ -78,5 +78,21 @@ export function validateAttachmentsForSend(args: {
     return unsupportedFileAttachmentsMessage(modelName, attachmentMediaTypes);
   }
 
+  const stillUploading = attachments.some(
+    (attachment) =>
+      attachment.uploadStatus === "pending" ||
+      attachment.uploadStatus === "uploading",
+  );
+  if (stillUploading) {
+    return "Files are still uploading. Wait a moment and try again.";
+  }
+
+  const failedUpload = attachments.find(
+    (attachment) => attachment.uploadStatus === "failed",
+  );
+  if (failedUpload) {
+    return failedUpload.uploadError ?? `Failed to upload ${failedUpload.filename}`;
+  }
+
   return null;
 }

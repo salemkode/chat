@@ -1,31 +1,27 @@
 import { AndroidGrabber } from "@/components/grabber";
 import { Icon } from "@/components/icon";
-import { Image } from "@/components/tw";
 import { useModel } from "@/components/model-context";
+import { useChatComposerOptions } from "@/components/chat/composer-options-context";
 import {
-  formatAttachmentKind,
-  formatAttachmentSize,
   inferMediaTypeFromName,
   type LocalAttachment,
   type LocalAttachmentSource,
 } from "@/components/chat/attachment-types";
 import { useChatAttachments } from "@/components/chat/attachment-context";
-import { useChatComposerOptions } from "@/components/chat/composer-options-context";
-import { useComposerToast } from "@/components/composer-toast";
 import {
+  modelAcceptsNonImageAttachments,
   unsupportedAttachmentsMessage,
-  unsupportedFileAttachmentsMessage,
-  unsupportedImageAttachmentsMessage,
 } from "@/lib/attachment-capability-messages";
+import { pickMultipleImages, takePhoto } from "@/lib/image-picker";
+import { pickDocuments } from "@/lib/document-picker";
+import { threadSelection$ } from "@/state/thread-selection";
 import { useChatCoreContext, useChatProjects } from "@chat/chat-core";
 import { api } from "@convex/_generated/api";
-import { isAttachmentMediaTypeAllowed } from "@chat/shared";
+import { isAttachmentMediaTypeAllowed, mediaTypeMatchesPattern } from "@chat/shared";
 import { useQuery } from "convex/react";
-import type { LucideIcon } from "lucide-react-native";
-import * as DocumentPicker from "expo-document-picker";
 import * as Haptics from "expo-haptics";
-import { pickMultipleImages, takePhoto } from "@/lib/image-picker";
 import { useRouter } from "expo-router";
+import type { LucideIcon } from "lucide-react-native";
 import {
   AlertCircle,
   Archive,
@@ -36,12 +32,10 @@ import {
   Image as ImageIcon,
   Info,
   TriangleAlert,
-  X,
 } from "lucide-react-native";
 import { useCallback, useMemo, useState } from "react";
 import { Pressable, ScrollView, Switch, Text, View } from "react-native";
 import { useSelector } from "@legendapp/state/react";
-import { threadSelection$ } from "@/state/thread-selection";
 
 type SheetStatusKind =
   | "idle"
@@ -96,6 +90,18 @@ function createLocalAttachment(args: {
   };
 }
 
+function getFilePickerMediaTypes(attachmentMediaTypes: string[]) {
+  const nonImageTypes = attachmentMediaTypes.filter(
+    (pattern) => !mediaTypeMatchesPattern("image/jpeg", pattern),
+  );
+  return nonImageTypes.length > 0 ? nonImageTypes : attachmentMediaTypes;
+}
+
+function isConcurrentPickerError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.toLowerCase().includes("document picking in progress");
+}
+
 function AttachmentButton({
   icon,
   label,
@@ -110,7 +116,9 @@ function AttachmentButton({
   return (
     <Pressable
       onPress={onPress}
-      className={`flex-1 items-center gap-2 rounded-xl border border-border bg-card py-3 active:bg-muted border-continuous ${disabled ? "opacity-50" : ""}`}
+      disabled={disabled}
+      className="flex-1 items-center gap-2 rounded-xl border border-border bg-secondary py-3 active:bg-muted border-continuous"
+      style={{ opacity: disabled ? 0.45 : 1 }}
     >
       <Icon icon={icon} className="h-6 w-6 text-foreground" />
       <Text className="text-[13px] text-foreground">{label}</Text>
@@ -189,10 +197,7 @@ function StatusBanner({ status }: { status: SheetStatus }) {
             : AlertCircle;
 
   return (
-    <View
-      className="mx-5 mt-2 flex-row items-start gap-3 rounded-2xl border border-border/70 bg-card px-4 py-3"
-      style={{ borderCurve: "continuous" }}
-    >
+    <View className="mx-5 mt-2 flex-row items-start gap-3 rounded-2xl border border-border/70 bg-card px-4 py-3">
       <Icon
         icon={IconComponent}
         style={{ width: 16, height: 16, color: tone, marginTop: 2 }}
@@ -204,57 +209,10 @@ function StatusBanner({ status }: { status: SheetStatus }) {
   );
 }
 
-function AttachmentPreviewRow({
-  attachment,
-  onRemove,
-}: {
-  attachment: LocalAttachment;
-  onRemove: (attachmentId: string) => void;
-}) {
-  const isImage = attachment.mediaType.startsWith("image/");
-
-  return (
-    <View
-      className="flex-row items-center gap-3 rounded-2xl border border-border/70 bg-card px-3 py-3"
-      style={{ borderCurve: "continuous" }}
-    >
-      {isImage ? (
-        <Image
-          source={{ uri: attachment.uri }}
-          className="h-14 w-14 rounded-xl bg-secondary"
-          contentFit="cover"
-        />
-      ) : (
-        <View className="h-14 w-14 items-center justify-center rounded-xl bg-secondary">
-          <Icon icon={File} className="h-5 w-5 text-foreground" />
-        </View>
-      )}
-      <View className="min-w-0 flex-1 gap-1">
-        <Text className="text-sm font-medium text-foreground" numberOfLines={1}>
-          {attachment.filename}
-        </Text>
-        <Text className="text-xs text-muted-foreground" numberOfLines={1}>
-          {formatAttachmentKind(attachment.mediaType)} •{" "}
-          {formatAttachmentSize(attachment.size)}
-        </Text>
-      </View>
-      <Pressable
-        onPress={() => onRemove(attachment.id)}
-        hitSlop={8}
-        className="h-9 w-9 items-center justify-center rounded-full bg-secondary active:bg-muted"
-        style={{ borderCurve: "continuous" }}
-      >
-        <Icon icon={X} className="h-4 w-4 text-muted-foreground" />
-      </Pressable>
-    </View>
-  );
-}
-
 export function ChatAttachmentSheet() {
   const router = useRouter();
-  const { attachments, addAttachments, removeAttachment } = useChatAttachments();
+  const { addAttachments } = useChatAttachments();
   const { searchEnabled, setSearchEnabled } = useChatComposerOptions();
-  const { showComposerToast } = useComposerToast();
   const { projects } = useChatProjects();
   const { pendingProjectId } = useChatCoreContext();
   const threadId = useSelector(() => threadSelection$.selectedThreadId.get());
@@ -269,6 +227,36 @@ export function ChatAttachmentSheet() {
     selectedModel,
   } = useModel();
   const [status, setStatus] = useState<SheetStatus>({ kind: "idle" });
+  const [pickerBusy, setPickerBusy] = useState(false);
+
+  const runPickerSession = useCallback(
+    async (session: () => Promise<void>) => {
+      if (pickerBusy) {
+        return;
+      }
+
+      setPickerBusy(true);
+      try {
+        await session();
+      } finally {
+        setPickerBusy(false);
+      }
+    },
+    [pickerBusy],
+  );
+
+  const fileAttachmentsSupported = useMemo(
+    () => modelAcceptsNonImageAttachments(attachmentMediaTypes),
+    [attachmentMediaTypes],
+  );
+
+  const filePickerMediaTypes = useMemo(
+    () => getFilePickerMediaTypes(attachmentMediaTypes),
+    [attachmentMediaTypes],
+  );
+
+  const showImageSources = imageAttachmentsSupported;
+  const showFileSource = fileAttachmentsSupported;
 
   const projectDetail = useMemo(() => {
     const projectId = threadId ? threadProject?.id : pendingProjectId;
@@ -276,17 +264,11 @@ export function ChatAttachmentSheet() {
       return "None";
     }
     return (
-      projects.find((project) => project.id === projectId)?.name ?? "None"
+      projects.find((project) => project.id === projectId)?.name ??
+      threadProject?.name ??
+      "Project"
     );
-  }, [pendingProjectId, projects, threadId, threadProject?.id]);
-
-  const showBlockedToast = useCallback(
-    (message: string) => {
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      showComposerToast(message);
-    },
-    [showComposerToast],
-  );
+  }, [pendingProjectId, projects, threadId, threadProject?.id, threadProject?.name]);
 
   const commitAttachments = useCallback(
     (accepted: LocalAttachment[]) => {
@@ -299,27 +281,6 @@ export function ChatAttachmentSheet() {
     },
     [addAttachments, router],
   );
-
-  const onPressCamera = useCallback(() => {
-    if (!imageAttachmentsSupported) {
-      showBlockedToast(
-        unsupportedImageAttachmentsMessage(selectedModel, attachmentMediaTypes),
-      );
-    }
-  }, [
-    attachmentMediaTypes,
-    imageAttachmentsSupported,
-    selectedModel,
-    showBlockedToast,
-  ]);
-
-  const onPressPhotos = onPressCamera;
-
-  const onPressFiles = useCallback(() => {
-    if (!attachmentsSupported) {
-      showBlockedToast(unsupportedAttachmentsMessage(selectedModel));
-    }
-  }, [attachmentsSupported, selectedModel, showBlockedToast]);
 
   const validateAttachments = useCallback(
     (nextAttachments: LocalAttachment[]) => {
@@ -341,104 +302,173 @@ export function ChatAttachmentSheet() {
           kind: "unsupported",
           message:
             rejectedCount > 0
-              ? unsupportedFileAttachmentsMessage(
-                  selectedModel,
-                  attachmentMediaTypes,
-                )
+              ? `${selectedModel} only accepts ${attachmentMediaTypes.join(", ")}.`
               : "No supported files were selected.",
         });
         return [];
       }
 
-      setStatus(
-        rejectedCount > 0
-          ? {
-              kind: "unsupported",
-              message: `${accepted.length} file${accepted.length === 1 ? "" : "s"} added. ${rejectedCount} skipped because ${selectedModel} only accepts ${attachmentMediaTypes.join(", ")}.`,
-            }
-          : {
-              kind: "idle",
-            },
-      );
+      if (rejectedCount > 0) {
+        setStatus({
+          kind: "unsupported",
+          message: `${accepted.length} file${accepted.length === 1 ? "" : "s"} added. ${rejectedCount} skipped.`,
+        });
+      }
 
       return accepted;
     },
     [attachmentMediaTypes, attachmentsSupported, selectedModel],
   );
 
-  const onPickFiles = useCallback(async () => {
-    if (!attachmentsSupported) {
-      showBlockedToast(unsupportedAttachmentsMessage(selectedModel));
+  const onPickFiles = useCallback(() => {
+    if (!fileAttachmentsSupported) {
       return;
     }
 
-    setStatus({ kind: "loading", message: "Opening Files…" });
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: attachmentMediaTypes.length > 0 ? attachmentMediaTypes : "*/*",
-        multiple: true,
-        copyToCacheDirectory: true,
-      });
+    void runPickerSession(async () => {
+      setStatus({ kind: "loading", message: "Opening Files…" });
+      try {
+        const result = await pickDocuments({
+          type: filePickerMediaTypes,
+          multiple: true,
+        });
 
-      if (result.canceled) {
-        setStatus({ kind: "cancelled", message: "File selection was cancelled." });
-        return;
+        if (!result) {
+          setStatus({ kind: "idle" });
+          return;
+        }
+
+        if (result.canceled) {
+          setStatus({
+            kind: "cancelled",
+            message: "File selection was cancelled.",
+          });
+          return;
+        }
+
+        const accepted = validateAttachments(
+          result.assets.map((asset, index) =>
+            createLocalAttachment({
+              source: "files",
+              uri: asset.uri,
+              filename: asset.name,
+              mediaType:
+                asset.mimeType ||
+                inferMediaTypeFromName(asset.name) ||
+                undefined,
+              size: asset.size,
+              index,
+            }),
+          ),
+        );
+
+        commitAttachments(accepted);
+      } catch (error) {
+        if (isConcurrentPickerError(error)) {
+          setStatus({ kind: "idle" });
+          return;
+        }
+        setStatus({
+          kind: "error",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Unable to open the file picker.",
+        });
       }
-
-      const accepted = validateAttachments(
-        result.assets.map((asset, index) =>
-          createLocalAttachment({
-            source: "files",
-            uri: asset.uri,
-            filename: asset.name,
-            mediaType:
-              asset.mimeType || inferMediaTypeFromName(asset.name) || undefined,
-            size: asset.size,
-            index,
-          }),
-        ),
-      );
-
-      commitAttachments(accepted);
-    } catch (error) {
-      setStatus({
-        kind: "error",
-        message:
-          error instanceof Error
-            ? error.message
-            : "Unable to open the file picker.",
-      });
-    }
+    });
   }, [
     commitAttachments,
-    attachmentMediaTypes,
-    attachmentsSupported,
-    selectedModel,
-    showBlockedToast,
+    fileAttachmentsSupported,
+    filePickerMediaTypes,
+    runPickerSession,
     validateAttachments,
   ]);
 
-  const onPickPhotos = useCallback(async () => {
+  const onPickPhotos = useCallback(() => {
     if (!imageAttachmentsSupported) {
-      showBlockedToast(
-        unsupportedImageAttachmentsMessage(selectedModel, attachmentMediaTypes),
-      );
       return;
     }
 
-    setStatus({ kind: "loading", message: "Opening Photos…" });
-    try {
-      const assets = await pickMultipleImages(10);
+    void runPickerSession(async () => {
+      setStatus({ kind: "loading", message: "Opening Photos…" });
+      try {
+        const assets = await pickMultipleImages(10);
 
-      if (assets.length === 0) {
-        setStatus({ kind: "cancelled", message: "Photo selection was cancelled." });
-        return;
+        if (assets.length === 0) {
+          setStatus({
+            kind: "cancelled",
+            message: "Photo selection was cancelled.",
+          });
+          return;
+        }
+
+        const accepted = validateAttachments(
+          assets.map((asset, index) =>
+            createLocalAttachment({
+              source: "photos",
+              uri: asset.uri,
+              filename: asset.fileName,
+              mediaType:
+                asset.mimeType ||
+                inferMediaTypeFromName(asset.fileName) ||
+                "image/jpeg",
+              size: asset.fileSize,
+              index,
+            }),
+          ),
+        );
+
+        commitAttachments(accepted);
+      } catch (error) {
+        if (isConcurrentPickerError(error)) {
+          setStatus({ kind: "idle" });
+          return;
+        }
+        setStatus({
+          kind: "error",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Unable to open the photo library.",
+        });
       }
+    });
+  }, [
+    commitAttachments,
+    imageAttachmentsSupported,
+    runPickerSession,
+    validateAttachments,
+  ]);
 
-      const accepted = validateAttachments(
-        assets.map((asset, index) =>
+  const onTakePhoto = useCallback(() => {
+    if (!imageAttachmentsSupported) {
+      return;
+    }
+
+    void runPickerSession(async () => {
+      setStatus({ kind: "loading", message: "Opening Camera…" });
+      try {
+        const photo = await takePhoto();
+
+        if (!photo.ok) {
+          setStatus({
+            kind:
+              photo.reason === "permission-denied"
+                ? "permission-denied"
+                : "cancelled",
+            message:
+              photo.reason === "permission-denied"
+                ? "Camera permission is required to capture a photo."
+                : "Camera capture was cancelled.",
+          });
+          return;
+        }
+
+        const asset = photo.image;
+        const accepted = validateAttachments([
           createLocalAttachment({
-            source: "photos",
+            source: "camera",
             uri: asset.uri,
             filename: asset.fileName,
             mediaType:
@@ -446,87 +476,31 @@ export function ChatAttachmentSheet() {
               inferMediaTypeFromName(asset.fileName) ||
               "image/jpeg",
             size: asset.fileSize,
-            index,
+            index: 0,
           }),
-        ),
-      );
+        ]);
 
-      commitAttachments(accepted);
-    } catch (error) {
-      setStatus({
-        kind: "error",
-        message:
-          error instanceof Error
-            ? error.message
-            : "Unable to open the photo library.",
-      });
-    }
-  }, [
-    commitAttachments,
-    attachmentMediaTypes,
-    imageAttachmentsSupported,
-    selectedModel,
-    showBlockedToast,
-    validateAttachments,
-  ]);
-
-  const onTakePhoto = useCallback(async () => {
-    if (!imageAttachmentsSupported) {
-      showBlockedToast(
-        unsupportedImageAttachmentsMessage(selectedModel, attachmentMediaTypes),
-      );
-      return;
-    }
-
-    setStatus({ kind: "loading", message: "Opening Camera…" });
-    try {
-      const photo = await takePhoto();
-
-      if (!photo.ok) {
+        commitAttachments(accepted);
+      } catch (error) {
+        if (isConcurrentPickerError(error)) {
+          setStatus({ kind: "idle" });
+          return;
+        }
         setStatus({
-          kind:
-            photo.reason === "permission-denied"
-              ? "permission-denied"
-              : "cancelled",
+          kind: "error",
           message:
-            photo.reason === "permission-denied"
-              ? "Camera permission is required to capture a photo. Please enable it in Settings."
-              : "Camera capture was cancelled.",
+            error instanceof Error ? error.message : "Unable to open the camera.",
         });
-        return;
       }
-
-      const asset = photo.image;
-      const accepted = validateAttachments([
-        createLocalAttachment({
-          source: "camera",
-          uri: asset.uri,
-          filename: asset.fileName,
-          mediaType:
-            asset.mimeType ||
-            inferMediaTypeFromName(asset.fileName) ||
-            "image/jpeg",
-          size: asset.fileSize,
-          index: 0,
-        }),
-      ]);
-
-      commitAttachments(accepted);
-    } catch (error) {
-      setStatus({
-        kind: "error",
-        message:
-          error instanceof Error ? error.message : "Unable to open the camera.",
-      });
-    }
+    });
   }, [
     commitAttachments,
-    attachmentMediaTypes,
     imageAttachmentsSupported,
-    selectedModel,
-    showBlockedToast,
+    runPickerSession,
     validateAttachments,
   ]);
+
+  const sourcesDisabled = pickerBusy || status.kind === "loading";
 
   return (
     <ScrollView className="flex-1" contentInsetAdjustmentBehavior="automatic">
@@ -534,38 +508,32 @@ export function ChatAttachmentSheet() {
 
       <StatusBanner status={status} />
 
-      <View className="flex-row gap-3 px-5 pt-2 pb-4">
-        <AttachmentButton
-          icon={Camera}
-          label="Camera"
-          disabled={!imageAttachmentsSupported}
-          onPress={
-            imageAttachmentsSupported ? onTakePhoto : onPressCamera
-          }
-        />
-        <AttachmentButton
-          icon={ImageIcon}
-          label="Photos"
-          disabled={!imageAttachmentsSupported}
-          onPress={imageAttachmentsSupported ? onPickPhotos : onPressPhotos}
-        />
-        <AttachmentButton
-          icon={File}
-          label="Files"
-          disabled={!attachmentsSupported}
-          onPress={attachmentsSupported ? onPickFiles : onPressFiles}
-        />
-      </View>
-
-      {attachments.length > 0 ? (
-        <View className="gap-3 px-5 pb-2">
-          {attachments.map((attachment) => (
-            <AttachmentPreviewRow
-              key={attachment.id}
-              attachment={attachment}
-              onRemove={removeAttachment}
+      {showImageSources || showFileSource ? (
+        <View className="flex-row gap-3 px-5 pt-2 pb-4">
+          {showImageSources ? (
+            <>
+              <AttachmentButton
+                icon={Camera}
+                label="Camera"
+                disabled={sourcesDisabled}
+                onPress={onTakePhoto}
+              />
+              <AttachmentButton
+                icon={ImageIcon}
+                label="Photos"
+                disabled={sourcesDisabled}
+                onPress={onPickPhotos}
+              />
+            </>
+          ) : null}
+          {showFileSource ? (
+            <AttachmentButton
+              icon={File}
+              label="Files"
+              disabled={sourcesDisabled}
+              onPress={onPickFiles}
             />
-          ))}
+          ) : null}
         </View>
       ) : null}
 

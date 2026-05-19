@@ -5,8 +5,20 @@ import {
   formatAttachmentKind,
   type LocalAttachment,
 } from "@/components/chat/attachment-types";
+import { ActivityIndicator } from "react-native";
 import { File, X } from "lucide-react-native";
+import { type ReactNode } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
+
+import { cn } from "@/utils/tailwind";
+
+import {
+  COMPOSER_CONTENT_INSET_CLASS,
+  COMPOSER_FLOATING_PILL_RADIUS,
+  COMPOSER_FLOATING_PILL_STYLE,
+  COMPOSER_FLOATING_SOLID_CLASS,
+  COMPOSER_FLOATING_SURFACE_STYLE,
+} from "./composer-layout";
 
 const THUMB_SIZE = 72;
 
@@ -30,20 +42,44 @@ function FloatingImageThumbnail({
         elevation: 8,
       }}
     >
-      <Image
-        source={{ uri: attachment.uri }}
-        className="h-full w-full rounded-2xl border border-border/60 bg-secondary"
-        style={{ borderCurve: "continuous" }}
-        contentFit="cover"
-      />
+      <View className="relative h-full w-full">
+        <Image
+          source={{ uri: attachment.uri }}
+          className={cn(
+            "h-full w-full border border-border/50 bg-card shadow-composer",
+          )}
+          style={{ borderRadius: COMPOSER_FLOATING_PILL_RADIUS }}
+          contentFit="cover"
+        />
+        <UploadStatusOverlay attachment={attachment} />
+      </View>
       <Pressable
         onPress={() => onRemove(attachment.id)}
         hitSlop={8}
-        className="absolute -right-1.5 -top-1.5 h-6 w-6 items-center justify-center rounded-full border border-border/60 bg-card active:bg-muted"
-        style={{ borderCurve: "continuous" }}
+        className="absolute -right-1.5 -top-1.5 h-6 w-6 items-center justify-center rounded-full border border-border bg-card active:bg-muted"
+        style={COMPOSER_FLOATING_SURFACE_STYLE}
       >
         <Icon icon={X} className="h-3.5 w-3.5 text-foreground" />
       </Pressable>
+    </View>
+  );
+}
+
+function UploadStatusOverlay({
+  attachment,
+}: {
+  attachment: LocalAttachment;
+}) {
+  if (
+    attachment.uploadStatus !== "pending" &&
+    attachment.uploadStatus !== "uploading"
+  ) {
+    return null;
+  }
+
+  return (
+    <View className="absolute inset-0 items-center justify-center rounded-2xl bg-card/85">
+      <ActivityIndicator size="small" />
     </View>
   );
 }
@@ -57,11 +93,15 @@ function FileAttachmentChip({
 }) {
   return (
     <View
-      className="mr-2 flex-row items-center gap-2 rounded-2xl border border-border/70 bg-card/95 px-2.5 py-2"
-      style={{ borderCurve: "continuous" }}
+      className={cn(
+        "relative mr-2 flex-row items-center gap-2.5 px-3 py-2",
+        COMPOSER_FLOATING_SOLID_CLASS,
+      )}
+      style={[COMPOSER_FLOATING_PILL_STYLE, COMPOSER_FLOATING_SURFACE_STYLE]}
     >
-      <View className="h-8 w-8 items-center justify-center rounded-lg bg-secondary">
+      <View className="relative h-8 w-8 items-center justify-center rounded-lg bg-secondary">
         <Icon icon={File} className="h-4 w-4 text-foreground" />
+        <UploadStatusOverlay attachment={attachment} />
       </View>
       <View className="max-w-36 min-w-0">
         <Text className="text-xs font-medium text-foreground" numberOfLines={1}>
@@ -84,12 +124,12 @@ function FileAttachmentChip({
 }
 
 /** Image thumbnails and file chips shown above the composer. */
-export function AttachmentChipList() {
+export function AttachmentChipList({
+  leadingContent,
+}: {
+  leadingContent?: ReactNode;
+}) {
   const { attachments, removeAttachment } = useChatAttachments();
-
-  if (attachments.length === 0) {
-    return null;
-  }
 
   const imageAttachments = attachments.filter((attachment) =>
     attachment.mediaType.startsWith("image/"),
@@ -98,14 +138,22 @@ export function AttachmentChipList() {
     (attachment) => !attachment.mediaType.startsWith("image/"),
   );
 
+  const hasImageRow = imageAttachments.length > 0 || Boolean(leadingContent);
+
+  if (!hasImageRow && fileAttachments.length === 0) {
+    return null;
+  }
+
   return (
-    <View className="px-3 pb-1 pt-2">
-      {imageAttachments.length > 0 ? (
+    <View className={COMPOSER_CONTENT_INSET_CLASS}>
+      {hasImageRow ? (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerClassName="px-0.5 pb-2"
+          className="pt-2"
+          contentContainerClassName="items-center pb-2"
         >
+          {leadingContent}
           {imageAttachments.map((attachment) => (
             <FloatingImageThumbnail
               key={attachment.id}
@@ -119,7 +167,7 @@ export function AttachmentChipList() {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerClassName="pb-1"
+          contentContainerClassName="items-center pb-1"
         >
           {fileAttachments.map((attachment) => (
             <FileAttachmentChip

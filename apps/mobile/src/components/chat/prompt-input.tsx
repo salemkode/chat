@@ -13,7 +13,11 @@ import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { cn } from "@/utils/tailwind";
 import { BlurView } from "expo-blur";
 import { useChatContext } from "./chat-context";
+import { useComposerProject } from "./composer-project-context";
 import { useConversationContext } from "./conversation";
+import { PendingProjectDraftCard } from "./pending-project-draft-card";
+import { ProjectMentionPopup } from "./project-mention-popup";
+import { COMPOSER_GLASS_PADDING } from "./composer-layout";
 
 const AnimatedGlassContainer = Animated.createAnimatedComponent(GlassContainer);
 
@@ -25,6 +29,21 @@ const AnimatedGlassContainer = Animated.createAnimatedComponent(GlassContainer);
 export function PromptInput({ children }: { children: ReactNode }) {
   const { promptInputStyle, onPromptInputLayout } = useConversationContext();
   const { error } = useChatContext();
+  const {
+    projectMention,
+    mentionOptions,
+    highlightedMentionIndex,
+    handleMentionSelect,
+    dismissProjectMention,
+    pendingProjectDraft,
+    pendingProjectName,
+    setPendingProjectName,
+    pendingProjectDescription,
+    setPendingProjectDescription,
+    handleConfirmCreateProject,
+    handleCancelCreateProject,
+    creatingProject,
+  } = useComposerProject();
 
   return (
     <Animated.View
@@ -32,19 +51,49 @@ export function PromptInput({ children }: { children: ReactNode }) {
       style={[{ position: "absolute", left: 0, right: 0 }, promptInputStyle]}
     >
       {error && <PromptInputError message={error.message} />}
-      <AttachmentChipList />
-      <AnimatedGlassContainer
-        style={{
-          flex: 1,
-          flexDirection: "row",
-          padding: 12,
-          gap: 10,
-          alignItems: "flex-end",
-        }}
-        spacing={8}
-      >
-        {children}
-      </AnimatedGlassContainer>
+      <View className="relative px-3">
+        <AttachmentChipList />
+        {projectMention ? (
+          <ProjectMentionPopup
+            mentionOptions={mentionOptions}
+            highlightedIndex={highlightedMentionIndex}
+            onSelect={handleMentionSelect}
+            onDismiss={dismissProjectMention}
+          />
+        ) : null}
+        <AnimatedGlassContainer
+          style={{
+            flex: 1,
+            padding: COMPOSER_GLASS_PADDING,
+            gap: 10,
+          }}
+          spacing={8}
+        >
+          {pendingProjectDraft ? (
+            <PendingProjectDraftCard
+              draft={pendingProjectDraft}
+              name={pendingProjectName}
+              description={pendingProjectDescription}
+              creatingProject={creatingProject}
+              onNameChange={setPendingProjectName}
+              onDescriptionChange={setPendingProjectDescription}
+              onConfirm={() => {
+                void handleConfirmCreateProject();
+              }}
+              onCancel={handleCancelCreateProject}
+            />
+          ) : null}
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "flex-end",
+              gap: 10,
+            }}
+          >
+            {children}
+          </View>
+        </AnimatedGlassContainer>
+      </View>
     </Animated.View>
   );
 }
@@ -115,7 +164,6 @@ export function PromptInputBody({ children }: { children: ReactNode }) {
     );
   }
 
-  // TODO: Android version...
   return (
     <BlurView
       tint="systemChromeMaterial"
@@ -145,6 +193,13 @@ export function PromptInputTextarea({
   maxLength?: number;
 }) {
   const { input, setInput } = useChatContext();
+  const {
+    projectMention,
+    mentionOptions,
+    setHighlightedMentionIndex,
+    syncProjectMention,
+    dismissProjectMention,
+  } = useComposerProject();
   const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
@@ -162,10 +217,45 @@ export function PromptInputTextarea({
       style={{ fontSize: 16 }}
       className="flex-1 pl-4 pr-2 py-3 text-foreground dark:text-foreground max-h-25"
       value={input}
-      onChangeText={setInput}
+      onChangeText={(text) => {
+        setInput(text);
+        syncProjectMention(text, text.length);
+      }}
+      onSelectionChange={(event) => {
+        syncProjectMention(input, event.nativeEvent.selection.start);
+      }}
+      onKeyPress={(event) => {
+        if (!projectMention) {
+          return;
+        }
+
+        const key = event.nativeEvent.key;
+        if (key === "Escape") {
+          dismissProjectMention();
+          return;
+        }
+
+        if (mentionOptions.length === 0) {
+          return;
+        }
+
+        if (key === "ArrowDown") {
+          setHighlightedMentionIndex((current) =>
+            current + 1 >= mentionOptions.length ? 0 : current + 1,
+          );
+          return;
+        }
+
+        if (key === "ArrowUp") {
+          setHighlightedMentionIndex((current) =>
+            current - 1 < 0 ? mentionOptions.length - 1 : current - 1,
+          );
+        }
+      }}
       placeholder={placeholder}
       multiline
       maxLength={maxLength}
+      blurOnSubmit={false}
     />
   );
 }
@@ -210,7 +300,7 @@ export function PromptInputSubmit() {
                 : "text-background dark:text-background",
             )}
           />
-      )}
+        )}
     </Pressable>
   );
 }

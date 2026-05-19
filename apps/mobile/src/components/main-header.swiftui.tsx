@@ -1,5 +1,6 @@
 import {
   ChatHeaderMenuModals,
+  ChatHeaderNewChatButton,
   ChatHeaderOverflowButton,
   useChatHeaderMenu,
 } from "@/components/chat/chat-header-overflow-menu";
@@ -91,6 +92,11 @@ export function MainHeader() {
         <Stack.Toolbar.Button icon="list.bullet" onPress={openDrawer} />
       </Stack.Toolbar>
       <Stack.Toolbar placement="right">
+        <ChatHeaderNewChatButton
+          variant="native"
+          visible={menu.canNewChat}
+          onPress={menu.onNewChat}
+        />
         <ChatHeaderOverflowButton
           variant="native"
           canRename={menu.canRename}

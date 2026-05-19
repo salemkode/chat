@@ -131,25 +131,21 @@ function DrawerProjectSection({
     <View className="mb-1">
       <Pressable
         onPress={onToggle}
-        className="flex-row items-center px-4 py-2 mx-2 rounded-[8px] active:bg-accent"
+        className="flex-row items-center px-4 py-2 mx-2 rounded-[8px] active:bg-accent gap-1"
       >
         <Icon
-          icon={isExpanded ? ChevronDown : ChevronRight}
-          className="w-4 h-4 text-muted-foreground mr-1"
-        />
-        <Icon
           icon={isExpanded ? FolderOpen : Folder}
-          className="w-4 h-4 text-muted-foreground mr-2"
+          className="w-4 h-4 shrink-0 text-muted-foreground pr-1"
         />
         <Text
           numberOfLines={1}
-          className="flex-1 text-[13px] font-semibold text-foreground/80"
+          className="flex-1 text-[13px] font-semibold text-foreground/80 pr-2"
         >
           {project.name}
         </Text>
         <View className="px-1.5 py-0.5 rounded-full bg-muted mr-1.5">
           <Text className="text-[11px] text-muted-foreground">
-            {threads.length}
+            {threads.length > 0 ? threads.length : project.threadCount}
           </Text>
         </View>
         <Pressable
@@ -168,6 +164,7 @@ function DrawerProjectSection({
           <DrawerThreadRow
             key={thread.id}
             thread={thread}
+            nested
             active={selectedThreadId === thread.id}
             onPress={() => onThreadPress(thread)}
             onPin={() => onThreadPin(thread)}
@@ -286,9 +283,9 @@ export function DrawerContent({
     threadSelection$.selectedThreadId.get(),
   );
   const [error, setError] = useState<string | null>(null);
-  const [expandedProjectIds, setExpandedProjectIds] = useState<Set<string>>(
-    () => new Set(),
-  );
+  const [expandedProjectIds, setExpandedProjectIds] = useState<
+    Record<string, boolean>
+  >({});
   const [searchActive, setSearchActive] = useState(false);
   const {
     query: searchQuery,
@@ -305,15 +302,10 @@ export function DrawerContent({
   const showCreateProject = useProjectCreateDialog(createProject);
 
   const toggleProject = useCallback((projectId: string) => {
-    setExpandedProjectIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(projectId)) {
-        next.delete(projectId);
-      } else {
-        next.add(projectId);
-      }
-      return next;
-    });
+    setExpandedProjectIds((prev) => ({
+      ...prev,
+      [projectId]: !(prev[projectId] ?? true),
+    }));
   }, []);
 
   const handlePin = useCallback(
@@ -476,8 +468,7 @@ export function DrawerContent({
               projects.map((project) => {
                 const projectThreads =
                   threadsByProject.get(project.id) ?? [];
-                if (projectThreads.length === 0) return null;
-                const isExpanded = expandedProjectIds.has(project.id);
+                const isExpanded = expandedProjectIds[project.id] ?? true;
                 return (
                   <DrawerProjectSection
                     key={project.id}
@@ -499,12 +490,6 @@ export function DrawerContent({
 
             {hasProjects && (
               <View className="mx-6 my-2 border-b border-border" />
-            )}
-
-            {hasProjects && (
-              <Text className="text-[13px] font-semibold text-foreground/70 px-6 pt-1 pb-1.5">
-                Unfiled
-              </Text>
             )}
             {(!hasProjects || unfiledThreads.length > 0) &&
               unfiledThreads.map((thread) => (

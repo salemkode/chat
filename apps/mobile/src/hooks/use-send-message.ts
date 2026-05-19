@@ -3,40 +3,8 @@ import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { useCallback } from "react";
 import type { LocalAttachment } from "@/components/chat/attachment-types";
-
-function getErrorMessage(error: unknown) {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  if (typeof error === "string") {
-    return error;
-  }
-
-  if (
-    typeof error === "object" &&
-    error !== null &&
-    "message" in error &&
-    typeof error.message === "string"
-  ) {
-    return error.message;
-  }
-
-  return "Upload failed";
-}
-
-function parseUploadResponse(value: unknown): { storageId: Id<"_storage"> } {
-  if (
-    typeof value !== "object" ||
-    value === null ||
-    !("storageId" in value) ||
-    typeof value.storageId !== "string"
-  ) {
-    throw new Error("Upload response is missing storageId");
-  }
-
-  return { storageId: value.storageId as Id<"_storage"> };
-}
+import { applyOptimisticGenerateMessage } from "@/hooks/chat-data/optimistic-list-messages";
+import { uploadLocalAttachment } from "@/lib/attachment-upload";
 
 function buildAttachmentSummary(attachments: LocalAttachment[]) {
   if (attachments.length === 0) {
@@ -61,10 +29,43 @@ function buildAttachmentSummary(attachments: LocalAttachment[]) {
   };
 }
 
+async function resolveUploadedAttachments(
+  attachments: LocalAttachment[],
+  generateAttachmentUploadUrl: () => Promise<string | null>,
+) {
+  return await Promise.all(
+    attachments.map(async (attachment) => {
+      if (attachment.storageId && attachment.uploadStatus === "ready") {
+        return {
+          storageId: attachment.storageId,
+          filename: attachment.filename,
+          mediaType: attachment.mediaType,
+        };
+      }
+
+      return await uploadLocalAttachment(attachment, generateAttachmentUploadUrl);
+    }),
+  );
+}
+
 export function useSendMessage() {
   const createThread = useMutation(api.agents.createChatThread);
-  const generateAttachmentUploadUrl = useMutation(api.agents.generateAttachmentUploadUrl);
-  const sendMessage = useMutation(api.agents.generateMessage);
+  const generateAttachmentUploadUrl = useMutation(
+    api.agents.generateAttachmentUploadUrl,
+  );
+  const sendMessage = useMutation(api.agents.generateMessage).withOptimisticUpdate(
+    (localStore, args) => {
+      applyOptimisticGenerateMessage(
+        localStore,
+        args.threadId,
+        args.prompt,
+        args.attachments?.map((attachment) => ({
+          filename: attachment.filename,
+          mediaType: attachment.mediaType,
+        })),
+      );
+    },
+  );
   const regenerateMessage = useMutation(api.agents.regenerateMessage);
   const stopGeneration = useMutation(api.agents.stopGeneration);
   const selectAutoModel = useAction(api.modelRouter.selectAutoModel);
@@ -72,40 +73,10 @@ export function useSendMessage() {
     api.modelRouter.selectAutoModelForPromptMessage,
   );
 
-  const uploadAttachments = useCallback(
-    async (attachments: LocalAttachment[]) => {
-      return await Promise.all(
-        attachments.map(async (attachment) => {
-          const uploadUrl = await generateAttachmentUploadUrl({});
-          if (!uploadUrl) {
-            throw new Error("Unable to create an attachment upload URL");
-          }
-
-          const sourceResponse = await fetch(attachment.uri);
-          const blob = await sourceResponse.blob();
-          const response = await fetch(uploadUrl, {
-            method: "POST",
-            headers: {
-              "Content-Type": attachment.mediaType,
-            },
-            body: blob,
-          });
-
-          if (!response.ok) {
-            throw new Error(`Failed to upload ${attachment.filename}`);
-          }
-
-          const payload = parseUploadResponse(await response.json());
-          return {
-            storageId: payload.storageId,
-            filename: attachment.filename,
-            mediaType: attachment.mediaType,
-          };
-        }),
-      );
-    },
-    [generateAttachmentUploadUrl],
-  );
+  const getUploadUrl = useCallback(async () => {
+    const uploadUrl = await generateAttachmentUploadUrl({});
+    return uploadUrl ?? null;
+  }, [generateAttachmentUploadUrl]);
 
   const send = useCallback(
     async ({
@@ -165,7 +136,7 @@ export function useSendMessage() {
 
       const uploadedAttachments =
         resolvedAttachments.length > 0
-          ? await uploadAttachments(resolvedAttachments)
+          ? await resolveUploadedAttachments(resolvedAttachments, getUploadUrl)
           : undefined;
 
       const resolvedSearchMode =
@@ -183,7 +154,7 @@ export function useSendMessage() {
 
       return { threadId: resolvedThreadId };
     },
-    [createThread, selectAutoModel, sendMessage, uploadAttachments],
+    [createThread, getUploadUrl, selectAutoModel, sendMessage],
   );
 
   const stop = useCallback(

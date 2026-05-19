@@ -1,5 +1,6 @@
 import {
   ChatHeaderMenuModals,
+  ChatHeaderNewChatButton,
   ChatHeaderOverflowButton,
   useChatHeaderMenu,
 } from "@/components/chat/chat-header-overflow-menu";
@@ -67,13 +68,37 @@ export function MainHeader() {
         )}
       </Stack.Toolbar>
       <Stack.Toolbar placement="right" asChild={!useNativeToolbarMenu}>
-        <ChatHeaderOverflowButton
-          variant={useNativeToolbarMenu ? "native" : "fallback"}
-          canRename={menu.canRename}
-          canShare={menu.canShare}
-          onRename={menu.onRename}
-          onShare={menu.onShare}
-        />
+        {useNativeToolbarMenu ? (
+          <>
+            <ChatHeaderNewChatButton
+              variant="native"
+              visible={menu.canNewChat}
+              onPress={menu.onNewChat}
+            />
+            <ChatHeaderOverflowButton
+              variant="native"
+              canRename={menu.canRename}
+              canShare={menu.canShare}
+              onRename={menu.onRename}
+              onShare={menu.onShare}
+            />
+          </>
+        ) : (
+          <View className="flex-row items-center">
+            <ChatHeaderNewChatButton
+              variant="fallback"
+              visible={menu.canNewChat}
+              onPress={menu.onNewChat}
+            />
+            <ChatHeaderOverflowButton
+              variant="fallback"
+              canRename={menu.canRename}
+              canShare={menu.canShare}
+              onRename={menu.onRename}
+              onShare={menu.onShare}
+            />
+          </View>
+        )}
       </Stack.Toolbar>
       <ChatHeaderMenuModals {...menu} />
     </>

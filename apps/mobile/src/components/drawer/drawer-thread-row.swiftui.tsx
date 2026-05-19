@@ -1,6 +1,6 @@
 import {
-  DRAWER_THREAD_ROW_HEIGHT,
   DrawerThreadRowSlot,
+  drawerThreadRowHeight,
 } from "@/components/drawer/drawer-thread-row-layout";
 import { DrawerThreadRowTrigger } from "@/components/drawer/drawer-thread-row-trigger";
 import type { DrawerThreadRowProps } from "@/components/drawer/drawer-thread-row-types";
@@ -19,8 +19,8 @@ function DrawerThreadRowNativeMenu({
   props: DrawerThreadRowProps;
   rowWidth: number;
 }) {
-  const { thread, onPress, onPin, onRemoveFromProject, onDelete } = props;
-  const slotStyle = { width: rowWidth, height: DRAWER_THREAD_ROW_HEIGHT };
+  const { thread, onPress, onPin, onRemoveFromProject, onDelete, nested } = props;
+  const slotStyle = { width: rowWidth, height: drawerThreadRowHeight(nested) };
 
   return (
     <Host style={slotStyle}>
@@ -51,6 +51,7 @@ function DrawerThreadRowNativeMenu({
               <DrawerThreadRowTrigger
                 thread={props.thread}
                 active={props.active}
+                nested={nested}
                 onPress={onPress}
               />
             </View>
@@ -63,7 +64,7 @@ function DrawerThreadRowNativeMenu({
 
 export function DrawerThreadRow(props: DrawerThreadRowProps) {
   return (
-    <DrawerThreadRowSlot>
+    <DrawerThreadRowSlot nested={props.nested}>
       {({ width }) => <DrawerThreadRowNativeMenu props={props} rowWidth={width} />}
     </DrawerThreadRowSlot>
   );
