@@ -116,6 +116,9 @@ importers:
       expo-document-picker:
         specifier: ^55.0.13
         version: 55.0.13(expo@55.0.24)
+      expo-file-system:
+        specifier: ~55.0.20
+        version: 55.0.20(expo@55.0.24)(react-native@0.83.6(@babel/core@7.29.0)(@react-native/metro-config@0.85.3(@babel/core@7.29.0)(bufferutil@4.1.0)(utf-8-validate@6.0.6))(@types/react@19.2.14)(bufferutil@4.1.0)(react@19.2.0)(utf-8-validate@6.0.6))
       expo-font:
         specifier: ~55.0.4
         version: 55.0.7(expo@55.0.24)(react-native@0.83.6(@babel/core@7.29.0)(@react-native/metro-config@0.85.3(@babel/core@7.29.0)(bufferutil@4.1.0)(utf-8-validate@6.0.6))(@types/react@19.2.14)(bufferutil@4.1.0)(react@19.2.0)(utf-8-validate@6.0.6))(react@19.2.0)
@@ -240,6 +243,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@chat/chat-core':
+        specifier: workspace:*
+        version: link:../../packages/chat-core
       '@chat/shared':
         specifier: workspace:*
         version: link:../../packages/shared
