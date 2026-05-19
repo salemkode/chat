@@ -66,7 +66,7 @@ export const MessageSquareText = pickIcon(
 )
 export const MoveRight = pickIcon(['ArrowRight'], 'MoveRight')
 export const RefreshCcw = pickIcon(['ArrowsClockwise'], 'RefreshCcw')
-export { RefreshCcw as RefreshCw }
+export const RefreshCw = RefreshCcw
 export const RotateCcw = pickIcon(['ArrowCounterClockwise'], 'RotateCcw')
 export const WandSparkles = pickIcon(['MagicWand'], 'WandSparkles')
 export const CircleDollarSign = pickIcon(['CurrencyDollar'], 'CircleDollarSign')
