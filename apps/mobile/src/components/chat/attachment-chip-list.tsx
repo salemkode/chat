@@ -40,20 +40,9 @@ function FloatingImageThumbnail({
   return (
     <View
       className="relative mr-2.5"
-      style={{
-        width: THUMB_SIZE,
-        height: THUMB_SIZE,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.18,
-        shadowRadius: 10,
-        elevation: 8,
-      }}
+      style={{ width: THUMB_SIZE, height: THUMB_SIZE }}
     >
-      <View
-        className="relative border border-border/50 bg-muted"
-        style={THUMB_CLIP_STYLE}
-      >
+      <View style={THUMB_CLIP_STYLE}>
         <Image
           source={{ uri: attachment.uri }}
           className="h-full w-full"
@@ -64,8 +53,7 @@ function FloatingImageThumbnail({
       <Pressable
         onPress={() => onRemove(attachment.id)}
         hitSlop={8}
-        className="absolute -right-1.5 -top-1.5 h-6 w-6 items-center justify-center rounded-full border border-border bg-card active:bg-muted"
-        style={COMPOSER_FLOATING_SURFACE_STYLE}
+        className="absolute -right-1.5 -top-1.5 h-6 w-6 items-center justify-center rounded-full bg-secondary active:bg-muted"
       >
         <Icon icon={X} className="h-3.5 w-3.5 text-foreground" />
       </Pressable>
@@ -86,7 +74,7 @@ function UploadStatusOverlay({
   }
 
   return (
-    <View className="absolute inset-0 items-center justify-center bg-card/85">
+    <View className="absolute inset-0 items-center justify-center bg-black/40">
       <ActivityIndicator size="small" />
     </View>
   );

@@ -307,11 +307,10 @@ export function Sidebar({
 
               <View className="flex-1" />
               <Link href="/" asChild>
-                <Pressable className="w-10 h-10 rounded-full bg-foreground hover:bg-foreground/90 active:bg-foreground/80 items-center justify-center flex">
+                <Pressable className="w-10 h-10 rounded-full bg-muted hover:bg-accent active:bg-accent items-center justify-center flex">
                   <Icon
                     icon={MessageSquarePlus}
-                    className="w-[18px] h-[18px]"
-                    colorClassName="accent-background"
+                    className="w-[18px] h-[18px] text-foreground"
                   />
                 </Pressable>
               </Link>

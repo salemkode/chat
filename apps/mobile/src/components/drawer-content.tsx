@@ -235,13 +235,9 @@ function DrawerFooter({
         onPress={onNewChat}
         accessibilityLabel="New chat"
         accessibilityRole="button"
-        className="w-10 h-10 rounded-full bg-foreground active:opacity-80 items-center justify-center"
+        className="w-10 h-10 rounded-full bg-muted active:bg-accent items-center justify-center"
       >
-        <Icon
-          icon={SquarePen}
-          className="w-5 h-5"
-          colorClassName="accent-background"
-        />
+        <Icon icon={SquarePen} className="w-5 h-5 text-foreground" />
       </Pressable>
     </View>
   );
