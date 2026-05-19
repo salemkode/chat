@@ -1,6 +1,13 @@
 import type { Id } from "@convex/_generated/dataModel";
+import {
+  inferMediaTypeFromName,
+  normalizeAttachmentFilename,
+  resolveAttachmentMediaType,
+} from "@chat/shared/logic/attachment-metadata";
 
 export type LocalAttachmentSource = "files" | "photos" | "camera";
+
+export { inferMediaTypeFromName, normalizeAttachmentFilename, resolveAttachmentMediaType };
 
 export type AttachmentUploadStatus =
   | "pending"
@@ -19,35 +26,6 @@ export type LocalAttachment = {
   storageId?: Id<"_storage">;
   uploadError?: string;
 };
-
-const MIME_BY_EXTENSION: Record<string, string> = {
-  csv: "text/csv",
-  gif: "image/gif",
-  heic: "image/heic",
-  jpeg: "image/jpeg",
-  jpg: "image/jpeg",
-  json: "application/json",
-  md: "text/markdown",
-  pdf: "application/pdf",
-  png: "image/png",
-  svg: "image/svg+xml",
-  txt: "text/plain",
-  webp: "image/webp",
-};
-
-export function inferMediaTypeFromName(name?: string | null) {
-  if (!name) {
-    return undefined;
-  }
-
-  const parts = name.toLowerCase().split(".");
-  const extension = parts[parts.length - 1];
-  if (!extension || extension === name.toLowerCase()) {
-    return undefined;
-  }
-
-  return MIME_BY_EXTENSION[extension];
-}
 
 export function formatAttachmentSize(size?: number) {
   if (typeof size !== "number" || !Number.isFinite(size) || size <= 0) {

@@ -146,26 +146,30 @@ export function PromptInputTextarea({
  * Submit button matching Vercel chatbot's send/stop button.
  */
 export function PromptInputSubmit() {
-  const { input, isGenerating, onSend } = useChatContext();
-  const disabled = !input.trim() || isGenerating;
+  const { input, isGenerating, canStop, canForceStop, onSend, onStop } = useChatContext();
+  const showStop = isGenerating && canStop;
+  const sendDisabled = !input.trim() || (isGenerating && !showStop);
 
   return (
     <Pressable
-      onPress={onSend}
-      disabled={disabled}
+      onPress={showStop ? onStop : onSend}
+      disabled={sendDisabled && !showStop}
+      accessibilityLabel={showStop ? (canForceStop ? "Force stop" : "Stop generation") : "Send message"}
       className={`flex h-7 w-7 items-center justify-center rounded-xl transition-all duration-200 ${
-        disabled
+        sendDisabled && !showStop
           ? "bg-muted cursor-not-allowed"
           : "bg-foreground hover:opacity-85 active:scale-95"
       }`}
     >
-      {isGenerating ? (
+      {isGenerating && !showStop ? (
         <ActivityIndicator size="small" colorClassName="tint-background" />
+      ) : showStop ? (
+        <View className="h-2.5 w-2.5 rounded-sm bg-background" />
       ) : (
         <ArrowUp
           size={16}
           strokeWidth={2.5}
-          className={disabled ? "text-muted-foreground/25" : "text-background"}
+          className={sendDisabled ? "text-muted-foreground/25" : "text-background"}
         />
       )}
     </Pressable>

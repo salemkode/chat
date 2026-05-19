@@ -38,22 +38,8 @@ function FloatingImageThumbnail({
   onRemove: (attachmentId: string) => void;
 }) {
   return (
-    <View
-      className="relative mr-2.5"
-      style={{
-        width: THUMB_SIZE,
-        height: THUMB_SIZE,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.18,
-        shadowRadius: 10,
-        elevation: 8,
-      }}
-    >
-      <View
-        className="relative border border-border/50 bg-muted"
-        style={THUMB_CLIP_STYLE}
-      >
+    <View className="relative mr-2.5" style={{ width: THUMB_SIZE }}>
+      <View style={THUMB_CLIP_STYLE}>
         <Image
           source={{ uri: attachment.uri }}
           className="h-full w-full"
@@ -61,11 +47,17 @@ function FloatingImageThumbnail({
         />
         <UploadStatusOverlay attachment={attachment} />
       </View>
+      <Text
+        className="mt-1.5 text-[11px] font-medium text-foreground"
+        numberOfLines={1}
+        style={{ width: THUMB_SIZE }}
+      >
+        {attachment.filename}
+      </Text>
       <Pressable
         onPress={() => onRemove(attachment.id)}
         hitSlop={8}
-        className="absolute -right-1.5 -top-1.5 h-6 w-6 items-center justify-center rounded-full border border-border bg-card active:bg-muted"
-        style={COMPOSER_FLOATING_SURFACE_STYLE}
+        className="absolute -right-1.5 -top-1.5 h-6 w-6 items-center justify-center rounded-full bg-secondary active:bg-muted"
       >
         <Icon icon={X} className="h-3.5 w-3.5 text-foreground" />
       </Pressable>
@@ -86,7 +78,7 @@ function UploadStatusOverlay({
   }
 
   return (
-    <View className="absolute inset-0 items-center justify-center bg-card/85">
+    <View className="absolute inset-0 items-center justify-center bg-black/40">
       <ActivityIndicator size="small" />
     </View>
   );
@@ -102,16 +94,16 @@ function FileAttachmentChip({
   return (
     <View
       className={cn(
-        "relative mr-2 flex-row items-center gap-2.5 px-3 py-2",
+        "relative mr-2 min-w-44 max-w-52 flex-row items-center gap-2.5 bg-card px-3 py-2",
         COMPOSER_FLOATING_SOLID_CLASS,
       )}
       style={[COMPOSER_FLOATING_PILL_STYLE, COMPOSER_FLOATING_SURFACE_STYLE]}
     >
-      <View className="relative h-8 w-8 items-center justify-center rounded-lg bg-secondary">
+      <View className="relative h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondary">
         <Icon icon={File} className="h-4 w-4 text-foreground" />
         <UploadStatusOverlay attachment={attachment} />
       </View>
-      <View className="max-w-36 min-w-0">
+      <View className="min-w-28 flex-1">
         <Text className="text-xs font-medium text-foreground" numberOfLines={1}>
           {attachment.filename}
         </Text>

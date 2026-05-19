@@ -1,8 +1,9 @@
 import { useUIMessages } from "@convex-dev/agent/react";
 import type { UsePaginatedQueryResult } from "convex/react";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { DeviceEventEmitter } from "react-native";
 import { api } from "@convex/_generated/api";
-import { sortChatMessages } from "@/hooks/chat-data/message-order";
+import { useThreadMessages } from "@chat/chat-core";
 import {
   cacheMessagesToLocal,
   type ChatMessage,
@@ -10,15 +11,19 @@ import {
   useConvexUserIdForCache,
   useOfflineCacheVersion,
 } from "@/hooks/chat-data/shared";
+import { CHAT_STREAM_RESUME_EVENT } from "@/lib/chat-events";
 import { readMessagesCache } from "@/offline/local-cache";
 
 export function useMessages(threadId?: string) {
   const cacheUserId = useConvexUserIdForCache();
   const cacheVersion = useOfflineCacheVersion();
+  const [streamEnabled, setStreamEnabled] = useState(Boolean(threadId));
+  const stableSignatureRef = useRef("");
+  const stableSnapshotCountRef = useRef(0);
   const queryArgs = threadId ? { threadId } : "skip";
   const paginatedMessages = useUIMessages(api.chat.listMessages, queryArgs, {
     initialNumItems: 30,
-    stream: true,
+    stream: streamEnabled,
   }) as unknown as UsePaginatedQueryResult<ChatMessage>;
 
   const cachedMessages = useMemo(() => {
@@ -50,33 +55,49 @@ export function useMessages(threadId?: string) {
     );
   }, [threadId, cacheUserId, cacheVersion]);
 
-  const orderedCachedMessages = useMemo(
-    () => sortChatMessages(cachedMessages),
-    [cachedMessages],
-  );
+  const liveResults = useMemo(() => {
+    if (!threadId || paginatedMessages.results === undefined) {
+      return undefined;
+    }
+    return paginatedMessages.results.map((msg) => ({
+      id: msg.id ?? (msg as { _id?: string })._id ?? "",
+      role: msg.role as "user" | "assistant",
+      text: msg.text ?? "",
+      parts: msg.parts ?? [],
+      status: (msg.status ?? "success") as ChatMessage["status"],
+      order: msg.order,
+      stepOrder: msg.stepOrder,
+      createdAt: msg.order,
+      failureKind: msg.failureKind,
+      failureMode: msg.failureMode,
+      failureNote: msg.failureNote,
+    })) as ChatMessage[];
+  }, [paginatedMessages.results, threadId]);
+
+  const { messages, hasMore, loadOlderMessages, hasRenderableMessages } = useThreadMessages({
+    threadId,
+    threadKey: threadId ?? "new",
+    liveResults,
+    persistedMessages: cachedMessages,
+    paginatedStatus: paginatedMessages.status,
+    loadMore: paginatedMessages.loadMore,
+  });
 
   const liveMessages = useMemo(() => {
     if (!threadId || !paginatedMessages.results?.length) {
       return [] as ChatMessage[];
     }
-    return sortChatMessages(
-      paginatedMessages.results.map((msg) => ({
-        id: msg.id ?? (msg as { _id?: string })._id ?? "",
-        role: msg.role as "user" | "assistant",
-        text: msg.text ?? "",
-        parts: msg.parts ?? [],
-        status: (msg.status ?? "success") as ChatMessage["status"],
-        order: msg.order,
-        stepOrder: msg.stepOrder,
-        createdAt: msg.order,
-        failureKind: msg.failureKind,
-        failureMode: msg.failureMode,
-        failureNote: msg.failureNote,
-      })),
-    );
-  }, [paginatedMessages.results, threadId]);
+    return liveResults ?? [];
+  }, [liveResults, paginatedMessages.results?.length, threadId]);
 
   const lastCachedSignatureRef = useRef("");
+  const hasStreamingMessages = useMemo(
+    () =>
+      liveMessages.some(
+        (message) => message.status === "streaming" || message.status === "pending",
+      ),
+    [liveMessages],
+  );
   const cacheSignature = useMemo(() => {
     if (!threadId || liveMessages.length === 0) {
       return "";
@@ -89,8 +110,57 @@ export function useMessages(threadId?: string) {
       lastMessage?.id || "",
       lastMessage?.status || "",
       lastMessage?.text?.length || 0,
+      hasStreamingMessages ? 1 : 0,
     ].join(":");
-  }, [liveMessages, threadId]);
+  }, [hasStreamingMessages, liveMessages, threadId]);
+
+  useEffect(() => {
+    lastCachedSignatureRef.current = "";
+    stableSignatureRef.current = "";
+    stableSnapshotCountRef.current = 0;
+    setStreamEnabled(Boolean(threadId));
+  }, [threadId]);
+
+  useEffect(() => {
+    const subscription = DeviceEventEmitter.addListener(
+      CHAT_STREAM_RESUME_EVENT,
+      (detail: { threadId?: string }) => {
+        if (!threadId || detail.threadId !== threadId) {
+          return;
+        }
+        stableSignatureRef.current = "";
+        stableSnapshotCountRef.current = 0;
+        setStreamEnabled(true);
+      },
+    );
+    return () => subscription.remove();
+  }, [threadId]);
+
+  useEffect(() => {
+    if (!threadId || !cacheSignature) {
+      return;
+    }
+
+    if (hasStreamingMessages) {
+      stableSignatureRef.current = cacheSignature;
+      stableSnapshotCountRef.current = 0;
+      if (!streamEnabled) {
+        setStreamEnabled(true);
+      }
+      return;
+    }
+
+    if (stableSignatureRef.current === cacheSignature) {
+      stableSnapshotCountRef.current += 1;
+      if (stableSnapshotCountRef.current >= 1 && streamEnabled) {
+        setStreamEnabled(false);
+      }
+      return;
+    }
+
+    stableSignatureRef.current = cacheSignature;
+    stableSnapshotCountRef.current = 0;
+  }, [cacheSignature, hasStreamingMessages, streamEnabled, threadId]);
 
   useEffect(() => {
     if (!threadId || !cacheUserId || liveMessages.length === 0 || !cacheSignature) {
@@ -109,22 +179,17 @@ export function useMessages(threadId?: string) {
     }
   }, [cacheSignature, cacheUserId, liveMessages, threadId]);
 
-  const messages = liveMessages.length > 0 ? liveMessages : orderedCachedMessages;
-
   const hasActiveStreaming = useMemo(
-    () =>
-      messages.some((m) => m.status === "streaming" || m.status === "pending"),
+    () => messages.some((m) => m.status === "streaming" || m.status === "pending"),
     [messages],
   );
 
   return {
     messages,
     status: paginatedMessages.status,
-    hasMore:
-      paginatedMessages.status === "CanLoadMore" ||
-      paginatedMessages.status === "LoadingMore",
-    loadOlderMessages: paginatedMessages.loadMore,
+    hasMore,
+    loadOlderMessages,
     hasActiveStreaming,
-    hasRenderableMessages: messages.length > 0,
+    hasRenderableMessages,
   };
 }

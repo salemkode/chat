@@ -2,19 +2,19 @@ import { useSmoothText } from '@convex-dev/agent/react'
 import { getQuranAyahCardFromParts } from '@chat/shared/quran-ayah'
 import type { FunctionReturnType } from 'convex/server'
 import { api } from '@convex/_generated/api'
-import { AlertCircle, FileText, ChevronDown, ChevronUp } from '@/lib/icons'
+import { FileText, ChevronDown, ChevronUp } from '@/lib/icons'
 import { memo, useMemo, useState } from 'react'
 import { useIsMobile } from '@/hooks/use-mobile'
-import { getMessageFailurePresentation } from '@/lib/chat-generation'
+import { canStopActiveGeneration } from '@chat/shared/logic/chat-generation-core'
+import { formatMessageFailureNote } from '@chat/shared/logic/user-facing-errors'
 import { cn } from '@/lib/utils'
+import { ChatInlineError } from './chat/chat-inline-error'
 import { QuranAyahCard } from './chat/quran-ayah-card'
 import { MessageActivityTimeline } from './chat/message-activity-timeline'
 import { ChatMarkdown } from './chat-markdown'
 import { CopyButton } from './copy-button'
-import { MessageAttachments, RepeatButton, ResendButton, StopButton } from './message/actions'
+import { MessageAttachments, RepeatButton, StopButton } from './message/actions'
 import { areMessagePropsEqual, getMessageFileParts } from './message/utils'
-import { Alert, AlertDescription, AlertTitle } from './ui/alert'
-
 interface MessageProps {
   threadId: string
   message: FunctionReturnType<typeof api.chat.listMessages>['page'][number]
@@ -37,11 +37,6 @@ export const Message = memo(function Message({
   })
   const visibleText = shouldSmoothText ? smoothedText : message.text
   const isFailedAssistant = message.role === 'assistant' && message.status === 'failed'
-  const failurePresentation = getMessageFailurePresentation(message)
-  const shouldReplaceWithFailureMessage =
-    isFailedAssistant && failurePresentation?.mode === 'replace'
-  const shouldShowFailureClarification =
-    isFailedAssistant && failurePresentation?.mode === 'clarify'
   const hasActivity = useMemo(
     () =>
       message.parts.some((part: Record<string, unknown>) => {
@@ -60,12 +55,24 @@ export const Message = memo(function Message({
   const ayahCard = useMemo(() => getQuranAyahCardFromParts(message.parts), [message.parts])
 
   if (message.role === 'assistant') {
+    if (isFailedAssistant) {
+      const failureNote = formatMessageFailureNote(
+        typeof message.failureNote === 'string' ? message.failureNote : undefined,
+        message.failureKind === 'stopped' ? 'stopped' : 'error',
+      )
+
+      return (
+        <div className={cn('mx-auto w-full max-w-3xl', isMobile && 'px-0.5')}>
+          <ChatInlineError message={failureNote} />
+        </div>
+      )
+    }
+
     const disableRepeat = message.status === 'streaming' || message.status === 'pending'
-    const failureTitle =
-      failurePresentation?.kind === 'stopped' ? 'Generation stopped' : 'Message failed'
-    const failureNote = failurePresentation?.note || 'The model could not complete this response.'
-    const failureVariant = failurePresentation?.kind === 'error' ? 'destructive' : 'default'
-    const shouldShowResend = isFailedAssistant || isStalled
+    const shouldShowResend = isStalled
+    const canStop = isActiveGeneration
+      ? canStopActiveGeneration({ message, isStalled })
+      : false
 
     return (
       <div className={cn('mx-auto w-full max-w-3xl', isMobile && 'px-0.5')}>
@@ -73,43 +80,18 @@ export const Message = memo(function Message({
           <MessageActivityTimeline parts={message.parts} messageStatus={message.status} />
         ) : null}
 
-        {shouldReplaceWithFailureMessage ? (
-          <Alert
-            variant={failureVariant}
-            className={failureVariant === 'destructive' ? 'border-destructive/40' : ''}
-          >
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>{failureTitle}</AlertTitle>
-            <AlertDescription>
-              <p className="whitespace-pre-wrap break-words">{failureNote}</p>
-            </AlertDescription>
-          </Alert>
-        ) : (
-          <div
-            dir="auto"
-            className={cn('space-y-3 px-1 py-1', isMobile && 'space-y-3.5 px-0.5 py-1.5')}
-          >
-            {ayahCard ? <QuranAyahCard ayah={ayahCard} /> : null}
-            {visibleText.trim() ? (
-              <ChatMarkdown
-                text={visibleText}
-                isStreaming={message.status === 'streaming' || message.status === 'pending'}
-              />
-            ) : null}
-          </div>
-        )}
-        {shouldShowFailureClarification ? (
-          <Alert
-            variant={failureVariant}
-            className={cn('mt-3', failureVariant === 'destructive' && 'border-destructive/40')}
-          >
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>{failureTitle}</AlertTitle>
-            <AlertDescription>
-              <p className="whitespace-pre-wrap break-words">{failureNote}</p>
-            </AlertDescription>
-          </Alert>
-        ) : null}
+        <div
+          dir="auto"
+          className={cn('space-y-3 px-1 py-1', isMobile && 'space-y-3.5 px-0.5 py-1.5')}
+        >
+          {ayahCard ? <QuranAyahCard ayah={ayahCard} /> : null}
+          {visibleText.trim() ? (
+            <ChatMarkdown
+              text={visibleText}
+              isStreaming={message.status === 'streaming' || message.status === 'pending'}
+            />
+          ) : null}
+        </div>
 
         {fileParts.length > 0 ? (
           <div className="mt-3">
@@ -125,23 +107,20 @@ export const Message = memo(function Message({
             )}
           >
             <CopyButton text={message.text} />
-            {isActiveGeneration ? (
-              <StopButton threadId={threadId} promptMessageId={promptMessageId} />
-            ) : null}
-            {shouldShowResend ? (
-              <ResendButton
+            {isActiveGeneration && canStop ? (
+              <StopButton
                 threadId={threadId}
                 promptMessageId={promptMessageId}
-                forceStopFirst={isStalled}
+                canStop={canStop}
+                forceStop={isStalled}
               />
             ) : null}
-            {!shouldShowResend ? (
-              <RepeatButton
-                threadId={threadId}
-                promptMessageId={promptMessageId}
-                disabled={disableRepeat}
-              />
-            ) : null}
+            <RepeatButton
+              threadId={threadId}
+              promptMessageId={promptMessageId}
+              disabled={shouldShowResend ? false : disableRepeat}
+              forceStopFirst={shouldShowResend && isStalled}
+            />
           </div>
         ) : null}
       </div>

@@ -10,38 +10,35 @@ import { Copy, Check, File } from "lucide-react-native";
 import { Icon } from "@/components/icon";
 import { Image } from "@/components/tw";
 import { useAssistantMarkdownStyle } from "@/hooks/use-assistant-markdown-style";
+import { formatAttachmentKind } from "@/components/chat/attachment-types";
+import {
+  getMessageFileParts,
+  type MessageFilePart,
+} from "@chat/shared/logic/message-file-parts";
 
-type MessageFilePart = {
-  filename?: string;
-  mediaType?: string;
-  url?: string;
-};
-
-function readMessageFilePart(part: Record<string, unknown>): MessageFilePart | null {
-  if (part.type !== "file") {
-    return null;
-  }
-
-  return {
-    url: typeof part.url === "string" ? part.url : undefined,
-    mediaType: typeof part.mediaType === "string" ? part.mediaType : undefined,
-    filename: typeof part.filename === "string" ? part.filename : undefined,
-  };
-}
+/** User bubble width when the row includes file/image attachments. */
+const USER_ATTACHMENT_BUBBLE_CLASS = "w-[88%] max-w-[92%]";
+const USER_DEFAULT_BUBBLE_CLASS = "max-w-[92%]";
 
 export function Message({
   from,
   children,
+  wide,
 }: {
   from: "user" | "assistant";
   children: ReactNode;
+  /** Use a wider bubble so attachment titles fit (file parts in the message). */
+  wide?: boolean;
 }) {
   if (from === "user") {
     return (
       <Animated.View
         entering={FadeIn.duration(200)}
         exiting={FadeOut.duration(150)}
-        className="max-w-[80%] self-end rounded-2xl bg-user-bubble dark:bg-user-bubble p-3 mb-2"
+        className={[
+          "self-end rounded-2xl bg-user-bubble p-3 mb-2 dark:bg-user-bubble",
+          wide ? USER_ATTACHMENT_BUBBLE_CLASS : USER_DEFAULT_BUBBLE_CLASS,
+        ].join(" ")}
         style={{ borderCurve: "continuous" }}
       >
         {typeof children === "string" ? (
@@ -121,54 +118,82 @@ export function MessageResponse({ children }: { children: string }) {
   );
 }
 
+function formatMessageFileLabel(part: MessageFilePart) {
+  return part.filename ?? "Attachment";
+}
+
+function formatMessageFileMeta(part: MessageFilePart) {
+  if (part.mediaType === "application/pdf") {
+    return "PDF";
+  }
+
+  return formatAttachmentKind(part.mediaType);
+}
+
 export function MessageAttachments({
   parts,
 }: {
   parts?: Array<Record<string, unknown>>;
 }) {
-  const fileParts = (parts ?? [])
-    .map(readMessageFilePart)
-    .filter((part): part is MessageFilePart => part !== null);
+  const fileParts = getMessageFileParts(parts ?? []);
 
   if (fileParts.length === 0) {
     return null;
   }
 
   return (
-    <View className="mb-2 gap-2">
+    <View className="w-full gap-2">
       {fileParts.map((part, index) => {
         const isImage =
-          part.mediaType?.startsWith("image/") === true && !!part.url;
+          part.mediaType.startsWith("image/") === true && !!part.url;
+        const label = formatMessageFileLabel(part);
+        const meta = formatMessageFileMeta(part);
 
         return (
           <View
             key={`${part.url ?? part.filename ?? "attachment"}-${index}`}
-            className="overflow-hidden rounded-2xl border border-white/15 bg-background/15"
+            className="w-full overflow-hidden rounded-2xl border border-border/60 bg-card"
             style={{ borderCurve: "continuous" }}
           >
             {isImage ? (
-              <Image
-                source={{ uri: part.url }}
-                className="h-36 w-full bg-background/10"
-                contentFit="cover"
-              />
-            ) : (
-              <View className="flex-row items-center gap-3 px-3 py-3">
-                <View className="h-10 w-10 items-center justify-center rounded-xl bg-background/15">
-                  <Icon icon={File} className="h-4 w-4 text-foreground" />
-                </View>
-                <View className="min-w-0 flex-1">
+              <View>
+                <Image
+                  source={{ uri: part.url }}
+                  className="h-36 w-full bg-muted"
+                  contentFit="cover"
+                />
+                <View className="border-t border-border/50 px-3 py-2">
                   <Text
                     className="text-sm font-medium text-foreground"
                     numberOfLines={1}
                   >
-                    {part.filename ?? "Attachment"}
+                    {label}
                   </Text>
                   <Text
                     className="text-xs text-muted-foreground"
                     numberOfLines={1}
                   >
-                    {part.mediaType ?? "application/octet-stream"}
+                    {meta}
+                  </Text>
+                </View>
+              </View>
+            ) : (
+              <View className="flex-row items-center gap-3 px-3 py-3">
+                <View className="h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted">
+                  <Icon icon={File} className="h-4 w-4 text-foreground" />
+                </View>
+                <View className="flex-1">
+                  <Text
+                    className="text-sm font-medium text-foreground"
+                    numberOfLines={1}
+                  >
+                    {label}
+                  </Text>
+                  <Text
+                    className="text-xs text-muted-foreground"
+                    numberOfLines={1}
+                  >
+                    {meta}
                   </Text>
                 </View>
               </View>

@@ -1,20 +1,23 @@
+import { resolveChatSnapshot } from "@chat/chat-core";
+import { compareThreadsForSidebar } from "@chat/chat-core/sidebar";
+import type { ThreadSummary } from "@chat/chat-core/types";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { useMemo, useCallback } from "react";
+import {
+  useConvexUserIdForCache,
+  useOfflineCacheVersion,
+} from "@/hooks/chat-data/shared";
+import { readThreadsCache } from "@/offline/local-cache";
 
-type ThreadSummary = {
-  id: string;
+function normalizeThread(thread: {
+  _id: string;
   title?: string;
-  emoji: string;
-  icon?: string;
-  projectId?: string;
-  projectName?: string;
-  sortOrder: number;
-  pinned: boolean;
-  lastMessageAt: number;
-};
-
-function normalizeThread(thread: any): ThreadSummary {
+  metadata?: { emoji?: string; icon?: string; sortOrder?: number };
+  project?: { id: string; name: string } | null;
+  lastMessageAt?: number;
+  _creationTime: number;
+}): ThreadSummary {
   const project = thread.project;
   return {
     id: thread._id,
@@ -25,25 +28,33 @@ function normalizeThread(thread: any): ThreadSummary {
     projectName: project?.name,
     sortOrder: thread.metadata?.sortOrder ?? 0,
     pinned: (thread.metadata?.sortOrder ?? 0) > 0,
-    lastMessageAt:
-      (thread as any).lastMessageAt ?? thread._creationTime,
+    lastMessageAt: thread.lastMessageAt ?? thread._creationTime,
   };
 }
 
 export function useThreads() {
+  const cacheUserId = useConvexUserIdForCache();
+  const cacheVersion = useOfflineCacheVersion();
   const liveThreads = useQuery(api.agents.listThreadsWithMetadata);
   const setThreadPinned = useMutation(api.agents.setThreadPinned);
   const deleteThreadMutation = useMutation(api.chat.deleteThread);
 
+  const cachedThreads = useMemo(() => {
+    if (!cacheUserId) {
+      return [] as ThreadSummary[];
+    }
+    const fromCache = readThreadsCache<ThreadSummary[]>(cacheUserId);
+    return Array.isArray(fromCache) ? [...fromCache].sort(compareThreadsForSidebar) : [];
+  }, [cacheUserId, cacheVersion]);
+
   const threads = useMemo<ThreadSummary[]>(() => {
-    if (!liveThreads) return [];
-    return liveThreads
-      .map(normalizeThread)
-      .sort((a, b) => {
-        if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
-        return b.lastMessageAt - a.lastMessageAt;
-      });
-  }, [liveThreads]);
+    const normalized =
+      liveThreads === undefined ? undefined : liveThreads.map(normalizeThread);
+    return resolveChatSnapshot({
+      live: normalized,
+      persisted: cachedThreads,
+    }).sort(compareThreadsForSidebar);
+  }, [cachedThreads, liveThreads]);
 
   const setPinned = useCallback(
     async (threadId: string, pinned: boolean) => {
@@ -63,10 +74,7 @@ export function useThreads() {
 }
 
 export function useThread(threadId?: string) {
-  const liveThread = useQuery(
-    api.chat.getThread,
-    threadId ? { threadId } : "skip",
-  );
+  const liveThread = useQuery(api.chat.getThread, threadId ? { threadId } : "skip");
 
   return useMemo(() => {
     if (!liveThread) return null;

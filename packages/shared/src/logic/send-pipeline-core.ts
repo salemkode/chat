@@ -1,21 +1,9 @@
 /** Pure helpers shared by web and mobile `useSendMessage` implementations. */
 
+import { extractErrorMessageFromUnknown } from './user-facing-errors'
+
 export function getErrorMessageFromUnknown(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message
-  }
-  if (typeof error === 'string') {
-    return error
-  }
-  if (
-    typeof error === 'object' &&
-    error !== null &&
-    'message' in error &&
-    typeof (error as { message: unknown }).message === 'string'
-  ) {
-    return (error as { message: string }).message
-  }
-  return ''
+  return extractErrorMessageFromUnknown(error)
 }
 
 export function isExtraFieldValidationError(error: unknown, fieldName: string) {

@@ -1,4 +1,4 @@
-import { useQuery } from '@/lib/convex-query-cache'
+import { useQuery } from 'convex/react'
 import type { Id } from '@convex/_generated/dataModel'
 import { api } from '@convex/_generated/api'
 import type { FunctionReturnType } from 'convex/server'

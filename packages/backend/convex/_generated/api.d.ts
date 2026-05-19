@@ -794,7 +794,7 @@ export declare const api: {
       "mutation",
       "public",
       { promptMessageId?: string; threadId: string },
-      { order?: number; stopped: boolean }
+      { impl: 2; order?: number; stopped: boolean }
     >;
     togglePinThread: FunctionReference<
       "mutation",

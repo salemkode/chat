@@ -5,6 +5,7 @@ import {
   isAutoModelSelection,
   resolveModelAttachmentMediaTypes,
 } from '@chat/shared'
+import { formatUserFacingError } from '@chat/shared/logic/user-facing-errors'
 import { api } from '@convex/_generated/api'
 import type { Id } from '@convex/_generated/dataModel'
 import { useAction } from 'convex/react'
@@ -315,7 +316,7 @@ function ChatComposer({ threadId, mobile = false }: { threadId?: string; mobile?
     if (threadId && activeGeneration) {
       const next = enqueueQueuedMessage(queuedMessages, payload, QUEUE_CAPACITY)
       if (next.overflow) {
-        throw new Error(`Queue full (${QUEUE_CAPACITY}). Wait or stop current response.`)
+        throw new Error(formatUserFacingError(`Queue full (${QUEUE_CAPACITY}). Wait or stop current response.`))
       }
       setQueuedMessages(next.queue)
       return

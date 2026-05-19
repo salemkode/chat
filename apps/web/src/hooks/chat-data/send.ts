@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createClientRequestId, createClientThreadKey } from '@chat/shared/logic/client-keys'
 import type { Id } from '@convex/_generated/dataModel'
 import { useAction, useMutation } from 'convex/react'
 import { api } from '@convex/_generated/api'
 import { useOnlineStatus } from '@/hooks/use-online-status'
-import { parseUploadResponse } from '@/lib/parsers'
+import { createWebAttachmentAdapter } from '@/lib/chat-core-adapters'
 import {
   CHAT_FOLLOW_LATEST_EVENT,
   CHAT_STREAM_RESUME_EVENT,
@@ -15,6 +15,7 @@ import {
   applyOptimisticGenerateMessage,
   applyOptimisticRegenerateMessage,
 } from '@/hooks/chat-data/optimistic-list-messages'
+import { applyOptimisticStopGeneration } from '@/hooks/chat-data/optimistic-stop-generation'
 import { applyOptimisticCreateThread } from '@/hooks/chat-data/optimistic-threads'
 
 function getErrorMessage(error: unknown) {
@@ -152,36 +153,22 @@ export function useSendMessage() {
       }
     }
   ).agents
-  const stopGeneration = useMutation(stopGenerationApi.stopGeneration as never)
+  const stopGeneration = useMutation(stopGenerationApi.stopGeneration as never).withOptimisticUpdate(
+    (localStore, args) => {
+      applyOptimisticStopGeneration(localStore, args.threadId)
+    },
+  )
+
+  const webAttachmentAdapter = useMemo(() => createWebAttachmentAdapter(), [])
 
   const uploadAttachments = useCallback(
     async (files: File[]) => {
-      return await Promise.all(
-        files.map(async (file) => {
-          const uploadUrl = await generateAttachmentUploadUrl({})
-          const response = await fetch(uploadUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': file.type,
-            },
-            body: file,
-          })
-
-          if (!response.ok) {
-            throw new Error(`Failed to upload ${file.name}`)
-          }
-
-          const payload = parseUploadResponse(await response.json())
-
-          return {
-            storageId: payload.storageId as Id<'_storage'>,
-            filename: file.name,
-            mediaType: file.type,
-          }
-        }),
-      )
+      return await webAttachmentAdapter.upload(files, async () => {
+        const uploadUrl = await generateAttachmentUploadUrl({})
+        return uploadUrl
+      })
     },
-    [generateAttachmentUploadUrl],
+    [generateAttachmentUploadUrl, webAttachmentAdapter],
   )
 
   const resumeMessageStreaming = useCallback((threadId?: string) => {

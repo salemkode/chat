@@ -13,6 +13,7 @@ import { cn } from "@/utils/tailwind";
 import { useChatContext } from "./chat-context";
 import { useComposerProject } from "./composer-project-context";
 import { useConversationContext } from "./conversation";
+import { ChatInlineError } from "./chat-inline-error";
 import { PendingProjectDraftCard } from "./pending-project-draft-card";
 import { ProjectMentionPopup } from "./project-mention-popup";
 import {
@@ -50,7 +51,11 @@ export function PromptInput({ children }: { children: ReactNode }) {
       onLayout={onPromptInputLayout}
       style={[{ position: "absolute", left: 0, right: 0 }, promptInputStyle]}
     >
-      {error && <PromptInputError message={error.message} />}
+      {error ? (
+        <Animated.View entering={FadeIn.duration(200)} className="px-3 pb-2">
+          <ChatInlineError variant="composer" message={error.message} />
+        </Animated.View>
+      ) : null}
       <View className="relative px-3">
         <AttachmentChipList />
         {projectMention ? (
@@ -93,28 +98,6 @@ export function PromptInput({ children }: { children: ReactNode }) {
             {children}
           </View>
         </AnimatedThemedGlassContainer>
-      </View>
-    </Animated.View>
-  );
-}
-
-function PromptInputError({ message }: { message?: string }) {
-  return (
-    <Animated.View entering={FadeIn.duration(200)} className="px-3 pb-2">
-      <View
-        className="flex-row items-center gap-2 rounded-xl bg-card px-3 py-2.5"
-        style={{ borderCurve: "continuous" }}
-      >
-        <View
-          className="w-2 h-2 rounded-full"
-          style={{ backgroundColor: "#EF4444" }}
-        />
-        <Text
-          className="flex-1 text-xs text-muted-foreground"
-          numberOfLines={2}
-        >
-          {message || "Something went wrong"}
-        </Text>
       </View>
     </Animated.View>
   );
@@ -245,8 +228,9 @@ export function PromptInputTextarea({
  * is generating. Reads state from `ChatContext`.
  */
 export function PromptInputSubmit() {
-  const { canSend, isGenerating, onSend } = useChatContext();
-  const disabled = !canSend || isGenerating;
+  const { canSend, isGenerating, canStop, canForceStop, onSend, onStop } = useChatContext();
+  const showStop = isGenerating && canStop;
+  const sendDisabled = !canSend || (isGenerating && !showStop);
 
   return (
     <Pressable
@@ -260,13 +244,22 @@ export function PromptInputSubmit() {
         opacity: pressed ? 0.7 : 1,
         margin: 5,
       })}
-      className={disabled ? "bg-secondary" : "bg-foreground"}
-      onPress={onSend}
-      disabled={disabled}
+      className={sendDisabled && !showStop ? "bg-secondary" : "bg-foreground"}
+      onPress={showStop ? onStop : onSend}
+      disabled={sendDisabled && !showStop}
+      accessibilityLabel={showStop ? (canForceStop ? "Force stop" : "Stop generation") : "Send message"}
     >
-      {isGenerating ? (
+      {isGenerating && !showStop ? (
         <Animated.View entering={FadeIn} exiting={FadeOut}>
           <ActivityIndicator size="small" colorClassName="tint-foreground" className="text-foreground" />
+        </Animated.View>
+      ) : showStop ? (
+        <Animated.View entering={FadeIn} exiting={FadeOut}>
+          <SymbolImage
+            name="stop.fill"
+            size={14}
+            className="font-semibold text-background"
+          />
         </Animated.View>
       ) : (
           <SymbolImage
@@ -275,7 +268,7 @@ export function PromptInputSubmit() {
             sfEffect="scale/up"
             className={cn(
               "font-semibold",
-              disabled
+              sendDisabled
                 ? "text-muted-foreground"
                 : "text-background dark:text-background",
             )}

@@ -1,6 +1,6 @@
 import { createContext, useContext, useMemo, useCallback, useState, useEffect } from 'react'
-import { useMutation } from 'convex/react'
-import { useQuery } from '@chat/shared/convex-query-cache/hooks'
+import { useMutation, useQuery } from 'convex/react'
+import { resolveChatSnapshot } from './cache/resolve-snapshot'
 import type { ProjectSummary, ThreadSummary } from './types'
 import { compareThreadsForSidebar } from './sidebar'
 
@@ -113,19 +113,27 @@ export function ChatCoreProvider({
   )
 
   const projects = useMemo<ProjectSummary[]>(() => {
-    if (liveProjects) {
-      return (liveProjects as Record<string, unknown>[]).map(normalizeProject)
-    }
-    return cachedProjects ?? []
+    const normalized =
+      liveProjects === undefined
+        ? undefined
+        : (liveProjects as Record<string, unknown>[]).map(normalizeProject)
+    return resolveChatSnapshot({
+      live: normalized,
+      persisted: cachedProjects ?? [],
+    })
   }, [cachedProjects, liveProjects])
 
   const threads = useMemo<ThreadSummary[]>(() => {
-    if (liveThreads) {
-      return [...(liveThreads as Record<string, unknown>[])]
-        .map(normalizeThread)
-        .sort(compareThreadsForSidebar)
-    }
-    return cachedThreads ?? []
+    const normalized =
+      liveThreads === undefined
+        ? undefined
+        : [...(liveThreads as Record<string, unknown>[])]
+            .map(normalizeThread)
+            .sort(compareThreadsForSidebar)
+    return resolveChatSnapshot({
+      live: normalized,
+      persisted: cachedThreads ?? [],
+    })
   }, [cachedThreads, liveThreads])
 
   useEffect(() => {

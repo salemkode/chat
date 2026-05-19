@@ -2,6 +2,10 @@ import {
   isAttachmentMediaTypeAllowed,
   mediaTypeMatchesPattern,
 } from "@chat/shared";
+import {
+  CHAT_FILES_STILL_UPLOADING_MESSAGE,
+  formatUserFacingError,
+} from "@chat/shared/logic/user-facing-errors";
 import type { LocalAttachment } from "@/components/chat/attachment-types";
 
 export function modelAcceptsNonImageAttachments(
@@ -84,14 +88,16 @@ export function validateAttachmentsForSend(args: {
       attachment.uploadStatus === "uploading",
   );
   if (stillUploading) {
-    return "Files are still uploading. Wait a moment and try again.";
+    return CHAT_FILES_STILL_UPLOADING_MESSAGE;
   }
 
   const failedUpload = attachments.find(
     (attachment) => attachment.uploadStatus === "failed",
   );
   if (failedUpload) {
-    return failedUpload.uploadError ?? `Failed to upload ${failedUpload.filename}`;
+    return formatUserFacingError(
+      failedUpload.uploadError ?? `Failed to upload ${failedUpload.filename}`,
+    );
   }
 
   return null;

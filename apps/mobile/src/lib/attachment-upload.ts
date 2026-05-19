@@ -1,6 +1,8 @@
 import type { Id } from "@convex/_generated/dataModel";
 import { parseConvexIdForTable } from "@chat/shared/logic/convex-ids";
 import type { LocalAttachment } from "@/components/chat/attachment-types";
+import { File } from "expo-file-system";
+import { Platform } from "react-native";
 
 function parseUploadResponse(value: unknown): { storageId: Id<"_storage"> } {
   if (
@@ -20,6 +22,37 @@ function parseUploadResponse(value: unknown): { storageId: Id<"_storage"> } {
   return { storageId };
 }
 
+async function readAttachmentBody(attachment: LocalAttachment): Promise<Blob | File> {
+  if (Platform.OS !== "web") {
+    const file = new File(attachment.uri);
+    if (file.exists) {
+      return file;
+    }
+  }
+
+  const sourceResponse = await fetch(attachment.uri);
+  if (!sourceResponse.ok) {
+    throw new Error(`Failed to read ${attachment.filename}`);
+  }
+
+  return sourceResponse.blob();
+}
+
+async function postUpload(
+  uploadUrl: string,
+  attachment: LocalAttachment,
+): Promise<Response> {
+  const body = await readAttachmentBody(attachment);
+
+  return fetch(uploadUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": attachment.mediaType,
+    },
+    body,
+  });
+}
+
 export async function uploadLocalAttachment(
   attachment: LocalAttachment,
   generateUploadUrl: () => Promise<string | null>,
@@ -29,15 +62,7 @@ export async function uploadLocalAttachment(
     throw new Error("Unable to create an attachment upload URL");
   }
 
-  const sourceResponse = await fetch(attachment.uri);
-  const blob = await sourceResponse.blob();
-  const response = await fetch(uploadUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": attachment.mediaType,
-    },
-    body: blob,
-  });
+  const response = await postUpload(uploadUrl, attachment);
 
   if (!response.ok) {
     throw new Error(`Failed to upload ${attachment.filename}`);

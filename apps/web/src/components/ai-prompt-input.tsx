@@ -3,10 +3,14 @@ import { useEffect, useRef, useState } from 'react'
 import { isAttachmentMediaTypeAllowed, resolveModelAttachmentMediaTypes } from '@chat/shared'
 import { api } from '@convex/_generated/api'
 import type { Id } from '@convex/_generated/dataModel'
-import { AlertCircle } from '@/lib/icons'
 import { matchesHotkeyBinding } from '@/lib/hotkeys'
 import { cn } from '@/lib/utils'
 import { useQuery } from '@/lib/convex-query-cache'
+import { ChatInlineError } from '@/components/chat/chat-inline-error'
+import {
+  CHAT_COMPOSER_ERROR_EVENT,
+  type ChatComposerErrorDetail,
+} from '@/lib/chat-events'
 import { useHotkeys } from '@/components/hotkeys-provider'
 import {
   AttachmentGrid,
@@ -620,6 +624,19 @@ export function AIPromptInput({
   }, [submitError])
 
   useEffect(() => {
+    const onComposerError = (event: Event) => {
+      const detail = (event as CustomEvent<ChatComposerErrorDetail>).detail
+      if (!detail?.message) {
+        return
+      }
+      setSubmitError(detail.message)
+    }
+
+    window.addEventListener(CHAT_COMPOSER_ERROR_EVENT, onComposerError)
+    return () => window.removeEventListener(CHAT_COMPOSER_ERROR_EVENT, onComposerError)
+  }, [])
+
+  useEffect(() => {
     return () => {
       for (const attachment of attachmentsRef.current) {
         if (attachment.previewUrl) {
@@ -632,15 +649,8 @@ export function AIPromptInput({
   return (
     <div className={cn('pointer-events-auto mb-1 w-full', mobile ? 'bg-transparent' : '')}>
       {submitError ? (
-        <div className={cn('mb-2 flex justify-center', mobile && 'px-2')}>
-          <div
-            role="alert"
-            aria-live="assertive"
-            className="inline-flex max-w-[min(100%,42rem)] items-start gap-2 rounded-xl border border-destructive/45 bg-background/95 px-3 py-2 text-sm text-destructive shadow-lg backdrop-blur"
-          >
-            <AlertCircle className="mt-0.5 size-4 shrink-0" />
-            <span className="leading-5">{submitError}</span>
-          </div>
+        <div className={cn('px-3 pb-2', mobile && 'px-2')}>
+          <ChatInlineError variant="composer" message={submitError} />
         </div>
       ) : null}
 
@@ -686,7 +696,11 @@ export function AIPromptInput({
                 </div>
               ) : null}
               {pendingProjectDraft.error ? (
-                <div className="mb-2 text-xs text-destructive">{pendingProjectDraft.error}</div>
+                <ChatInlineError
+                  variant="composer"
+                  message={pendingProjectDraft.error}
+                  className="mb-2 px-0"
+                />
               ) : null}
               <div className="space-y-2">
                 <input

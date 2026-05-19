@@ -46,6 +46,7 @@
         "expo-crypto": "~55.0.15",
         "expo-dev-client": "~55.0.32",
         "expo-document-picker": "^55.0.13",
+        "expo-file-system": "~55.0.20",
         "expo-font": "~55.0.4",
         "expo-glass-effect": "~55.0.8",
         "expo-haptics": "~55.0.9",
@@ -98,6 +99,7 @@
     "apps/web": {
       "name": "web",
       "dependencies": {
+        "@chat/chat-core": "workspace:*",
         "@chat/shared": "workspace:*",
         "@clerk/react-router": "^3.0.8",
         "@convex-dev/agent": "0.6.0-alpha.1",

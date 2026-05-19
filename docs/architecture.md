@@ -155,9 +155,9 @@ Current responsibilities:
 - thread grouping logic
 - project mention parsing used by mobile chat composer
 - shared admin types
-- **chat parity (pure logic)**: pending-send handoff (`logic/pending-send-core`), optimistic **user** `listMessages` row shape (`logic/optimistic-list-messages-core`; assistant replies are not optimistic), generation stall and send-queue primitives (`logic/chat-generation-core`), optimistic thread id/title (`logic/optimistic-thread-core`), send pipeline helpers (`logic/send-pipeline-core`). Web and mobile merge persisted `listMessages` rows with first-party `listStreamingMessages` rows and sort by message order.
+- **chat parity (pure logic)**: pending-send handoff (`logic/pending-send-core`), message list merge (`logic/merge-message-lists`), message ordering (`logic/message-order`), optimistic **user** `listMessages` row shape (`logic/optimistic-list-messages-core`; assistant replies are not optimistic), generation stall and send-queue primitives (`logic/chat-generation-core`), optimistic thread id/title (`logic/optimistic-thread-core`), send pipeline helpers (`logic/send-pipeline-core`).
 
-Web and mobile keep **thin adapters**: Convex `insertAtPosition` and mutations stay in each app; web uses `PendingSendsProvider` (React state) while mobile uses Zustand for the same pending-send lifecycle. Mobile listens for `CHAT_STREAM_RESUME_EVENT` via `DeviceEventEmitter` (`apps/mobile/src/lib/chat-events.ts`) with the same event names as the web `window` dispatcher so stream-resume behavior aligns.
+`@chat/chat-core` owns cross-platform snapshot resolution (`resolveChatSnapshot`), in-flight send registry (`SendRegistryProvider`), `useThreadMessages` (live + offline + in-flight merge), `useGenerationState` (active assistant, stall detection, and stop eligibility), and adapter contracts for storage, attachments, and events. Stop is enabled while tokens or tool/reasoning activity are visible; after `STALL_THRESHOLD_MS` (20s) with no progress, clients expose force-stop via `canForceStop`. Web and mobile mount `ChatCoreShell` (registry + sidebar provider) with platform adapters under `apps/*/src/lib/chat-core-adapters.ts`. Chat data hooks use `convex/react` directly; offline snapshots plus the send registry replace the old convex-helpers-style query warm-cache for chat paths. Web `PendingSendsProvider` is a thin wrapper over `SendRegistryProvider` that keeps local blob previews during upload. Mobile listens for `CHAT_STREAM_RESUME_EVENT` via `DeviceEventEmitter` (`apps/mobile/src/lib/chat-events.ts`) with the same event names as the web `window` dispatcher so stream-resume behavior aligns.
 
 This package should continue to hold pure logic and cross-platform primitives, not app-specific screen composition.
 
@@ -218,6 +218,7 @@ Backend:
 6. File picker options are derived from each selected model attachment policy (`supportedAttachmentMediaTypes` when configured; an explicit empty list disables uploads; otherwise capability inference). Unsupported files are rejected in the sheet before upload, and the composer shows non-blocking inline errors for picker or upload failures.
 7. Successful user messages render stored file parts from `chatMessages.parts`, so attachments remain visible in the transcript after send.
 8. If a mutation fails, the composer restores the draft text, keeps the selected attachments, and shows inline error text.
+9. Raw Convex/provider errors are normalized for users through `packages/shared/src/logic/user-facing-error-catalog.ts` (`formatUserFacingError`, `formatMessageFailureNote`) before they reach `ChatInlineError` on web and mobile.
 
 ### Web
 
@@ -261,7 +262,7 @@ Web offline support is lighter and browser-oriented.
 
 - local snapshots live in `apps/web/src/offline/local-cache.ts`
 - drafts are kept in local storage helpers
-- `ConvexQueryCacheProvider` keeps query subscriptions warm during navigation
+- `ConvexQueryCacheProvider` remains on web for admin/share routes; chat paths use `@chat/chat-core` snapshot merge instead
 - offline mode is mainly for last-known-state readback, not queued mutations
 
 ## AI and Model Routing

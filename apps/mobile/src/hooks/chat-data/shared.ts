@@ -1,4 +1,4 @@
-import { useQuery } from "@chat/shared/convex-query-cache/hooks";
+import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { useMemo, useSyncExternalStore } from "react";
 import {

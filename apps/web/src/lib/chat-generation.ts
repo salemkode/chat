@@ -1,3 +1,4 @@
+import { formatMessageFailureNote } from '@chat/shared/logic/user-facing-errors'
 import type { FunctionReturnType } from 'convex/server'
 import { api } from '@convex/_generated/api'
 
@@ -129,12 +130,10 @@ export function getMessageFailurePresentation(message: ChatMessage): {
       : message.text?.trim()
         ? 'clarify'
         : 'replace'
-  const note =
-    typeof message.failureNote === 'string' && message.failureNote.trim()
-      ? message.failureNote
-      : kind === 'stopped'
-        ? 'Generation stopped.'
-        : 'This message failed to generate.'
+  const note = formatMessageFailureNote(
+    typeof message.failureNote === 'string' ? message.failureNote : undefined,
+    kind,
+  )
 
   return { kind, mode, note }
 }

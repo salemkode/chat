@@ -9,6 +9,10 @@ import {
   QUEUE_CAPACITY,
   type QueuedMessage,
 } from './chat-generation'
+import {
+  canStopActiveGeneration,
+  hasVisibleGenerationProgress,
+} from '@chat/shared/logic/chat-generation-core'
 
 function queuedMessage(text: string): QueuedMessage {
   return {
@@ -150,6 +154,43 @@ describe('buildPromptMessageIdsByIndex', () => {
     for (let i = 0; i < messages.length; i += 1) {
       expect(byIndex[i]).toBe(findPromptMessageId(messages, i))
     }
+  })
+})
+
+describe('chat-generation stop eligibility', () => {
+  it('allows stop while streaming', () => {
+    expect(
+      canStopActiveGeneration({
+        message: { id: 'a1', role: 'assistant', status: 'streaming', text: '' },
+        isStalled: false,
+      }),
+    ).toBe(true)
+  })
+
+  it('blocks stop on empty pending until stalled', () => {
+    expect(
+      canStopActiveGeneration({
+        message: { id: 'a1', role: 'assistant', status: 'pending', text: '' },
+        isStalled: false,
+      }),
+    ).toBe(false)
+    expect(
+      canStopActiveGeneration({
+        message: { id: 'a1', role: 'assistant', status: 'pending', text: '' },
+        isStalled: true,
+      }),
+    ).toBe(true)
+  })
+
+  it('treats visible text as progress', () => {
+    expect(
+      hasVisibleGenerationProgress({
+        id: 'a1',
+        role: 'assistant',
+        status: 'pending',
+        text: 'Hello',
+      }),
+    ).toBe(true)
   })
 })
 
