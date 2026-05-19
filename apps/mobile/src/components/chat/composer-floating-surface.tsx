@@ -1,4 +1,5 @@
 import { AppleGlassView } from "@/components/tw";
+import { useGlassTintColor } from "@/hooks/use-glass-tint-color";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
 import type { ReactNode } from "react";
 import { View, type ViewProps } from "react-native";
@@ -13,6 +14,8 @@ import {
   COMPOSER_FLOATING_SOLID_CLASS,
 } from "./composer-layout";
 
+const COMPACT_PILL_RADIUS = 16;
+
 const AnimatedView = Animated.createAnimatedComponent(View);
 
 /**
@@ -23,15 +26,21 @@ export function ComposerFloatingPillSurface({
   children,
   className,
   animate = true,
+  tone = "default",
+  compact = false,
   ...rest
 }: ViewProps & {
   children: ReactNode;
   className?: string;
-  /** Fade in/out when mounted (e.g. @ mention popup). */
   animate?: boolean;
+  /** Brighter fill in light mode (e.g. @ mention menu). */
+  tone?: "default" | "white";
+  compact?: boolean;
 }) {
   const inner = (
-    <SurfaceShell className={className}>{children}</SurfaceShell>
+    <SurfaceShell tone={tone} compact={compact} className={className}>
+      {children}
+    </SurfaceShell>
   );
 
   if (!animate) {
@@ -40,8 +49,8 @@ export function ComposerFloatingPillSurface({
 
   return (
     <AnimatedView
-      entering={FadeIn.duration(180)}
-      exiting={FadeOut.duration(140)}
+      entering={FadeIn.duration(160)}
+      exiting={FadeOut.duration(120)}
       {...rest}
     >
       {inner}
@@ -52,26 +61,48 @@ export function ComposerFloatingPillSurface({
 function SurfaceShell({
   children,
   className,
+  tone,
+  compact,
 }: {
   children: ReactNode;
   className?: string;
+  tone: "default" | "white";
+  compact: boolean;
 }) {
+  const glassTint = useGlassTintColor();
+  const radius = compact ? COMPACT_PILL_RADIUS : COMPOSER_FLOATING_PILL_RADIUS;
+  const shellStyle = {
+    borderRadius: radius,
+    borderCurve: "continuous" as const,
+    overflow: "hidden" as const,
+  };
+
+  const fillClass =
+    tone === "white" ? "bg-white dark:bg-card" : "bg-card";
+
   if (isLiquidGlassAvailable()) {
     return (
       <AppleGlassView
         glassEffectStyle="regular"
-        style={COMPOSER_FLOATING_PILL_STYLE}
+        tintColor={glassTint}
+        style={shellStyle}
         className={cn("overflow-hidden", className)}
       >
-        {children}
+        <View className={fillClass}>{children}</View>
       </AppleGlassView>
     );
   }
 
   return (
     <View
-      style={COMPOSER_FLOATING_PILL_STYLE}
-      className={cn("bg-card", COMPOSER_FLOATING_SOLID_CLASS, className)}
+      style={shellStyle}
+      className={cn(
+        fillClass,
+        tone === "white"
+          ? "border border-black/6 shadow-composer dark:border-border/50"
+          : COMPOSER_FLOATING_SOLID_CLASS,
+        className,
+      )}
     >
       {children}
     </View>

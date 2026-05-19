@@ -2,24 +2,24 @@ import { SymbolImage } from "@/components/symbol-image";
 import { TouchableGlass } from "@/components/touchable-glass";
 import { AttachmentChipList } from "./attachment-chip-list";
 import {
-  GlassContainer,
-  GlassView,
-  isLiquidGlassAvailable,
-} from "expo-glass-effect";
+  AnimatedThemedGlassContainer,
+  ThemedGlassView,
+} from "@/components/themed-glass";
 import { useEffect, useRef, type ReactNode } from "react";
 import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 
 import { cn } from "@/utils/tailwind";
-import { BlurView } from "expo-blur";
 import { useChatContext } from "./chat-context";
 import { useComposerProject } from "./composer-project-context";
 import { useConversationContext } from "./conversation";
 import { PendingProjectDraftCard } from "./pending-project-draft-card";
 import { ProjectMentionPopup } from "./project-mention-popup";
-import { COMPOSER_GLASS_PADDING } from "./composer-layout";
-
-const AnimatedGlassContainer = Animated.createAnimatedComponent(GlassContainer);
+import {
+  COMPOSER_ACTION_SIZE,
+  COMPOSER_GLASS_PADDING,
+  COMPOSER_ROW_GAP,
+} from "./composer-layout";
 
 /**
  * Root container for the message composer. Positions itself at the bottom of
@@ -61,7 +61,7 @@ export function PromptInput({ children }: { children: ReactNode }) {
             onDismiss={dismissProjectMention}
           />
         ) : null}
-        <AnimatedGlassContainer
+        <AnimatedThemedGlassContainer
           style={{
             flex: 1,
             padding: COMPOSER_GLASS_PADDING,
@@ -87,12 +87,12 @@ export function PromptInput({ children }: { children: ReactNode }) {
             style={{
               flexDirection: "row",
               alignItems: "flex-end",
-              gap: 10,
+              gap: COMPOSER_ROW_GAP,
             }}
           >
             {children}
           </View>
-        </AnimatedGlassContainer>
+        </AnimatedThemedGlassContainer>
       </View>
     </Animated.View>
   );
@@ -132,9 +132,9 @@ export function PromptInputAction(props: {
       hitSlop={4}
       {...props}
       style={{
-        width: 44,
-        height: 44,
-        borderRadius: 22,
+        width: COMPOSER_ACTION_SIZE,
+        height: COMPOSER_ACTION_SIZE,
+        borderRadius: COMPOSER_ACTION_SIZE / 2,
         justifyContent: "center",
         alignItems: "center",
       }}
@@ -146,38 +146,18 @@ export function PromptInputAction(props: {
  * Glass-wrapped container for the textarea and submit button.
  */
 export function PromptInputBody({ children }: { children: ReactNode }) {
-  if (isLiquidGlassAvailable()) {
-    return (
-      <GlassView
-        isInteractive
-        glassEffectStyle="regular"
-        style={{
-          flex: 1,
-          flexDirection: "row",
-
-          borderRadius: 22,
-          borderCurve: "continuous",
-        }}
-      >
-        {children}
-      </GlassView>
-    );
-  }
-
   return (
-    <BlurView
-      tint="systemChromeMaterial"
+    <ThemedGlassView
+      isInteractive
       style={{
         flex: 1,
         flexDirection: "row",
-
-        overflow: "hidden",
         borderRadius: 22,
         borderCurve: "continuous",
       }}
     >
       {children}
-    </BlurView>
+    </ThemedGlassView>
   );
 }
 

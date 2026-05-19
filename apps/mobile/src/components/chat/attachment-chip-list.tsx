@@ -13,14 +13,22 @@ import { Pressable, ScrollView, Text, View } from "react-native";
 import { cn } from "@/utils/tailwind";
 
 import {
-  COMPOSER_CONTENT_INSET_CLASS,
   COMPOSER_FLOATING_PILL_RADIUS,
   COMPOSER_FLOATING_PILL_STYLE,
+  COMPOSER_FLOATING_SCROLL_CONTENT_INSET,
   COMPOSER_FLOATING_SOLID_CLASS,
   COMPOSER_FLOATING_SURFACE_STYLE,
 } from "./composer-layout";
 
 const THUMB_SIZE = 72;
+
+const THUMB_CLIP_STYLE = {
+  width: THUMB_SIZE,
+  height: THUMB_SIZE,
+  borderRadius: COMPOSER_FLOATING_PILL_RADIUS,
+  borderCurve: "continuous",
+  overflow: "hidden",
+} as const;
 
 function FloatingImageThumbnail({
   attachment,
@@ -42,13 +50,13 @@ function FloatingImageThumbnail({
         elevation: 8,
       }}
     >
-      <View className="relative h-full w-full">
+      <View
+        className="relative border border-border/50 bg-muted"
+        style={THUMB_CLIP_STYLE}
+      >
         <Image
           source={{ uri: attachment.uri }}
-          className={cn(
-            "h-full w-full border border-border/50 bg-card shadow-composer",
-          )}
-          style={{ borderRadius: COMPOSER_FLOATING_PILL_RADIUS }}
+          className="h-full w-full"
           contentFit="cover"
         />
         <UploadStatusOverlay attachment={attachment} />
@@ -78,7 +86,7 @@ function UploadStatusOverlay({
   }
 
   return (
-    <View className="absolute inset-0 items-center justify-center rounded-2xl bg-card/85">
+    <View className="absolute inset-0 items-center justify-center bg-card/85">
       <ActivityIndicator size="small" />
     </View>
   );
@@ -145,13 +153,13 @@ export function AttachmentChipList({
   }
 
   return (
-    <View className={COMPOSER_CONTENT_INSET_CLASS}>
+    <View className="pt-2">
       {hasImageRow ? (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          className="pt-2"
-          contentContainerClassName="items-center pb-2"
+          contentContainerStyle={COMPOSER_FLOATING_SCROLL_CONTENT_INSET}
+          contentContainerClassName="items-center pb-2 pr-3"
         >
           {leadingContent}
           {imageAttachments.map((attachment) => (
@@ -167,7 +175,9 @@ export function AttachmentChipList({
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerClassName="items-center pb-1"
+          className="pt-1"
+          contentContainerStyle={COMPOSER_FLOATING_SCROLL_CONTENT_INSET}
+          contentContainerClassName="items-center pb-1 pr-3"
         >
           {fileAttachments.map((attachment) => (
             <FileAttachmentChip

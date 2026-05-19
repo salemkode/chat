@@ -6,18 +6,39 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "cache": {
+        "disabled": true
+      },
+      "env": {
+        "EXPO_NO_DOTENV": "1"
+      }
     },
     "preview": {
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "cache": {
+        "disabled": true
+      },
+      "env": {
+        "EXPO_NO_DOTENV": "1"
       }
     },
     "production": {
       "autoIncrement": true,
       "android": {
         "buildType": "apk"
+      },
+      "ios": {
+        "autoIncrement": true
+      },
+      "cache": {
+        "disabled": false
+      },
+      "env": {
+        "EXPO_NO_DOTENV": "1"
       }
     }
   },

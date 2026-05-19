@@ -55,49 +55,49 @@ export function MainHeader() {
       </Stack.Screen.Title>
       <Stack.Toolbar placement="left" asChild={!useNativeToolbarMenu}>
         {useNativeToolbarMenu ? (
-          <Stack.Toolbar.Button icon="list.bullet" onPress={openDrawer} />
-        ) : (
-          <Pressable
-            onPress={openDrawer}
-            accessibilityLabel="Open drawer"
-            accessibilityRole="button"
-            className="p-2 -ml-1 active:opacity-60"
-          >
-            <Icon icon={Menu} className="w-6 h-6 text-foreground" />
-          </Pressable>
-        )}
-      </Stack.Toolbar>
-      <Stack.Toolbar placement="right" asChild={!useNativeToolbarMenu}>
-        {useNativeToolbarMenu ? (
           <>
+            <Stack.Toolbar.Button icon="list.bullet" onPress={openDrawer} />
             <ChatHeaderNewChatButton
               variant="native"
               visible={menu.canNewChat}
               onPress={menu.onNewChat}
-            />
-            <ChatHeaderOverflowButton
-              variant="native"
-              canRename={menu.canRename}
-              canShare={menu.canShare}
-              onRename={menu.onRename}
-              onShare={menu.onShare}
             />
           </>
         ) : (
           <View className="flex-row items-center">
+            <Pressable
+              onPress={openDrawer}
+              accessibilityLabel="Open drawer"
+              accessibilityRole="button"
+              className="p-2 -ml-1 active:opacity-60"
+            >
+              <Icon icon={Menu} className="w-6 h-6 text-foreground" />
+            </Pressable>
             <ChatHeaderNewChatButton
               variant="fallback"
               visible={menu.canNewChat}
               onPress={menu.onNewChat}
             />
-            <ChatHeaderOverflowButton
-              variant="fallback"
-              canRename={menu.canRename}
-              canShare={menu.canShare}
-              onRename={menu.onRename}
-              onShare={menu.onShare}
-            />
           </View>
+        )}
+      </Stack.Toolbar>
+      <Stack.Toolbar placement="right" asChild={!useNativeToolbarMenu}>
+        {useNativeToolbarMenu ? (
+          <ChatHeaderOverflowButton
+            variant="native"
+            canRename={menu.canRename}
+            canShare={menu.canShare}
+            onRename={menu.onRename}
+            onShare={menu.onShare}
+          />
+        ) : (
+          <ChatHeaderOverflowButton
+            variant="fallback"
+            canRename={menu.canRename}
+            canShare={menu.canShare}
+            onRename={menu.onRename}
+            onShare={menu.onShare}
+          />
         )}
       </Stack.Toolbar>
       <ChatHeaderMenuModals {...menu} />

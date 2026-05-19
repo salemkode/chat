@@ -23,6 +23,7 @@ import {
   FolderOpen,
   Folder,
   Plus,
+  SquarePen,
 } from "lucide-react-native";
 import React, {
   createContext,
@@ -230,12 +231,18 @@ function DrawerFooter({
         <Text className="text-sm text-foreground">{viewerName}</Text>
       </TouchableGlass>
       <View className="flex-1" />
-      <TouchableGlass
+      <Pressable
         onPress={onNewChat}
-        className="w-10 h-10 rounded-full bg-foreground active:bg-muted items-center justify-center"
+        accessibilityLabel="New chat"
+        accessibilityRole="button"
+        className="w-10 h-10 rounded-full bg-foreground active:opacity-80 items-center justify-center"
       >
-        <Icon icon={Plus} className="w-6 h-6 text-background" />
-      </TouchableGlass>
+        <Icon
+          icon={SquarePen}
+          className="w-5 h-5"
+          colorClassName="accent-background"
+        />
+      </Pressable>
     </View>
   );
 }

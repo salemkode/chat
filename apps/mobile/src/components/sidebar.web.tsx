@@ -1,3 +1,4 @@
+import { Icon } from "@/components/icon";
 import { MOCK_CHATS } from "@/utils/mock-chats";
 import * as ContextMenu from "@radix-ui/react-context-menu";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
@@ -307,9 +308,11 @@ export function Sidebar({
               <View className="flex-1" />
               <Link href="/" asChild>
                 <Pressable className="w-10 h-10 rounded-full bg-foreground hover:bg-foreground/90 active:bg-foreground/80 items-center justify-center flex">
-                  <View className="text-background">
-                    <MessageSquarePlus size={18} strokeWidth={1.5} />
-                  </View>
+                  <Icon
+                    icon={MessageSquarePlus}
+                    className="w-[18px] h-[18px]"
+                    colorClassName="accent-background"
+                  />
                 </Pressable>
               </Link>
             </View>

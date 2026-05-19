@@ -90,13 +90,13 @@ export function MainHeader() {
       </Stack.Screen.Title>
       <Stack.Toolbar placement="left">
         <Stack.Toolbar.Button icon="list.bullet" onPress={openDrawer} />
-      </Stack.Toolbar>
-      <Stack.Toolbar placement="right">
         <ChatHeaderNewChatButton
           variant="native"
           visible={menu.canNewChat}
           onPress={menu.onNewChat}
         />
+      </Stack.Toolbar>
+      <Stack.Toolbar placement="right">
         <ChatHeaderOverflowButton
           variant="native"
           canRename={menu.canRename}
