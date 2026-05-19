@@ -503,7 +503,7 @@ export function ChatAttachmentSheet() {
   const sourcesDisabled = pickerBusy || status.kind === "loading";
 
   return (
-    <ScrollView className="flex-1" contentInsetAdjustmentBehavior="automatic">
+    <ScrollView className="flex-1 bg-background" contentInsetAdjustmentBehavior="automatic">
       <AndroidGrabber />
 
       <StatusBanner status={status} />
