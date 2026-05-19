@@ -31,11 +31,19 @@ A high-performance AI chatbot template built with [Expo](https://expo.dev) and [
 
 ### Environment Variables
 
-Copy `.env.example` to `.env` and fill in the values:
+For day-to-day local work, prefer pulling variables from EAS instead of copying files between checkouts:
 
 ```bash
-cp .env.example .env
+eas env:pull --environment development --path apps/mobile/.env.local
 ```
+
+For production build validation, pull the production environment:
+
+```bash
+eas env:pull --environment production --path apps/mobile/.env.local
+```
+
+You can still create a local `.env` file manually when needed, but the EAS environment is the source of truth for cloud builds.
 
 | Variable              | Description                                                                                                                                                    |
 | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -61,6 +69,24 @@ cd apps/mobile && pnpm run web
 ```
 
 > Requires Node.js 20+, pnpm (`corepack enable` recommended), and the [Expo CLI](https://docs.expo.dev/get-started/installation/). For iOS, you'll need Xcode and a simulator or device.
+
+### Production Builds
+
+Cloud builds:
+
+```bash
+eas build --platform android --profile production
+eas build --platform ios --profile production
+```
+
+Local debugging builds:
+
+```bash
+eas build --platform android --profile production --local
+eas build --platform ios --profile production --local
+```
+
+The repo is set up so cloud builds are the standard release path. Local builds are mainly for debugging native issues on a developer machine.
 
 ## Customization
 
