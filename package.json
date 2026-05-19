@@ -45,6 +45,7 @@
     "docs:build": "cd docs && pnpm run build",
     "docs:preview": "cd docs && pnpm run preview",
     "docs:deploy:cloudflare": "cd docs && pnpm run deploy:cloudflare",
+    "postinstall": "node scripts/ensure-react-native-worklets-dir.mjs",
     "ship": "node scripts/ship.mjs"
   },
   "devDependencies": {

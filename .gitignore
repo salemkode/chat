@@ -15,6 +15,7 @@ count.txt
 .output
 .turbo
 .vinxi
+.eas-local
 todos.json
 
 # Local Netlify folder

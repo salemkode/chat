@@ -35,6 +35,7 @@ export default withMermaid(
       nav: [
         { text: 'Agent notes', link: '/agent' },
         { text: 'Architecture', link: '/architecture' },
+        { text: 'Mobile EAS builds', link: '/eas-builds' },
         { text: 'Deploy', link: '/cloudflare-pages' },
         { text: 'Research', link: '/research/README' },
       ],
@@ -42,6 +43,7 @@ export default withMermaid(
         { text: 'Home', link: '/' },
         { text: 'Agent notes (AI)', link: '/agent' },
         { text: 'Architecture', link: '/architecture' },
+        { text: 'Mobile EAS builds', link: '/eas-builds' },
         {
           text: 'Chat: attachments & models',
           link: '/chat-attachments-models-and-context',

@@ -7,6 +7,10 @@ const fs = require("fs");
 const workspaceRoot = path.resolve(__dirname, "../..");
 const backendConvexDir = path.join(workspaceRoot, "packages/backend/convex");
 const localConvexDir = path.join(__dirname, "convex");
+const workletsPackageDir = path.dirname(
+  require.resolve("react-native-worklets/package.json"),
+);
+const workletsBundleDir = path.join(workletsPackageDir, ".worklets");
 
 const config = getDefaultConfig(__dirname);
 
@@ -15,12 +19,7 @@ if (fs.existsSync(backendConvexDir)) {
 }
 
 config.watchFolders = config.watchFolders || [];
-config.watchFolders.push(
-  path.resolve(
-    __dirname,
-    "node_modules/react-native-worklets/.worklets",
-  ),
-);
+config.watchFolders.push(workletsBundleDir);
 
 const bundleModeMetroConfig = getBundleModeMetroConfig(config);
 
