@@ -1,5 +1,7 @@
 /** Pure generation / queue / stall helpers shared by web and mobile. */
 
+import { buildActivitySteps } from './message-activity-core'
+
 export const STALL_THRESHOLD_MS = 20_000
 export const QUEUE_CAPACITY = 3
 
@@ -82,6 +84,36 @@ export function isGenerationStalled(args: {
   const now = args.now ?? Date.now()
   const thresholdMs = args.thresholdMs ?? STALL_THRESHOLD_MS
   return now - args.lastProgressAt >= thresholdMs
+}
+
+/** True when the user can see tokens, streaming status, or live tool/reasoning activity. */
+export function hasVisibleGenerationProgress(message: GenerationMessageLike) {
+  if (message.status === 'streaming') {
+    return true
+  }
+  if ((message.text ?? '').trim().length > 0) {
+    return true
+  }
+  const parts = Array.isArray(message.parts) ? message.parts : []
+  const steps = buildActivitySteps(parts, message.status ?? 'pending')
+  return steps.some((step) => step.status === 'running' || step.status === 'pending')
+}
+
+/**
+ * Stop is allowed while the model is visibly responding, or after a stall when
+ * loading has produced no progress for {@link STALL_THRESHOLD_MS}.
+ */
+export function canStopActiveGeneration(args: {
+  message: GenerationMessageLike | undefined
+  isStalled: boolean
+}) {
+  if (!args.message) {
+    return false
+  }
+  if (args.isStalled) {
+    return true
+  }
+  return hasVisibleGenerationProgress(args.message)
 }
 
 export function enqueueQueuedMessage<T>(

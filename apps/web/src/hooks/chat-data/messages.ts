@@ -3,12 +3,10 @@ import type { UsePaginatedQueryResult } from 'convex/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '@convex/_generated/api'
 import {
-  buildMessageProgressSignature,
-  getLatestActiveAssistant,
-  isGenerationStalled,
-} from '@/lib/chat-generation'
+  useGenerationState as useChatCoreGenerationState,
+  useThreadMessages,
+} from '@chat/chat-core'
 import { CHAT_STREAM_RESUME_EVENT } from '@/lib/chat-events'
-import { usePendingSends } from '@/hooks/chat-data/pending-sends'
 import { sortChatMessages } from '@/hooks/chat-data/message-order'
 import { readMessagesCache } from '@/offline/local-cache'
 import {
@@ -31,8 +29,6 @@ type UseMessagesResult = {
 export function useMessages(threadId?: string): UseMessagesResult {
   const cacheUserId = useConvexUserIdForCache()
   const cacheVersion = useOfflineCacheVersion()
-  const threadKey = threadId ?? 'new'
-  const { selectPendingMessages } = usePendingSends()
   const [streamEnabled, setStreamEnabled] = useState(Boolean(threadId))
   const stableSignatureRef = useRef('')
   const stableSnapshotCountRef = useRef(0)
@@ -72,19 +68,29 @@ export function useMessages(threadId?: string): UseMessagesResult {
     )
   }, [threadId, cacheUserId, cacheVersion])
 
-  const orderedCachedMessages = useMemo(() => sortChatMessages(cachedMessages), [cachedMessages])
+  const liveResults = useMemo(() => {
+    if (!threadId || results === undefined) {
+      return undefined
+    }
+    return results.map((message) => ({
+      ...message,
+      createdAt: message.order,
+    })) as ChatMessage[]
+  }, [results, threadId])
+
+  const { messages, hasMore, isLoadingMore, hasRenderableMessages, loadOlderMessages } =
+    useThreadMessages({
+      threadId,
+      threadKey: threadId ?? 'new',
+      liveResults,
+      persistedMessages: cachedMessages,
+      paginatedStatus: status,
+      loadMore,
+    })
 
   const liveMessages = useMemo(
-    () =>
-      threadId && results?.length
-        ? sortChatMessages(
-            results.map((message) => ({
-              ...message,
-              createdAt: message.order,
-            })),
-          )
-        : [],
-    [results, threadId],
+    () => (threadId && results?.length ? sortChatMessages(liveResults ?? []) : []),
+    [liveResults, results?.length, threadId],
   )
 
   const pendingCacheWriteRef = useRef<number | null>(null)
@@ -216,82 +222,16 @@ export function useMessages(threadId?: string): UseMessagesResult {
     }
   }, [cacheSignature, cacheUserId, hasStreamingMessages, liveMessages, threadId])
 
-  const resolvedMessages = liveMessages.length > 0 ? liveMessages : orderedCachedMessages
-  const pendingMessages = useMemo(
-    () => sortChatMessages(selectPendingMessages(threadKey, liveMessages)),
-    [liveMessages, selectPendingMessages, threadKey],
-  )
-  const mergedMessages = useMemo(
-    () => sortChatMessages([...resolvedMessages, ...pendingMessages]),
-    [pendingMessages, resolvedMessages],
-  )
-
   return {
-    messages: mergedMessages,
+    messages,
     status,
-    hasMore: status === 'CanLoadMore' || status === 'LoadingMore',
-    isLoadingMore: status === 'LoadingMore',
-    hasRenderableMessages: mergedMessages.length > 0,
-    loadOlderMessages: loadMore,
+    hasMore,
+    isLoadingMore,
+    hasRenderableMessages,
+    loadOlderMessages,
   }
 }
 
 export function useGenerationState(messages: ChatMessage[]) {
-  const activeGeneration = useMemo(() => getLatestActiveAssistant(messages), [messages])
-  const activeMessage = activeGeneration?.message
-  const activeSignature = useMemo(
-    () => (activeMessage ? buildMessageProgressSignature(activeMessage) : null),
-    [activeMessage],
-  )
-  const [lastProgressAt, setLastProgressAt] = useState(() => Date.now())
-  const [tick, setTick] = useState(() => Date.now())
-  const activeMessageIdRef = useRef<string | null>(null)
-  const activeSignatureRef = useRef<string | null>(null)
-
-  useEffect(() => {
-    if (!activeMessage || !activeSignature) {
-      activeMessageIdRef.current = null
-      activeSignatureRef.current = null
-      return
-    }
-
-    if (activeMessageIdRef.current !== activeMessage.id) {
-      activeMessageIdRef.current = activeMessage.id
-      activeSignatureRef.current = activeSignature
-      setLastProgressAt(Date.now())
-      return
-    }
-
-    if (activeSignatureRef.current !== activeSignature) {
-      activeSignatureRef.current = activeSignature
-      setLastProgressAt(Date.now())
-    }
-  }, [activeMessage, activeSignature])
-
-  useEffect(() => {
-    if (!activeMessage) {
-      return
-    }
-
-    const intervalId = window.setInterval(() => {
-      setTick(Date.now())
-    }, 1000)
-
-    return () => {
-      window.clearInterval(intervalId)
-    }
-  }, [activeMessage])
-
-  const isStalled = Boolean(
-    activeMessage &&
-    isGenerationStalled({
-      lastProgressAt,
-      now: tick,
-    }),
-  )
-
-  return {
-    activeGeneration,
-    isStalled,
-  }
+  return useChatCoreGenerationState(messages)
 }

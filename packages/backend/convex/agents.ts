@@ -285,26 +285,31 @@ async function markPendingGenerationFailed(
     error: string
   },
 ) {
-  const targetOrder = await resolvePromptOrder(ctx, {
-    promptMessageId: args.promptMessageId,
-  })
+  try {
+    const targetOrder = await resolvePromptOrder(ctx, {
+      promptMessageId: args.promptMessageId,
+    })
 
-  const resolvedOrder = await resolvePendingOrder(ctx, {
-    threadId: args.threadId,
-    targetOrder,
-  })
+    const resolvedOrder = await resolveActiveGenerationOrder(ctx, {
+      threadId: args.threadId,
+      targetOrder,
+    })
 
-  if (resolvedOrder === undefined) {
+    if (resolvedOrder === undefined) {
+      return { order: undefined, stopped: false }
+    }
+
+    const stopped = await failPendingMessagesByOrder(ctx, {
+      threadId: args.threadId,
+      order: resolvedOrder,
+      error: args.error,
+    })
+
+    return { order: resolvedOrder, stopped }
+  } catch (error) {
+    console.error('markPendingGenerationFailed failed:', error)
     return { order: undefined, stopped: false }
   }
-
-  const stopped = await failPendingMessagesByOrder(ctx, {
-    threadId: args.threadId,
-    order: resolvedOrder,
-    error: args.error,
-  })
-
-  return { order: resolvedOrder, stopped }
 }
 
 async function resolvePromptOrder(
@@ -323,7 +328,7 @@ async function resolvePromptOrder(
   return promptMessage?.order
 }
 
-async function resolvePendingOrder(
+async function resolveActiveGenerationOrder(
   ctx: Pick<ActionCtx, 'runQuery'>,
   args: {
     threadId: string
@@ -340,8 +345,71 @@ async function resolvePendingOrder(
     },
   })
 
-  const fallbackOrder = pendingMessages.page[0]?.order
-  return args.targetOrder ?? fallbackOrder
+  const pendingPage = pendingMessages.page
+
+  if (args.targetOrder !== undefined) {
+    const hasPendingAtTarget = pendingPage.some((message) => message.order === args.targetOrder)
+    if (hasPendingAtTarget) {
+      return args.targetOrder
+    }
+  }
+
+  const latestPendingOrder = pendingPage[0]?.order
+  if (latestPendingOrder !== undefined) {
+    return latestPendingOrder
+  }
+
+  const streams = await ctx.runQuery(components.agent.streams.list, {
+    threadId: args.threadId,
+    statuses: ['streaming'],
+  })
+
+  return streams[0]?.order
+}
+
+async function abortGenerationStreamByOrder(
+  ctx: Pick<ActionCtx, 'runMutation'>,
+  args: {
+    threadId: string
+    order: number
+    reason: string
+  },
+): Promise<boolean> {
+  try {
+    return Boolean(
+      await ctx.runMutation(components.agent.streams.abortByOrder, {
+        threadId: args.threadId,
+        order: args.order,
+        reason: args.reason,
+      }),
+    )
+  } catch (error) {
+    // Stream teardown can throw while deltas are processed; DB abort may still succeed.
+    console.error('abortByOrder failed during generation stop:', error)
+    return false
+  }
+}
+
+async function patchPendingAssistantFailed(
+  ctx: Pick<ActionCtx, 'runMutation'>,
+  args: {
+    messageId: string
+    error: string
+  },
+) {
+  try {
+    await ctx.runMutation(components.agent.messages.updateMessage, {
+      messageId: args.messageId,
+      patch: {
+        status: 'failed',
+        error: args.error,
+      },
+    })
+    return true
+  } catch (error) {
+    console.error('updateMessage failed during generation stop:', error)
+    return false
+  }
 }
 
 async function failPendingMessagesByOrder(
@@ -352,38 +420,55 @@ async function failPendingMessagesByOrder(
     error: string
   },
 ) {
-  const pendingMessages = await ctx.runQuery(components.agent.messages.listMessagesByThreadId, {
+  const failureReason = args.error || GENERATION_FAILED_FALLBACK_MESSAGE
+  let updatedCount = 0
+
+  try {
+    const pendingMessages = await ctx.runQuery(components.agent.messages.listMessagesByThreadId, {
+      threadId: args.threadId,
+      statuses: ['pending'],
+      order: 'desc',
+      paginationOpts: {
+        cursor: null,
+        numItems: 20,
+      },
+    })
+
+    const matchingPendingMessages = pendingMessages.page.filter(
+      (message: (typeof pendingMessages.page)[number]) => {
+        if (message.order !== args.order) {
+          return false
+        }
+        if (message.tool) {
+          return false
+        }
+        const role = message.message?.role
+        return role === 'assistant' || role === undefined
+      },
+    )
+
+    // Never call finalizeMessage — it replays stream deltas through the AI SDK and throws
+    // on bad attachments (e.g. Google "[Google] The document has no pages").
+    for (const message of matchingPendingMessages) {
+      const patched = await patchPendingAssistantFailed(ctx, {
+        messageId: message._id,
+        error: failureReason,
+      })
+      if (patched) {
+        updatedCount += 1
+      }
+    }
+  } catch (error) {
+    console.error('failPendingMessagesByOrder pending query failed:', error)
+  }
+
+  const abortedStream = await abortGenerationStreamByOrder(ctx, {
     threadId: args.threadId,
-    statuses: ['pending'],
-    order: 'desc',
-    paginationOpts: {
-      cursor: null,
-      numItems: 20,
-    },
+    order: args.order,
+    reason: failureReason,
   })
 
-  const matchingPendingMessages = pendingMessages.page.filter(
-    (message: (typeof pendingMessages.page)[number]) => message.order === args.order,
-  )
-
-  await Promise.all([
-    ctx.runMutation(components.agent.streams.abortByOrder, {
-      threadId: args.threadId,
-      order: args.order,
-      reason: args.error || GENERATION_FAILED_FALLBACK_MESSAGE,
-    }),
-    ...matchingPendingMessages.map((message: (typeof matchingPendingMessages)[number]) =>
-      ctx.runMutation(components.agent.messages.finalizeMessage, {
-        messageId: message._id,
-        result: {
-          status: 'failed',
-          error: args.error || GENERATION_FAILED_FALLBACK_MESSAGE,
-        },
-      }),
-    ),
-  ])
-
-  return matchingPendingMessages.length > 0
+  return updatedCount > 0 || abortedStream
 }
 
 async function getAssistantResponsePartsForPrompt(
@@ -2063,6 +2148,7 @@ export const stopGeneration = mutation({
   returns: v.object({
     stopped: v.boolean(),
     order: v.optional(v.number()),
+    impl: v.literal(2),
   }),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
@@ -2085,15 +2171,25 @@ export const stopGeneration = mutation({
       })
     }
 
-    const result = await markPendingGenerationFailed(ctx, {
-      threadId: args.threadId,
-      promptMessageId: args.promptMessageId,
-      error: GENERATION_STOPPED_BY_USER,
-    })
+    try {
+      const result = await markPendingGenerationFailed(ctx, {
+        threadId: args.threadId,
+        promptMessageId: args.promptMessageId,
+        error: GENERATION_STOPPED_BY_USER,
+      })
 
-    return {
-      stopped: result.stopped,
-      order: result.order,
+      return {
+        stopped: result.stopped,
+        order: result.order,
+        impl: 2 as const,
+      }
+    } catch (error) {
+      console.error('stopGeneration failed:', error)
+      return {
+        stopped: false,
+        order: undefined,
+        impl: 2 as const,
+      }
     }
   },
 })

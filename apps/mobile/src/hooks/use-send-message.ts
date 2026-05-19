@@ -4,7 +4,9 @@ import type { Id } from "@convex/_generated/dataModel";
 import { useCallback } from "react";
 import type { LocalAttachment } from "@/components/chat/attachment-types";
 import { applyOptimisticGenerateMessage } from "@/hooks/chat-data/optimistic-list-messages";
+import { applyOptimisticStopGeneration } from "@/hooks/chat-data/optimistic-stop-generation";
 import { uploadLocalAttachment } from "@/lib/attachment-upload";
+import { CHAT_STREAM_RESUME_EVENT, dispatchChatEvent } from "@/lib/chat-events";
 
 function buildAttachmentSummary(attachments: LocalAttachment[]) {
   if (attachments.length === 0) {
@@ -67,7 +69,11 @@ export function useSendMessage() {
     },
   );
   const regenerateMessage = useMutation(api.agents.regenerateMessage);
-  const stopGeneration = useMutation(api.agents.stopGeneration);
+  const stopGeneration = useMutation(api.agents.stopGeneration).withOptimisticUpdate(
+    (localStore, args) => {
+      applyOptimisticStopGeneration(localStore, args.threadId);
+    },
+  );
   const selectAutoModel = useAction(api.modelRouter.selectAutoModel);
   const selectAutoModelForPromptMessage = useAction(
     api.modelRouter.selectAutoModelForPromptMessage,
@@ -158,8 +164,24 @@ export function useSendMessage() {
   );
 
   const stop = useCallback(
-    async ({ threadId }: { threadId: string }) => {
-      await stopGeneration({ threadId });
+    async ({
+      threadId,
+      promptMessageId,
+    }: {
+      threadId: string
+      promptMessageId?: string
+    }) => {
+      const result = (await stopGeneration({
+        threadId,
+        ...(promptMessageId ? { promptMessageId } : {}),
+      })) as { stopped?: boolean; impl?: number } | null;
+      dispatchChatEvent(CHAT_STREAM_RESUME_EVENT, { threadId });
+      if (result && "impl" in result && result.impl !== 2) {
+        throw new Error(
+          "Stop is not available on this server build. Redeploy Convex backend (agents.stopGeneration impl v2).",
+        );
+      }
+      return { stopped: Boolean(result?.stopped) };
     },
     [stopGeneration],
   );

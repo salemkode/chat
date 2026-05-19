@@ -8,7 +8,10 @@ type ChatContextValue = {
   setInput: (value: string) => void;
   isGenerating: boolean;
   canSend: boolean;
+  canStop: boolean;
+  canForceStop: boolean;
   onSend: () => void;
+  onStop: () => void;
   streamingStore: StreamingStore;
   error?: Error | null;
 };

@@ -3,7 +3,8 @@ import { Icon } from "@/components/icon";
 import { useModel } from "@/components/model-context";
 import { useChatComposerOptions } from "@/components/chat/composer-options-context";
 import {
-  inferMediaTypeFromName,
+  normalizeAttachmentFilename,
+  resolveAttachmentMediaType,
   type LocalAttachment,
   type LocalAttachmentSource,
 } from "@/components/chat/attachment-types";
@@ -74,11 +75,13 @@ function createLocalAttachment(args: {
     args.source === "camera"
       ? `camera-${Date.now()}.jpg`
       : `${args.source}-${Date.now()}-${args.index}`;
-  const filename = args.filename?.trim() || fallbackName;
-  const mediaType =
-    args.mediaType?.trim() ||
-    inferMediaTypeFromName(filename) ||
-    (args.source === "files" ? "application/octet-stream" : "image/jpeg");
+  const filename = normalizeAttachmentFilename(args.filename, fallbackName);
+  const mediaType = resolveAttachmentMediaType({
+    filename,
+    mimeType: args.mediaType,
+    defaultMediaType:
+      args.source === "files" ? "application/octet-stream" : "image/jpeg",
+  });
 
   return {
     id: createAttachmentId(args.source, args.index),
@@ -352,10 +355,7 @@ export function ChatAttachmentSheet() {
               source: "files",
               uri: asset.uri,
               filename: asset.name,
-              mediaType:
-                asset.mimeType ||
-                inferMediaTypeFromName(asset.name) ||
-                undefined,
+              mediaType: asset.mimeType,
               size: asset.size,
               index,
             }),
@@ -409,10 +409,7 @@ export function ChatAttachmentSheet() {
               source: "photos",
               uri: asset.uri,
               filename: asset.fileName,
-              mediaType:
-                asset.mimeType ||
-                inferMediaTypeFromName(asset.fileName) ||
-                "image/jpeg",
+              mediaType: asset.mimeType,
               size: asset.fileSize,
               index,
             }),
@@ -471,10 +468,7 @@ export function ChatAttachmentSheet() {
             source: "camera",
             uri: asset.uri,
             filename: asset.fileName,
-            mediaType:
-              asset.mimeType ||
-              inferMediaTypeFromName(asset.fileName) ||
-              "image/jpeg",
+            mediaType: asset.mimeType,
             size: asset.fileSize,
             index: 0,
           }),

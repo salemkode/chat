@@ -1,6 +1,6 @@
 import type { Id } from '@convex/_generated/dataModel'
 import { isAutoModelSelection } from '@chat/shared'
-import { ExternalLink, FileText, RefreshCw, RotateCcw, Square } from '@/lib/icons'
+import { ExternalLink, FileText, RefreshCw, Square } from '@/lib/icons'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useChatModel } from '@/components/chat-model-context'
 import { useModels, useSendMessage, useViewer } from '@/hooks/use-chat-data'
@@ -63,13 +63,15 @@ export function RepeatButton({
   threadId,
   promptMessageId,
   disabled,
+  forceStopFirst = false,
 }: {
   threadId: string
   promptMessageId?: string
   disabled: boolean
+  forceStopFirst?: boolean
 }) {
   const { models } = useModels()
-  const { regenerate, disabledReason } = useSendMessage()
+  const { regenerate, stop, disabledReason } = useSendMessage()
   const viewer = useViewer()
   const { selectedModelId, setSelectedModelId } = useChatModel()
   const [open, setOpen] = useState(false)
@@ -87,11 +89,9 @@ export function RepeatButton({
     [models, selectedModelId],
   )
   const selectionTier = getSelectionTierFromAppPlan(viewer?.appPlan)
-  const canRepeat = Boolean(
-    promptMessageId &&
-    !disabled &&
-    !isRepeating &&
-    (selectedModelDocId || isAutoModelSelection(selectedModelId)),
+  const canOpenModelMenu = Boolean(promptMessageId && !disabled && !isRepeating)
+  const canRepeatWithCurrentModel = Boolean(
+    canOpenModelMenu && (selectedModelDocId || isAutoModelSelection(selectedModelId)),
   )
 
   const clearCloseTimer = useCallback(() => {
@@ -139,6 +139,9 @@ export function RepeatButton({
       setIsRepeating(true)
 
       try {
+        if (forceStopFirst) {
+          await stop({ threadId, promptMessageId })
+        }
         await regenerate({
           threadId,
           promptMessageId,
@@ -151,11 +154,13 @@ export function RepeatButton({
     },
     [
       disabledReason,
+      forceStopFirst,
       models,
       promptMessageId,
       regenerate,
       selectionTier,
       setSelectedModelId,
+      stop,
       threadId,
     ],
   )
@@ -167,7 +172,7 @@ export function RepeatButton({
           type="button"
           variant="ghost"
           size="icon-sm"
-          disabled={!canRepeat || disabledReason !== null}
+          disabled={!canOpenModelMenu || disabledReason !== null}
           className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
           aria-label={
             selectedModelId && isAutoModelSelection(selectedModelId)
@@ -189,10 +194,14 @@ export function RepeatButton({
               return
             }
 
+            if (!canRepeatWithCurrentModel) {
+              return
+            }
+
             void triggerRepeat(selectedModelId)
           }}
           onMouseEnter={() => {
-            if (!canRepeat) {
+            if (!canOpenModelMenu) {
               return
             }
 
@@ -207,7 +216,7 @@ export function RepeatButton({
             scheduleClose()
           }}
           onPointerDown={(event) => {
-            if (event.pointerType === 'mouse' || !canRepeat) {
+            if (event.pointerType === 'mouse' || !canOpenModelMenu) {
               return
             }
 
@@ -258,22 +267,27 @@ export function RepeatButton({
 export function StopButton({
   threadId,
   promptMessageId,
+  canStop = true,
+  forceStop = false,
 }: {
   threadId: string
   promptMessageId?: string
+  canStop?: boolean
+  forceStop?: boolean
 }) {
   const { stop, disabledReason } = useSendMessage()
   const [isStopping, setIsStopping] = useState(false)
+  const stopLabel = forceStop ? 'Force stop' : 'Stop generation'
 
   return (
     <Button
       type="button"
       variant="ghost"
       size="icon-sm"
-      disabled={!promptMessageId || disabledReason !== null || isStopping}
+      disabled={!promptMessageId || !canStop || disabledReason !== null || isStopping}
       className="inline-flex items-center gap-1.5 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-      aria-label="Stop generation"
-      title="Stop generation"
+      aria-label={stopLabel}
+      title={stopLabel}
       onClick={async () => {
         if (!promptMessageId || isStopping) {
           return
@@ -292,65 +306,3 @@ export function StopButton({
   )
 }
 
-export function ResendButton({
-  threadId,
-  promptMessageId,
-  forceStopFirst,
-}: {
-  threadId: string
-  promptMessageId?: string
-  forceStopFirst: boolean
-}) {
-  const { models } = useModels()
-  const { regenerate, stop, disabledReason } = useSendMessage()
-  const viewer = useViewer()
-  const { selectedModelId } = useChatModel()
-  const [isResending, setIsResending] = useState(false)
-
-  const selectedModelDocId = useMemo(
-    () => models.find((model) => model.modelId === selectedModelId)?.id as Id<'models'> | undefined,
-    [models, selectedModelId],
-  )
-  const selectionTier = getSelectionTierFromAppPlan(viewer?.appPlan)
-  const canResend = Boolean(
-    promptMessageId && (selectedModelDocId || isAutoModelSelection(selectedModelId)),
-  )
-
-  return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon-sm"
-      disabled={!canResend || disabledReason !== null || isResending}
-      className="inline-flex items-center gap-1.5 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-      aria-label="Resend response"
-      title="Resend response"
-      onClick={async () => {
-        if (
-          !promptMessageId ||
-          (!selectedModelDocId && !isAutoModelSelection(selectedModelId)) ||
-          isResending
-        ) {
-          return
-        }
-
-        setIsResending(true)
-        try {
-          if (forceStopFirst) {
-            await stop({ threadId, promptMessageId })
-          }
-          await regenerate({
-            threadId,
-            promptMessageId,
-            modelDocId: selectedModelDocId,
-            selectionTier,
-          })
-        } finally {
-          setIsResending(false)
-        }
-      }}
-    >
-      <RotateCcw className={cn('h-4 w-4', isResending && 'animate-spin')} />
-    </Button>
-  )
-}

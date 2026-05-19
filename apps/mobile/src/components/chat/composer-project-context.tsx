@@ -12,6 +12,7 @@ import {
   type PendingProjectDraft,
   type ProjectMentionState,
 } from "@chat/shared/logic/project-mention";
+import { formatUserFacingError } from "@chat/shared/logic/user-facing-errors";
 import { useAction, useQuery } from "convex/react";
 import {
   createContext,
@@ -52,16 +53,6 @@ type ComposerProjectContextValue = {
 
 const ComposerProjectContext =
   createContext<ComposerProjectContextValue | null>(null);
-
-function getErrorMessage(error: unknown) {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  if (typeof error === "string") {
-    return error;
-  }
-  return "Something went wrong";
-}
 
 export function ComposerProjectProvider({
   threadId,
@@ -266,7 +257,7 @@ export function ComposerProjectProvider({
             buildPendingProjectDraft({
               mentionQuery: projectMention.query,
               draftWithoutMention: nextValue,
-              errorMessage: getErrorMessage(error),
+              errorMessage: formatUserFacingError(error),
             }),
           );
         }
@@ -350,7 +341,7 @@ export function ComposerProjectProvider({
 
       setPendingProjectDraft(null);
     } catch (error) {
-      const message = getErrorMessage(error);
+      const message = formatUserFacingError(error);
       setPendingProjectDraft((current) =>
         current
           ? {

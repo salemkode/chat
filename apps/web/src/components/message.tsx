@@ -2,19 +2,19 @@ import { useSmoothText } from '@convex-dev/agent/react'
 import { getQuranAyahCardFromParts } from '@chat/shared/quran-ayah'
 import type { FunctionReturnType } from 'convex/server'
 import { api } from '@convex/_generated/api'
-import { AlertCircle, FileText, ChevronDown, ChevronUp } from '@/lib/icons'
+import { FileText, ChevronDown, ChevronUp } from '@/lib/icons'
 import { memo, useMemo, useState } from 'react'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { canStopActiveGeneration } from '@chat/shared/logic/chat-generation-core'
 import { getMessageFailurePresentation } from '@/lib/chat-generation'
 import { cn } from '@/lib/utils'
+import { ChatInlineError } from './chat/chat-inline-error'
 import { QuranAyahCard } from './chat/quran-ayah-card'
 import { MessageActivityTimeline } from './chat/message-activity-timeline'
 import { ChatMarkdown } from './chat-markdown'
 import { CopyButton } from './copy-button'
-import { MessageAttachments, RepeatButton, ResendButton, StopButton } from './message/actions'
+import { MessageAttachments, RepeatButton, StopButton } from './message/actions'
 import { areMessagePropsEqual, getMessageFileParts } from './message/utils'
-import { Alert, AlertDescription, AlertTitle } from './ui/alert'
-
 interface MessageProps {
   threadId: string
   message: FunctionReturnType<typeof api.chat.listMessages>['page'][number]
@@ -61,11 +61,11 @@ export const Message = memo(function Message({
 
   if (message.role === 'assistant') {
     const disableRepeat = message.status === 'streaming' || message.status === 'pending'
-    const failureTitle =
-      failurePresentation?.kind === 'stopped' ? 'Generation stopped' : 'Message failed'
-    const failureNote = failurePresentation?.note || 'The model could not complete this response.'
-    const failureVariant = failurePresentation?.kind === 'error' ? 'destructive' : 'default'
+    const failureNote = failurePresentation?.note || 'This response could not be generated.'
     const shouldShowResend = isFailedAssistant || isStalled
+    const canStop = isActiveGeneration
+      ? canStopActiveGeneration({ message, isStalled })
+      : false
 
     return (
       <div className={cn('mx-auto w-full max-w-3xl', isMobile && 'px-0.5')}>
@@ -74,16 +74,7 @@ export const Message = memo(function Message({
         ) : null}
 
         {shouldReplaceWithFailureMessage ? (
-          <Alert
-            variant={failureVariant}
-            className={failureVariant === 'destructive' ? 'border-destructive/40' : ''}
-          >
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>{failureTitle}</AlertTitle>
-            <AlertDescription>
-              <p className="whitespace-pre-wrap break-words">{failureNote}</p>
-            </AlertDescription>
-          </Alert>
+          <ChatInlineError message={failureNote} />
         ) : (
           <div
             dir="auto"
@@ -99,16 +90,7 @@ export const Message = memo(function Message({
           </div>
         )}
         {shouldShowFailureClarification ? (
-          <Alert
-            variant={failureVariant}
-            className={cn('mt-3', failureVariant === 'destructive' && 'border-destructive/40')}
-          >
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>{failureTitle}</AlertTitle>
-            <AlertDescription>
-              <p className="whitespace-pre-wrap break-words">{failureNote}</p>
-            </AlertDescription>
-          </Alert>
+          <ChatInlineError message={failureNote} className="mt-3" />
         ) : null}
 
         {fileParts.length > 0 ? (
@@ -125,23 +107,20 @@ export const Message = memo(function Message({
             )}
           >
             <CopyButton text={message.text} />
-            {isActiveGeneration ? (
-              <StopButton threadId={threadId} promptMessageId={promptMessageId} />
-            ) : null}
-            {shouldShowResend ? (
-              <ResendButton
+            {isActiveGeneration && canStop ? (
+              <StopButton
                 threadId={threadId}
                 promptMessageId={promptMessageId}
-                forceStopFirst={isStalled}
+                canStop={canStop}
+                forceStop={isStalled}
               />
             ) : null}
-            {!shouldShowResend ? (
-              <RepeatButton
-                threadId={threadId}
-                promptMessageId={promptMessageId}
-                disabled={disableRepeat}
-              />
-            ) : null}
+            <RepeatButton
+              threadId={threadId}
+              promptMessageId={promptMessageId}
+              disabled={shouldShowResend ? false : disableRepeat}
+              forceStopFirst={shouldShowResend && isStalled}
+            />
           </div>
         ) : null}
       </div>

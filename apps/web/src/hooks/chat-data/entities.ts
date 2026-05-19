@@ -4,7 +4,8 @@ import { useMutation } from 'convex/react'
 import { api } from '@convex/_generated/api'
 import type { FunctionReturnType } from 'convex/server'
 import { useOnlineStatus } from '@/hooks/use-online-status'
-import { useQuery } from '@/lib/convex-query-cache'
+import { resolveChatSnapshot } from '@chat/chat-core'
+import { useQuery } from 'convex/react'
 import { readModelsCache, readProjectsCache, readSettings } from '@/offline/local-cache'
 import {
   cacheModelsToLocal,
@@ -110,7 +111,9 @@ export function useProjects() {
       }
     }
   ).projects
-  const liveProjects = (useQuery(projectsApi.listProjects as never) || []) as ProjectsRecord
+  const liveProjectsQuery = useQuery(projectsApi.listProjects as never) as
+    | ProjectsRecord
+    | undefined
   const cachedProjects = useMemo(() => {
     if (!cacheUserId) {
       return []
@@ -125,14 +128,18 @@ export function useProjects() {
   const removeThreadFromProjectMutation = useMutation(projectsApi.removeThreadFromProject as never)
 
   useEffect(() => {
-    if (liveProjects.length > 0 && cacheUserId) {
-      cacheProjectsToLocal(cacheUserId, liveProjects)
+    if (liveProjectsQuery && liveProjectsQuery.length > 0 && cacheUserId) {
+      cacheProjectsToLocal(cacheUserId, liveProjectsQuery)
     }
-  }, [liveProjects, cacheUserId])
+  }, [liveProjectsQuery, cacheUserId])
 
   const projects = useMemo(
-    () => (liveProjects.length > 0 ? liveProjects : cachedProjects || []),
-    [cachedProjects, liveProjects],
+    () =>
+      resolveChatSnapshot({
+        live: liveProjectsQuery,
+        persisted: cachedProjects,
+      }),
+    [cachedProjects, liveProjectsQuery],
   )
 
   const createProject = useCallback(

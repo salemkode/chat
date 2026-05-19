@@ -7,7 +7,11 @@
     ".": "./src/index.ts",
     "./types": "./src/types.ts",
     "./adapters": "./src/adapters.ts",
-    "./sidebar": "./src/sidebar.ts"
+    "./sidebar": "./src/sidebar.ts",
+    "./cache": "./src/cache/resolve-snapshot.ts",
+    "./send": "./src/send/send-registry.tsx",
+    "./messages": "./src/messages/use-thread-messages.ts",
+    "./generation": "./src/generation/use-generation-state.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",

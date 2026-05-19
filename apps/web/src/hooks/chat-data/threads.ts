@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useMutation } from 'convex/react'
 import { api } from '@convex/_generated/api'
 import { useOnlineStatus } from '@/hooks/use-online-status'
-import { useQuery } from '@/lib/convex-query-cache'
+import { useQuery } from 'convex/react'
 import { compareThreadsForSidebar } from '@/lib/project-sidebar'
 import { readThreadsCache } from '@/offline/local-cache'
 import {

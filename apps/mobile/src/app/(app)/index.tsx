@@ -15,6 +15,8 @@ import {
   createStreamingStore,
   type ChatMessage,
 } from "@/components/chat";
+import { getMessageFileParts } from "@chat/shared/logic/message-file-parts";
+import { ChatInlineError } from "@/components/chat/chat-inline-error";
 import { ComposerProjectProvider } from "@/components/chat/composer-project-context";
 import { useChatAttachments } from "@/components/chat/attachment-context";
 import { useChatComposerOptions } from "@/components/chat/composer-options-context";
@@ -22,37 +24,20 @@ import { Icon } from "@/components/icon";
 import { MainHeader } from "@/components/main-header";
 import { useModel } from "@/components/model-context";
 import { validateAttachmentsForSend } from "@/lib/attachment-capability-messages";
+import {
+  formatMessageFailureNote,
+  formatUserFacingError,
+} from "@chat/shared/logic/user-facing-errors";
 import { selectThread, threadSelection$ } from "@/state/thread-selection";
 import { useMessages, useSendMessage } from "@/hooks/use-chat-data";
 import { useSettings } from "@/hooks/use-settings";
 import { useSelector } from "@legendapp/state/react";
-import { useChatCoreContext } from "@chat/chat-core";
+import { useChatCoreContext, useGenerationState } from "@chat/chat-core";
 import * as Haptics from "expo-haptics";
 import { Link, useLocalSearchParams } from "expo-router";
 import { Plus } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Text, View } from "react-native";
-
-function getErrorMessage(error: unknown) {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  if (typeof error === "string") {
-    return error;
-  }
-
-  if (
-    typeof error === "object" &&
-    error !== null &&
-    "message" in error &&
-    typeof error.message === "string"
-  ) {
-    return error.message;
-  }
-
-  return "Unable to send message";
-}
 
 export default function ChatScreen() {
   const params = useLocalSearchParams<{
@@ -76,10 +61,11 @@ export default function ChatScreen() {
   } = useModel();
   const { searchEnabled } = useChatComposerOptions();
   const { settings } = useSettings();
-  const { send } = useSendMessage();
+  const { send, stop } = useSendMessage();
   const { attachments, clearAttachments, hasUploadingAttachments } =
     useChatAttachments();
   const { messages, hasActiveStreaming } = useMessages(threadId);
+  const { activeGeneration, canStop, canForceStop } = useGenerationState(messages);
   const { pendingProjectId, setPendingProjectId, assignThreadToProject } =
     useChatCoreContext();
   const streamingStore = useMemo(() => createStreamingStore(), []);
@@ -119,6 +105,35 @@ export default function ChatScreen() {
   const isGenerating = hasActiveStreaming;
   const canSend =
     Boolean(input.trim() || attachments.length > 0) && !hasUploadingAttachments;
+
+  const onStop = useCallback(async () => {
+    if (!threadId || !canStop) {
+      return;
+    }
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    prevStreamTextRef.current = "";
+    streamingStore.set("");
+    try {
+      const result = await stop({
+        threadId,
+        promptMessageId: activeGeneration?.promptMessageId,
+      });
+      if (!result.stopped) {
+        setError(new Error("Could not stop generation. Try again in a moment."));
+        return;
+      }
+      setError(null);
+    } catch (err) {
+      setError(new Error(formatUserFacingError(err)));
+    }
+  }, [
+    activeGeneration?.promptMessageId,
+    canStop,
+    stop,
+    streamingStore,
+    threadId,
+  ]);
 
   const onSend = useCallback(async () => {
     if (!canSend || isGenerating) return;
@@ -173,7 +188,7 @@ export default function ChatScreen() {
       }
     } catch (err) {
       setInput(text);
-      setError(new Error(getErrorMessage(err)));
+      setError(new Error(formatUserFacingError(err)));
       console.error("Send error:", err);
     }
   }, [
@@ -216,9 +231,10 @@ export default function ChatScreen() {
   const renderMessage = useCallback(
     ({ item }: { item: ChatMessage }) => {
       if (item.role === "user") {
+        const hasAttachments = getMessageFileParts(item.parts ?? []).length > 0;
         return (
-          <Message from="user">
-            <View className="gap-2">
+          <Message from="user" wide={hasAttachments}>
+            <View className="w-full gap-2">
               <MessageAttachments parts={item.parts} />
               {item.content ? (
                 <Text className="text-base leading-5.5 text-foreground">
@@ -230,18 +246,28 @@ export default function ChatScreen() {
         );
       }
 
-      const isStreaming = isGenerating && item.content === "";
+      const sourceMessage = messages.find((m) => m.id === item.id);
+      const isFailed = sourceMessage?.status === "failed";
+      const isStreaming =
+        isGenerating && item.content === "" && !isFailed;
+      const failureNote = formatMessageFailureNote(
+        sourceMessage?.failureNote,
+        sourceMessage?.failureKind === "stopped" ? "stopped" : "error",
+      );
+
       return (
         <Message from="assistant">
           {isStreaming ? (
             <StreamingMessage store={streamingStore} />
+          ) : isFailed ? (
+            <ChatInlineError message={failureNote} />
           ) : (
             <MessageResponse>{item.content}</MessageResponse>
           )}
         </Message>
       );
     },
-    [isGenerating, streamingStore],
+    [isGenerating, messages, streamingStore],
   );
 
   const chat = useMemo(
@@ -251,11 +277,25 @@ export default function ChatScreen() {
       setInput,
       isGenerating,
       canSend,
+      canStop,
+      canForceStop,
       onSend,
+      onStop,
       streamingStore,
       error,
     }),
-    [canSend, chatMessages, error, input, isGenerating, onSend, streamingStore],
+    [
+      canForceStop,
+      canSend,
+      canStop,
+      chatMessages,
+      error,
+      input,
+      isGenerating,
+      onSend,
+      onStop,
+      streamingStore,
+    ],
   );
 
   return (

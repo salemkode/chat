@@ -1,357 +1,58 @@
 'use client'
 
+/**
+ * Web compatibility layer over chat-core SendRegistry.
+ * Blob previews stay local until upload/handoff; list merging is in useThreadMessages.
+ */
+
+import type { ReactNode } from 'react'
 import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from 'react'
+  SendRegistryProvider,
+  useSendRegistry,
+  createPendingPreviews,
+} from '@chat/chat-core'
+import { createWebAttachmentAdapter } from '@/lib/chat-core-adapters'
 import type { ChatMessage } from '@/hooks/chat-data/shared'
 
-type PendingThreadKey = string
-type PendingSendPhase = 'pending' | 'handoff' | 'failed'
-
-type PendingSendAttachment = {
-  filename?: string
-  mediaType: string
-  url: string
-}
-
-type PendingSendRecord = {
-  clientSendId: string
-  threadKey: PendingThreadKey
-  prompt: string
-  attachments: PendingSendAttachment[]
-  createdAt: number
-  phase: PendingSendPhase
-  errorText?: string
-}
-
-type PendingSendContextValue = {
-  createPendingSend: (payload: {
-    threadKey: PendingThreadKey
-    prompt: string
-    attachments: File[]
-  }) => PendingSendRecord
-  movePendingSendToThread: (clientSendId: string, threadId: string) => void
-  markPendingHandoff: (clientSendId: string) => void
-  markPendingFailed: (clientSendId: string, errorText: string) => void
-  clearPendingSend: (clientSendId: string) => void
-  clearFailedSendsForThread: (threadKey: PendingThreadKey) => void
-  selectPendingMessages: (threadKey: PendingThreadKey, liveMessages: ChatMessage[]) => ChatMessage[]
-}
-
-const PendingSendContext = createContext<PendingSendContextValue | null>(null)
-
-function toPendingAttachments(files: File[]): PendingSendAttachment[] {
-  return files.map((file) => ({
-    filename: file.name,
-    mediaType: file.type || 'application/octet-stream',
-    url: URL.createObjectURL(file),
-  }))
-}
-
-function revokeAttachments(attachments: PendingSendAttachment[]) {
-  for (const attachment of attachments) {
-    URL.revokeObjectURL(attachment.url)
-  }
-}
-
-function toMessageParts(attachments: PendingSendAttachment[]) {
-  return attachments.map((attachment) => ({
-    type: 'file',
-    url: attachment.url,
-    mediaType: attachment.mediaType,
-    filename: attachment.filename,
-  }))
-}
-
-function getAttachmentFingerprints(parts: Array<Record<string, unknown>>) {
-  return parts
-    .filter((part) => part.type === 'file')
-    .map((part) => {
-      const filename = typeof part.filename === 'string' ? part.filename : undefined
-      const mediaType =
-        typeof part.mediaType === 'string' ? part.mediaType : 'application/octet-stream'
-      return `${filename ?? ''}:${mediaType}`
-    })
-    .sort()
-}
-
-/**
- * Pending sends include local file metadata, but Convex `generateMessage` optimistic
- * updates may omit file parts on the user row until the mutation persists. Treat "live
- * has no file parts yet" as compatible so we hand off to the server list instead of
- * duplicating bubbles.
- */
-function attachmentsMatchForHandoff(record: PendingSendRecord, liveParts: ChatMessage['parts']) {
-  const pending = record.attachments
-    .map(
-      (attachment) =>
-        `${attachment.filename ?? ''}:${attachment.mediaType || 'application/octet-stream'}`,
-    )
-    .sort()
-  const live = getAttachmentFingerprints(liveParts)
-  if (pending.length === 0) {
-    return live.length === 0
-  }
-  if (live.length === 0) {
-    return true
-  }
-  if (pending.length !== live.length) {
-    return false
-  }
-  return pending.every((value, index) => value === live[index])
-}
-
-function hasLiveHandoffMatch(record: PendingSendRecord, liveMessages: ChatMessage[]) {
-  for (let index = liveMessages.length - 1; index >= 0; index -= 1) {
-    const message = liveMessages[index]
-    if (!message || message.role !== 'user') {
-      continue
-    }
-    if (message.text !== record.prompt) {
-      continue
-    }
-
-    if (!attachmentsMatchForHandoff(record, message.parts)) {
-      continue
-    }
-
-    for (
-      let assistantIndex = index + 1;
-      assistantIndex < liveMessages.length;
-      assistantIndex += 1
-    ) {
-      const assistant = liveMessages[assistantIndex]
-      if (assistant?.role !== 'assistant') {
-        continue
-      }
-
-      if (
-        assistant.status === 'streaming' ||
-        assistant.status === 'pending' ||
-        assistant.status === 'success'
-      ) {
-        return true
-      }
-    }
-  }
-
-  return false
-}
+const webAttachmentAdapter = createWebAttachmentAdapter()
 
 export function PendingSendsProvider({ children }: { children: ReactNode }) {
-  const [pendingSends, setPendingSends] = useState<Record<string, PendingSendRecord>>({})
-  const pendingSendsRef = useRef(pendingSends)
-
-  useEffect(() => {
-    pendingSendsRef.current = pendingSends
-  }, [pendingSends])
-
-  useEffect(() => {
-    return () => {
-      for (const record of Object.values(pendingSendsRef.current)) {
-        revokeAttachments(record.attachments)
-      }
-    }
-  }, [])
-
-  const createPendingSend = useCallback(
-    (payload: { threadKey: PendingThreadKey; prompt: string; attachments: File[] }) => {
-      const clientSendId = `pending-send-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-      const record: PendingSendRecord = {
-        clientSendId,
-        threadKey: payload.threadKey,
-        prompt: payload.prompt,
-        attachments: toPendingAttachments(payload.attachments),
-        createdAt: Date.now(),
-        phase: 'pending',
-      }
-      setPendingSends((current) => ({
-        ...current,
-        [clientSendId]: record,
-      }))
-      return record
-    },
-    [],
+  return (
+    <SendRegistryProvider attachmentAdapter={webAttachmentAdapter}>
+      {children}
+    </SendRegistryProvider>
   )
-
-  const movePendingSendToThread = useCallback((clientSendId: string, threadId: string) => {
-    setPendingSends((current) => {
-      const record = current[clientSendId]
-      if (!record) {
-        return current
-      }
-      return {
-        ...current,
-        [clientSendId]: {
-          ...record,
-          threadKey: threadId,
-        },
-      }
-    })
-  }, [])
-
-  const markPendingHandoff = useCallback((clientSendId: string) => {
-    setPendingSends((current) => {
-      const record = current[clientSendId]
-      if (!record) {
-        return current
-      }
-      return {
-        ...current,
-        [clientSendId]: {
-          ...record,
-          phase: 'handoff',
-        },
-      }
-    })
-  }, [])
-
-  const markPendingFailed = useCallback((clientSendId: string, errorText: string) => {
-    setPendingSends((current) => {
-      const record = current[clientSendId]
-      if (!record) {
-        return current
-      }
-      return {
-        ...current,
-        [clientSendId]: {
-          ...record,
-          phase: 'failed',
-          errorText,
-        },
-      }
-    })
-  }, [])
-
-  const clearPendingSend = useCallback((clientSendId: string) => {
-    setPendingSends((current) => {
-      const record = current[clientSendId]
-      if (!record) {
-        return current
-      }
-      revokeAttachments(record.attachments)
-      const { [clientSendId]: _removed, ...rest } = current
-      return rest
-    })
-  }, [])
-
-  const clearFailedSendsForThread = useCallback((threadKey: PendingThreadKey) => {
-    setPendingSends((current) => {
-      let changed = false
-      const nextEntries = Object.entries(current).filter(([, record]) => {
-        const shouldRemove = record.threadKey === threadKey && record.phase === 'failed'
-        if (shouldRemove) {
-          changed = true
-          revokeAttachments(record.attachments)
-          return false
-        }
-        return true
-      })
-
-      if (!changed) {
-        return current
-      }
-
-      return Object.fromEntries(nextEntries)
-    })
-  }, [])
-
-  const selectPendingMessages = useCallback(
-    (threadKey: PendingThreadKey, liveMessages: ChatMessage[]) => {
-      const messages: ChatMessage[] = []
-      const records = Object.values(pendingSends)
-        .filter((record) => record.threadKey === threadKey)
-        .sort((left, right) => left.createdAt - right.createdAt)
-
-      for (const record of records) {
-        if (record.phase === 'handoff' && hasLiveHandoffMatch(record, liveMessages)) {
-          continue
-        }
-
-        const baseParts = toMessageParts(record.attachments)
-        messages.push({
-          id: `${record.clientSendId}-user`,
-          role: 'user',
-          text: record.prompt,
-          parts: baseParts,
-          status: 'success',
-          order: record.createdAt,
-          createdAt: record.createdAt,
-          localOnly: true,
-          clientSendId: record.clientSendId,
-        })
-
-        if (record.phase === 'failed') {
-          messages.push({
-            id: `${record.clientSendId}-assistant`,
-            role: 'assistant',
-            text: '',
-            parts: [],
-            status: 'failed',
-            order: record.createdAt + 1,
-            createdAt: record.createdAt + 1,
-            failureKind: 'error',
-            failureMode: 'replace',
-            failureNote: record.errorText || 'This message failed to generate.',
-            localOnly: true,
-            clientSendId: record.clientSendId,
-          })
-          continue
-        }
-
-        messages.push({
-          id: `${record.clientSendId}-assistant`,
-          role: 'assistant',
-          text: '',
-          parts: [],
-          status: 'streaming',
-          order: record.createdAt + 1,
-          createdAt: record.createdAt + 1,
-          localOnly: true,
-          clientSendId: record.clientSendId,
-        })
-      }
-
-      return messages
-    },
-    [pendingSends],
-  )
-
-  const value = useMemo<PendingSendContextValue>(
-    () => ({
-      createPendingSend,
-      movePendingSendToThread,
-      markPendingHandoff,
-      markPendingFailed,
-      clearPendingSend,
-      clearFailedSendsForThread,
-      selectPendingMessages,
-    }),
-    [
-      clearFailedSendsForThread,
-      clearPendingSend,
-      createPendingSend,
-      markPendingFailed,
-      markPendingHandoff,
-      movePendingSendToThread,
-      selectPendingMessages,
-    ],
-  )
-
-  return <PendingSendContext.Provider value={value}>{children}</PendingSendContext.Provider>
 }
 
 export function usePendingSends() {
-  const value = useContext(PendingSendContext)
-  if (!value) {
-    throw new Error('usePendingSends must be used within a PendingSendsProvider')
+  const registry = useSendRegistry()
+
+  return {
+    createPendingSend: (payload: {
+      threadKey: string
+      prompt: string
+      attachments: File[]
+    }) => {
+      const previews = createPendingPreviews(payload.attachments, webAttachmentAdapter)
+      return registry.createInFlightSend({
+        threadKey: payload.threadKey,
+        prompt: payload.prompt,
+        attachments: previews,
+      })
+    },
+    movePendingSendToThread: registry.moveInFlightSendToThread,
+    markPendingHandoff: (clientSendId: string) => {
+      registry.setInFlightPhase(clientSendId, 'handoff')
+    },
+    markPendingFailed: (clientSendId: string, errorText: string) => {
+      registry.setInFlightPhase(clientSendId, 'failed', errorText)
+    },
+    clearPendingSend: (clientSendId: string) => {
+      registry.setInFlightPhase(clientSendId, 'settled')
+      registry.clearInFlightSend(clientSendId)
+    },
+    clearFailedSendsForThread: registry.clearFailedSendsForThread,
+    selectPendingMessages: (threadKey: string, liveMessages: ChatMessage[]) =>
+      registry.selectInFlightMessages(threadKey, liveMessages),
   }
-  return value
 }

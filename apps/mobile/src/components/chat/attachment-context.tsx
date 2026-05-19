@@ -75,34 +75,27 @@ export function ChatAttachmentsProvider({
   const uploadGenerationRef = useRef(0);
 
   const queueUpload = useCallback(
-    (attachmentId: string) => {
+    (attachment: LocalAttachment) => {
+      if (
+        attachment.uploadStatus === "ready" ||
+        attachment.uploadStatus === "uploading"
+      ) {
+        return;
+      }
+
+      const attachmentId = attachment.id;
       const generation = uploadGenerationRef.current;
+
+      setAttachments((prev) =>
+        withAttachmentUploadState(prev, attachmentId, {
+          uploadStatus: "uploading",
+          uploadError: undefined,
+        }),
+      );
+
       void (async () => {
-        let attachmentToUpload: LocalAttachment | undefined;
-        setAttachments((prev) => {
-          attachmentToUpload = prev.find(
-            (attachment) => attachment.id === attachmentId,
-          );
-          if (
-            !attachmentToUpload ||
-            attachmentToUpload.uploadStatus === "ready" ||
-            attachmentToUpload.uploadStatus === "uploading"
-          ) {
-            return prev;
-          }
-
-          return withAttachmentUploadState(prev, attachmentId, {
-            uploadStatus: "uploading",
-            uploadError: undefined,
-          });
-        });
-
-        if (!attachmentToUpload || attachmentToUpload.uploadStatus === "ready") {
-          return;
-        }
-
         try {
-          const uploaded = await uploadLocalAttachment(attachmentToUpload, async () => {
+          const uploaded = await uploadLocalAttachment(attachment, async () => {
             const url = await generateAttachmentUploadUrl({});
             return url ?? null;
           });
@@ -141,7 +134,10 @@ export function ChatAttachmentsProvider({
     (incoming: LocalAttachment[]) => {
       setAttachments((current) => mergeAttachments(current, incoming));
       for (const attachment of incoming) {
-        queueUpload(attachment.id);
+        queueUpload({
+          ...attachment,
+          uploadStatus: attachment.uploadStatus ?? "pending",
+        });
       }
     },
     [queueUpload],
