@@ -26,6 +26,10 @@ type ModelsWithCollections = FunctionReturnType<typeof api.admin.listModelsWithP
     _id: string
     name: string
     description?: string
+    icon?: string
+    iconType?: 'emoji' | 'lucide' | 'phosphor' | 'upload'
+    iconId?: string
+    iconUrl?: string
     sortOrder: number
     modelIds: string[]
     modelCount: number
@@ -237,6 +241,7 @@ export function useSettings() {
       bio?: string
       reasoningEnabled?: boolean
       reasoningLevel?: 'low' | 'medium' | 'high'
+      auxiliaryModelId?: Id<'models'>
     }) => {
       if (!isOnline) {
         return

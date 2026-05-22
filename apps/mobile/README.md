@@ -34,13 +34,15 @@ A high-performance AI chatbot template built with [Expo](https://expo.dev) and [
 For day-to-day local work, prefer pulling variables from EAS instead of copying files between checkouts:
 
 ```bash
-eas env:pull --environment development --path apps/mobile/.env.local
+cd apps/mobile
+eas env:pull --environment development --path .env.local
 ```
 
 For production build validation, pull the production environment:
 
 ```bash
-eas env:pull --environment production --path apps/mobile/.env.local
+cd apps/mobile
+eas env:pull --environment production --path .env.local
 ```
 
 You can still create a local `.env` file manually when needed, but the EAS environment is the source of truth for cloud builds.
@@ -68,13 +70,19 @@ pnpm run android
 cd apps/mobile && pnpm run web
 ```
 
-> Requires Node.js 20+, pnpm (`corepack enable` recommended), and the [Expo CLI](https://docs.expo.dev/get-started/installation/). For iOS, you'll need Xcode and a simulator or device.
+> Requires Node.js 20+, pnpm (`corepack enable` recommended), the [Expo CLI](https://docs.expo.dev/get-started/installation/), and a global [EAS CLI](https://docs.expo.dev/eas-update/eas-cli/) install. For iOS, you'll need Xcode and a simulator or device.
 
 ### Production Builds
 
 Cloud builds:
 
 ```bash
+pnpm run eas:build:android
+pnpm run eas:build:ios
+pnpm run eas:build:testflight
+
+# Or run EAS directly from the app workspace:
+cd apps/mobile
 eas build --platform android --profile production
 eas build --platform ios --profile production
 ```
@@ -82,11 +90,26 @@ eas build --platform ios --profile production
 Local debugging builds:
 
 ```bash
+pnpm run eas:build:local:android
+pnpm run eas:build:local:ios
+
+# Or run EAS directly from the app workspace:
+cd apps/mobile
 eas build --platform android --profile production --local
 eas build --platform ios --profile production --local
 ```
 
 The repo is set up so cloud builds are the standard release path. Local builds are mainly for debugging native issues on a developer machine.
+
+### TestFlight
+
+```bash
+pnpm run eas:build:testflight
+pnpm run eas:submit:testflight
+
+# Or build and auto-submit in one step:
+pnpm run eas:testflight
+```
 
 ## Customization
 

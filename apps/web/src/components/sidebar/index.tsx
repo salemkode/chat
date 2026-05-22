@@ -3,6 +3,7 @@
 import * as React from 'react'
 import { useUser } from '@clerk/react-router'
 import { generatePath, useNavigate } from 'react-router'
+import { toast } from 'sonner'
 import {
   ChevronDown,
   ChevronRight,
@@ -39,6 +40,8 @@ import { SidebarSearchDialog } from '@/components/sidebar/sidebar-search-dialog'
 import { AnimatedThreadList, ThreadRow } from '@/components/sidebar/thread-list'
 import { useHotkeyAction } from '@/components/hotkeys-provider'
 import {
+  DeleteThreadDialog,
+  DeleteThreadState,
   ProjectCreateDialog,
   ProjectDraftState,
   RemoveFromProjectDialog,
@@ -58,9 +61,10 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
   const [projectDialog, setProjectDialog] = React.useState<ProjectDraftState | null>(null)
   const [removeFromProjectDialog, setRemoveFromProjectDialog] =
     React.useState<RemoveFromProjectState | null>(null)
+  const [deleteThreadDialog, setDeleteThreadDialog] = React.useState<DeleteThreadState | null>(null)
   const [expandedProjectIds, setExpandedProjectIds] = React.useState<Record<string, boolean>>({})
 
-  const { threads, setPinned } = useThreads()
+  const { threads, setPinned, deleteThread } = useThreads()
   const { projects, createProject, removeThreadFromProject } = useProjects()
   const viewer = useViewer()
   const { user: clerkUser } = useUser()
@@ -170,6 +174,24 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
 
     await removeThreadFromProject(removeFromProjectDialog.threadId)
     setRemoveFromProjectDialog(null)
+  }
+
+  async function handleConfirmDeleteThread() {
+    if (!deleteThreadDialog) {
+      return
+    }
+
+    try {
+      await deleteThread(deleteThreadDialog.threadId)
+      if (selectedThreadId === deleteThreadDialog.threadId) {
+        writePendingNewChatProjectId(undefined)
+        navigate('/')
+      }
+      setDeleteThreadDialog(null)
+    } catch (error) {
+      console.error('Failed to delete chat:', error)
+      toast.error('Could not delete the chat.')
+    }
   }
 
   useHotkeyAction('newChat', handleNewChat)
@@ -311,6 +333,15 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
                                       })
                                   : undefined
                               }
+                              onDelete={
+                                thread.serverId && !thread.isOptimistic
+                                  ? () =>
+                                      setDeleteThreadDialog({
+                                        threadId: thread.serverId!,
+                                        threadTitle: thread.title || 'Untitled chat',
+                                      })
+                                  : undefined
+                              }
                             />
                           )}
                         />
@@ -345,6 +376,15 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
                       }
                       void handlePinThread(thread.id, !thread.pinned)
                     }}
+                    onDelete={
+                      thread.serverId && !thread.isOptimistic
+                        ? () =>
+                            setDeleteThreadDialog({
+                              threadId: thread.serverId!,
+                              threadTitle: thread.title || 'Untitled chat',
+                            })
+                        : undefined
+                    }
                   />
                 )}
               />
@@ -449,6 +489,16 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
           }
         }}
         onConfirm={() => void handleConfirmRemoveFromProject()}
+      />
+
+      <DeleteThreadDialog
+        state={deleteThreadDialog}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteThreadDialog(null)
+          }
+        }}
+        onConfirm={() => void handleConfirmDeleteThread()}
       />
     </Sidebar>
   )

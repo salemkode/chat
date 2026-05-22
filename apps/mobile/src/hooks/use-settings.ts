@@ -13,6 +13,7 @@ export function useSettings() {
       bio?: string;
       reasoningEnabled?: boolean;
       reasoningLevel?: "low" | "medium" | "high";
+      auxiliaryModelId?: string;
     }) => {
       await updateSettingsMutation(values);
     },

@@ -26,6 +26,11 @@ type ToolPolicyDetectedIntent =
 export type ToolPolicyAutomaticAction =
   | 'metadata_update_applied'
   | 'metadata_update_failed'
+  | 'memory_search_applied'
+  | 'memory_add_applied'
+  | 'memory_update_applied'
+  | 'memory_delete_applied'
+  | 'memory_intent_failed'
 
 type ToolPolicyEvaluation = {
   detectedIntent: ToolPolicyDetectedIntent
@@ -316,7 +321,9 @@ export function evaluateToolPolicy(args: {
   firstUserMessage: string
   messageCount: number
   now?: number
+  supportsTools?: boolean
 }) {
+  const supportsTools = args.supportsTools !== false
   const memoryIntent = detectMemoryIntent(args.prompt)
   const metadataDecision = runThreadMetadataPolicy({
     prompt: args.prompt,
@@ -328,18 +335,24 @@ export function evaluateToolPolicy(args: {
     now: args.now,
   })
 
+  const memoryRequiredActions = supportsTools ? memoryIntent.requiredActions : []
+  const metadataRequiredActions = supportsTools ? metadataDecision.requiredActions : []
+
   const requiredActions = Array.from(
-    new Set([...memoryIntent.requiredActions, ...metadataDecision.requiredActions]),
+    new Set([...memoryRequiredActions, ...metadataRequiredActions]),
   )
 
   const policyTrace = [
     `thread:${args.threadId}`,
     `user:${args.userId}`,
+    `tools:${supportsTools ? 'enabled' : 'disabled'}`,
     ...memoryIntent.policyTrace,
     ...metadataDecision.policyTrace,
   ]
 
-  const systemAddendum = [memoryIntent.systemAddendum].filter(Boolean).join('\n')
+  const systemAddendum = supportsTools
+    ? [memoryIntent.systemAddendum].filter(Boolean).join('\n')
+    : ''
 
   const detectedIntent =
     memoryIntent.detectedIntent !== 'none'
@@ -351,8 +364,8 @@ export function evaluateToolPolicy(args: {
     requiredActions,
     systemAddendum,
     toolAvailability: {
-      memoryTools: true,
-      threadMetadataTool: true,
+      memoryTools: supportsTools,
+      threadMetadataTool: supportsTools,
     },
     policyTrace,
   } satisfies ToolPolicyEvaluation
@@ -431,6 +444,35 @@ export function finalizeToolPolicyEvaluation(args: {
     if (
       action === 'metadata_update_required' &&
       args.automaticActions.includes('metadata_update_applied')
+    ) {
+      satisfiedActions.push(action)
+      continue
+    }
+
+    if (
+      action === 'memory_search_required' &&
+      args.automaticActions.includes('memory_search_applied')
+    ) {
+      satisfiedActions.push(action)
+      continue
+    }
+
+    if (action === 'memory_add_required' && args.automaticActions.includes('memory_add_applied')) {
+      satisfiedActions.push(action)
+      continue
+    }
+
+    if (
+      action === 'memory_update_required' &&
+      args.automaticActions.includes('memory_update_applied')
+    ) {
+      satisfiedActions.push(action)
+      continue
+    }
+
+    if (
+      action === 'memory_delete_required' &&
+      args.automaticActions.includes('memory_delete_applied')
     ) {
       satisfiedActions.push(action)
       continue

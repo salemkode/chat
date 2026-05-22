@@ -5,6 +5,16 @@ from typing import Literal
 
 TaskType = Literal["general", "code", "math", "analysis"]
 Preference = Literal["balanced", "cost", "speed", "quality"]
+StudioCategory = Literal[
+    "Best default",
+    "Coding",
+    "Vision",
+    "Long context",
+    "Fast",
+    "Budget",
+    "Reasoning",
+    "Needs metadata",
+]
 
 
 @dataclass(frozen=True)
@@ -17,6 +27,7 @@ class RouterModel:
     task_scores: dict[TaskType, float]
     max_context_tokens: int | None = None
     supports_tools: bool = False
+    tags: tuple[str, ...] = ()
 
     def task_score(self, task_type: TaskType) -> float:
         return self.task_scores.get(task_type, self.intelligence)
@@ -46,3 +57,15 @@ class RegistrySnapshot:
     @property
     def count(self) -> int:
         return len(self.models_by_name)
+
+
+@dataclass(frozen=True)
+class StudioProfile:
+    auto_score: int
+    category: StudioCategory
+    quality_score: int
+    speed_score: int
+    cost_score: int
+    context_score: int
+    routing_tags: tuple[str, ...]
+    reasons: tuple[str, ...]

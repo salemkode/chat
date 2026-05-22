@@ -2,7 +2,7 @@
 import { useAuth } from '@clerk/react-router'
 import { NavLink, Outlet, useNavigate } from 'react-router'
 import { useMutation } from 'convex/react'
-import { Loader2 } from '@/lib/icons'
+import { Bot, Boxes, CreditCard, Loader2, Settings2, Sparkles, User, Users } from '@/lib/icons'
 import { useEffect, useMemo, useReducer } from 'react'
 import { api } from '@convex/_generated/api'
 import { AdminBackdrop } from '@/components/admin/admin-backdrop'
@@ -17,23 +17,53 @@ import { useAdminModelDialog } from '@/components/admin/admin-model-dialog'
 import type { AdminOutletContext } from '@/components/admin/admin-outlet-context'
 import {
   AdminOverviewSection,
-  useAdminOverviewUserControls,
 } from '@/components/admin/admin-overview-section'
 import { AdminPageHeader } from '@/components/admin/admin-page-header'
 import { useAdminProviderDialog } from '@/components/admin/admin-provider-dialog'
+import { adminPanelClass } from '@/components/admin/admin-surface'
 import type { DashboardData } from '@/components/admin/types'
 import { AuthRedirect } from '@/components/auth-redirect'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useQuery } from '@/lib/convex-query-cache'
 import { cn } from '@/lib/utils'
 
-const adminNavLinkClass = ({ isActive }: { isActive: boolean }): string =>
-  cn(
-    'inline-flex h-8 items-center justify-center whitespace-nowrap rounded-sm px-3 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-    isActive
-      ? 'bg-background text-foreground shadow-sm'
-      : 'text-muted-foreground hover:bg-background/60',
-  )
+const adminSections = [
+  {
+    to: '/admin/providers',
+    title: 'Providers',
+    icon: Boxes,
+  },
+  {
+    to: '/admin/models',
+    title: 'Model Studio',
+    icon: Bot,
+  },
+  {
+    to: '/admin/collections',
+    title: 'Collections',
+    icon: Sparkles,
+  },
+  {
+    to: '/admin/usage',
+    title: 'Usage',
+    icon: Users,
+  },
+  {
+    to: '/admin/accounts',
+    title: 'Accounts',
+    icon: User,
+  },
+  {
+    to: '/admin/offers',
+    title: 'Offers',
+    icon: CreditCard,
+  },
+  {
+    to: '/admin/settings',
+    title: 'Settings',
+    icon: Settings2,
+  },
+] as const
 
 function AdminLayoutShell({
   navigate,
@@ -41,7 +71,6 @@ function AdminLayoutShell({
   dashboard,
   models,
   providers,
-  users,
   summary,
 }: {
   navigate: ReturnType<typeof useNavigate>
@@ -49,19 +78,11 @@ function AdminLayoutShell({
   dashboard: DashboardData | undefined
   models: DashboardData['models']
   providers: DashboardData['providers']
-  users: DashboardData['users']
   summary: DashboardData['summary'] | undefined
 }) {
   const providerDialog = useAdminProviderDialog({ providers })
   const modelDialog = useAdminModelDialog({ models, providers })
   const collectionDialog = useAdminCollectionDialog({ models })
-
-  const overviewControls = useAdminOverviewUserControls({
-    isAuthenticated: true,
-    isUserReady: true,
-    isAdmin,
-    users,
-  })
 
   const outletContext = useMemo<AdminOutletContext | null>(() => {
     if (!dashboard) {
@@ -72,25 +93,28 @@ function AdminLayoutShell({
       onOpenProviderDialog: providerDialog.openProviderDialog,
       onOpenModelDialog: modelDialog.openModelDialog,
       onOpenCollectionDialog: collectionDialog.openCollectionDialog,
+      onOpenCollectionDraft: collectionDialog.openCollectionDraft,
     }
   }, [
     dashboard,
     providerDialog.openProviderDialog,
     modelDialog.openModelDialog,
     collectionDialog.openCollectionDialog,
+    collectionDialog.openCollectionDraft,
   ])
 
   return (
-    <div className="relative mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 md:px-8">
+    <div className="relative mx-auto flex w-full max-w-[92rem] flex-col gap-5 px-4 py-6 md:px-8 md:py-8">
       <AdminPageHeader
         onNavigateHome={() => void navigate('/')}
         providerDialog={providerDialog.dialogProps}
         modelDialog={modelDialog.dialogProps}
         collectionDialog={collectionDialog.dialogProps}
+        summary={summary}
       />
 
       {!isAdmin ? (
-        <Card className="border-border bg-card shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
+        <Card className={adminPanelClass}>
           <CardHeader>
             <CardTitle>Admin access required</CardTitle>
             <CardDescription>
@@ -104,30 +128,26 @@ function AdminLayoutShell({
         </div>
       ) : (
         <>
-          <AdminOverviewSection summary={summary} users={users} controls={overviewControls} />
-          <nav
-            className="grid h-auto w-full grid-cols-2 gap-1 rounded-md bg-muted p-1 sm:grid-cols-3 md:grid-cols-6 md:max-w-4xl"
-            aria-label="Admin sections"
-          >
-            <NavLink to="/admin/providers" className={adminNavLinkClass}>
-              Providers
-            </NavLink>
-            <NavLink to="/admin/models" className={adminNavLinkClass}>
-              Models
-            </NavLink>
-            <NavLink to="/admin/collections" className={adminNavLinkClass}>
-              Collections
-            </NavLink>
-            <NavLink to="/admin/usage" className={adminNavLinkClass}>
-              Usage
-            </NavLink>
-            <NavLink to="/admin/offers" className={adminNavLinkClass}>
-              Offers
-            </NavLink>
-            <NavLink to="/admin/settings" className={adminNavLinkClass}>
-              Settings
-            </NavLink>
+          <nav className={`${adminPanelClass} flex flex-wrap gap-2 p-2`} aria-label="Admin sections">
+            {adminSections.map(({ to, title, icon: Icon }) => (
+              <NavLink
+                key={to}
+                to={to}
+                className={({ isActive }) =>
+                  cn(
+                    'inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                    isActive
+                      ? 'bg-foreground text-background shadow-sm'
+                      : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+                  )
+                }
+              >
+                <Icon className="size-4" />
+                {title}
+              </NavLink>
+            ))}
           </nav>
+          <AdminOverviewSection summary={summary} />
           {outletContext ? <Outlet context={outletContext} /> : null}
         </>
       )}
@@ -160,7 +180,6 @@ export default function AdminLayoutRoute() {
 
   const models: DashboardData['models'] = dashboard?.models ?? []
   const providers: DashboardData['providers'] = dashboard?.providers ?? []
-  const users: DashboardData['users'] = dashboard?.users ?? []
   const summary = dashboard?.summary
 
   useEffect(() => {
@@ -204,7 +223,6 @@ export default function AdminLayoutRoute() {
           dashboard={dashboard}
           models={models}
           providers={providers}
-          users={users}
           summary={summary}
         />
       </AdminDiscoveryProvider>

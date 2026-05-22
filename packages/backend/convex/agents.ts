@@ -46,6 +46,7 @@ import {
   type ToolPolicyRequiredAction,
 } from './lib/toolPolicy'
 import { projectContextTools } from './lib/projectContextTools'
+import { modelSupportsTools } from './lib/modelCapabilities'
 import {
   isMediaTypeAllowed,
   resolveModelAttachmentMediaTypes,
@@ -619,6 +620,29 @@ const threadLastMessageItemValidator = v.object({
   createdAt: v.number(),
 })
 
+export const getModelToolSupport = internalQuery({
+  args: {
+    modelDocId: v.id('models'),
+  },
+  returns: v.object({
+    supportsTools: v.boolean(),
+  }),
+  handler: async (ctx, args) => {
+    const model = await ctx.db.get(args.modelDocId)
+    if (!model) {
+      return { supportsTools: false }
+    }
+
+    const profile = await ctx.db
+      .query('modelSelectionProfiles')
+      .withIndex('by_modelId', (q) => q.eq('modelId', args.modelDocId))
+      .first()
+
+    const capabilities = profile?.capabilities ?? model.capabilities ?? []
+    return { supportsTools: modelSupportsTools(capabilities) }
+  },
+})
+
 export const getThreadPresentation = internalQuery({
   args: {
     threadId: v.string(),
@@ -1109,7 +1133,7 @@ async function resolveRequestReasoning(
   return resolveReasoningConfigForModel(args.model, args.reasoning ?? userDefault)
 }
 
-async function deleteResponseStepsForPrompt(
+async function deleteDownstreamMessagesForPrompt(
   ctx: MutationCtx,
   args: {
     threadId: string
@@ -1117,6 +1141,16 @@ async function deleteResponseStepsForPrompt(
     promptStepOrder: number
   },
 ) {
+  const latestMessages = await ctx.runQuery(components.agent.messages.listMessagesByThreadId, {
+    threadId: args.threadId,
+    order: 'desc',
+    excludeToolMessages: true,
+    paginationOpts: {
+      cursor: null,
+      numItems: 1,
+    },
+  })
+  const endOrder = (latestMessages.page[0]?.order ?? args.promptOrder) + 1
   let startOrder = args.promptOrder
   let startStepOrder = args.promptStepOrder + 1
 
@@ -1125,7 +1159,7 @@ async function deleteResponseStepsForPrompt(
       threadId: args.threadId,
       startOrder,
       startStepOrder,
-      endOrder: args.promptOrder + 1,
+      endOrder,
     })
 
     if (result.isDone) {
@@ -1142,6 +1176,7 @@ async function registerChatAttachments(
   args: {
     attachments: Array<Infer<typeof chatAttachmentValidator>>
     model: {
+      providerType?: string | null
       capabilities?: string[]
       supportedAttachmentMediaTypes?: string[]
       attachmentValidationStatus?: ModelAttachmentValidationStatus
@@ -1149,6 +1184,7 @@ async function registerChatAttachments(
   },
 ) {
   const allowedMediaTypes = resolveModelAttachmentMediaTypes({
+    providerType: args.model.providerType,
     capabilities: args.model.capabilities,
     supportedAttachmentMediaTypes: args.model.supportedAttachmentMediaTypes,
     attachmentValidationStatus: args.model.attachmentValidationStatus,
@@ -1607,6 +1643,10 @@ export const streamMessage = internalAction({
       let currentTitle = threadPresentation?.title
       let currentEmoji = threadPresentation?.emoji || '💬'
       const policyNow = Date.now()
+      const modelToolSupport = await ctx.runQuery(internal.agents.getModelToolSupport, {
+        modelDocId: args.modelDocId,
+      })
+      const supportsTools = modelToolSupport.supportsTools
       const toolPolicy = evaluateToolPolicy({
         threadId: args.threadId,
         userId: args.userId.toString(),
@@ -1617,6 +1657,7 @@ export const streamMessage = internalAction({
         firstUserMessage: conversationSnapshot.firstUserMessage,
         messageCount: conversationSnapshot.messageCount,
         now: policyNow,
+        supportsTools,
       })
       const metadataPolicy = runThreadMetadataPolicy({
         prompt: resolvedPrompt,
@@ -1678,7 +1719,36 @@ export const streamMessage = internalAction({
         }
       }
 
-      const searchSystem = searchEnabled
+      let serverMemoryAddendum = ''
+      if (
+        !supportsTools &&
+        (toolPolicy.detectedIntent === 'memory_search' ||
+          toolPolicy.detectedIntent === 'memory_add' ||
+          toolPolicy.detectedIntent === 'memory_update' ||
+          toolPolicy.detectedIntent === 'memory_delete')
+      ) {
+        const memoryIntentResult = await ctx.runAction(
+          internal.functions.memoryIntentHandlers.handleMemoryIntentWithoutTools,
+          {
+            userId: args.userId,
+            threadId: args.threadId,
+            prompt: resolvedPrompt,
+            detectedIntent: toolPolicy.detectedIntent,
+            projectId: resolvedProjectId,
+          },
+        )
+        policyAutomaticActions = [
+          ...policyAutomaticActions,
+          ...memoryIntentResult.automaticActions,
+        ]
+        serverMemoryAddendum = memoryIntentResult.systemAddendum
+        if (memoryIntentResult.error) {
+          policyError = memoryIntentResult.error
+        }
+      }
+
+      const searchSystem =
+        supportsTools && searchEnabled
         ? searchMode === 'required'
           ? [
               'Web search is required for this message.',
@@ -1695,8 +1765,9 @@ export const streamMessage = internalAction({
               'When you use web info, cite sources as markdown links using the returned URLs.',
             ].join('\n')
         : undefined
-      const quranDocsSystem = [
-        'QuranJS documentation search is enabled for this message.',
+      const quranDocsSystem = supportsTools
+        ? [
+            'QuranJS documentation search is enabled for this message.',
         'Use the tool `quran_docs_search` only for QuranJS, Quran.com API docs, client usage, or migration-guide questions.',
         'Use the tool `quran_source_lookup` for Quran content such as ayahs, verse text, verse lookup, topical Quran search, and translations.',
         'This is a strict rule: if the user asks about Quran content, you must use `quran_source_lookup` before answering.',
@@ -1716,27 +1787,31 @@ export const streamMessage = internalAction({
         'For Quran verse or translation questions, prefer `quran_source_lookup` instead of general web search.',
         'When `quran_source_lookup` returns Quran evidence, cite those verse URLs as markdown links.',
         'When `quran_docs_search` returns relevant docs, cite those URLs as markdown links.',
-      ].join('\n')
+          ].join('\n')
+        : undefined
       const reasoningSystem =
         args.reasoning?.enabled && args.reasoning.level
           ? `Reasoning mode is enabled for this request at "${args.reasoning.level}" level.`
           : 'Reasoning mode is disabled for this request.'
 
-      const memorySystem = [
-        'Memory tools are enabled for this message.',
-        'Use `memory_search` when the user explicitly asks what is remembered, and before updating or deleting a memory.',
-        'Use `memory_add` only for explicit durable information the user asked to remember.',
-        'Use `memory_update` and `memory_delete` only after you have the correct `memoryId`, usually from `memory_search`.',
-        'Stored memory is advisory; the latest user message overrides it.',
-        'Thread scope means the current conversation only.',
-        linkedProject
-          ? `Project scope is limited to the project linked to this thread: ${linkedProject.name} (${linkedProject._id}).`
-          : 'No project is linked to this thread, so do not use project-scoped memory.',
-        'After a memory change, briefly tell the user what was saved, updated, or deleted.',
-      ].join('\n')
+      const memorySystem = supportsTools
+        ? [
+            'Memory tools are enabled for this message.',
+            'Use `memory_search` when the user explicitly asks what is remembered, and before updating or deleting a memory.',
+            'Use `memory_add` only for explicit durable information the user asked to remember.',
+            'Use `memory_update` and `memory_delete` only after you have the correct `memoryId`, usually from `memory_search`.',
+            'Stored memory is advisory; the latest user message overrides it.',
+            'Thread scope means the current conversation only.',
+            linkedProject
+              ? `Project scope is limited to the project linked to this thread: ${linkedProject.name} (${linkedProject._id}).`
+              : 'No project is linked to this thread, so do not use project-scoped memory.',
+            'After a memory change, briefly tell the user what was saved, updated, or deleted.',
+          ].join('\n')
+        : undefined
 
-      const threadMetadataSystem = [
-        'Thread metadata updates are enabled for this message.',
+      const threadMetadataSystem = supportsTools
+        ? [
+            'Thread metadata updates are enabled for this message.',
         'Use the tool `update_thread_metadata` only when the current thread title or emoji is clearly wrong and needs a manual correction.',
         'A good title is short, specific, and ideally 3-6 words.',
         `Current thread title: ${currentTitle || '(none)'}`,
@@ -1746,7 +1821,8 @@ export const streamMessage = internalAction({
         conversationSnapshot.recentTranscript
           ? `Recent conversation excerpt:\n${conversationSnapshot.recentTranscript}`
           : 'Recent conversation excerpt: unavailable',
-      ].join('\n')
+          ].join('\n')
+        : undefined
 
       const system = [
         automaticMemoryContext.text,
@@ -1756,18 +1832,21 @@ export const streamMessage = internalAction({
         reasoningSystem,
         memorySystem,
         threadMetadataSystem,
+        serverMemoryAddendum,
         toolPolicy.systemAddendum,
       ]
         .filter(Boolean)
         .join('\n\n')
-      const tools = {
-        ...memoryTools,
-        ...projectContextTools,
-        ...threadMetadataTools,
-        quran_docs_search: quranDocsTool,
-        quran_source_lookup: quranSourceTool,
-        ...(searchEnabled ? { exa_web_search: exaWebSearchTool } : {}),
-      }
+      const tools = supportsTools
+        ? {
+            ...memoryTools,
+            ...projectContextTools,
+            ...threadMetadataTools,
+            quran_docs_search: quranDocsTool,
+            quran_source_lookup: quranSourceTool,
+            ...(searchEnabled ? { exa_web_search: exaWebSearchTool } : {}),
+          }
+        : undefined
 
       // Stream the response
       await agent.streamText(
@@ -1778,7 +1857,7 @@ export const streamMessage = internalAction({
           ...(args.promptMessageId
             ? { promptMessageId: args.promptMessageId }
             : { prompt: resolvedPrompt }),
-          tools,
+          ...(tools ? { tools } : {}),
           system,
         },
         {
@@ -1827,6 +1906,11 @@ export const streamMessage = internalAction({
           console.error('Failed to finalize tool policy event:', error)
         }
       }
+
+      await ctx.scheduler.runAfter(0, internal.functions.memoryExtraction.extractMemoriesFromThread, {
+        threadId: args.threadId,
+        userId: args.userId,
+      })
     } catch (error) {
       console.error('Error in streamMessage:', error)
       const formattedError = formatGenerationError(error)
@@ -1907,7 +1991,12 @@ export const generateMessage = mutation({
     if (args.attachments && args.attachments.length > 0) {
       const registeredAttachments = await registerChatAttachments(ctx, {
         attachments: args.attachments,
-        model,
+        model: {
+          providerType: provider.providerType,
+          capabilities: model.capabilities,
+          supportedAttachmentMediaTypes: model.supportedAttachmentMediaTypes,
+          attachmentValidationStatus: model.attachmentValidationStatus,
+        },
       })
       const content: Array<TextPart | FilePart | ImagePart> = []
       const trimmedPrompt = args.prompt.trim()
@@ -2079,7 +2168,7 @@ export const regenerateMessage = mutation({
       error: GENERATION_REPLACED_BY_RESEND,
     })
 
-    await deleteResponseStepsForPrompt(ctx, {
+    await deleteDownstreamMessagesForPrompt(ctx, {
       threadId: args.threadId,
       promptOrder: promptMessage.order,
       promptStepOrder: promptMessage.stepOrder,

@@ -1,11 +1,12 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access -- models list matches AdminModel[] at runtime */
 import { useMutation } from 'convex/react'
-import type { Doc } from '@convex/_generated/dataModel'
 import { Plus } from '@/lib/icons'
 import { useCallback, useId, useReducer } from 'react'
 import { toast } from 'sonner'
 import { api } from '@convex/_generated/api'
+import { parseConvexIdForTable } from '@chat/shared/logic/convex-ids'
 import { EntityIcon } from '@/components/admin/entity-icon'
+import { IconPickerField } from '@/components/admin/icon-picker-field'
 import type {
   ModelCollectionDialogState,
   ModelCollectionFormData,
@@ -37,12 +38,15 @@ export type AdminCollectionFormIds = {
   collectionSortOrder: string
 }
 
+export type AdminCollectionDraft = ModelCollectionFormData
+
 export type AdminCollectionDialogProps = {
   state: {
     open: boolean
     onOpenChange: (open: boolean) => void
     form: ModelCollectionFormData
     setForm: (update: StateUpdate<ModelCollectionFormData>) => void
+    iconPreviewUrl?: string
     ids: AdminCollectionFormIds
     editingCollection: AdminModelCollection | null
     models: AdminModel[]
@@ -50,6 +54,7 @@ export type AdminCollectionDialogProps = {
   actions: {
     onTriggerOpen: () => void
     onSave: () => void
+    onIconUpload: (file: File) => Promise<void>
   }
 }
 
@@ -59,6 +64,7 @@ export function AdminCollectionDialog({ state, actions }: AdminCollectionDialogP
     onOpenChange,
     form: collectionForm,
     setForm: setCollectionForm,
+    iconPreviewUrl,
     ids,
     editingCollection,
     models,
@@ -126,6 +132,25 @@ export function AdminCollectionDialog({ state, actions }: AdminCollectionDialogP
                       }))
                     }
                     placeholder="A curated set of models for long-form reasoning and coding."
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <IconPickerField
+                    label="Collection icon"
+                    icon={collectionForm.icon}
+                    iconType={collectionForm.iconType}
+                    iconId={collectionForm.iconId}
+                    iconUrl={iconPreviewUrl}
+                    onChange={(value) =>
+                      setCollectionForm((current) => ({
+                        ...current,
+                        icon: value.icon,
+                        iconType: value.iconType,
+                        iconId: value.iconId,
+                      }))
+                    }
+                    onUpload={actions.onIconUpload}
                   />
                 </div>
               </div>
@@ -223,6 +248,7 @@ export function useAdminCollectionDialog({ models }: { models: AdminModel[] }) {
     initialModelCollectionDialogState,
   )
   const addModelCollection = useMutation(api.admin.addModelCollection)
+  const generateUploadUrl = useMutation(api.admin.generateUploadUrl)
   const updateModelCollection = useMutation(api.admin.updateModelCollection)
 
   const collectionNameId = useId()
@@ -233,28 +259,76 @@ export function useAdminCollectionDialog({ models }: { models: AdminModel[] }) {
   const editingCollection = dialogState.editingCollection
 
   const setModelCollectionDialogOpen = (open: boolean) => updateDialog({ open })
-  const setEditingCollection = (editingCollection: AdminModelCollection | null) =>
-    updateDialog({ editingCollection })
+  const setEditingCollection = (nextEditingCollection: AdminModelCollection | null) =>
+    updateDialog({ editingCollection: nextEditingCollection })
+  const setCollectionIconPreviewUrl = (iconPreviewUrl: string | undefined) =>
+    updateDialog({ iconPreviewUrl })
   const setCollectionForm = (update: StateUpdate<ModelCollectionFormData>) =>
     updateDialog((current) => ({
       ...current,
       form: typeof update === 'function' ? update(current.form) : { ...current.form, ...update },
     }))
 
+  const uploadIcon = useCallback(
+    async (file: File) => {
+      const uploadUrl = await generateUploadUrl({})
+      const response = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': file.type },
+        body: file,
+      })
+      const body = (await response.json()) as { storageId: string }
+      return body.storageId
+    },
+    [generateUploadUrl],
+  )
+
+  const handleCollectionIconUpload = useCallback(
+    async (file: File) => {
+      const storageId = await uploadIcon(file)
+      setCollectionIconPreviewUrl(URL.createObjectURL(file))
+      setCollectionForm((current) => ({
+        ...current,
+        iconType: 'upload',
+        iconId: storageId,
+        icon: undefined,
+      }))
+    },
+    [uploadIcon],
+  )
+
   const openCollectionDialog = useCallback(
     (collection?: AdminModelCollection) => {
       if (collection) {
         setEditingCollection(collection)
+        setCollectionIconPreviewUrl(collection.iconUrl)
         setCollectionForm({
           name: collection.name,
           description: collection.description ?? '',
+          icon: collection.icon,
+          iconType: collection.iconType,
+          iconId: collection.iconId,
           sortOrder: collection.sortOrder,
           modelIds: collection.modelIds,
         })
       } else {
         setEditingCollection(null)
+        setCollectionIconPreviewUrl(undefined)
         setCollectionForm(createModelCollectionForm(nextCollectionSortOrder))
       }
+      setModelCollectionDialogOpen(true)
+    },
+    [nextCollectionSortOrder],
+  )
+
+  const openCollectionDraft = useCallback(
+    (draft: AdminCollectionDraft) => {
+      setEditingCollection(null)
+      setCollectionIconPreviewUrl(undefined)
+      setCollectionForm({
+        ...createModelCollectionForm(nextCollectionSortOrder),
+        ...draft,
+      })
       setModelCollectionDialogOpen(true)
     },
     [nextCollectionSortOrder],
@@ -268,10 +342,16 @@ export function useAdminCollectionDialog({ models }: { models: AdminModel[] }) {
     }
     const selectedModelIds = models
       .filter((model) => collectionForm.modelIds.includes(model._id))
-      .map((model) => model._id as Doc<'models'>['_id'])
+      .map((model) => parseConvexIdForTable('models', model._id))
+      .filter((modelId) => modelId !== null)
     const payload = {
       name,
       description: collectionForm.description.trim() || undefined,
+      icon: collectionForm.icon,
+      iconType: collectionForm.iconType,
+      iconId: collectionForm.iconId
+        ? (parseConvexIdForTable('_storage', collectionForm.iconId) ?? undefined)
+        : undefined,
       sortOrder: collectionForm.sortOrder,
       modelIds: selectedModelIds,
     }
@@ -283,6 +363,7 @@ export function useAdminCollectionDialog({ models }: { models: AdminModel[] }) {
         toast.success(editingCollection ? 'Collection updated' : 'Collection created')
         setModelCollectionDialogOpen(false)
         setEditingCollection(null)
+        setCollectionIconPreviewUrl(undefined)
         setCollectionForm(createModelCollectionForm(nextCollectionSortOrder))
       })
       .catch((error) => {
@@ -291,6 +372,9 @@ export function useAdminCollectionDialog({ models }: { models: AdminModel[] }) {
   }, [
     addModelCollection,
     collectionForm.description,
+    collectionForm.icon,
+    collectionForm.iconId,
+    collectionForm.iconType,
     collectionForm.modelIds,
     collectionForm.name,
     collectionForm.sortOrder,
@@ -306,6 +390,7 @@ export function useAdminCollectionDialog({ models }: { models: AdminModel[] }) {
       onOpenChange: setModelCollectionDialogOpen,
       form: collectionForm,
       setForm: setCollectionForm,
+      iconPreviewUrl: dialogState.iconPreviewUrl,
       ids: {
         collectionName: collectionNameId,
         collectionSortOrder: collectionSortOrderId,
@@ -316,8 +401,9 @@ export function useAdminCollectionDialog({ models }: { models: AdminModel[] }) {
     actions: {
       onTriggerOpen: () => openCollectionDialog(),
       onSave: () => void handleSaveCollection(),
+      onIconUpload: handleCollectionIconUpload,
     },
   }
 
-  return { dialogProps, openCollectionDialog }
+  return { dialogProps, openCollectionDialog, openCollectionDraft }
 }

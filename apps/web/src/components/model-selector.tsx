@@ -1,8 +1,13 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { AUTO_MODEL_ID, isAutoModelSelection } from '@chat/shared'
-import { Check, ChevronDown, Search, Star } from '@/lib/icons'
+import { useEffect, useMemo, useState } from 'react'
+import {
+  AUTO_MODEL_ID,
+  encodeAutoModelCollectionSelection,
+  isAutoModelSelection,
+  parseAutoModelCollectionSelection,
+} from '@chat/shared'
+import { Boxes, Check, ChevronDown, Search, Star } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { useModels } from '@/hooks/use-chat-data'
 import { EntityIcon } from '@/components/admin/entity-icon'
@@ -39,10 +44,15 @@ export function ModelSelector({
   onModelChange?: (modelId: string) => void
   className?: string
 }) {
-  const { models } = useModels()
+  const { models, collections } = useModels()
   const [open, setOpen] = useState(false)
   const autoSelected = isAutoModelSelection(selectedModel)
   const currentModel = models.find((model: OfflineModelRecord) => model.modelId === selectedModel)
+  const selectedCollectionId = parseAutoModelCollectionSelection(selectedModel)
+  const selectedCollection = selectedCollectionId
+    ? collections.find((collection) => collection.id === selectedCollectionId)
+    : undefined
+  const autoLabel = selectedCollection?.name ? `Auto (${selectedCollection.name})` : 'Auto'
 
   return (
     <div className={className}>
@@ -53,7 +63,15 @@ export function ModelSelector({
             variant="outline"
             className="h-9 max-w-full justify-start gap-2 rounded-full px-2.5 font-normal"
           >
-            {autoSelected ? null : currentModel ? (
+            {autoSelected && selectedCollection ? (
+              <EntityIcon
+                icon={selectedCollection.icon}
+                iconType={selectedCollection.iconType}
+                iconUrl={selectedCollection.iconUrl}
+                className="size-4 shrink-0"
+              />
+            ) : null}
+            {!autoSelected && currentModel ? (
               <EntityIcon
                 icon={currentModel.icon || currentModel.provider?.icon}
                 iconType={
@@ -68,7 +86,7 @@ export function ModelSelector({
               />
             ) : null}
             <span className="min-w-0 flex-1 truncate text-left text-sm">
-              {autoSelected ? 'Auto' : currentModel?.displayName || 'Model'}
+              {autoSelected ? autoLabel : currentModel?.displayName || 'Model'}
             </span>
             <ChevronDown className="size-4 shrink-0 opacity-50" />
           </ModelSelectorTrigger>
@@ -102,187 +120,311 @@ export function ModelSelectorPanel({
   onSelectModel,
   className,
 }: ModelSelectorPanelProps) {
-  const { models, setFavorite, autoModelAvailable } = useModels()
+  const { models, collections, setFavorite, autoModelAvailable } = useModels()
   const [searchQuery, setSearchQuery] = useState('')
-  const [filterTab, setFilterTab] = useState<'all' | 'favorites'>('all')
+  const selectedCollectionId = parseAutoModelCollectionSelection(selectedModel)
+  const [activeCategory, setActiveCategory] = useState<string>(selectedCollectionId ?? 'all')
+  const sortedCollections = useMemo(
+    () =>
+      [...collections].sort(
+        (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.localeCompare(b.name),
+      ),
+    [collections],
+  )
+  const activeCollection = useMemo(
+    () =>
+      activeCategory !== 'all' && activeCategory !== 'favorites'
+        ? sortedCollections.find((collection) => collection.id === activeCategory)
+        : undefined,
+    [activeCategory, sortedCollections],
+  )
 
-  const searchFiltered = useMemo(() => {
-    if (!searchQuery.trim()) return models
+  useEffect(() => {
+    if (selectedCollectionId) {
+      setActiveCategory(selectedCollectionId)
+    }
+  }, [selectedCollectionId])
+
+  const baseVisibleModels = useMemo(() => {
+    if (activeCategory === 'favorites') {
+      return models.filter((model) => model.isFavorite)
+    }
+    if (!activeCollection) {
+      return models
+    }
+
+    const allowedModelIds = new Set(activeCollection.modelIds)
+    return models.filter((model) => allowedModelIds.has(model.id))
+  }, [activeCategory, activeCollection, models])
+
+  const filteredModels = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return baseVisibleModels
+    }
     const query = searchQuery.toLowerCase()
-    return models.filter(
+    return baseVisibleModels.filter(
       (model: OfflineModelRecord) =>
         model.displayName.toLowerCase().includes(query) ||
         model.modelId.toLowerCase().includes(query) ||
         model.description?.toLowerCase().includes(query) ||
         model.provider?.name?.toLowerCase().includes(query) ||
-        model.capabilities?.some((c) => c.toLowerCase().includes(query)),
+        model.capabilities?.some((capability) => capability.toLowerCase().includes(query)),
     )
-  }, [models, searchQuery])
+  }, [baseVisibleModels, searchQuery])
 
-  const filteredModels = useMemo(() => {
-    if (filterTab === 'favorites') {
-      return searchFiltered.filter((m: OfflineModelRecord) => m.isFavorite)
-    }
-    return searchFiltered
-  }, [filterTab, searchFiltered])
+  const orderedModels = useMemo(() => {
+    const collectionOrder = activeCollection
+      ? new Map(activeCollection.modelIds.map((modelId, index) => [modelId, index]))
+      : null
 
-  const groupedModels = useMemo<Array<[string, OfflineModelRecord[]]>>(() => {
-    const groups = new Map<string, OfflineModelRecord[]>()
-    for (const model of filteredModels) {
-      const providerName = model.provider?.name || 'Other'
-      const group = groups.get(providerName) ?? []
-      group.push(model)
-      groups.set(providerName, group)
-    }
-
-    return [...groups.entries()].map(([providerName, providerModels]) => {
-      const sortedModels = [...providerModels].sort((a, b) => {
-        if (a.isFavorite !== b.isFavorite) {
-          return a.isFavorite ? -1 : 1
-        }
-        return a.displayName.localeCompare(b.displayName)
-      })
-      return [providerName, sortedModels]
+    return [...filteredModels].sort((left, right) => {
+      const leftCollectionOrder = collectionOrder?.get(left.id)
+      const rightCollectionOrder = collectionOrder?.get(right.id)
+      if (leftCollectionOrder !== undefined && rightCollectionOrder !== undefined) {
+        return leftCollectionOrder - rightCollectionOrder
+      }
+      if (left.isFavorite !== right.isFavorite) {
+        return left.isFavorite ? -1 : 1
+      }
+      if (left.sortOrder !== right.sortOrder) {
+        return left.sortOrder - right.sortOrder
+      }
+      return left.displayName.localeCompare(right.displayName)
     })
-  }, [filteredModels])
+  }, [activeCollection, filteredModels])
 
-  const empty = groupedModels.length === 0 || groupedModels.every(([, list]) => list.length === 0)
-  const autoSelected = isAutoModelSelection(selectedModel)
+  const empty = orderedModels.length === 0
+  const autoAllSelected = selectedModel === AUTO_MODEL_ID
+  const autoCollectionSelected = activeCollection
+    ? selectedModel === encodeAutoModelCollectionSelection(activeCollection.id)
+    : false
 
   return (
-    <div className={cn('flex min-h-0 flex-col', className)}>
-      <div className="shrink-0 space-y-2 border-b border-border px-3 py-2">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="search"
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            className="h-9 rounded-full border-0 bg-muted/50 pl-8 text-sm focus-visible:ring-1"
-            placeholder="Search…"
-          />
-        </div>
-        <div className="flex gap-1.5">
+    <div className={cn('flex min-h-0 overflow-hidden', className)}>
+      <div className="flex w-16 shrink-0 flex-col border-r border-border/80 bg-[linear-gradient(180deg,rgba(19,17,26,0.96)_0%,rgba(20,18,27,0.92)_100%)] px-2 py-3">
+        <div className="flex flex-1 flex-col items-center gap-2">
           <button
             type="button"
-            className={modelFilterPillClass(filterTab === 'all')}
-            onClick={() => setFilterTab('all')}
+            onClick={() => setActiveCategory('all')}
+            className={cn(
+              'flex size-11 items-center justify-center rounded-2xl border transition-colors',
+              activeCategory === 'all'
+                ? 'border-white/15 bg-white/10 text-white shadow-[0_8px_24px_rgba(0,0,0,0.24)]'
+                : 'border-white/8 bg-white/[0.03] text-white/60 hover:bg-white/[0.08] hover:text-white/90',
+            )}
+            aria-label="All models"
           >
-            All
+            <Boxes className="size-4" />
           </button>
           <button
             type="button"
-            className={modelFilterPillClass(filterTab === 'favorites')}
-            onClick={() => setFilterTab('favorites')}
+            onClick={() => setActiveCategory('favorites')}
+            className={cn(
+              'flex size-11 items-center justify-center rounded-2xl border transition-colors',
+              activeCategory === 'favorites'
+                ? 'border-white/15 bg-white/10 text-white shadow-[0_8px_24px_rgba(0,0,0,0.24)]'
+                : 'border-white/8 bg-white/[0.03] text-white/60 hover:bg-white/[0.08] hover:text-white/90',
+            )}
+            aria-label="Favorite models"
           >
-            Favorites
+            <Star className="size-4" />
           </button>
+
+          <div className="my-1 h-px w-8 bg-white/10" />
+
+          {sortedCollections.map((collection) => {
+            const isActive = activeCategory === collection.id
+            return (
+              <button
+                key={collection.id}
+                type="button"
+                onClick={() => setActiveCategory(collection.id)}
+                className={cn(
+                  'flex size-11 items-center justify-center rounded-2xl border transition-colors',
+                  isActive
+                    ? 'border-white/15 bg-white/10 text-white shadow-[0_8px_24px_rgba(0,0,0,0.24)]'
+                    : 'border-white/8 bg-white/[0.03] text-white/60 hover:bg-white/[0.08] hover:text-white/90',
+                )}
+                aria-label={collection.name}
+                title={collection.name}
+              >
+                {collection.icon || collection.iconUrl ? (
+                  <EntityIcon
+                    icon={collection.icon}
+                    iconType={collection.iconType}
+                    iconUrl={collection.iconUrl}
+                    className="size-4"
+                  />
+                ) : (
+                  <span className="text-xs font-semibold uppercase">
+                    {collection.name.slice(0, 1)}
+                  </span>
+                )}
+              </button>
+            )
+          })}
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-2">
-        {autoModelAvailable ? (
-          <div className="mb-4">
-            <div className={modelSectionLabelClass()}>Routing</div>
-            <div className={modelRowClass(autoSelected)}>
-              <Button
-                type="button"
-                variant="plain"
-                size="none"
-                onClick={() => onSelectModel?.(AUTO_MODEL_ID)}
-                className="flex min-w-0 flex-1 items-start gap-2 rounded-full px-1 py-0.5 text-left hover:bg-transparent"
-              >
-                <div className={modelIconTileClass(autoSelected)}>
-                  <span className="text-sm font-semibold">A</span>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="truncate text-sm font-medium">Auto</span>
-                    {autoSelected ? <Check className="size-3.5 shrink-0 text-primary" /> : null}
-                  </div>
-                  <p className="truncate text-[11px] text-muted-foreground">
-                    Let the backend Python router choose the model.
-                  </p>
-                </div>
-              </Button>
+      <div className="flex min-w-0 flex-1 flex-col bg-[radial-gradient(circle_at_top,rgba(244,233,255,0.12),transparent_40%),linear-gradient(180deg,rgba(23,20,31,0.98)_0%,rgba(19,17,26,0.98)_100%)]">
+        <div className="shrink-0 border-b border-white/6 px-3 py-3">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-white/45" />
+            <Input
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              className="h-10 rounded-full border-white/8 bg-white/[0.04] pl-9 text-sm text-white placeholder:text-white/35 focus-visible:border-white/12 focus-visible:ring-white/15"
+              placeholder="Search models..."
+            />
+          </div>
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium text-white">
+                {activeCategory === 'favorites'
+                  ? 'Favorites'
+                  : activeCollection?.name ?? 'All models'}
+              </p>
+              <p className="text-[11px] text-white/45">
+                {activeCategory === 'favorites'
+                  ? 'Your starred models across the catalog.'
+                  : activeCollection?.description || 'Collections now shape browsing instead of providers.'}
+              </p>
+            </div>
+            <div className={cn('hidden sm:inline-flex', modelFilterPillClass(false), 'border-white/10 bg-white/[0.04] text-white/70')}>
+              {orderedModels.length} shown
             </div>
           </div>
-        ) : null}
-        {empty ? (
-          <p className="px-2 py-8 text-center text-sm text-muted-foreground">
-            {filterTab === 'favorites' ? 'No favorites match.' : 'No models match.'}
-          </p>
-        ) : (
-          groupedModels.map(([providerName, providerModels]) => (
-            <div key={providerName} className="mb-4 last:mb-0">
-              <div className={modelSectionLabelClass()}>{providerName}</div>
-              <div className="space-y-0.5">
-                {providerModels.map((model: OfflineModelRecord) => {
-                  const isSelected = model.modelId === selectedModel
-                  return (
-                    <div key={model.id} className={modelRowClass(isSelected)}>
-                      <Button
-                        type="button"
-                        variant="plain"
-                        size="none"
-                        onClick={() => onSelectModel?.(model.modelId)}
-                        className="flex min-w-0 flex-1 items-start gap-2 rounded-full px-1 py-0.5 text-left hover:bg-transparent"
-                      >
-                        <div className={modelIconTileClass(isSelected)}>
-                          <EntityIcon
-                            icon={model.icon || model.provider?.icon}
-                            iconType={
-                              (model.iconType || model.provider?.iconType) as
-                                | 'emoji'
-                                | 'phosphor'
-                                | 'upload'
-                                | undefined
-                            }
-                            iconUrl={model.iconUrl || model.provider?.iconUrl}
-                            className="size-4"
-                          />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5">
-                            <span className="truncate text-sm font-medium">
-                              {model.displayName}
-                            </span>
-                            {isSelected ? (
-                              <Check className="size-3.5 shrink-0 text-primary" />
-                            ) : null}
-                          </div>
-                          <p className="truncate font-mono text-[10px] text-muted-foreground">
-                            {model.modelId}
-                          </p>
-                          <ModelCapabilityBadges
-                            capabilities={model.capabilities}
-                            className="mt-1"
-                          />
-                        </div>
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="plain"
-                        size="none"
-                        className={cn(
-                          'shrink-0 text-muted-foreground',
-                          model.isFavorite && 'text-amber-600 dark:text-amber-400',
-                        )}
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          void setFavorite(model.id, !model.isFavorite)
-                        }}
-                        aria-label={model.isFavorite ? 'Remove favorite' : 'Favorite'}
-                      >
-                        <Star className={cn('size-3.5', model.isFavorite && 'fill-current')} />
-                      </Button>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto p-2">
+          {autoModelAvailable ? (
+            <div className="mb-4">
+              <div className={cn(modelSectionLabelClass(), 'text-white/45')}>Routing</div>
+              <div className={modelRowClass(autoAllSelected)}>
+                <Button
+                  type="button"
+                  variant="plain"
+                  size="none"
+                  onClick={() => onSelectModel?.(AUTO_MODEL_ID)}
+                  className="flex min-w-0 flex-1 items-start gap-2 rounded-full px-1 py-0.5 text-left hover:bg-transparent"
+                >
+                  <div className={modelIconTileClass(autoAllSelected)}>
+                    <span className="text-sm font-semibold">A</span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="truncate text-sm font-medium text-white">Auto</span>
+                      {autoAllSelected ? <Check className="size-3.5 shrink-0 text-primary" /> : null}
                     </div>
-                  )
-                })}
+                    <p className="truncate text-[11px] text-white/45">
+                      Let the router choose from the full visible catalog.
+                    </p>
+                  </div>
+                </Button>
               </div>
+
+              {activeCollection ? (
+                <div className="mt-2">
+                  <div className={modelRowClass(autoCollectionSelected)}>
+                    <Button
+                      type="button"
+                      variant="plain"
+                      size="none"
+                      onClick={() =>
+                        onSelectModel?.(encodeAutoModelCollectionSelection(activeCollection.id))
+                      }
+                      className="flex min-w-0 flex-1 items-start gap-2 rounded-full px-1 py-0.5 text-left hover:bg-transparent"
+                    >
+                      <div className={modelIconTileClass(autoCollectionSelected)}>
+                        <EntityIcon
+                          icon={activeCollection.icon}
+                          iconType={activeCollection.iconType}
+                          iconUrl={activeCollection.iconUrl}
+                          className="size-4"
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="truncate text-sm font-medium text-white">
+                            Auto ({activeCollection.name})
+                          </span>
+                          {autoCollectionSelected ? (
+                            <Check className="size-3.5 shrink-0 text-primary" />
+                          ) : null}
+                        </div>
+                        <p className="truncate text-[11px] text-white/45">
+                          Route only inside this collection.
+                        </p>
+                      </div>
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
             </div>
-          ))
-        )}
+          ) : null}
+
+          {empty ? (
+            <p className="px-2 py-8 text-center text-sm text-white/45">No models match.</p>
+          ) : (
+            <div className="space-y-0.5">
+              {orderedModels.map((model: OfflineModelRecord) => {
+                const isSelected = model.modelId === selectedModel
+                return (
+                  <div key={model.id} className={modelRowClass(isSelected)}>
+                    <Button
+                      type="button"
+                      variant="plain"
+                      size="none"
+                      onClick={() => onSelectModel?.(model.modelId)}
+                      className="flex min-w-0 flex-1 items-start gap-2 rounded-full px-1 py-0.5 text-left hover:bg-transparent"
+                    >
+                      <div className={modelIconTileClass(isSelected)}>
+                        <EntityIcon
+                          icon={model.icon || model.provider?.icon}
+                          iconType={model.iconType || model.provider?.iconType}
+                          iconUrl={model.iconUrl || model.provider?.iconUrl}
+                          className="size-4"
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="truncate text-sm font-medium text-white">
+                            {model.displayName}
+                          </span>
+                          {model.provider?.name ? (
+                            <span className="truncate text-[11px] text-white/35">
+                              {model.provider.name}
+                            </span>
+                          ) : null}
+                          {isSelected ? <Check className="size-3.5 shrink-0 text-primary" /> : null}
+                        </div>
+                        <p className="truncate font-mono text-[10px] text-white/40">{model.modelId}</p>
+                        <ModelCapabilityBadges capabilities={model.capabilities} className="mt-1" />
+                      </div>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="plain"
+                      size="none"
+                      className={cn(
+                        'shrink-0 text-white/40 hover:text-amber-300',
+                        model.isFavorite && 'text-amber-300',
+                      )}
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        void setFavorite(model.id, !model.isFavorite)
+                      }}
+                      aria-label={model.isFavorite ? 'Remove favorite' : 'Favorite'}
+                    >
+                      <Star className={cn('size-3.5', model.isFavorite && 'fill-current')} />
+                    </Button>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

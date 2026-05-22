@@ -15,7 +15,8 @@ export const memoryRag = new RAG(components.rag, {
   filterNames: ['userId', 'threadId', 'projectId'],
 })
 
-export const MEMORY_EXTRACTION_MODEL = 'openai/gpt-4o-mini'
+/** Legacy constant; runtime uses resolved auxiliary model (default anthropic/claude-3-haiku). */
+export const MEMORY_EXTRACTION_MODEL = 'anthropic/claude-3-haiku'
 
 export function ensureOpenRouterConfigured() {
   if (!apiKey) {

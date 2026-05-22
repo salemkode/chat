@@ -73,6 +73,10 @@ export interface OfflineModelCollectionRecord {
   id: string
   name: string
   description?: string
+  icon?: string
+  iconType?: 'emoji' | 'lucide' | 'phosphor' | 'upload'
+  iconId?: string
+  iconUrl?: string
   sortOrder: number
   modelIds: string[]
   modelCount: number

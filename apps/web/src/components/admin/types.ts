@@ -6,5 +6,6 @@ export type ProviderCatalogResult = FunctionReturnType<typeof api.admin.inspectP
 export type AdminProvider = DashboardData['providers'][number]
 export type AdminModel = DashboardData['models'][number]
 export type AdminModelCollection = DashboardData['collections'][number]
+export type AdminAccount = FunctionReturnType<typeof api.admin.listAdminAccounts>[number]
 
 export type IconType = 'emoji' | 'lucide' | 'phosphor' | 'upload' | undefined

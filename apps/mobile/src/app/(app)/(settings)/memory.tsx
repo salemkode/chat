@@ -1,7 +1,11 @@
 import { useChatProjects, useChatThreads } from "@chat/chat-core";
 import { api } from "@convex/_generated/api";
+import type { Id } from "@convex/_generated/dataModel";
 import { useQuery } from "convex/react";
 import { useMemo, useState } from "react";
+import { useSettings } from "@/hooks/use-settings";
+import { Check } from "lucide-react-native";
+import { Icon } from "@/components/icon";
 import {
   ActivityIndicator,
   Pressable,
@@ -41,8 +45,22 @@ function formatRelativeTime(timestamp: number) {
 export default function MemorySettingsScreen() {
   const { threads } = useChatThreads();
   const { projects } = useChatProjects();
+  const { settings, updateSettings } = useSettings();
   const [scope, setScope] = useState<MemoryScope>("all");
   const [searchValue, setSearchValue] = useState("");
+
+  const auxiliaryCandidates = useQuery(api.auxiliaryModels.listAuxiliaryModelCandidates, {});
+
+  const selectedAuxiliaryModelId = useMemo(() => {
+    const candidates = auxiliaryCandidates ?? [];
+    if (
+      settings?.auxiliaryModelId &&
+      candidates.some((candidate) => candidate.modelDocId === settings.auxiliaryModelId)
+    ) {
+      return settings.auxiliaryModelId;
+    }
+    return candidates.find((candidate) => candidate.isRecommended)?.modelDocId;
+  }, [auxiliaryCandidates, settings?.auxiliaryModelId]);
 
   const userMemories = useQuery(api.functions.memory.listUserMemories, {
     paginationOpts: { cursor: null, numItems: 200 },
@@ -113,6 +131,41 @@ export default function MemorySettingsScreen() {
       contentInsetAdjustmentBehavior="automatic"
       contentContainerClassName="px-5 pb-10"
     >
+      <Text className="text-[13px] text-muted-foreground pt-6 pb-2">
+        Background memory model
+      </Text>
+      <Text className="text-[13px] text-muted-foreground pb-3 leading-relaxed">
+        Used when your chat model does not support tools. Pick a small, fast model to save cost.
+      </Text>
+      {(auxiliaryCandidates ?? []).map((candidate) => {
+        const selected = selectedAuxiliaryModelId === candidate.modelDocId;
+        const costHint =
+          candidate.estimatedCostPerExtraction != null
+            ? ` (~$${candidate.estimatedCostPerExtraction.toFixed(4)}/run)`
+            : "";
+        return (
+          <Pressable
+            key={candidate.modelDocId}
+            onPress={() =>
+              void updateSettings({
+                auxiliaryModelId: candidate.modelDocId as Id<"models">,
+              })
+            }
+            className="flex-row items-center px-1 py-3 gap-3 active:bg-muted"
+          >
+            <View className="w-5 items-center">
+              {selected ? (
+                <Icon icon={Check} className="w-5 h-5 text-foreground" />
+              ) : null}
+            </View>
+            <Text className="text-[17px] text-foreground flex-1">
+              {candidate.displayName}
+              {costHint}
+            </Text>
+          </Pressable>
+        );
+      })}
+
       <View className="flex-row flex-wrap gap-2 mt-4">
         {(
           [

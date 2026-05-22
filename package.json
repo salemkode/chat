@@ -36,8 +36,15 @@
     "typecheck:all": "pnpm run typecheck:convex && pnpm run typecheck",
     "deploy:convex": "pnpm --filter @packages/backend run deploy",
     "deploy:web:cloudflare": "cd apps/web && pnpm run build && pnpm run deploy:cloudflare",
-    "knip": "knip",
+    "knip:check": "knip",
     "mobile:dev": "cd apps/mobile && pnpm start",
+    "eas:build:android": "cd apps/mobile && eas build --platform android --profile production",
+    "eas:build:ios": "cd apps/mobile && eas build --platform ios --profile production",
+    "eas:build:testflight": "cd apps/mobile && eas build --platform ios --profile production",
+    "eas:build:local:android": "cd apps/mobile && eas build --platform android --profile production --local",
+    "eas:build:local:ios": "cd apps/mobile && eas build --platform ios --profile production --local",
+    "eas:submit:testflight": "cd apps/mobile && eas submit --platform ios --profile production",
+    "eas:testflight": "cd apps/mobile && eas build --platform ios --profile production --auto-submit",
     "ios": "cd apps/mobile && pnpm run ios",
     "android": "cd apps/mobile && pnpm run android",
     "mobile:typecheck": "cd apps/mobile && pnpm run typecheck",
@@ -45,7 +52,6 @@
     "docs:build": "cd docs && pnpm run build",
     "docs:preview": "cd docs && pnpm run preview",
     "docs:deploy:cloudflare": "cd docs && pnpm run deploy:cloudflare",
-    "postinstall": "node scripts/ensure-react-native-worklets-dir.mjs",
     "ship": "node scripts/ship.mjs"
   },
   "devDependencies": {
@@ -60,9 +66,6 @@
   "packageManager": "pnpm@10.6.5",
   "overrides": {
     "react": "19.2.0",
-    "react-dom": "19.2.0",
-    "react-native-worklets": "0.8.1",
-    "react-native-reanimated": "4.3.1",
-    "@expo/dom-webview": "55.0.3"
+    "react-dom": "19.2.0"
   }
 }

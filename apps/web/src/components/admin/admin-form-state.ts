@@ -51,6 +51,9 @@ export interface ModelFormData {
 export interface ModelCollectionFormData {
   name: string
   description: string
+  icon?: string
+  iconType?: IconType
+  iconId?: string
   sortOrder: number
   modelIds: string[]
 }
@@ -78,6 +81,7 @@ export type ModelDialogState = {
 export type ModelCollectionDialogState = {
   open: boolean
   editingCollection: AdminModelCollection | null
+  iconPreviewUrl?: string
   form: ModelCollectionFormData
 }
 
@@ -99,6 +103,7 @@ export type SettingsState = {
   autoModelRouterUrlDraft?: string
   autoModelRouterApiKeyDraft?: string
   autoModelRouterPreferenceDraft?: 'balanced' | 'cost' | 'speed' | 'quality'
+  defaultAuxiliaryModelIdDraft?: string
 }
 
 export function createProviderForm(sortOrder = 0): ProviderFormData {
@@ -149,6 +154,9 @@ export function createModelCollectionForm(sortOrder = 0): ModelCollectionFormDat
   return {
     name: '',
     description: '',
+    icon: 'Sparkles',
+    iconType: 'phosphor',
+    iconId: undefined,
     sortOrder,
     modelIds: [],
   }
@@ -175,6 +183,7 @@ export const initialModelDialogState: ModelDialogState = {
 export const initialModelCollectionDialogState: ModelCollectionDialogState = {
   open: false,
   editingCollection: null,
+  iconPreviewUrl: undefined,
   form: createModelCollectionForm(),
 }
 

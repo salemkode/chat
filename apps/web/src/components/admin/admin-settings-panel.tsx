@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access -- Convex hooks */
 import { useAction, useMutation } from 'convex/react'
+import { parseConvexIdForTable } from '@chat/shared/logic/convex-ids'
 import { CreditCard, Loader2, Settings2 } from '@/lib/icons'
 import { useCallback, useReducer, useState } from 'react'
 import { toast } from 'sonner'
@@ -10,6 +11,7 @@ import {
   mergeReducer,
   type SettingsState,
 } from '@/components/admin/admin-form-state'
+import { adminInsetClass, adminPanelClass } from '@/components/admin/admin-surface'
 import { formatDateTime } from '@/components/admin/admin-utils'
 import { RateLimitEditor, type RateLimitPolicy } from '@/components/admin/rate-limit-editor'
 import { Badge } from '@/components/ui/badge'
@@ -26,6 +28,7 @@ import {
 } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import type { AppPlan } from '@chat/shared/admin-types'
+import { useQuery } from '@/lib/convex-query-cache'
 
 type AdminSettingsPanelProps = Pick<AdminOutletContext, 'dashboard'>
 
@@ -64,6 +67,11 @@ export function AdminSettingsPanel({ dashboard }: AdminSettingsPanelProps) {
     settingsState.autoModelRouterPreferenceDraft ??
     dashboard.settings.autoModelRouterPreference ??
     'balanced'
+  const defaultAuxiliaryModelId =
+    settingsState.defaultAuxiliaryModelIdDraft ??
+    dashboard.settings.defaultAuxiliaryModelId ??
+    ''
+  const auxiliaryModelCandidates = useQuery(api.auxiliaryModels.listAuxiliaryModelCandidates, {})
 
   const setAppPlan = (value: AppPlan | undefined) => updateSettings({ appPlanDraft: value })
   const setGlobalRateLimit = (value: RateLimitPolicy | undefined) =>
@@ -76,6 +84,8 @@ export function AdminSettingsPanel({ dashboard }: AdminSettingsPanelProps) {
     updateSettings({ autoModelRouterApiKeyDraft: value })
   const setAutoModelRouterPreference = (value: 'balanced' | 'cost' | 'speed' | 'quality') =>
     updateSettings({ autoModelRouterPreferenceDraft: value })
+  const setDefaultAuxiliaryModelId = (value: string) =>
+    updateSettings({ defaultAuxiliaryModelIdDraft: value })
   const [isVerifyingRouter, setIsVerifyingRouter] = useState(false)
   const [isValidatingModels, setIsValidatingModels] = useState(false)
   const invalidModelCount = dashboard.models.filter(
@@ -89,6 +99,7 @@ export function AdminSettingsPanel({ dashboard }: AdminSettingsPanelProps) {
   const handleSaveSettings = useCallback(async () => {
     const trimmedRouterUrl = autoModelRouterUrl.trim() || undefined
     const trimmedRouterApiKey = autoModelRouterApiKey.trim() || undefined
+    const normalizedAuxiliaryModelId = parseConvexIdForTable('models', defaultAuxiliaryModelId)
     updateSettings({ isSavingSettings: true })
     try {
       await updateAdminSettings({
@@ -98,6 +109,7 @@ export function AdminSettingsPanel({ dashboard }: AdminSettingsPanelProps) {
         autoModelRouterUrl: trimmedRouterUrl,
         autoModelRouterApiKey: trimmedRouterApiKey,
         autoModelRouterPreference,
+        defaultAuxiliaryModelId: normalizedAuxiliaryModelId,
       })
       toast.success('Admin settings updated')
 
@@ -125,6 +137,7 @@ export function AdminSettingsPanel({ dashboard }: AdminSettingsPanelProps) {
     autoModelRouterPreference,
     autoModelRouterUrl,
     autoModelRoutingEnabled,
+    defaultAuxiliaryModelId,
     globalRateLimit,
     updateAdminSettings,
     verifyAutoModelRouterConnection,
@@ -206,7 +219,7 @@ export function AdminSettingsPanel({ dashboard }: AdminSettingsPanelProps) {
 
   return (
     <div className="grid gap-4 xl:grid-cols-[1fr_0.8fr]">
-      <Card className="border-border bg-card shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
+      <Card className={adminPanelClass}>
         <CardHeader>
           <CardTitle>App plan</CardTitle>
           <CardDescription>
@@ -214,7 +227,7 @@ export function AdminSettingsPanel({ dashboard }: AdminSettingsPanelProps) {
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
-          <div className="rounded-xl border border-border bg-muted p-4">
+          <div className={`${adminInsetClass} p-4`}>
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="font-medium text-foreground">Effective plan</p>
@@ -262,7 +275,7 @@ export function AdminSettingsPanel({ dashboard }: AdminSettingsPanelProps) {
             </div>
           </div>
 
-          <div className="grid gap-2 rounded-xl border border-border bg-muted p-4">
+          <div className={`${adminInsetClass} grid gap-2 p-4`}>
             <div className="flex items-center gap-2">
               <CreditCard className="size-4 text-muted-foreground" />
               <p className="font-medium text-foreground">Stripe billing</p>
@@ -309,7 +322,7 @@ export function AdminSettingsPanel({ dashboard }: AdminSettingsPanelProps) {
         </CardContent>
       </Card>
 
-      <Card className="border-border bg-card shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
+      <Card className={adminPanelClass}>
         <CardHeader>
           <CardTitle>Global message policy</CardTitle>
           <CardDescription>
@@ -324,7 +337,7 @@ export function AdminSettingsPanel({ dashboard }: AdminSettingsPanelProps) {
             onChange={setGlobalRateLimit}
           />
           <Separator />
-          <div className="grid gap-3 rounded-xl border border-border bg-muted p-4">
+          <div className={`${adminInsetClass} grid gap-3 p-4`}>
             <div className="flex items-center justify-between gap-2">
               <p className="font-medium text-foreground">Model file policy validation</p>
               <Badge variant={invalidModelCount > 0 ? 'destructive' : 'secondary'}>
@@ -349,7 +362,36 @@ export function AdminSettingsPanel({ dashboard }: AdminSettingsPanelProps) {
             </div>
           </div>
           <Separator />
-          <div className="grid gap-4 rounded-xl border border-border bg-muted p-4">
+          <div className="grid gap-2">
+            <Label htmlFor="default-auxiliary-model">Default background memory model</Label>
+            <p className="text-sm text-muted-foreground">
+              Used for memory extraction and server-side memory actions when chat models lack tool
+              support. Tag models with the <code>auxiliary</code> capability to restrict the pool.
+            </p>
+            <Select
+              value={defaultAuxiliaryModelId || '__recommended__'}
+              onValueChange={(value) =>
+                setDefaultAuxiliaryModelId(value === '__recommended__' ? '' : value)
+              }
+            >
+              <SelectTrigger id="default-auxiliary-model">
+                <SelectValue placeholder="Recommended (cheapest tool-capable model)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__recommended__">Recommended (auto)</SelectItem>
+                {(auxiliaryModelCandidates ?? []).map((candidate) => (
+                  <SelectItem key={candidate.modelDocId} value={candidate.modelDocId}>
+                    {candidate.displayName}
+                    {candidate.estimatedCostPerExtraction != null
+                      ? ` (~$${candidate.estimatedCostPerExtraction.toFixed(4)}/run)`
+                      : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Separator />
+          <div className={`${adminInsetClass} grid gap-4 p-4`}>
             <div>
               <p className="font-medium text-foreground">Auto model router</p>
               <p className="text-sm text-muted-foreground">
@@ -407,7 +449,7 @@ export function AdminSettingsPanel({ dashboard }: AdminSettingsPanelProps) {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid gap-2 rounded-lg border border-border/70 bg-background/70 p-3 text-sm">
+            <div className={`${adminInsetClass} grid gap-2 bg-background/70 p-3 text-sm`}>
               <p className="font-medium text-foreground">
                 Availability: {autoRouting.available ? 'Ready' : 'Not ready'}
               </p>
@@ -464,7 +506,7 @@ export function AdminSettingsPanel({ dashboard }: AdminSettingsPanelProps) {
         </CardContent>
       </Card>
 
-      <Card className="border-border bg-card shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.35)] xl:col-span-2">
+      <Card className={`${adminPanelClass} xl:col-span-2`}>
         <CardHeader>
           <CardTitle>Current limit order</CardTitle>
           <CardDescription>
@@ -472,18 +514,18 @@ export function AdminSettingsPanel({ dashboard }: AdminSettingsPanelProps) {
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 text-sm text-muted-foreground">
-          <div className="rounded-xl border border-border bg-muted p-4">
+          <div className={`${adminInsetClass} p-4`}>
             <p className="font-medium text-foreground">1. Global default</p>
             <p>Applies to all models when enabled. Useful for app-wide per-user or global caps.</p>
           </div>
-          <div className="rounded-xl border border-border bg-muted p-4">
+          <div className={`${adminInsetClass} p-4`}>
             <p className="font-medium text-foreground">2. Provider policy</p>
             <p>
               Applies to every model inside a provider, including custom OpenAI-compatible
               endpoints.
             </p>
           </div>
-          <div className="rounded-xl border border-border bg-muted p-4">
+          <div className={`${adminInsetClass} p-4`}>
             <p className="font-medium text-foreground">3. Model policy</p>
             <p>
               Applies only to the selected model and is the final gate before the generation starts.

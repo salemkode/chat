@@ -6,7 +6,7 @@ This page describes how file uploads are ingested, how the same thread can use d
 
 ### Client flow
 
-- **Web** (`apps/web/src/hooks/chat-data/send.ts`): the UI obtains a Convex file upload URL from `agents.generateAttachmentUploadUrl`, then `POST`s each selected `File` to that URL with a `Content-Type` matching the file. The JSON response yields a `storageId` that is sent to `agents.generateMessage` inside the `attachments` array.
+- **Web** (`apps/web/src/hooks/chat-data/send.ts`): the UI obtains a Convex file upload URL from `agents.generateAttachmentUploadUrl`, then `POST`s each selected `File` to that URL with a `Content-Type` matching the file. In Auto mode, the router now treats attachment presence as a hard eligibility constraint before upload, so image/file requests are only sent through models that advertise compatible attachment support. The JSON response yields a `storageId` that is sent to `agents.generateMessage` inside the `attachments` array.
 - **Mobile** (`apps/mobile/src/components/chat/attachment-sheet.tsx`, `apps/mobile/src/components/chat/attachment-context.tsx`, `apps/mobile/src/hooks/use-send-message.ts`): the attachment sheet adds files from the system document picker, photo library, or camera into shared composer state. The selected model’s resolved attachment media types gate which picks are accepted. On send, the app reads each local URI as raw bytes (via `expo-file-system` `File` when available, otherwise `fetch(uri).blob()`), `POST`s that body to `agents.generateAttachmentUploadUrl` with a `Content-Type` matching the resolved MIME type (same contract as web — not multipart form data), and forwards `{ storageId, filename, mediaType }` to `agents.generateMessage`. Filenames are normalized (NFC, no path segments) before upload metadata is sent.
 
 ### Server flow (`convex/agents.ts`)
@@ -14,7 +14,7 @@ This page describes how file uploads are ingested, how the same thread can use d
 1. **`generateAttachmentUploadUrl`** — authenticated mutation; returns `ctx.storage.generateUploadUrl()` so only signed-in users can stage blobs.
 2. **`registerChatAttachments`** (inside `generateMessage`) — for each attachment:
    - Loads **storage metadata** (including `sha256`).
-   - Validates **MIME type** against the **selected model’s** allowed attachment types (`convex/lib/modelAttachmentPolicy.ts`: capabilities, explicit `supportedAttachmentMediaTypes`, provider rules such as DeepSeek text-only).
+   - Validates **MIME type** against the **selected model’s** allowed attachment types (`convex/lib/modelAttachmentPolicy.ts`: capabilities, explicit `supportedAttachmentMediaTypes`, provider/runtime rules such as DeepSeek text-only).
    - **Dedupes** by hash: looks up `chatFiles` via `by_hash`. If the bytes already exist, the existing `chatFiles` row is reused and **`refcount` is incremented**; otherwise a new row is inserted and refcount is set.
 3. **`saveUserPromptMessage`** — resolves each file’s **signed URL** from Convex storage, builds multimodal **`parts`** (text + `file` parts with `url` + `mediaType`), stores **`fileIds`** on the `chatMessages` row, and persists the normalized `message` payload.
 
@@ -22,10 +22,10 @@ Attachment shape accepted by `generateMessage`: `storageId`, optional `filename`
 
 ## Multi-model conversations (one thread, many models)
 
-- The **thread** (`chatThreads`) does **not** store a default model. Model choice is **per request**: the client passes `modelId` (`Id<'models'>`) into `generateMessage` or `regenerateMessage`, or uses **auto routing** (Convex actions under `modelRouter`) to resolve a model document id before calling the mutation.
+- The **thread** (`chatThreads`) does **not** store a default model. Model choice is **per request**: the client passes `modelId` (`Id<'models'>`) into `generateMessage` or `regenerateMessage`, or uses **auto routing** (Convex actions under `modelRouter`) to resolve a model document id before calling the mutation. When attachments are present, auto routing filters out models that cannot accept the required image/file inputs instead of routing optimistically and failing after upload.
 - Each **assistant** row records which stack produced it: `chatMessages.model` and `chatMessages.provider` are set when the pending assistant message is created (`createPendingAssistantMessage`).
 - **Follow-up messages** use whichever model the user(or Auto) selects next; prior assistant turns remain in the transcript as plain history.
-- **Regenerate** (`regenerateMessage`): takes an existing **user** `promptMessageId` and a (possibly different) `modelId`. The server validates the prompt, fails prior pending work for that turn, removes downstream assistant steps for that prompt, creates a new pending assistant message for the **new** model, and schedules `streamMessage` again. Attachments are **not** re-uploaded: they stay on the user message; the server checks the **new** provider still supports the prompt’s multimodal parts (`ensureProviderSupportsPromptAttachments`).
+- **Regenerate** (`regenerateMessage`): takes an existing **user** `promptMessageId` and a (possibly different) `modelId`. The server validates the prompt, fails prior pending work for that turn, removes the entire downstream branch after that prompt (the old assistant reply and any later turns in the thread), creates a new pending assistant message for the **new** model, and schedules `streamMessage` again. Attachments are **not** re-uploaded: they stay on the user message; the server checks the **new** provider still supports the prompt’s multimodal parts (`ensureProviderSupportsPromptAttachments`).
 
 For routing philosophy and tables (`models`, `modelSelectionProfiles`, `routerEvents`, etc.), see [Model routing (research)](./research/05-model-routing.md).
 
@@ -50,7 +50,7 @@ So: **threads are not stored in a compressed archive**; **context to the LLM is 
 ## Lifecycle and bookkeeping notes
 
 - **`chatFiles.refcount`** increases when a message registers an attachment. There is **no** mirrored decrement wired to message or thread deletion in the current Convex code paths this document was written against; storage deduplication still reduces duplicate bytes when the same file is reused.
-- **Thread deletion** (`chat.deleteThread`) removes thread metadata and message rows (and streaming artifacts) in bounded batches; consider storage hygiene if you extend deletion to orphan `chatFiles` / blobs.
+- **Thread deletion** (`chat.deleteThread`) removes thread metadata and message rows (and streaming artifacts) in bounded batches, and the clients clear their offline snapshot for that thread after a successful delete; consider storage hygiene if you extend deletion to orphan `chatFiles` / blobs.
 
 ## Code map
 

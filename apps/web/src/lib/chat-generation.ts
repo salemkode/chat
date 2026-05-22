@@ -13,6 +13,7 @@ type MessageFailureMode = 'replace' | 'clarify'
 export type QueuedMessage = {
   text: string
   modelDocId?: string
+  autoModelAllowedModelDocIds?: string[]
   projectId?: string
   searchEnabled: boolean
   searchMode?: 'auto' | 'required'

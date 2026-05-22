@@ -2,6 +2,11 @@ import { action, internalMutation, internalQuery } from './_generated/server'
 import { api, components, internal } from './_generated/api'
 import { ConvexError, v } from 'convex/values'
 import { getAuthUserId } from './lib/auth'
+import {
+  modelSupportsAttachmentSummary,
+  modelSupportsImageInput,
+  type ModelAttachmentValidationStatus,
+} from './lib/modelAttachmentPolicy'
 import { estimateCostFromProfile } from './lib/pricingTier'
 
 const autoModelRouterPreferenceValidator = v.union(
@@ -64,21 +69,49 @@ function normalizeRequestPreview(prompt: string) {
   return normalized.slice(0, 280)
 }
 
-const IMAGE_INPUT_CAPABILITIES = new Set([
-  'vision',
-  'image',
-  'images',
-  'image-input',
-  'multimodal',
-  'multi-modal',
-  'attachments',
-])
-
-function supportsImageInput(capabilities: string[] | undefined) {
-  if (!capabilities || capabilities.length === 0) {
-    return false
+function normalizeAttachmentValidationStatus(
+  value: string | undefined,
+): ModelAttachmentValidationStatus | undefined {
+  if (value === 'pending' || value === 'valid' || value === 'invalid') {
+    return value
   }
-  return capabilities.some((capability) => IMAGE_INPUT_CAPABILITIES.has(capability.toLowerCase()))
+  return undefined
+}
+
+function supportsImageRequest(model: {
+  providerType?: string | null
+  capabilities?: string[]
+  supportedAttachmentMediaTypes?: string[]
+  attachmentValidationStatus?: ModelAttachmentValidationStatus
+}) {
+  return modelSupportsImageInput({
+    providerType: model.providerType,
+    capabilities: model.capabilities,
+    supportedAttachmentMediaTypes: model.supportedAttachmentMediaTypes,
+    attachmentValidationStatus: model.attachmentValidationStatus,
+  })
+}
+
+function supportsAttachmentRequest(
+  model: {
+    providerType?: string | null
+    capabilities?: string[]
+    supportedAttachmentMediaTypes?: string[]
+    attachmentValidationStatus?: ModelAttachmentValidationStatus
+  },
+  attachmentSummary?: {
+    imageCount: number
+    fileCount: number
+    totalCount: number
+  },
+) {
+  return modelSupportsAttachmentSummary({
+    providerType: model.providerType,
+    capabilities: model.capabilities,
+    supportedAttachmentMediaTypes: model.supportedAttachmentMediaTypes,
+    attachmentValidationStatus: model.attachmentValidationStatus,
+    attachmentSummary,
+  })
 }
 
 function getAttachmentSummaryFromPromptContent(content: unknown) {
@@ -140,12 +173,17 @@ export const getAutoModelRoutingState = internalQuery({
         displayName: v.string(),
         providerId: v.id('providers'),
         providerName: v.string(),
+        providerType: v.string(),
         capabilities: v.optional(v.array(v.string())),
         contextWindow: v.optional(v.number()),
         intelligence: v.number(),
         price: v.number(),
         speed: v.number(),
         latency: v.number(),
+        supportedAttachmentMediaTypes: v.optional(v.array(v.string())),
+        attachmentValidationStatus: v.optional(
+          v.union(v.literal('pending'), v.literal('valid'), v.literal('invalid')),
+        ),
         taskScores: v.object({
           general: v.number(),
           code: v.number(),
@@ -208,12 +246,17 @@ export const getAutoModelRoutingState = internalQuery({
           displayName: model.displayName,
           providerId: provider._id,
           providerName: provider.name,
+          providerType: provider.providerType,
           capabilities: model.capabilities,
           contextWindow: model.contextWindow,
           intelligence,
           price: estimatedCost,
           speed: clamp01(1 - Math.min(latencyMs / 8000, 1)),
           latency: clamp01(Math.min(latencyMs / 8000, 1)),
+          supportedAttachmentMediaTypes: model.supportedAttachmentMediaTypes,
+          attachmentValidationStatus: normalizeAttachmentValidationStatus(
+            model.attachmentValidationStatus,
+          ),
           taskScores: normalizeTaskScores(benchmarkScores, intelligence),
           supportsTools,
         }
@@ -269,6 +312,7 @@ export const selectAutoModel = action({
     searchEnabled: v.optional(v.boolean()),
     reasoningEnabled: v.optional(v.boolean()),
     requiresImageInput: v.optional(v.boolean()),
+    allowedModelDocIds: v.optional(v.array(v.id('models'))),
     attachmentSummary: v.optional(
       v.object({
         imageCount: v.number(),
@@ -296,21 +340,39 @@ export const selectAutoModel = action({
         message: 'Auto model is not configured',
       })
     }
-    const imageEligibleModels =
-      args.requiresImageInput === true
-        ? routingState.models.filter((model) => supportsImageInput(model.capabilities))
-        : []
+    const allowedModelIds =
+      args.allowedModelDocIds && args.allowedModelDocIds.length > 0
+        ? new Set(args.allowedModelDocIds)
+        : null
+    const allowedModels = allowedModelIds
+      ? routingState.models.filter((model) => allowedModelIds.has(model.id))
+      : routingState.models
+
+    const attachmentEligibleModels =
+      (args.attachmentSummary?.totalCount ?? 0) > 0
+        ? allowedModels.filter((model) => supportsAttachmentRequest(model, args.attachmentSummary))
+        : allowedModels
     const eligibleModels =
       args.requiresImageInput === true
-        ? imageEligibleModels.length > 0
-          ? imageEligibleModels
-          : routingState.models
-        : routingState.models
+        ? attachmentEligibleModels.filter((model) => supportsImageRequest(model))
+        : attachmentEligibleModels
 
     if (eligibleModels.length === 0) {
+      const needsAttachmentSupport = (args.attachmentSummary?.totalCount ?? 0) > 0
+      const needsImageSupport = args.requiresImageInput === true
       throw new ConvexError({
         code: 'FAILED_PRECONDITION',
-        message: 'No eligible models available for auto routing',
+        message: allowedModelIds
+          ? needsAttachmentSupport
+            ? 'No eligible models in the selected collection support these attachments'
+            : needsImageSupport
+              ? 'No eligible vision models are available in the selected collection'
+              : 'No eligible models available for auto routing in the selected collection'
+          : needsAttachmentSupport
+            ? 'No eligible models support these attachments'
+            : needsImageSupport
+              ? 'No eligible vision models are available for auto routing'
+              : 'No eligible models available for auto routing',
       })
     }
 
@@ -449,6 +511,7 @@ export const selectAutoModelForPromptMessage = action({
     searchEnabled: v.optional(v.boolean()),
     reasoningEnabled: v.optional(v.boolean()),
     requiresImageInput: v.optional(v.boolean()),
+    allowedModelDocIds: v.optional(v.array(v.id('models'))),
   },
   returns: v.object({
     decisionId: v.string(),
@@ -485,6 +548,7 @@ export const selectAutoModelForPromptMessage = action({
       reasoningEnabled: args.reasoningEnabled,
       requiresImageInput: args.requiresImageInput === true || hasImageAttachment,
       attachmentSummary,
+      allowedModelDocIds: args.allowedModelDocIds,
     })
   },
 })

@@ -32,7 +32,7 @@
     "!**/.*"
   ],
   "scripts": {
-    "example": "yarn workspace react-native-streamdown-example",
+    "example": "pnpm --dir example",
     "clean": "del-cli lib",
     "prepare": "bob build",
     "typecheck": "tsc",
@@ -88,14 +88,6 @@
     "react-native": "*",
     "react-native-enriched-markdown": "0.4.0",
     "remend": "1.2.2"
-  },
-  "workspaces": [
-    "example"
-  ],
-  "packageManager": "yarn@4.11.0",
-  "resolutions": {
-    "metro": "patch:metro@npm%3A0.83.2#~/.yarn/patches/metro-npm-0.83.2-d09f48ca84.patch",
-    "metro-runtime": "patch:metro-runtime@npm%3A0.83.2#~/.yarn/patches/metro-runtime-npm-0.83.2-c614bbd3b9.patch"
   },
   "react-native-builder-bob": {
     "source": "src",

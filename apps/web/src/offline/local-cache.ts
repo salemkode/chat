@@ -162,6 +162,23 @@ export function readMessagesCache<T>(userId: string, threadId: string): T | null
   return readJson<T>(localStorage.getItem(userKey(userId, `messages:${threadId}`)))
 }
 
+export function deleteThreadCache(userId: string, threadId: string) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  const threads = readThreadsCache<Array<{ id?: string; serverId?: string }>>(userId)
+  if (Array.isArray(threads)) {
+    const filteredThreads = threads.filter(
+      (thread) => thread.id !== threadId && thread.serverId !== threadId,
+    )
+    localStorage.setItem(userKey(userId, 'threads'), JSON.stringify(filteredThreads))
+  }
+
+  localStorage.removeItem(userKey(userId, `messages:${threadId}`))
+  notifyOfflineCacheUpdate()
+}
+
 export function clearLocalOfflineCache() {
   if (typeof window === 'undefined') {
     return

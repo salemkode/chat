@@ -140,6 +140,22 @@ export async function writeMessagesCache(
   notifyOfflineCacheUpdate();
 }
 
+export async function deleteThreadCache(userId: string, threadId: string) {
+  const threads = readThreadsCache<Array<{ id?: string; serverId?: string }>>(userId);
+  if (Array.isArray(threads)) {
+    const filteredThreads = threads.filter(
+      (thread) => thread.id !== threadId && thread.serverId !== threadId,
+    );
+    await persistKey(
+      userKey(userId, "threads"),
+      JSON.stringify(filteredThreads),
+    );
+  }
+
+  await persistKey(userKey(userId, `messages:${threadId}`), null);
+  notifyOfflineCacheUpdate();
+}
+
 export async function clearLocalOfflineCache() {
   const keys = [...memory.keys()].filter((key) => key.startsWith(STORAGE_NS));
   memory.clear();

@@ -1,3 +1,4 @@
+import type { AdminCollectionDraft } from '@/components/admin/admin-collection-dialog'
 import type {
   AdminModel,
   AdminModelCollection,
@@ -10,4 +11,5 @@ export type AdminOutletContext = {
   onOpenProviderDialog: (provider?: AdminProvider) => void
   onOpenModelDialog: (model?: AdminModel) => void
   onOpenCollectionDialog: (collection?: AdminModelCollection) => void
+  onOpenCollectionDraft: (draft: AdminCollectionDraft) => void
 }

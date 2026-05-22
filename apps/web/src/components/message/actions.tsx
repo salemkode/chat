@@ -1,9 +1,10 @@
 import type { Id } from '@convex/_generated/dataModel'
-import { isAutoModelSelection } from '@chat/shared'
+import { isAutoModelSelection, parseAutoModelCollectionSelection } from '@chat/shared'
 import { ExternalLink, FileText, RefreshCw, Square } from '@/lib/icons'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useChatModel } from '@/components/chat-model-context'
 import { useModels, useSendMessage, useViewer } from '@/hooks/use-chat-data'
+import { toModelDocId } from '@/hooks/chat-data/shared'
 import { cn } from '@/lib/utils'
 import { ModelSelectorPanel } from '@/components/model-selector'
 import { Button } from '@/components/ui/button'
@@ -75,7 +76,7 @@ export function RepeatButton({
   disabled: boolean
   forceStopFirst?: boolean
 }) {
-  const { models } = useModels()
+  const { models, collections } = useModels()
   const { regenerate, stop, disabledReason } = useSendMessage()
   const viewer = useViewer()
   const { selectedModelId, setSelectedModelId } = useChatModel()
@@ -89,6 +90,10 @@ export function RepeatButton({
     () => models.find((model) => model.modelId === selectedModelId)?.id as Id<'models'> | undefined,
     [models, selectedModelId],
   )
+  const selectedCollectionId = parseAutoModelCollectionSelection(selectedModelId)
+  const selectedCollection = selectedCollectionId
+    ? collections.find((collection) => collection.id === selectedCollectionId)
+    : undefined
   const currentModel = useMemo(
     () => models.find((model) => model.modelId === selectedModelId),
     [models, selectedModelId],
@@ -133,6 +138,12 @@ export function RepeatButton({
       const modelDocId = models.find((model) => model.modelId === modelId)?.id as
         | Id<'models'>
         | undefined
+      const collectionId = parseAutoModelCollectionSelection(modelId)
+      const allowedModelDocIds = collectionId
+        ? collections
+            .find((collection) => collection.id === collectionId)
+            ?.modelIds.map((id) => toModelDocId(id))
+        : undefined
       if (!promptMessageId || disabledReason !== null) {
         return
       }
@@ -151,6 +162,7 @@ export function RepeatButton({
           threadId,
           promptMessageId,
           modelDocId,
+          autoModelAllowedModelDocIds: modelDocId ? undefined : allowedModelDocIds,
           selectionTier,
         })
       } finally {
@@ -158,6 +170,7 @@ export function RepeatButton({
       }
     },
     [
+      collections,
       disabledReason,
       forceStopFirst,
       models,
@@ -253,7 +266,9 @@ export function RepeatButton({
           <p className="text-xs text-muted-foreground">
             Current:{' '}
             {selectedModelId && isAutoModelSelection(selectedModelId)
-              ? 'Auto'
+              ? selectedCollection?.name
+                ? `Auto (${selectedCollection.name})`
+                : 'Auto'
               : (currentModel?.displayName ?? '—')}
           </p>
         </div>
@@ -316,4 +331,3 @@ export function StopButton({
     </Button>
   )
 }
-

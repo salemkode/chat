@@ -11,18 +11,13 @@ The standard path should be:
 
 ## What is standard now
 
-- `eas.json` explicitly maps `development`, `preview`, and `production` profiles to matching EAS environments
-- `eas.json` pins Bun `1.3.9` so cloud builds use the same package manager version we validated locally
-- the repo postinstall script repairs two package-level issues that affected builds:
-  - `react-native-worklets` bundle mode expects its `.worklets` directory to exist
-  - `@expo/dom-webview` needs the current iOS patch applied during install
-
-## What is intentionally local-only
-
-- the React Native Foojay Gradle patch only runs when `EAS_BUILD_RUNNER=local-build-plugin`
-- Homebrew-specific `pod` and `fastlane` fixes that were used during local debugging are not part of this repo and are not required for EAS Cloud
-
-That split is important: cloud builds should rely only on committed files plus EAS configuration, while local builds may still depend on the developer machine having Android Studio, Xcode, CocoaPods, and Fastlane installed correctly.
+- Expo config lives only in `apps/mobile/app.json` (no root `app.config.js` shim)
+- Run EAS CLI from `apps/mobile` so the archive includes the monorepo correctly
+- Repo-root wrappers are available so automation can call EAS from the monorepo root without guessing the working directory
+- `apps/mobile/eas.json` maps `development`, `preview`, and `production` to matching EAS environments
+- `.easignore` trims unrelated web/docs/server workspaces from the mobile upload so EAS does not install their deploy-only dependencies
+- The `monorepo` profile pins pnpm `10.6.5` with Corepack for cloud builds
+- Do not keep a nested `.git` directory under `apps/mobile`; EAS treats that as the repo root, misses `pnpm-lock.yaml`, and falls back to Yarn (the `yarn@pnpm@…` install error)
 
 ## Environment variables
 
@@ -36,11 +31,24 @@ Expo documents that EAS environments are the supported way to provide build-time
 Recommended workflow:
 
 ```bash
-eas env:pull --environment development --path apps/mobile/.env.local
-eas env:pull --environment production --path apps/mobile/.env.local
+cd apps/mobile
+eas env:pull --environment development --path .env.local
+eas env:pull --environment production --path .env.local
 ```
 
 For production PR validation, prefer making sure the `production` EAS environment is complete rather than copying secrets from another checkout.
+
+## Debugging bundle failures
+
+When Metro or native build issues are hard to read from `expo start` alone, reproduce the production bundler locally first:
+
+```bash
+cd apps/mobile
+pnpm exec expo export --platform ios
+pnpm exec expo export --platform android
+```
+
+For embed-style failures (closer to EAS release builds), use `expo export:embed` with the same platform flags.
 
 ## Local vs cloud
 
@@ -60,6 +68,12 @@ Practical guidance for this repo:
 Typical production builds:
 
 ```bash
+pnpm run eas:build:android
+pnpm run eas:build:ios
+pnpm run eas:build:testflight
+
+# equivalent direct invocation
+cd apps/mobile
 eas build --platform android --profile production
 eas build --platform ios --profile production
 ```
@@ -67,6 +81,32 @@ eas build --platform ios --profile production
 Local debugging builds:
 
 ```bash
+pnpm run eas:build:local:android
+pnpm run eas:build:local:ios
+
+# equivalent direct invocation
+cd apps/mobile
 eas build --platform android --profile production --local
 eas build --platform ios --profile production --local
+```
+
+## TestFlight
+
+For iOS release builds that should land in TestFlight, use the repo-root wrappers:
+
+```bash
+pnpm run eas:build:testflight
+pnpm run eas:submit:testflight
+
+# or build and auto-submit in one step
+pnpm run eas:testflight
+```
+
+Equivalent direct commands from the app workspace:
+
+```bash
+cd apps/mobile
+eas build --platform ios --profile production
+eas submit --platform ios --profile production
+eas build --platform ios --profile production --auto-submit
 ```

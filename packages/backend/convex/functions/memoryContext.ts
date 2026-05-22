@@ -346,3 +346,83 @@ export const buildPromptMemoryContext = internalAction({
     }
   },
 })
+
+const memoryHitValidator = v.object({
+  memoryId: v.string(),
+  scope: v.union(v.literal('user'), v.literal('thread'), v.literal('project')),
+  title: v.string(),
+  content: v.string(),
+  category: v.optional(v.string()),
+  tags: v.optional(v.array(v.string())),
+  source: v.string(),
+  userId: v.string(),
+  threadId: v.optional(v.string()),
+  projectId: v.optional(v.string()),
+  originThreadId: v.optional(v.string()),
+  originMessageIds: v.optional(v.array(v.string())),
+  createdAt: v.number(),
+  updatedAt: v.number(),
+  score: v.optional(v.number()),
+  rank: v.number(),
+})
+
+export const searchMemoriesForPrompt = internalAction({
+  args: {
+    userId: v.id('users'),
+    threadId: v.string(),
+    query: v.string(),
+    projectId: v.optional(v.id('projects')),
+    maxResults: v.optional(v.number()),
+  },
+  returns: v.object({
+    hits: v.array(memoryHitValidator),
+  }),
+  handler: async (ctx, args) => {
+    ensureOpenRouterConfigured()
+
+    const queryText = args.query.trim()
+    const maxResults = Math.max(1, Math.min(args.maxResults ?? 5, 10))
+    if (!queryText) {
+      return { hits: [] }
+    }
+
+    const [projectHitsRaw, threadHitsRaw, userHitsRaw] = await Promise.all([
+      args.projectId
+        ? searchScopeHits(ctx, {
+            userId: args.userId,
+            threadId: args.threadId,
+            projectId: args.projectId,
+            query: queryText,
+            scope: 'project',
+            maxResults,
+          })
+        : Promise.resolve([]),
+      searchScopeHits(ctx, {
+        userId: args.userId,
+        threadId: args.threadId,
+        query: queryText,
+        scope: 'thread',
+        maxResults,
+      }),
+      searchScopeHits(ctx, {
+        userId: args.userId,
+        threadId: args.threadId,
+        query: queryText,
+        scope: 'user',
+        maxResults,
+      }),
+    ])
+
+    const [projectHits, threadHits, userHits] = dedupeMemoryHitsByPriority([
+      projectHitsRaw,
+      threadHitsRaw,
+      userHitsRaw,
+    ])
+
+    const combined = [...projectHits, ...threadHits, ...userHits]
+      .map(({ contentHash: _contentHash, ...hit }) => hit)
+      .slice(0, maxResults)
+
+    return { hits: combined }
+  },
+})

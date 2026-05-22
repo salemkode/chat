@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { PushPinSimple } from '@phosphor-icons/react'
-import { Pin, X } from '@/lib/icons'
+import { Pin, Trash2, X } from '@/lib/icons'
 import { Button } from '@/components/ui/button'
 import { SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar'
 import { cn } from '@/lib/utils'
@@ -52,12 +52,14 @@ export function ThreadRow({
   onOpen,
   onTogglePinned,
   onRemoveFromProject,
+  onDelete,
 }: {
   thread: BaseAnimatedThread
   isActive?: boolean
   onOpen: () => void
   onTogglePinned: () => void
   onRemoveFromProject?: () => void
+  onDelete?: () => void
 }) {
   return (
     <SidebarMenuItem className="group/thread">
@@ -102,6 +104,13 @@ export function ThreadRow({
                 label="Remove from project"
                 onClick={onRemoveFromProject}
                 icon={<X className="size-3.5" />}
+              />
+            ) : null}
+            {onDelete ? (
+              <IconActionButton
+                label="Delete chat"
+                onClick={onDelete}
+                icon={<Trash2 className="size-3.5" />}
               />
             ) : null}
           </div>

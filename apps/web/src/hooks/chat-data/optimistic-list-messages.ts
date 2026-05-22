@@ -15,18 +15,32 @@ function optimisticRegenerateAssistant(
   threadId: string,
   now: number,
   order: number,
+  stepOrder: number,
 ): ListMessagesPageItem {
   return {
     id: `optimistic-regenerate-${now}`,
     role: 'assistant',
-    key: `${threadId}-${order}-0`,
+    key: `${threadId}-${order}-${stepOrder}`,
     text: '',
     order,
-    stepOrder: 0,
+    stepOrder,
     status: 'streaming',
     _creationTime: now,
     parts: [],
   } as ListMessagesPageItem
+}
+
+function isAfterPrompt(
+  message: Pick<ListMessagesPageItem, 'order' | 'stepOrder'>,
+  prompt: Pick<ListMessagesPageItem, 'order' | 'stepOrder'>,
+) {
+  const messageOrder = message.order ?? Number.NEGATIVE_INFINITY
+  const promptOrder = prompt.order ?? Number.NEGATIVE_INFINITY
+  if (messageOrder !== promptOrder) {
+    return messageOrder > promptOrder
+  }
+
+  return (message.stepOrder ?? 0) > (prompt.stepOrder ?? 0)
 }
 
 /**
@@ -82,17 +96,41 @@ export function applyOptimisticGenerateMessage(
 export function applyOptimisticRegenerateMessage(
   localStore: OptimisticLocalStore,
   threadId: string,
+  promptMessageId?: string,
 ) {
   const now = Date.now()
   const queries = localStore.getAllQueries(api.chat.listMessages)
-  const first = queries.find(
-    (q) =>
-      q.args.threadId === threadId &&
-      q.args.paginationOpts?.cursor === null &&
-      q.value?.page?.length,
-  )
-  const topOrder = first?.value?.page[0]?.order ?? now
-  const order = topOrder + 1
+  let promptMessage: ListMessagesPageItem | undefined
+
+  if (promptMessageId) {
+    for (const query of queries) {
+      if (query.args.threadId !== threadId || query.args.streamArgs) {
+        continue
+      }
+
+      const match = query.value?.page?.find((message) => message.id === promptMessageId)
+      if (match) {
+        promptMessage = match
+        break
+      }
+    }
+  }
+
+  if (promptMessage) {
+    for (const query of queries) {
+      if (query.args.threadId !== threadId || query.args.streamArgs || !query.value?.page) {
+        continue
+      }
+
+      localStore.setQuery(api.chat.listMessages, query.args, {
+        ...query.value,
+        page: query.value.page.filter((message) => !isAfterPrompt(message, promptMessage)),
+      })
+    }
+  }
+
+  const order = promptMessage?.order ?? now
+  const stepOrder = (promptMessage?.stepOrder ?? 0) + 1
 
   insertAtPosition({
     localQueryStore: localStore,
@@ -100,6 +138,6 @@ export function applyOptimisticRegenerateMessage(
     argsToMatch: { threadId },
     sortOrder: 'desc',
     sortKeyFromItem: (el) => [el.order, el.stepOrder] as Value | Value[],
-    item: optimisticRegenerateAssistant(threadId, now, order),
+    item: optimisticRegenerateAssistant(threadId, now, order, stepOrder),
   })
 }

@@ -305,6 +305,9 @@ export default defineSchema({
   modelCollections: defineTable({
     name: v.string(),
     description: v.optional(v.string()),
+    icon: v.optional(v.string()),
+    iconType: v.optional(iconTypeValidator),
+    iconId: v.optional(v.id('_storage')),
     sortOrder: v.number(),
     modelIds: v.array(v.id('models')),
   }).index('by_sortOrder', ['sortOrder']),
@@ -353,6 +356,7 @@ export default defineSchema({
     autoModelRouterPreference: v.optional(
       v.union(v.literal('balanced'), v.literal('cost'), v.literal('speed'), v.literal('quality')),
     ),
+    defaultAuxiliaryModelId: v.optional(v.id('models')),
     updatedAt: v.number(),
   }).index('by_key', ['key']),
 
@@ -886,6 +890,7 @@ export default defineSchema({
     reasoningEnabled: v.optional(v.boolean()),
     reasoningLevel: v.optional(reasoningLevelValidator),
     voiceTranscriptionMode: v.optional(v.union(v.literal('cloud'), v.literal('device'))),
+    auxiliaryModelId: v.optional(v.id('models')),
     updatedAt: v.number(),
   }).index('by_user', ['userId']),
 })

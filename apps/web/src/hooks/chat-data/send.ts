@@ -143,7 +143,7 @@ export function useSendMessage() {
   )
   const regenerateMessage = useMutation(api.agents.regenerateMessage).withOptimisticUpdate(
     (localStore, args) => {
-      applyOptimisticRegenerateMessage(localStore, args.threadId)
+      applyOptimisticRegenerateMessage(localStore, args.threadId, args.promptMessageId)
     },
   )
   const stopGenerationApi = (
@@ -187,6 +187,7 @@ export function useSendMessage() {
       reasoning,
       requiresImageInput,
       attachmentSummary,
+      allowedModelDocIds,
     }: {
       text: string
       threadId?: string
@@ -198,17 +199,40 @@ export function useSendMessage() {
         fileCount: number
         totalCount: number
       }
+      allowedModelDocIds?: Id<'models'>[]
     }) => {
-      const routed = (await selectAutoModel({
+      const payloadBase = {
         prompt: text,
         threadId,
         searchEnabled,
         reasoningEnabled: reasoning?.enabled === true,
         requiresImageInput: requiresImageInput === true,
         attachmentSummary,
-      } as never)) as {
-        decisionId?: string
-        selectedModelDocId: Id<'models'>
+      }
+      let routed: { decisionId?: string; selectedModelDocId: Id<'models'> }
+      if (allowedModelDocIds && allowedModelDocIds.length > 0) {
+        try {
+          routed = (await selectAutoModel({
+            ...payloadBase,
+            allowedModelDocIds,
+          } as never)) as {
+            decisionId?: string
+            selectedModelDocId: Id<'models'>
+          }
+        } catch (error) {
+          if (!isExtraFieldValidationError(error, 'allowedModelDocIds')) {
+            throw error
+          }
+          routed = (await selectAutoModel(payloadBase as never)) as {
+            decisionId?: string
+            selectedModelDocId: Id<'models'>
+          }
+        }
+      } else {
+        routed = (await selectAutoModel(payloadBase as never)) as {
+          decisionId?: string
+          selectedModelDocId: Id<'models'>
+        }
       }
 
       return {
@@ -225,20 +249,45 @@ export function useSendMessage() {
       promptMessageId,
       searchEnabled,
       reasoning,
+      allowedModelDocIds,
     }: {
       threadId: string
       promptMessageId: string
       searchEnabled?: boolean
       reasoning?: { enabled: boolean; level?: 'low' | 'medium' | 'high' }
+      allowedModelDocIds?: Id<'models'>[]
     }) => {
-      const routed = (await selectAutoModelForPromptMessage({
+      const payloadBase = {
         threadId,
         promptMessageId,
         searchEnabled,
         reasoningEnabled: reasoning?.enabled === true,
-      } as never)) as {
-        decisionId?: string
-        selectedModelDocId: Id<'models'>
+      }
+
+      let routed: { decisionId?: string; selectedModelDocId: Id<'models'> }
+      if (allowedModelDocIds && allowedModelDocIds.length > 0) {
+        try {
+          routed = (await selectAutoModelForPromptMessage({
+            ...payloadBase,
+            allowedModelDocIds,
+          } as never)) as {
+            decisionId?: string
+            selectedModelDocId: Id<'models'>
+          }
+        } catch (error) {
+          if (!isExtraFieldValidationError(error, 'allowedModelDocIds')) {
+            throw error
+          }
+          routed = (await selectAutoModelForPromptMessage(payloadBase as never)) as {
+            decisionId?: string
+            selectedModelDocId: Id<'models'>
+          }
+        }
+      } else {
+        routed = (await selectAutoModelForPromptMessage(payloadBase as never)) as {
+          decisionId?: string
+          selectedModelDocId: Id<'models'>
+        }
       }
 
       return {
@@ -254,6 +303,7 @@ export function useSendMessage() {
       text,
       threadId,
       modelDocId,
+      autoModelAllowedModelDocIds,
       selectionTier: _selectionTier,
       projectId,
       contextArtifactIds,
@@ -269,6 +319,7 @@ export function useSendMessage() {
       text: string
       threadId?: string
       modelDocId?: Id<'models'>
+      autoModelAllowedModelDocIds?: Id<'models'>[]
       selectionTier?: 'free' | 'pro' | 'advanced'
       projectId?: Id<'projects'>
       contextArtifactIds?: Id<'projectArtifacts'>[]
@@ -336,6 +387,7 @@ export function useSendMessage() {
             reasoning,
             requiresImageInput: (attachmentSummary?.imageCount ?? 0) > 0,
             attachmentSummary,
+            allowedModelDocIds: autoModelAllowedModelDocIds,
           })
           resolvedModelDocId = routed.modelDocId
           routerDecisionId = routed.decisionId
@@ -460,6 +512,7 @@ export function useSendMessage() {
         threadId,
         promptMessageId,
         modelDocId,
+        autoModelAllowedModelDocIds,
         selectionTier: _selectionTier,
         projectId,
         contextArtifactIds,
@@ -470,6 +523,7 @@ export function useSendMessage() {
         threadId: string
         promptMessageId: string
         modelDocId?: Id<'models'>
+        autoModelAllowedModelDocIds?: Id<'models'>[]
         selectionTier?: 'free' | 'pro' | 'advanced'
         projectId?: Id<'projects'>
         contextArtifactIds?: Id<'projectArtifacts'>[]
@@ -489,6 +543,7 @@ export function useSendMessage() {
             promptMessageId,
             searchEnabled,
             reasoning,
+            allowedModelDocIds: autoModelAllowedModelDocIds,
           })
           resolvedModelDocId = routed.modelDocId
           routerDecisionId = routed.decisionId

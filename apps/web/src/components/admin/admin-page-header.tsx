@@ -1,10 +1,16 @@
-import { ArrowLeft, RefreshCcw, Shield } from '@/lib/icons'
+import { ArrowLeft, Bot, Boxes, RefreshCcw, Shield, Sparkles, Users } from '@/lib/icons'
 import type { AdminCollectionDialogProps } from '@/components/admin/admin-collection-dialog'
 import { AdminCollectionDialog } from '@/components/admin/admin-collection-dialog'
 import type { AdminModelDialogProps } from '@/components/admin/admin-model-dialog'
 import { AdminModelDialog } from '@/components/admin/admin-model-dialog'
 import type { AdminProviderDialogProps } from '@/components/admin/admin-provider-dialog'
 import { AdminProviderDialog } from '@/components/admin/admin-provider-dialog'
+import {
+  AdminStatPill,
+  adminChipClass,
+  adminPanelClass,
+} from '@/components/admin/admin-surface'
+import type { DashboardData } from '@/components/admin/types'
 import { Button } from '@/components/ui/button'
 
 type AdminPageHeaderProps = {
@@ -12,6 +18,7 @@ type AdminPageHeaderProps = {
   providerDialog: AdminProviderDialogProps
   modelDialog: AdminModelDialogProps
   collectionDialog: AdminCollectionDialogProps
+  summary: DashboardData['summary'] | undefined
 }
 
 export function AdminPageHeader({
@@ -19,44 +26,85 @@ export function AdminPageHeader({
   providerDialog,
   modelDialog,
   collectionDialog,
+  summary,
 }: AdminPageHeaderProps) {
-  return (
-    <header className="relative overflow-hidden rounded-3xl border border-border bg-card p-6 shadow-[0_24px_80px_rgba(15,23,42,0.08)] dark:shadow-[0_24px_80px_rgba(0,0,0,0.4)]">
-      <div className="pointer-events-none absolute right-8 top-8 hidden h-28 w-28 rounded-full border border-zinc-200 bg-[#f5f5f4] lg:block dark:border-zinc-800 dark:bg-[#151518]" />
-      <div className="pointer-events-none absolute -bottom-12 right-20 hidden h-28 w-28 rotate-12 rounded-4xl border border-violet-200 bg-[#efe3ff] lg:block dark:border-violet-900 dark:bg-[#231730]" />
+  const quickStats = [
+    {
+      label: 'Providers',
+      value: `${summary?.enabledProviders ?? 0}/${summary?.totalProviders ?? 0}`,
+      icon: Boxes,
+    },
+    {
+      label: 'Models',
+      value: String(summary?.visibleModels ?? 0),
+      icon: Bot,
+    },
+    {
+      label: 'Requests',
+      value: `${summary?.totalRequests30d ?? 0}`,
+      icon: Sparkles,
+    },
+    {
+      label: 'Accounts',
+      value: String(summary?.activeUsers30d ?? 0),
+      icon: Users,
+    },
+  ]
 
-      <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-        <div className="space-y-3">
-          <Button variant="ghost" size="sm" onClick={() => void onNavigateHome()}>
-            <ArrowLeft className="mr-2 size-4" />
-            Back to chat
-          </Button>
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground">
-              <Shield className="size-3.5" />
-              Admin control plane
+  return (
+    <header className={`${adminPanelClass} p-5 md:p-6`}>
+      <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="space-y-3">
+            <Button variant="ghost" size="sm" className="w-fit" onClick={() => void onNavigateHome()}>
+              <ArrowLeft className="mr-2 size-4" />
+              Back to chat
+            </Button>
+
+            <div className="space-y-3">
+              <div className={adminChipClass}>
+                <Shield className="size-3.5" />
+                Admin control plane
+              </div>
+              <div className="space-y-2">
+                <h1 className="text-3xl font-semibold tracking-[-0.04em] text-foreground md:text-[2.2rem]">
+                  Keep the catalog readable, healthy, and easy to operate.
+                </h1>
+                <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+                  Providers, models, offers, usage, and billing all stay in one calmer workspace so
+                  the operational state is easy to scan at a glance.
+                </p>
+              </div>
             </div>
-            <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
-              Model and provider dashboard
-            </h1>
-            <p className="max-w-3xl text-sm text-muted-foreground md:text-base">
-              Manage provider APIs, sync model catalogs, tune per-model visibility, assign icons,
-              monitor account usage, and apply layered rate limits.
-            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-2 lg:max-w-[28rem] lg:justify-end">
+            <Button variant="outline" onClick={() => window.location.reload()}>
+              <RefreshCcw className="mr-2 size-4" />
+              Refresh
+            </Button>
+            <AdminProviderDialog state={providerDialog.state} actions={providerDialog.actions} />
+            <AdminModelDialog state={modelDialog.state} actions={modelDialog.actions} />
+            <AdminCollectionDialog state={collectionDialog.state} actions={collectionDialog.actions} />
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <Button variant="outline" onClick={() => window.location.reload()}>
-            <RefreshCcw className="mr-2 size-4" />
-            Refresh
-          </Button>
-          <AdminProviderDialog state={providerDialog.state} actions={providerDialog.actions} />
-          <AdminModelDialog state={modelDialog.state} actions={modelDialog.actions} />
-          <AdminCollectionDialog
-            state={collectionDialog.state}
-            actions={collectionDialog.actions}
-          />
+        <div className="flex flex-wrap gap-2.5">
+          {quickStats.map(({ label, value, icon: Icon }) => (
+            <AdminStatPill
+              key={label}
+              label={label}
+              value={
+                <span className="inline-flex items-center gap-2">
+                  <Icon className="size-3.5 text-muted-foreground" />
+                  <span>{value}</span>
+                </span>
+              }
+            />
+          ))}
+          <div className={adminChipClass}>Catalog governance</div>
+          <div className={adminChipClass}>Provider diagnostics</div>
+          <div className={adminChipClass}>Usage telemetry</div>
         </div>
       </div>
     </header>

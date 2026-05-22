@@ -1,11 +1,12 @@
 import { formatDistanceToNow } from 'date-fns'
 import { api } from '@convex/_generated/api'
+import type { Id } from '@convex/_generated/dataModel'
 import type { FunctionReturnType } from 'convex/server'
 import { useMemo, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { ResponsiveSelectField } from '@/components/ui/responsive-select-field'
-import { useProjects, useThreads } from '@/hooks/use-chat-data'
+import { useProjects, useSettings, useThreads } from '@/hooks/use-chat-data'
 import { useQuery } from '@/lib/convex-query-cache'
 
 type MemoryScope = 'all' | 'user' | 'thread' | 'project'
@@ -14,11 +15,47 @@ type AggregatedMemoryItem = MemoryItem & {
   scope: 'user' | 'thread' | 'project'
 }
 
+function formatExtractionCost(cost: number | null) {
+  if (cost == null) {
+    return undefined
+  }
+  return `~$${cost.toFixed(4)}/run`
+}
+
 export function MemorySettingsPanel() {
   const { threads } = useThreads()
   const { projects } = useProjects()
+  const { settings, updateSettings } = useSettings()
   const [scope, setScope] = useState<MemoryScope>('all')
   const [searchValue, setSearchValue] = useState('')
+
+  const auxiliaryCandidates = useQuery(api.auxiliaryModels.listAuxiliaryModelCandidates, {})
+
+  const auxiliaryModelOptions = useMemo(() => {
+    const candidates = auxiliaryCandidates ?? []
+    const recommended = candidates.find((candidate) => candidate.isRecommended)
+    const options = candidates.map((candidate) => ({
+      value: candidate.modelDocId,
+      label: candidate.displayName,
+      description: formatExtractionCost(candidate.estimatedCostPerExtraction),
+    }))
+
+    if (recommended) {
+      return options
+    }
+
+    return options
+  }, [auxiliaryCandidates])
+
+  const selectedAuxiliaryModelId =
+    settings?.auxiliaryModelId &&
+    auxiliaryModelOptions.some((option) => option.value === settings.auxiliaryModelId)
+      ? settings.auxiliaryModelId
+      : auxiliaryModelOptions.find((option) =>
+          auxiliaryCandidates?.some(
+            (candidate) => candidate.modelDocId === option.value && candidate.isRecommended,
+          ),
+        )?.value
 
   const userMemories = useQuery(api.functions.memory.listUserMemories, {
     paginationOpts: { cursor: null, numItems: 200 },
@@ -76,6 +113,34 @@ export function MemorySettingsPanel() {
 
   return (
     <div className="space-y-4">
+      <div className="space-y-2 rounded-lg border border-border bg-card px-4 py-3">
+        <div className="space-y-1">
+          <p className="text-sm font-medium text-foreground">Background memory model</p>
+          <p className="text-sm text-muted-foreground">
+            Used for saving and searching memory when your chat model does not support tools. Pick a
+            small, fast model to save cost.
+          </p>
+        </div>
+        <ResponsiveSelectField
+          value={selectedAuxiliaryModelId ?? ''}
+          onValueChange={(value) => {
+            void updateSettings({ auxiliaryModelId: value as Id<'models'> })
+          }}
+          title="Background memory model"
+          className="w-full"
+          disabled={auxiliaryModelOptions.length === 0}
+          placeholder={
+            auxiliaryModelOptions.length === 0
+              ? 'No tool-capable models available'
+              : 'Choose background memory model'
+          }
+          options={auxiliaryModelOptions.map((option) => ({
+            value: option.value,
+            label: option.description ? `${option.label} (${option.description})` : option.label,
+          }))}
+        />
+      </div>
+
       <div className="flex flex-col gap-3 sm:grid sm:grid-cols-[minmax(0,160px)_minmax(0,1fr)] sm:items-stretch">
         <ResponsiveSelectField
           value={scope}

@@ -5,8 +5,9 @@ import { v } from 'convex/values'
 import type { Id } from '../_generated/dataModel'
 import { z } from 'zod'
 import { components, internal } from '../_generated/api'
-import { MEMORY_EXTRACTION_MODEL, ensureOpenRouterConfigured, openRouter } from './memoryRag'
+import { ensureOpenRouterConfigured } from './memoryRag'
 import { extractMessageText, shouldSkipExtractedMemory } from './memoryShared'
+import { createLanguageModelFromAuxiliary } from '../lib/createLanguageModel'
 
 const extractionSchema = z.object({
   memories: z.array(
@@ -59,9 +60,14 @@ function isRetryableUpstreamRateLimit(error: unknown) {
 export const extractMemoriesFromThread = internalAction({
   args: {
     threadId: v.string(),
+    userId: v.id('users'),
   },
   handler: async (ctx, args) => {
     ensureOpenRouterConfigured()
+
+    const auxiliary = await ctx.runQuery(internal.auxiliaryModels.resolveAuxiliaryModel, {
+      userId: args.userId,
+    })
 
     const thread = await ctx.runQuery(components.agent.threads.getThread, {
       threadId: args.threadId,
@@ -169,7 +175,7 @@ export const extractMemoriesFromThread = internalAction({
         : 'No project is currently linked to this thread.'
 
       const { object } = await generateObject({
-        model: openRouter.chat(MEMORY_EXTRACTION_MODEL),
+        model: createLanguageModelFromAuxiliary(auxiliary),
         schema: extractionSchema,
         prompt: [
           'Extract only stable, long-term memories that should be remembered for future chats.',

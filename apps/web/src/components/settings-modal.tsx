@@ -1,7 +1,11 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AUTO_MODEL_ID, isAutoModelSelection } from '@chat/shared'
+import {
+  AUTO_MODEL_ID,
+  encodeAutoModelCollectionSelection,
+  isAutoModelSelection,
+} from '@chat/shared'
 import { useClerk } from '@clerk/react-router'
 import { useNavigate } from 'react-router'
 import {
@@ -116,7 +120,7 @@ export function SettingsDialog({
   const user = useViewer()
   const { settings, updateSettings } = useSettings()
   const { defaultModelId, setDefaultModelId, setSelectedModelId } = useChatModel()
-  const { models, autoModelAvailable } = useModels()
+  const { models, collections, autoModelAvailable } = useModels()
   const { isAdminLike } = useRoleContext()
   const { isOnline } = useOnlineStatus()
   const { theme, setTheme, primaryColor, setPrimaryColor } = useTheme()
@@ -217,11 +221,18 @@ export function SettingsDialog({
     }))
 
     if (autoModelAvailable) {
-      return [{ value: AUTO_MODEL_ID, label: 'Auto' }, ...options]
+      const autoCollectionOptions = [...collections]
+        .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.localeCompare(b.name))
+        .map((collection) => ({
+          value: encodeAutoModelCollectionSelection(collection.id),
+          label: `Auto (${collection.name})`,
+        }))
+
+      return [{ value: AUTO_MODEL_ID, label: 'Auto' }, ...autoCollectionOptions, ...options]
     }
 
     return options
-  }, [autoModelAvailable, models])
+  }, [autoModelAvailable, collections, models])
 
   const selectedModelValue =
     defaultModelId && modelOptions.some((option) => option.value === defaultModelId)

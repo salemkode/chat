@@ -54,3 +54,35 @@ def test_models_update_replaces_registry(client, auth_headers, baseline_models_p
     assert listing.status_code == 200
     assert listing.json()["count"] == 1
     assert [model["name"] for model in listing.json()["models"]] == ["single-replacement"]
+    assert listing.json()["models"][0]["studio_profile"]["category"] in {
+        "Best default",
+        "Fast",
+        "Budget",
+        "Needs metadata",
+        "Reasoning",
+        "Long context",
+        "Coding",
+        "Vision",
+    }
+
+
+def test_models_listing_includes_tags_and_studio_profile(
+    client, auth_headers, baseline_models_payload
+) -> None:
+    payload = dict(baseline_models_payload)
+    models = list(payload["models"])
+    models[0] = {
+        **models[0],
+        "tags": ["production", "budget", "fast"],
+    }
+    payload["models"] = models
+
+    update = client.post("/models/update", headers=auth_headers, json=payload)
+    assert update.status_code == 200
+
+    listing = client.get("/models?preference=cost", headers=auth_headers)
+    assert listing.status_code == 200
+    first = listing.json()["models"][0]
+    assert isinstance(first["studio_profile"]["auto_score"], int)
+    assert isinstance(first["studio_profile"]["routing_tags"], list)
+    assert "tags" in first

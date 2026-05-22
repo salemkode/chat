@@ -113,6 +113,31 @@ export function AdminModelDialog({ state, actions }: AdminModelDialogProps) {
     discoveredModelsForSelectedProvider,
     discoveredModelCountForSelectedProvider,
   } = state
+  const suggestedTags = [
+    'production',
+    'coding',
+    'analysis',
+    'vision',
+    'tools',
+    'reasoning',
+    'fast',
+    'budget',
+    'long-context',
+  ]
+  const addSuggestedTag = (tag: string) =>
+    setModelForm((current) => {
+      const tags = current.capabilitiesText
+        .split(',')
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0)
+      if (tags.some((value) => value.toLowerCase() === tag.toLowerCase())) {
+        return current
+      }
+      return {
+        ...current,
+        capabilitiesText: [...tags, tag].join(', '),
+      }
+    })
 
   return (
     <>
@@ -125,12 +150,33 @@ export function AdminModelDialog({ state, actions }: AdminModelDialogProps) {
           <DialogHeader>
             <ResponsiveModalTitle>{editingModel ? 'Edit model' : 'Add model'}</ResponsiveModalTitle>
             <ResponsiveModalDescription>
-              Configure visibility, metadata, icon assignment, and model-level limits.
+              Pick a provider, choose or type the model id, add routing tags, then save.
             </ResponsiveModalDescription>
           </DialogHeader>
 
           <ScrollArea className="max-h-[70vh] pr-6">
             <div className="grid gap-6 py-4">
+              <div className="grid gap-3 rounded-2xl border border-border/70 bg-muted/15 p-4 md:grid-cols-3">
+                <div>
+                  <p className="text-sm font-medium text-foreground">1. Choose</p>
+                  <p className="text-xs leading-5 text-muted-foreground">
+                    Select a provider and load its catalog when available.
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">2. Tag</p>
+                  <p className="text-xs leading-5 text-muted-foreground">
+                    Add plain words like coding, vision, budget, or tools.
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">3. Route</p>
+                  <p className="text-xs leading-5 text-muted-foreground">
+                    Model Studio turns those signals into Auto scores.
+                  </p>
+                </div>
+              </div>
+
               <div className="grid gap-2 md:max-w-sm">
                 <Label htmlFor={ids.modelProvider}>Provider</Label>
                 <Select
@@ -161,8 +207,8 @@ export function AdminModelDialog({ state, actions }: AdminModelDialogProps) {
                     <div className="space-y-1">
                       <h3 className="text-sm font-medium">Choose a model to add</h3>
                       <p className="text-sm text-muted-foreground">
-                        Search the selected provider catalog or start from a blank custom model.
-                        After selection, every option below stays editable.
+                        Search the selected provider catalog, or start from a blank custom model.
+                        The form stays editable after selection.
                       </p>
                     </div>
                     <Button
@@ -182,7 +228,7 @@ export function AdminModelDialog({ state, actions }: AdminModelDialogProps) {
                       ) : (
                         <RefreshCcw className="mr-2 size-4" />
                       )}
-                      {hasDiscoveryForSelectedProvider ? 'Refresh catalog' : 'Load catalog'}
+                      {hasDiscoveryForSelectedProvider ? 'Analyze again' : 'Analyze provider'}
                     </Button>
                   </div>
 
@@ -266,9 +312,9 @@ export function AdminModelDialog({ state, actions }: AdminModelDialogProps) {
 
               <Tabs defaultValue="collection" className="grid gap-4">
                 <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="collection">Collection</TabsTrigger>
-                  <TabsTrigger value="icon">Icon</TabsTrigger>
-                  <TabsTrigger value="limitation">Limitation</TabsTrigger>
+                  <TabsTrigger value="collection">Basics</TabsTrigger>
+                  <TabsTrigger value="icon">Visual</TabsTrigger>
+                  <TabsTrigger value="limitation">Limits</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="collection" className="mt-0">
@@ -332,8 +378,8 @@ export function AdminModelDialog({ state, actions }: AdminModelDialogProps) {
                       />
                     </div>
 
-                    <div className="grid gap-2">
-                      <Label>Capabilities</Label>
+                    <div className="grid gap-2 md:col-span-2">
+                      <Label>Routing tags</Label>
                       <Input
                         value={modelForm.capabilitiesText}
                         onChange={(event) =>
@@ -342,8 +388,25 @@ export function AdminModelDialog({ state, actions }: AdminModelDialogProps) {
                             capabilitiesText: event.target.value,
                           }))
                         }
-                        placeholder="reasoning, vision, code"
+                        placeholder="production, coding, vision, tools"
                       />
+                      <div className="flex flex-wrap gap-1.5">
+                        {suggestedTags.map((tag) => (
+                          <Button
+                            key={tag}
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-7 rounded-full px-2.5 text-xs"
+                            onClick={() => addSuggestedTag(tag)}
+                          >
+                            {tag}
+                          </Button>
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        These tags feed the Auto score and make routing decisions easier to explain.
+                      </p>
                     </div>
 
                     <div className="grid gap-2">

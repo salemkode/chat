@@ -18,6 +18,7 @@ const userSettingsValidator = v.object({
   reasoningEnabled: v.optional(v.boolean()),
   reasoningLevel: v.optional(reasoningLevelValidator),
   voiceTranscriptionMode: v.optional(voiceTranscriptionModeValidator),
+  auxiliaryModelId: v.optional(v.id('models')),
   updatedAt: v.number(),
 })
 
@@ -114,6 +115,7 @@ export const updateSettings = mutation({
     reasoningEnabled: v.optional(v.boolean()),
     reasoningLevel: v.optional(reasoningLevelValidator),
     voiceTranscriptionMode: v.optional(voiceTranscriptionModeValidator),
+    auxiliaryModelId: v.optional(v.id('models')),
   },
   returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
@@ -143,6 +145,9 @@ export const updateSettings = mutation({
       if (args.voiceTranscriptionMode !== undefined) {
         patch.voiceTranscriptionMode = args.voiceTranscriptionMode
       }
+      if (args.auxiliaryModelId !== undefined) {
+        patch.auxiliaryModelId = args.auxiliaryModelId
+      }
 
       await ctx.db.patch(existing._id, patch)
     } else {
@@ -161,6 +166,9 @@ export const updateSettings = mutation({
       }
       if (args.voiceTranscriptionMode !== undefined) {
         creation.voiceTranscriptionMode = args.voiceTranscriptionMode
+      }
+      if (args.auxiliaryModelId !== undefined) {
+        creation.auxiliaryModelId = args.auxiliaryModelId
       }
 
       await ctx.db.insert('userSettings', creation)

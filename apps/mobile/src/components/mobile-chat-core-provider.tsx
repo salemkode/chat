@@ -14,6 +14,7 @@ import {
 import {
   readProjectsCache,
   readThreadsCache,
+  deleteThreadCache,
 } from "@/offline/local-cache";
 
 export function MobileChatCoreProvider({ children }: { children: ReactNode }) {
@@ -57,6 +58,12 @@ export function MobileChatCoreProvider({ children }: { children: ReactNode }) {
           return;
         }
         cacheProjectsToLocal(cacheUserId, projects);
+      },
+      deleteCachedThread: (threadId: string) => {
+        if (!cacheUserId) {
+          return;
+        }
+        return deleteThreadCache(cacheUserId, threadId);
       },
     }),
     [cacheUserId],

@@ -4,7 +4,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.core.types import Preference, RouterModel, TaskType
+from app.core.studio import build_studio_profile
+from app.core.types import Preference, RouterModel, StudioCategory, StudioProfile, TaskType
 
 
 def _clamp01(value: float) -> float:
@@ -57,6 +58,7 @@ class ModelInput(StrictSchema):
     task_scores: dict[TaskType, float] | None = None
     max_context_tokens: int | None = Field(default=None, gt=0)
     supports_tools: bool = False
+    tags: list[str] | None = None
 
     @field_validator("name")
     @classmethod
@@ -81,6 +83,21 @@ class ModelInput(StrictSchema):
             return None
         return {task: _clamp01(score) for task, score in value.items()}
 
+    @field_validator("tags")
+    @classmethod
+    def validate_tags(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return None
+        tags: list[str] = []
+        seen: set[str] = set()
+        for item in value:
+            normalized = item.strip().lower()
+            if not normalized or normalized in seen:
+                continue
+            seen.add(normalized)
+            tags.append(normalized)
+        return tags
+
     def to_router_model(self) -> RouterModel:
         task_scores = {
             "general": self.intelligence,
@@ -99,6 +116,7 @@ class ModelInput(StrictSchema):
             task_scores=task_scores,
             max_context_tokens=self.max_context_tokens,
             supports_tools=self.supports_tools,
+            tags=tuple(self.tags or ()),
         )
 
 
@@ -121,7 +139,7 @@ class UpdateModelsResponse(StrictSchema):
 class ModelsResponse(StrictSchema):
     version: int
     count: int
-    models: list[ModelInput]
+    models: list["ScoredModelOutput"]
 
 
 class RouteRequest(StrictSchema):
@@ -133,5 +151,37 @@ class RouteResponse(StrictSchema):
     model: str
 
 
-def model_to_input(model: RouterModel) -> ModelInput:
-    return ModelInput.model_validate(model.to_public_dict())
+class StudioProfileOutput(StrictSchema):
+    auto_score: int
+    category: StudioCategory
+    quality_score: int
+    speed_score: int
+    cost_score: int
+    context_score: int
+    routing_tags: list[str]
+    reasons: list[str]
+
+
+class ScoredModelOutput(ModelInput):
+    studio_profile: StudioProfileOutput
+
+
+def studio_profile_to_output(profile: StudioProfile) -> StudioProfileOutput:
+    return StudioProfileOutput(
+        auto_score=profile.auto_score,
+        category=profile.category,
+        quality_score=profile.quality_score,
+        speed_score=profile.speed_score,
+        cost_score=profile.cost_score,
+        context_score=profile.context_score,
+        routing_tags=list(profile.routing_tags),
+        reasons=list(profile.reasons),
+    )
+
+
+def model_to_output(model: RouterModel, preference: Preference = "balanced") -> ScoredModelOutput:
+    base = ModelInput.model_validate(model.to_public_dict())
+    return ScoredModelOutput(
+        **base.model_dump(),
+        studio_profile=studio_profile_to_output(build_studio_profile(model, preference=preference)),
+    )

@@ -77,9 +77,20 @@ curl -X POST http://127.0.0.1:8001/models/update \
 List models:
 
 ```bash
-curl http://127.0.0.1:8001/models \
+curl "http://127.0.0.1:8001/models?preference=balanced" \
   -H "Authorization: Bearer $ROUTER_API_KEY"
 ```
+
+The `/models` response now includes a `studio_profile` per model with:
+
+- `auto_score`
+- `category`
+- `quality_score`
+- `speed_score`
+- `cost_score`
+- `context_score`
+- `routing_tags`
+- `reasons`
 
 Route a request:
 

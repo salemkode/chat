@@ -42,6 +42,10 @@ type ModelsWithProvidersRecord = FunctionReturnType<typeof api.admin.listModelsW
     _id: string
     name: string
     description?: string
+    icon?: string
+    iconType?: 'emoji' | 'lucide' | 'phosphor' | 'upload'
+    iconId?: string
+    iconUrl?: string
     sortOrder: number
     modelIds: string[]
     modelCount: number
@@ -209,6 +213,10 @@ export function normalizeModelCollection(
     id: collection._id,
     name: collection.name,
     description: collection.description,
+    icon: collection.icon,
+    iconType: collection.iconType,
+    iconId: collection.iconId,
+    iconUrl: collection.iconUrl,
     sortOrder: collection.sortOrder,
     modelIds: collection.modelIds,
     modelCount: collection.modelCount,

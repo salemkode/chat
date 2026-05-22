@@ -1,12 +1,20 @@
+/* eslint-disable no-underscore-dangle -- Convex hooks */
 import { useCallback, useMemo, useState } from 'react'
 import { useMutation } from 'convex/react'
+import type { FunctionReturnType } from 'convex/server'
+import { parseConvexIdForTable } from '@chat/shared/logic/convex-ids'
 import { api } from '@convex/_generated/api'
-import type { Id } from '@convex/_generated/dataModel'
 import type { AdminOutletContext } from '@/components/admin/admin-outlet-context'
+import {
+  AdminEmptyState,
+  AdminRecord,
+  AdminSectionCard,
+  AdminStatPill,
+  adminChipClass,
+} from '@/components/admin/admin-surface'
 import { formatDateTime } from '@/components/admin/admin-utils'
-import type { AdminModel } from '@/components/admin/types'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
   DialogContent,
@@ -25,39 +33,24 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { useQuery } from '@/lib/convex-query-cache'
 import { Loader2, PencilLine, Plus, Trash2 } from '@/lib/icons'
 import { toast } from 'sonner'
 
-type OfferRow = {
-  _id: Id<'modelOffers'>
-  _creationTime: number
-  modelId: Id<'models'>
-  kind: 'free_access' | 'availability_window'
-  startsAt: number
-  endsAt: number
-  label?: string
-  description?: string
-  isEnabled: boolean
-  updatedAt: number
+type OfferKind = 'free_access' | 'availability_window'
+type OfferRow = FunctionReturnType<typeof api.admin.listModelOffers>[number]
+
+function pad2(value: number) {
+  return String(value).padStart(2, '0')
 }
 
 function msToDatetimeLocal(ms: number) {
   const d = new Date(ms)
-  const pad = (n: number) => String(n).padStart(2, '0')
   const y = d.getFullYear()
-  const mon = pad(d.getMonth() + 1)
-  const day = pad(d.getDate())
-  const h = pad(d.getHours())
-  const min = pad(d.getMinutes())
+  const mon = pad2(d.getMonth() + 1)
+  const day = pad2(d.getDate())
+  const h = pad2(d.getHours())
+  const min = pad2(d.getMinutes())
   return `${y}-${mon}-${day}T${h}:${min}`
 }
 
@@ -66,22 +59,26 @@ function datetimeLocalToMs(value: string) {
   return Number.isFinite(t) ? t : Date.now()
 }
 
+function parseOfferKind(value: string): OfferKind {
+  return value === 'availability_window' ? 'availability_window' : 'free_access'
+}
+
 type AdminOffersPanelProps = Pick<AdminOutletContext, 'dashboard'>
 
 export function AdminOffersPanel({ dashboard }: AdminOffersPanelProps) {
-  const models = dashboard.models as AdminModel[]
-  const offers = useQuery(api.admin.listModelOffers, {}) as OfferRow[] | undefined
+  const models = dashboard.models
+  const offers = useQuery(api.admin.listModelOffers, {})
 
   const createOffer = useMutation(api.admin.createModelOffer)
   const updateOffer = useMutation(api.admin.updateModelOffer)
   const deleteOffer = useMutation(api.admin.deleteModelOffer)
 
   const modelById = useMemo(() => {
-    const m = new Map<string, AdminModel>()
+    const modelMap = new Map<string, (typeof models)[number]>()
     for (const model of models) {
-      m.set(model._id, model)
+      modelMap.set(model._id, model)
     }
-    return m
+    return modelMap
   }, [models])
 
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -89,7 +86,7 @@ export function AdminOffersPanel({ dashboard }: AdminOffersPanelProps) {
   const [saving, setSaving] = useState(false)
 
   const [formModelId, setFormModelId] = useState<string>('')
-  const [formKind, setFormKind] = useState<'free_access' | 'availability_window'>('free_access')
+  const [formKind, setFormKind] = useState<OfferKind>('free_access')
   const [formStarts, setFormStarts] = useState(() => msToDatetimeLocal(Date.now()))
   const [formEnds, setFormEnds] = useState(() =>
     msToDatetimeLocal(Date.now() + 7 * 24 * 60 * 60 * 1000),
@@ -124,7 +121,8 @@ export function AdminOffersPanel({ dashboard }: AdminOffersPanelProps) {
   }
 
   const handleSave = useCallback(async () => {
-    if (!formModelId) {
+    const normalizedModelId = parseConvexIdForTable('models', formModelId)
+    if (!normalizedModelId) {
       toast.error('Choose a model')
       return
     }
@@ -149,7 +147,7 @@ export function AdminOffersPanel({ dashboard }: AdminOffersPanelProps) {
         toast.success('Offer updated')
       } else {
         await createOffer({
-          modelId: formModelId as Id<'models'>,
+          modelId: normalizedModelId,
           kind: formKind,
           startsAt,
           endsAt,
@@ -160,14 +158,13 @@ export function AdminOffersPanel({ dashboard }: AdminOffersPanelProps) {
         toast.success('Offer created')
       }
       setDialogOpen(false)
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Save failed')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Save failed')
     } finally {
       setSaving(false)
     }
   }, [
     createOffer,
-    updateOffer,
     editing,
     formDescription,
     formEnabled,
@@ -176,6 +173,7 @@ export function AdminOffersPanel({ dashboard }: AdminOffersPanelProps) {
     formLabel,
     formModelId,
     formStarts,
+    updateOffer,
   ])
 
   const handleDelete = async (row: OfferRow) => {
@@ -183,8 +181,8 @@ export function AdminOffersPanel({ dashboard }: AdminOffersPanelProps) {
     try {
       await deleteOffer({ offerId: row._id })
       toast.success('Offer deleted')
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Delete failed')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Delete failed')
     }
   }
 
@@ -197,105 +195,92 @@ export function AdminOffersPanel({ dashboard }: AdminOffersPanelProps) {
 
   return (
     <div className="grid gap-4">
-      <Card className="border-border bg-card shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
-        <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-4">
-          <div>
-            <CardTitle>Model offers</CardTitle>
-            <CardDescription>
-              Time windows for <span className="font-medium">free access</span> (free-tier users can
-              use paid models) or <span className="font-medium">availability</span> (model only
-              appears while the window is active).
-            </CardDescription>
-          </div>
+      <AdminSectionCard
+        eyebrow="Promotions"
+        title="Model offers"
+        description="Time windows for free access or scheduled availability. Offers stay dense and legible so campaign state is easy to track."
+        action={
           <Button type="button" onClick={openCreate} disabled={models.length === 0}>
             <Plus className="mr-2 size-4" />
             Add offer
           </Button>
-        </CardHeader>
-        <CardContent>
-          {offers === undefined ? (
-            <div className="flex justify-center py-12">
-              <Loader2 className="size-8 animate-spin text-muted-foreground" />
-            </div>
-          ) : offers.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No offers yet.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Model</TableHead>
-                  <TableHead>Kind</TableHead>
-                  <TableHead>Window</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {offers.map((row) => {
-                  const model = modelById.get(row.modelId)
-                  const active = row.isEnabled && row.startsAt <= nowMs && row.endsAt >= nowMs
-                  return (
-                    <TableRow key={row._id}>
-                      <TableCell>
-                        <div className="space-y-1">
-                          <p className="font-medium">{model?.displayName ?? row.modelId}</p>
-                          {row.label ? (
-                            <p className="text-xs text-muted-foreground">{row.label}</p>
-                          ) : null}
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-mono text-xs">{row.kind}</TableCell>
-                      <TableCell className="text-sm">
-                        <div>{formatDateTime(row.startsAt)}</div>
-                        <div className="text-muted-foreground">→ {formatDateTime(row.endsAt)}</div>
-                      </TableCell>
-                      <TableCell>
-                        {!row.isEnabled ? (
-                          <span className="text-muted-foreground">Disabled</span>
-                        ) : active ? (
-                          <span className="text-foreground">Active</span>
-                        ) : row.endsAt < nowMs ? (
-                          <span className="text-muted-foreground">Ended</span>
-                        ) : (
-                          <span className="text-muted-foreground">Scheduled</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openEdit(row)}
-                          aria-label="Edit offer"
-                        >
-                          <PencilLine className="size-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => void handleDelete(row)}
-                          aria-label="Delete offer"
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+        }
+      >
+        {offers === undefined ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="size-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : offers.length === 0 ? (
+          <AdminEmptyState
+            title="No offers yet"
+            description="Create a time-boxed promotion to grant free access or temporarily expose a model only during a specific window."
+          />
+        ) : (
+          <div className="grid gap-3">
+            {offers.map((row) => {
+              const model = modelById.get(row.modelId)
+              const active = row.isEnabled && row.startsAt <= nowMs && row.endsAt >= nowMs
+              const status = !row.isEnabled
+                ? 'Disabled'
+                : active
+                  ? 'Active'
+                  : row.endsAt < nowMs
+                    ? 'Ended'
+                    : 'Scheduled'
+
+              return (
+                <AdminRecord
+                  key={row._id}
+                  title={model?.displayName ?? row.modelId}
+                  subtitle={model?.modelId ?? row.modelId}
+                  badges={
+                    <>
+                      <Badge variant="secondary">{row.kind}</Badge>
+                      <span className={adminChipClass}>{status}</span>
+                    </>
+                  }
+                  summary={row.description || row.label || 'No additional campaign notes provided.'}
+                  metrics={
+                    <>
+                      <AdminStatPill label="Starts" value={formatDateTime(row.startsAt)} />
+                      <AdminStatPill label="Ends" value={formatDateTime(row.endsAt)} />
+                      <AdminStatPill label="Updated" value={formatDateTime(row.updatedAt)} />
+                    </>
+                  }
+                  actions={
+                    <div className="flex flex-wrap gap-1 sm:justify-end">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => openEdit(row)}
+                        aria-label="Edit offer"
+                      >
+                        <PencilLine className="size-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => void handleDelete(row)}
+                        aria-label="Delete offer"
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </div>
+                  }
+                />
+              )
+            })}
+          </div>
+        )}
+      </AdminSectionCard>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>{editing ? 'Edit offer' : 'New offer'}</DialogTitle>
-            <DialogDescription>
-              Changes apply on save. Times use your local timezone.
-            </DialogDescription>
+            <DialogDescription>Changes apply on save. Times use your local timezone.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="grid gap-2">
@@ -309,9 +294,9 @@ export function AdminOffersPanel({ dashboard }: AdminOffersPanelProps) {
                   <SelectValue placeholder="Select model" />
                 </SelectTrigger>
                 <SelectContent>
-                  {models.map((m) => (
-                    <SelectItem key={m._id} value={m._id}>
-                      {m.displayName}
+                  {models.map((model: (typeof models)[number]) => (
+                    <SelectItem key={model._id} value={model._id}>
+                      {model.displayName}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -319,10 +304,7 @@ export function AdminOffersPanel({ dashboard }: AdminOffersPanelProps) {
             </div>
             <div className="grid gap-2">
               <Label>Kind</Label>
-              <Select
-                value={formKind}
-                onValueChange={(v) => setFormKind(v as 'free_access' | 'availability_window')}
-              >
+              <Select value={formKind} onValueChange={(value) => setFormKind(parseOfferKind(value))}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -338,7 +320,7 @@ export function AdminOffersPanel({ dashboard }: AdminOffersPanelProps) {
                 id="offer-starts"
                 type="datetime-local"
                 value={formStarts}
-                onChange={(e) => setFormStarts(e.target.value)}
+                onChange={(event) => setFormStarts(event.target.value)}
               />
             </div>
             <div className="grid gap-2">
@@ -358,7 +340,7 @@ export function AdminOffersPanel({ dashboard }: AdminOffersPanelProps) {
                 id="offer-ends"
                 type="datetime-local"
                 value={formEnds}
-                onChange={(e) => setFormEnds(e.target.value)}
+                onChange={(event) => setFormEnds(event.target.value)}
               />
             </div>
             <div className="grid gap-2">
@@ -366,7 +348,7 @@ export function AdminOffersPanel({ dashboard }: AdminOffersPanelProps) {
               <Input
                 id="offer-label"
                 value={formLabel}
-                onChange={(e) => setFormLabel(e.target.value)}
+                onChange={(event) => setFormLabel(event.target.value)}
                 placeholder="e.g. GPT-4o free week"
               />
             </div>
@@ -375,7 +357,7 @@ export function AdminOffersPanel({ dashboard }: AdminOffersPanelProps) {
               <Input
                 id="offer-desc"
                 value={formDescription}
-                onChange={(e) => setFormDescription(e.target.value)}
+                onChange={(event) => setFormDescription(event.target.value)}
               />
             </div>
             <div className="flex items-center justify-between gap-2">

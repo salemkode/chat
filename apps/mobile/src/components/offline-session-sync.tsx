@@ -2,12 +2,17 @@ import { useAuth } from "@clerk/expo";
 import { useEffect } from "react";
 import {
   clearLocalOfflineCache,
+  hydrateOfflineCache,
   storeTrustedSession,
 } from "@/offline/local-cache";
 
 /** Persists the signed-in user id for synchronous offline cache reads on cold start. */
 export function OfflineSessionSync() {
   const { isLoaded, isSignedIn, userId } = useAuth();
+
+  useEffect(() => {
+    void hydrateOfflineCache();
+  }, []);
 
   useEffect(() => {
     if (!isLoaded) {

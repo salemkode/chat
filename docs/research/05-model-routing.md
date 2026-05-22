@@ -88,11 +88,24 @@ flowchart LR
 
 This feedback loop is still modest, but it matters. It means the router is built to observe and adapt rather than remain a write-only heuristic block.
 
+## Model Studio
+
+The admin UI now frames routing as a **Model Studio** instead of a raw model list. The goal is to make automatic selection legible enough for operators and research readers. The important boundary is that the score now comes from the standalone Python `router-agent`, not from a client-side or Convex-only heuristic:
+
+- each model receives a visible Auto score from the Python router
+- models are grouped into plain-language categories such as Coding, Vision, Budget, Fast, Long context, Reasoning, Best default, or Needs metadata
+- admin-entered routing tags reuse the model capabilities field, so tags such as `production`, `coding`, `vision`, `tools`, `budget`, and `long-context` become part of the score explanation
+- the Models page sorts by Auto score first, making the strongest current candidates obvious
+- the Router tab keeps the deployment URL, key, preset, verification action, decision counts, and preset weighting preview in one place
+
+This is deliberately explainable rather than mysterious. A model can be improved by adding better metadata: context window, file support, reasoning support, and tags. That makes the routing system easier to teach: Auto is a visible decision board, not a hidden model picker, and the same router that selects models also explains how it currently sees them.
+
 ## Why This Design Matters
 
-The design buys three things:
+The design buys four things:
 
 - Clients can expose "Auto (router)" without embedding provider strategy in the UI.
+- Clients can optionally constrain "Auto" to an admin-defined model collection (route within a curated subset).
 - Admin-managed provider and model inventories can change without client redeploys.
 - Routing becomes inspectable. A decision can be explained in terms of recorded scores and constraints.
 

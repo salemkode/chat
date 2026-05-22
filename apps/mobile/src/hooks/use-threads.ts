@@ -8,7 +8,7 @@ import {
   useConvexUserIdForCache,
   useOfflineCacheVersion,
 } from "@/hooks/chat-data/shared";
-import { readThreadsCache } from "@/offline/local-cache";
+import { deleteThreadCache, readThreadsCache } from "@/offline/local-cache";
 
 function normalizeThread(thread: {
   _id: string;
@@ -66,8 +66,11 @@ export function useThreads() {
   const deleteThread = useCallback(
     async (threadId: string) => {
       await deleteThreadMutation({ threadId });
+      if (cacheUserId) {
+        await deleteThreadCache(cacheUserId, threadId);
+      }
     },
-    [deleteThreadMutation],
+    [cacheUserId, deleteThreadMutation],
   );
 
   return { threads, setPinned, deleteThread, isLoading: liveThreads === undefined };

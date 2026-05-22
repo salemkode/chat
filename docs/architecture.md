@@ -134,7 +134,9 @@ Web feature areas:
 The web app is currently the richer admin surface:
 
 - provider and model management
+- dedicated accounts table management at `/admin/accounts` with inline plan controls
 - memory and share routes
+- compact operational admin records and shared layout primitives centered in `apps/web/src/components/admin/admin-surface.tsx`, so providers, models, usage, offers, and collections read consistently instead of behaving like marketing cards
 - broader desktop-oriented UI primitives under `apps/web/src/components/ui`
 
 Streaming markdown rendering on web:
@@ -224,10 +226,10 @@ Backend:
 
 1. Route loads chat shell and current thread through React Router.
 2. Data hooks subscribe to Convex queries.
-3. `useSendMessage` in `apps/web/src/hooks/chat-data/send.ts` creates a thread if needed, uploads files, and calls generation mutations.
+3. `useSendMessage` in `apps/web/src/hooks/chat-data/send.ts` creates a thread if needed, resolves Auto routing with attachment-aware eligibility, uploads files, and calls generation mutations.
 4. In the web composer, long pasted plain text is converted into a real `.txt` `File` attachment before send rather than being inlined into the prompt body.
 5. Optimistic assistant and user message placeholders are inserted with local query store updates.
-6. Server-side mutation validation re-checks attachment media types against the selected model policy before the prompt is persisted.
+6. Server-side mutation validation re-checks attachment media types against the selected model policy and provider runtime support before the prompt is persisted.
 7. Successful data is mirrored into offline browser storage for read-back.
 
 ## Offline Model
@@ -253,7 +255,7 @@ Mobile streaming markdown:
 
 - assistant responses render through the native message text component while streaming
 - Expo source config keeps New Architecture enabled in `apps/mobile/app.json`, matching the generated native mobile projects used by Reanimated 4
-- Reanimated worklets remain enabled through `react-native-worklets` in `apps/mobile/babel.config.js`
+- Reanimated uses the default `babel-preset-expo` setup in `apps/mobile/babel.config.js`
 - streaming markdown repair runs on the RN JS thread before native text rendering; it does not call `remend` from a worklet/runtime thread
 
 ### Web
@@ -312,9 +314,19 @@ Main files:
 
 Operationally:
 
-- generated conversations can be mined for durable facts
+- generated conversations can be mined for durable facts after each successful turn (`extractMemoriesFromThread`)
 - those facts are stored and later retrieved for context enrichment
 - memory concerns are kept outside the core chat UI composition layer
+- chat models without `tools` / `tool_calling` capabilities do not receive tool definitions during generation; memory CRUD intents are handled server-side instead
+- a cheaper **background memory model** (default fallback: `anthropic/claude-3-haiku` via OpenRouter) powers extraction and server-side memory intents; users pick it in Settings → Memory, admins can set an org default in the admin panel
+- tag models with the `auxiliary` capability to restrict the auxiliary-model candidate pool
+
+Main auxiliary-model files:
+
+- `convex/lib/auxiliaryModel.ts`
+- `convex/lib/modelCapabilities.ts`
+- `convex/auxiliaryModels.ts`
+- `convex/functions/memoryIntentHandlers.ts`
 
 ## Design Rules Already Present
 

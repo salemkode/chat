@@ -61,6 +61,9 @@ export declare const api: {
       "public",
       {
         description?: string;
+        icon?: string;
+        iconId?: Id<"_storage">;
+        iconType?: "emoji" | "lucide" | "phosphor" | "upload";
         modelIds: Array<Id<"models">>;
         name: string;
         sortOrder: number;
@@ -159,6 +162,35 @@ export declare const api: {
     >;
     generateUploadUrl: FunctionReference<"mutation", "public", {}, any>;
     getAdminSettings: FunctionReference<"query", "public", {}, any>;
+    getAutoModelStudioSnapshot: FunctionReference<
+      "action",
+      "public",
+      { preference?: "balanced" | "cost" | "speed" | "quality" },
+      {
+        available: boolean;
+        message: string;
+        models: Array<{
+          autoScore: number;
+          category:
+            | "Best default"
+            | "Coding"
+            | "Vision"
+            | "Long context"
+            | "Fast"
+            | "Budget"
+            | "Reasoning"
+            | "Needs metadata";
+          contextScore: number;
+          costScore: number;
+          modelId: string;
+          qualityScore: number;
+          reasons: Array<string>;
+          routingTags: Array<string>;
+          speedScore: number;
+        }>;
+        ok: boolean;
+      }
+    >;
     getDashboardData: FunctionReference<"query", "public", {}, any>;
     getRoleContext: FunctionReference<
       "query",
@@ -222,6 +254,12 @@ export declare const api: {
       any
     >;
     isAdmin: FunctionReference<"query", "public", {}, boolean>;
+    listAdminAccounts: FunctionReference<
+      "query",
+      "public",
+      { query?: string },
+      any
+    >;
     listAllModels: FunctionReference<"query", "public", {}, any>;
     listAllProviders: FunctionReference<"query", "public", {}, any>;
     listEnabledModels: FunctionReference<
@@ -293,6 +331,10 @@ export declare const api: {
           _creationTime: number;
           _id: Id<"modelCollections">;
           description?: string;
+          icon?: string;
+          iconId?: Id<"_storage">;
+          iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+          iconUrl?: string;
           modelCount: number;
           modelIds: Array<Id<"models">>;
           name: string;
@@ -496,6 +538,22 @@ export declare const api: {
       { role: "owner" | "admin" | "member"; userId: Id<"users"> },
       any
     >;
+    suggestModelCollections: FunctionReference<
+      "action",
+      "public",
+      { includeHiddenModels?: boolean; prompt?: string },
+      {
+        collections: Array<{
+          description?: string;
+          icon?: string;
+          iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+          modelIds: Array<Id<"models">>;
+          name: string;
+          sortOrder: number;
+        }>;
+        modelUsed: string;
+      }
+    >;
     toggleFavoriteModel: FunctionReference<
       "mutation",
       "public",
@@ -523,6 +581,7 @@ export declare const api: {
         autoModelRouterPreference?: "balanced" | "cost" | "speed" | "quality";
         autoModelRouterUrl?: string;
         autoModelRoutingEnabled?: boolean;
+        defaultAuxiliaryModelId?: Id<"models">;
         defaultRateLimit?: {
           capacity?: number;
           enabled: boolean;
@@ -576,6 +635,9 @@ export declare const api: {
       "public",
       {
         description?: string;
+        icon?: string;
+        iconId?: Id<"_storage">;
+        iconType?: "emoji" | "lucide" | "phosphor" | "upload";
         id: Id<"modelCollections">;
         modelIds?: Array<Id<"models">>;
         name?: string;
@@ -819,6 +881,21 @@ export declare const api: {
       "public",
       { threadId: string; title: string },
       string
+    >;
+  };
+  auxiliaryModels: {
+    listAuxiliaryModelCandidates: FunctionReference<
+      "query",
+      "public",
+      {},
+      Array<{
+        displayName: string;
+        estimatedCostPerExtraction: number | null;
+        isRecommended: boolean;
+        modelDocId: Id<"models">;
+        modelId: string;
+        supportsTools: true;
+      }>
     >;
   };
   chat: {
@@ -1417,6 +1494,7 @@ export declare const api: {
       "action",
       "public",
       {
+        allowedModelDocIds?: Array<Id<"models">>;
         attachmentSummary?: {
           fileCount: number;
           imageCount: number;
@@ -1440,6 +1518,7 @@ export declare const api: {
       "action",
       "public",
       {
+        allowedModelDocIds?: Array<Id<"models">>;
         promptMessageId: string;
         reasoningEnabled?: boolean;
         requiresImageInput?: boolean;
@@ -2011,6 +2090,7 @@ export declare const api: {
       null | {
         _creationTime: number;
         _id: Id<"userSettings">;
+        auxiliaryModelId?: Id<"models">;
         bio?: string;
         displayName?: string;
         image?: string;
@@ -2025,6 +2105,7 @@ export declare const api: {
       "mutation",
       "public",
       {
+        auxiliaryModelId?: Id<"models">;
         bio?: string;
         displayName?: string;
         image?: string;
@@ -2063,6 +2144,26 @@ export declare const api: {
 export declare const internal: {
   admin: {
     getAdminContext: FunctionReference<"query", "internal", {}, any>;
+    getCollectionSuggestionContext: FunctionReference<
+      "query",
+      "internal",
+      { includeHiddenModels: boolean },
+      {
+        existingCollectionNames: Array<string>;
+        models: Array<{
+          _id: Id<"models">;
+          capabilities?: Array<string>;
+          description?: string;
+          displayName: string;
+          isEnabled: boolean;
+          isFree: boolean;
+          modelId: string;
+          providerName: string;
+          supportedAttachmentMediaTypes?: Array<string>;
+          supportsReasoning?: boolean;
+        }>;
+      }
+    >;
     recordModelUsage: FunctionReference<
       "mutation",
       "internal",
@@ -2130,6 +2231,12 @@ export declare const internal: {
         userId: Id<"users">;
       },
       Id<"toolPolicyEvents">
+    >;
+    getModelToolSupport: FunctionReference<
+      "query",
+      "internal",
+      { modelDocId: Id<"models"> },
+      { supportsTools: boolean }
     >;
     getThreadPresentation: FunctionReference<
       "query",
@@ -2208,6 +2315,14 @@ export declare const internal: {
       null
     >;
   };
+  auxiliaryModels: {
+    resolveAuxiliaryModel: FunctionReference<
+      "query",
+      "internal",
+      { userId: Id<"users"> },
+      any
+    >;
+  };
   functions: {
     memoryContext: {
       buildPromptMemoryContext: FunctionReference<
@@ -2278,12 +2393,43 @@ export declare const internal: {
           }>;
         }
       >;
+      searchMemoriesForPrompt: FunctionReference<
+        "action",
+        "internal",
+        {
+          maxResults?: number;
+          projectId?: Id<"projects">;
+          query: string;
+          threadId: string;
+          userId: Id<"users">;
+        },
+        {
+          hits: Array<{
+            category?: string;
+            content: string;
+            createdAt: number;
+            memoryId: string;
+            originMessageIds?: Array<string>;
+            originThreadId?: string;
+            projectId?: string;
+            rank: number;
+            scope: "user" | "thread" | "project";
+            score?: number;
+            source: string;
+            tags?: Array<string>;
+            threadId?: string;
+            title: string;
+            updatedAt: number;
+            userId: string;
+          }>;
+        }
+      >;
     };
     memoryExtraction: {
       extractMemoriesFromThread: FunctionReference<
         "action",
         "internal",
-        { threadId: string },
+        { threadId: string; userId: Id<"users"> },
         any
       >;
     };
@@ -2304,6 +2450,24 @@ export declare const internal: {
         "query",
         "internal",
         { id: Id<"userMemories"> },
+        any
+      >;
+    };
+    memoryIntentHandlers: {
+      handleMemoryIntentWithoutTools: FunctionReference<
+        "action",
+        "internal",
+        {
+          detectedIntent:
+            | "memory_search"
+            | "memory_add"
+            | "memory_update"
+            | "memory_delete";
+          projectId?: Id<"projects">;
+          prompt: string;
+          threadId: string;
+          userId: Id<"users">;
+        },
         any
       >;
     };
@@ -2767,6 +2931,7 @@ export declare const internal: {
       {
         available: boolean;
         models: Array<{
+          attachmentValidationStatus?: "pending" | "valid" | "invalid";
           capabilities?: Array<string>;
           contextWindow?: number;
           displayName: string;
@@ -2777,7 +2942,9 @@ export declare const internal: {
           price: number;
           providerId: Id<"providers">;
           providerName: string;
+          providerType: string;
           speed: number;
+          supportedAttachmentMediaTypes?: Array<string>;
           supportsTools: boolean;
           taskScores: {
             analysis: number;

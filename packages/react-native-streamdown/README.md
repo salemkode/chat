@@ -21,13 +21,13 @@ It repairs raw, incomplete markdown as it streams token-by-token from an LLM, th
 ## Installation
 
 ```sh
-yarn add @0xbanky/react-native-streamdown
+pnpm add @0xbanky/react-native-streamdown
 ```
 
 ### Peer dependencies
 
 ```sh
-yarn add react-native-enriched-markdown remend
+pnpm add react-native-enriched-markdown remend
 ```
 
 | Package                          | Version      |

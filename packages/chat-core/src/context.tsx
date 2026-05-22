@@ -75,6 +75,7 @@ export type ChatCoreCacheAccessors = {
   readCachedProjects?: () => ProjectSummary[] | null
   writeCachedThreads?: (threads: ThreadSummary[]) => void
   writeCachedProjects?: (projects: ProjectSummary[]) => void
+  deleteCachedThread?: (threadId: string) => void | Promise<void>
 }
 
 export function ChatCoreProvider({
@@ -137,7 +138,7 @@ export function ChatCoreProvider({
   }, [cachedThreads, liveThreads])
 
   useEffect(() => {
-    if (!liveProjects || !cacheAccessors?.writeCachedProjects) {
+    if (liveProjects === undefined || !cacheAccessors?.writeCachedProjects) {
       return
     }
     cacheAccessors.writeCachedProjects(
@@ -146,7 +147,7 @@ export function ChatCoreProvider({
   }, [cacheAccessors, liveProjects])
 
   useEffect(() => {
-    if (!liveThreads || !cacheAccessors?.writeCachedThreads) {
+    if (liveThreads === undefined || !cacheAccessors?.writeCachedThreads) {
       return
     }
     cacheAccessors.writeCachedThreads(
@@ -184,8 +185,9 @@ export function ChatCoreProvider({
     async (threadId: string) => {
       if (!isOnline) return
       await deleteThreadMutation({ threadId })
+      await cacheAccessors?.deleteCachedThread?.(threadId)
     },
-    [deleteThreadMutation, isOnline],
+    [cacheAccessors, deleteThreadMutation, isOnline],
   )
 
   const value = useMemo<ChatCoreContextValue>(

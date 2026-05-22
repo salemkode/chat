@@ -1,8 +1,8 @@
 import { generatePath, Outlet, useLocation, useNavigate, useParams } from 'react-router'
 import {
-  AUTO_MODEL_ID,
   chatSuggestions,
   isAutoModelSelection,
+  parseAutoModelCollectionSelection,
   resolveModelAttachmentMediaTypes,
 } from '@chat/shared'
 import { formatUserFacingError } from '@chat/shared/logic/user-facing-errors'
@@ -117,7 +117,7 @@ function ChatComposer({ threadId, mobile = false }: { threadId?: string; mobile?
       }
     ).projects.suggestProjectFromContext as never,
   )
-  const { models } = useModels()
+  const { models, collections } = useModels()
   const { settings } = useSettings()
   const viewer = useViewer()
   const { projects, createProject, assignThreadToProject } = useProjects()
@@ -173,6 +173,17 @@ function ChatComposer({ threadId, mobile = false }: { threadId?: string; mobile?
             ?.id,
     [models, selectedModelId],
   )
+  const autoModelAllowedModelDocIds = useMemo(() => {
+    const collectionId = parseAutoModelCollectionSelection(selectedModelId)
+    if (!collectionId) {
+      return undefined
+    }
+    const collection = collections.find((candidate) => candidate.id === collectionId)
+    if (!collection || !Array.isArray(collection.modelIds) || collection.modelIds.length === 0) {
+      return undefined
+    }
+    return collection.modelIds
+  }, [collections, selectedModelId])
   const selectedModel = useMemo(
     () =>
       models.find(
@@ -200,6 +211,9 @@ function ChatComposer({ threadId, mobile = false }: { threadId?: string; mobile?
         text: input.text,
         threadId,
         modelDocId: toModelDocId(input.modelDocId),
+        autoModelAllowedModelDocIds: input.autoModelAllowedModelDocIds
+          ?.map((modelId) => toModelDocId(modelId))
+          .filter((modelId): modelId is Id<'models'> => Boolean(modelId)),
         selectionTier,
         projectId: input.projectId as Id<'projects'> | undefined,
         searchEnabled: input.searchEnabled,
@@ -305,7 +319,8 @@ function ChatComposer({ threadId, mobile = false }: { threadId?: string; mobile?
   ) {
     const payload: QueuedMessage = {
       text,
-      modelDocId: selectedModelId === AUTO_MODEL_ID ? undefined : selectedModelDocId,
+      modelDocId: isAutoModelSelection(selectedModelId) ? undefined : selectedModelDocId,
+      autoModelAllowedModelDocIds,
       projectId: opts.projectId,
       searchEnabled: opts.searchEnabled,
       searchMode: opts.searchMode,
@@ -432,9 +447,17 @@ function ChatComposer({ threadId, mobile = false }: { threadId?: string; mobile?
         supportedAttachmentMediaTypes: selectedModel?.supportedAttachmentMediaTypes,
         attachmentValidationStatus: selectedModel?.attachmentValidationStatus,
       })
-  const selectedModelLabel = isAutoModelSelection(selectedModelId)
-    ? 'Auto'
-    : selectedModel?.displayName || selectedModelId
+  const selectedModelLabel = (() => {
+    const collectionId = parseAutoModelCollectionSelection(selectedModelId)
+    if (collectionId) {
+      const collection = collections.find((candidate) => candidate.id === collectionId)
+      return collection?.name ? `Auto (${collection.name})` : 'Auto (Collection)'
+    }
+    if (isAutoModelSelection(selectedModelId)) {
+      return 'Auto'
+    }
+    return selectedModel?.displayName || selectedModelId
+  })()
 
   return (
     <div className="flex min-w-0 flex-col gap-3">

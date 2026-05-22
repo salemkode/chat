@@ -43,6 +43,11 @@ export type RemoveFromProjectState = {
   threadTitle: string
 }
 
+export type DeleteThreadState = {
+  threadId: string
+  threadTitle: string
+}
+
 const PROJECT_TEMPLATE_OPTIONS = [
   {
     label: 'Investing',
@@ -234,6 +239,37 @@ export function RemoveFromProjectDialog({
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction onClick={onConfirm}>Remove</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
+}
+
+interface DeleteThreadDialogProps {
+  state: DeleteThreadState | null
+  onOpenChange: (open: boolean) => void
+  onConfirm: () => void
+}
+
+export function DeleteThreadDialog({
+  state,
+  onOpenChange,
+  onConfirm,
+}: DeleteThreadDialogProps) {
+  return (
+    <AlertDialog open={state !== null} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete chat?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {state
+              ? `"${state.threadTitle}" will be permanently deleted from your chats.`
+              : 'This chat will be permanently deleted from your chats.'}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirm}>Delete</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

@@ -4,7 +4,7 @@ import { api } from '@convex/_generated/api'
 import { useOnlineStatus } from '@/hooks/use-online-status'
 import { useQuery } from 'convex/react'
 import { compareThreadsForSidebar } from '@/lib/project-sidebar'
-import { readThreadsCache } from '@/offline/local-cache'
+import { deleteThreadCache, readThreadsCache } from '@/offline/local-cache'
 import {
   filterPersistableThreads,
   isOptimisticThreadId,
@@ -148,8 +148,11 @@ export function useThreads() {
         return
       }
       await deleteThreadMutation({ threadId })
+      if (cacheUserId) {
+        deleteThreadCache(cacheUserId, threadId)
+      }
     },
-    [deleteThreadMutation, isOnline],
+    [cacheUserId, deleteThreadMutation, isOnline],
   )
 
   return { threads, setPinned, deleteThread }

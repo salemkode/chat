@@ -4,20 +4,45 @@
     "appVersionSource": "remote"
   },
   "build": {
+    "monorepo": {
+      "pnpm": "10.6.5",
+      "corepack": true,
+      "env": {
+        "EXPO_NO_DOTENV": "1"
+      }
+    },
     "development": {
+      "extends": "monorepo",
+      "environment": "development",
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "cache": {
+        "disabled": true
+      }
     },
     "preview": {
+      "extends": "monorepo",
+      "environment": "preview",
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "cache": {
+        "disabled": true
       }
     },
     "production": {
+      "extends": "monorepo",
+      "environment": "production",
       "autoIncrement": true,
       "android": {
         "buildType": "apk"
+      },
+      "ios": {
+        "autoIncrement": true
+      },
+      "cache": {
+        "disabled": false
       }
     }
   },

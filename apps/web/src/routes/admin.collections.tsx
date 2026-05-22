@@ -8,6 +8,7 @@ export default function AdminCollectionsRoute() {
     <AdminCollectionsPanel
       dashboard={ctx.dashboard}
       onOpenCollectionDialog={ctx.onOpenCollectionDialog}
+      onOpenCollectionDraft={ctx.onOpenCollectionDraft}
     />
   )
 }

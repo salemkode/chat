@@ -1,107 +1,95 @@
+/* eslint-disable no-underscore-dangle -- Convex hooks */
 import type { AdminOutletContext } from '@/components/admin/admin-outlet-context'
+import {
+  AdminRecord,
+  AdminSectionCard,
+  AdminStatPill,
+  adminChipClass,
+} from '@/components/admin/admin-surface'
 import {
   formatCompactNumber,
   formatDateTime,
   formatTokenCount,
+  getProviderName,
 } from '@/components/admin/admin-utils'
 import type { AdminModel, DashboardData } from '@/components/admin/types'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 
 type AdminUsagePanelProps = Pick<AdminOutletContext, 'dashboard'>
 
 export function AdminUsagePanel({ dashboard }: AdminUsagePanelProps) {
   const models = dashboard.models
+  const providers = dashboard.providers
   const users = dashboard.users
 
   return (
     <div className="grid gap-4 xl:grid-cols-[1.2fr_1fr]">
-      <Card className="border-border bg-card shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
-        <CardHeader>
-          <CardTitle>Model usage</CardTitle>
-          <CardDescription>
-            Requests, tokens, and the last active account view per model.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Model</TableHead>
-                <TableHead>Requests</TableHead>
-                <TableHead>Tokens</TableHead>
-                <TableHead>Accounts</TableHead>
-                <TableHead>Last used</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {models
-                .slice()
-                .sort(
-                  (left: AdminModel, right: AdminModel) => right.usage.tokens - left.usage.tokens,
-                )
-                .slice(0, 12)
-                .map((model: AdminModel) => (
-                  <TableRow key={model._id}>
-                    <TableCell>
-                      <div className="space-y-1">
-                        <p className="font-medium">{model.displayName}</p>
-                        <p className="font-mono text-xs text-muted-foreground">{model.modelId}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell>{formatCompactNumber(model.usage.requests)}</TableCell>
-                    <TableCell>{formatTokenCount(model.usage.tokens)}</TableCell>
-                    <TableCell>{model.usage.users}</TableCell>
-                    <TableCell>{formatDateTime(model.usage.lastUsedAt)}</TableCell>
-                  </TableRow>
-                ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <AdminSectionCard
+        eyebrow="Usage analytics"
+        title="Model demand"
+        description="Usage now reads as a ranked operations list so the busiest models are easy to compare without scanning a gallery of cards."
+      >
+        <div className="grid gap-3">
+          {models
+            .toSorted(
+              (left: AdminModel, right: AdminModel) => right.usage.tokens - left.usage.tokens,
+            )
+            .slice(0, 12)
+            .map((model: AdminModel, index: number) => (
+              <AdminRecord
+                key={model._id}
+                title={<span className="truncate">{model.displayName}</span>}
+                subtitle={
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={adminChipClass}>#{index + 1}</span>
+                    <span>{getProviderName(providers, model.providerId)}</span>
+                    <span className="truncate font-mono text-xs">{model.modelId}</span>
+                  </div>
+                }
+                metrics={
+                  <>
+                    <AdminStatPill
+                      label="Requests"
+                      value={formatCompactNumber(model.usage.requests)}
+                    />
+                    <AdminStatPill label="Tokens" value={formatTokenCount(model.usage.tokens)} />
+                    <AdminStatPill label="Accounts" value={String(model.usage.users)} />
+                  </>
+                }
+                actions={
+                  <div className="text-sm sm:text-right">
+                    <p className="font-medium text-foreground">Last used</p>
+                    <p className="text-muted-foreground">{formatDateTime(model.usage.lastUsedAt)}</p>
+                  </div>
+                }
+              />
+            ))}
+        </div>
+      </AdminSectionCard>
 
-      <Card className="border-border bg-card shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
-        <CardHeader>
-          <CardTitle>Account activity</CardTitle>
-          <CardDescription>
-            Which accounts are using models, and how much they consume.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Account</TableHead>
-                <TableHead>Requests</TableHead>
-                <TableHead>Tokens</TableHead>
-                <TableHead>Models</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.slice(0, 12).map((user: DashboardData['users'][number]) => (
-                <TableRow key={user.userId}>
-                  <TableCell>
-                    <div className="space-y-1">
-                      <p className="font-medium">{user.name}</p>
-                      <p className="text-xs text-muted-foreground">{user.email || 'No email'}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>{formatCompactNumber(user.requests)}</TableCell>
-                  <TableCell>{formatTokenCount(user.tokens)}</TableCell>
-                  <TableCell>{user.models}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <AdminSectionCard
+        eyebrow="Account activity"
+        title="Top consuming accounts"
+        description="The right panel mirrors the same row pattern so account traffic is easier to compare against model demand."
+      >
+        <div className="grid gap-3">
+          {users.slice(0, 12).map((user: DashboardData['users'][number], index: number) => (
+            <AdminRecord
+              key={user.userId}
+              title={<span className="truncate">{user.name}</span>}
+              subtitle={user.email || 'No email'}
+              badges={<span className={adminChipClass}>#{index + 1}</span>}
+              metrics={
+                <>
+                  <AdminStatPill label="Requests" value={formatCompactNumber(user.requests)} />
+                  <AdminStatPill label="Tokens" value={formatTokenCount(user.tokens)} />
+                  <AdminStatPill label="Models" value={String(user.models)} />
+                </>
+              }
+              actions={<span className={adminChipClass}>{user.appPlan.toUpperCase()}</span>}
+            />
+          ))}
+        </div>
+      </AdminSectionCard>
     </div>
   )
 }
