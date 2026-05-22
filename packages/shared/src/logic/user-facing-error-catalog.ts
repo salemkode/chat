@@ -144,7 +144,7 @@ const USER_FACING_ERROR_RULES: UserFacingErrorRule[] = [
   {
     id: 'rate-limit',
     category: 'rate_limit',
-    matches: (message, lower) =>
+    matches: (_message, lower) =>
       lower.includes('429') ||
       lower.includes('rate limit') ||
       lower.includes('rate-limited') ||

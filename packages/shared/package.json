@@ -13,6 +13,7 @@
     "./logic/sidebar-threads": "./src/logic/sidebar-threads.ts",
     "./logic/thread-groups": "./src/logic/thread-groups.ts",
     "./logic/convex-ids": "./src/logic/convex-ids.ts",
+    "./logic/display-name": "./src/logic/display-name.ts",
     "./logic/message-order": "./src/logic/message-order.ts",
     "./logic/merge-message-lists": "./src/logic/merge-message-lists.ts",
     "./logic/pending-send-core": "./src/logic/pending-send-core.ts",

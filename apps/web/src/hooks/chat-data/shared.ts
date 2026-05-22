@@ -98,6 +98,7 @@ export type CachedSettingsView = {
   reasoningEnabled?: boolean
   reasoningLevel?: 'low' | 'medium' | 'high'
   routingPreference?: 'balanced' | 'cost' | 'speed' | 'quality'
+  auxiliaryModelId?: Id<'models'>
   updatedAt: number
 }
 
@@ -278,6 +279,7 @@ export function cacheSettingsToLocal(userId: string, settings: SettingsRecord | 
       | 'speed'
       | 'quality'
       | undefined,
+    auxiliaryModelId: settings.auxiliaryModelId,
     updatedAt: settings.updatedAt,
   })
 }

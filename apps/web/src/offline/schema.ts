@@ -25,7 +25,7 @@ export interface OfflineThreadRecord {
   version: number
 }
 
-interface OfflineMessageRecord {
+export interface OfflineMessageRecord {
   id: string
   threadId: string
   role: 'user' | 'assistant'
@@ -104,10 +104,11 @@ export interface OfflineSettingsRecord {
   reasoningEnabled?: boolean
   reasoningLevel?: 'low' | 'medium' | 'high'
   routingPreference?: 'balanced' | 'cost' | 'speed' | 'quality'
+  auxiliaryModelId?: string
   updatedAt: number
 }
 
-interface OfflineDraftRecord {
+export interface OfflineDraftRecord {
   threadId: string
   value: string
   updatedAt: number

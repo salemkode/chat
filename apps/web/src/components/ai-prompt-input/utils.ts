@@ -60,22 +60,6 @@ export function createPastedTextFile(text: string): File {
   })
 }
 
-let textAttachmentCounter = 0
-
-function createTextAttachment(text: string): TextAttachment {
-  textAttachmentCounter += 1
-  const lineCount = text.split('\n').length
-  const label =
-    lineCount > 1
-      ? `Pasted text (${lineCount} lines)`
-      : `Pasted text (${formatBytes(new Blob([text]).size)})`
-  return {
-    id: `text-${Date.now()}-${textAttachmentCounter}`,
-    text,
-    label,
-  }
-}
-
 export function getTextAttachmentPreview(text: string, maxLines = 3): string {
   const lines = text.split('\n')
   const preview = lines.slice(0, maxLines).join('\n')

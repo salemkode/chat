@@ -108,7 +108,9 @@ export function applyOptimisticRegenerateMessage(
         continue
       }
 
-      const match = query.value?.page?.find((message) => message.id === promptMessageId)
+      const match = query.value?.page?.find(
+        (message: ListMessagesPageItem) => message.id === promptMessageId,
+      )
       if (match) {
         promptMessage = match
         break
@@ -124,7 +126,9 @@ export function applyOptimisticRegenerateMessage(
 
       localStore.setQuery(api.chat.listMessages, query.args, {
         ...query.value,
-        page: query.value.page.filter((message) => !isAfterPrompt(message, promptMessage)),
+        page: query.value.page.filter(
+          (message: ListMessagesPageItem) => !isAfterPrompt(message, promptMessage),
+        ),
       })
     }
   }
@@ -137,7 +141,7 @@ export function applyOptimisticRegenerateMessage(
     paginatedQuery: api.chat.listMessages,
     argsToMatch: { threadId },
     sortOrder: 'desc',
-    sortKeyFromItem: (el) => [el.order, el.stepOrder] as Value | Value[],
+    sortKeyFromItem: (el: ListMessagesPageItem): Value | Value[] => [el.order, el.stepOrder],
     item: optimisticRegenerateAssistant(threadId, now, order, stepOrder),
   })
 }

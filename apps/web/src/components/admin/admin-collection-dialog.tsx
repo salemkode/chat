@@ -242,6 +242,10 @@ export function AdminCollectionDialog({ state, actions }: AdminCollectionDialogP
   )
 }
 
+function isPresent<T>(value: T | null | undefined): value is T {
+  return value !== null && value !== undefined
+}
+
 export function useAdminCollectionDialog({ models }: { models: AdminModel[] }) {
   const [dialogState, updateDialog] = useReducer(
     mergeReducer<ModelCollectionDialogState>,
@@ -343,7 +347,7 @@ export function useAdminCollectionDialog({ models }: { models: AdminModel[] }) {
     const selectedModelIds = models
       .filter((model) => collectionForm.modelIds.includes(model._id))
       .map((model) => parseConvexIdForTable('models', model._id))
-      .filter((modelId) => modelId !== null)
+      .filter(isPresent)
     const payload = {
       name,
       description: collectionForm.description.trim() || undefined,
@@ -355,8 +359,16 @@ export function useAdminCollectionDialog({ models }: { models: AdminModel[] }) {
       sortOrder: collectionForm.sortOrder,
       modelIds: selectedModelIds,
     }
-    const request = editingCollection
-      ? updateModelCollection({ id: editingCollection._id, ...payload })
+    const editingCollectionId = editingCollection
+      ? parseConvexIdForTable('modelCollections', editingCollection._id)
+      : undefined
+    if (editingCollection && !editingCollectionId) {
+      toast.error('Invalid collection ID')
+      return
+    }
+
+    const request = editingCollectionId
+      ? updateModelCollection({ id: editingCollectionId, ...payload })
       : addModelCollection(payload)
     return request
       .then(() => {

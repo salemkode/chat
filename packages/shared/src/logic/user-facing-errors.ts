@@ -4,8 +4,6 @@ import {
   CHAT_GENERATION_FAILED_FALLBACK,
   CHAT_INLINE_ERROR_FALLBACK,
   CHAT_SEND_ERROR_FALLBACK,
-  CHAT_STOP_GENERATION_FAILED_MESSAGE,
-  CHAT_PROJECT_ASSIGN_FAILED_MESSAGE,
   matchUserFacingError,
   normalizeRawErrorMessage,
 } from './user-facing-error-catalog'

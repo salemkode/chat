@@ -11,6 +11,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@chat/shared": "workspace:*",
     "@ai-sdk/anthropic": "^3.0.78",
     "@ai-sdk/azure": "^3.0.66",
     "@ai-sdk/deepseek": "^2.0.35",

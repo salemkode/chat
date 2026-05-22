@@ -4,11 +4,7 @@ import { api } from '@convex/_generated/api'
 import { useOnlineStatus } from '@/hooks/use-online-status'
 import { useQuery } from 'convex/react'
 import { readSession, readSettings } from '@/offline/local-cache'
-import {
-  cacheViewerToLocal,
-  type CachedSettingsView,
-  useOfflineCacheVersion,
-} from '@/hooks/chat-data/shared'
+import { cacheViewerToLocal, useOfflineCacheVersion } from '@/hooks/chat-data/shared'
 
 export function useCachedSessionStatus() {
   const { isLoaded, isSignedIn } = useAuth()
@@ -89,5 +85,4 @@ export function useRoleContext() {
     }
   )
 }
-
 

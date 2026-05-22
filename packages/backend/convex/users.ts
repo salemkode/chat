@@ -1,3 +1,4 @@
+import { formatClerkDisplayName } from '@chat/shared/logic/display-name'
 import { getAuthUserId } from './lib/auth'
 import { v } from 'convex/values'
 import { internalMutation, internalQuery, mutation, query, QueryCtx } from './_generated/server'
@@ -213,11 +214,18 @@ export const updateOrCreateUser = internalMutation({
   async handler(ctx, { clerkUser }: { clerkUser: UserJSON }) {
     const userRecord = await userQuery(ctx, clerkUser.id)
 
+    const email = clerkUser.email_addresses[0].email_address
+    const name = formatClerkDisplayName(
+      clerkUser.first_name,
+      clerkUser.last_name,
+      email,
+    )
+
     if (userRecord === null) {
       return await ctx.db.insert('users', {
-        name: `${clerkUser.first_name} ${clerkUser.last_name}`,
+        name,
         image: clerkUser.image_url,
-        email: clerkUser.email_addresses[0].email_address,
+        email,
         emailVerificationTime:
           clerkUser.email_addresses[0].verification?.status === 'verified' ? Date.now() : undefined,
         isAnonymous: false,
@@ -227,9 +235,9 @@ export const updateOrCreateUser = internalMutation({
     }
 
     await ctx.db.patch(userRecord._id, {
-      name: `${clerkUser.first_name} ${clerkUser.last_name}`,
+      name,
       image: clerkUser.image_url,
-      email: clerkUser.email_addresses[0].email_address,
+      email,
       emailVerificationTime:
         clerkUser.email_addresses[0].verification?.status === 'verified' ? Date.now() : undefined,
       clerkUserId: clerkUser.id,

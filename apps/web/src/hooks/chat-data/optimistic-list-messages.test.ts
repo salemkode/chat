@@ -36,8 +36,8 @@ function createLocalStore(queries: QueryStub[]): OptimisticLocalStore {
         ...query,
         value: queryValues.get(JSON.stringify(query.args)),
       })),
-    setQuery: (_query, args, value) => {
-      queryValues.set(JSON.stringify(args), value as QueryStub['value'])
+    setQuery: (_query: unknown, args: QueryStub['args'], value: QueryStub['value']) => {
+      queryValues.set(JSON.stringify(args), value)
     },
   } as unknown as OptimisticLocalStore
 }

@@ -1,16 +1,5 @@
 import type { DashboardData } from '@/components/admin/types'
 
-const usageChartConfig = {
-  requests: {
-    label: 'Requests',
-    color: 'hsl(var(--chart-1))',
-  },
-  tokens: {
-    label: 'Tokens',
-    color: 'hsl(var(--chart-2))',
-  },
-}
-
 export function formatCompactNumber(value: number) {
   return new Intl.NumberFormat('en-US', { notation: 'compact' }).format(value)
 }

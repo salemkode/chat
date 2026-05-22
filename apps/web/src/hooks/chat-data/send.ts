@@ -146,14 +146,7 @@ export function useSendMessage() {
       applyOptimisticRegenerateMessage(localStore, args.threadId, args.promptMessageId)
     },
   )
-  const stopGenerationApi = (
-    api as typeof api & {
-      agents: {
-        stopGeneration: unknown
-      }
-    }
-  ).agents
-  const stopGeneration = useMutation(stopGenerationApi.stopGeneration as never).withOptimisticUpdate(
+  const stopGeneration = useMutation(api.agents.stopGeneration).withOptimisticUpdate(
     (localStore, args) => {
       applyOptimisticStopGeneration(localStore, args.threadId)
     },

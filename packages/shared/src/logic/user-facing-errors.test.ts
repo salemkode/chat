@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 import {
   CHAT_GENERATION_FAILED_FALLBACK,
   CHAT_QUEUE_FULL_MESSAGE,

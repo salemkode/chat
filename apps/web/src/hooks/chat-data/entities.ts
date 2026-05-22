@@ -7,6 +7,7 @@ import { useOnlineStatus } from '@/hooks/use-online-status'
 import { resolveChatSnapshot } from '@chat/chat-core'
 import { useQuery } from 'convex/react'
 import { readModelsCache, readProjectsCache, readSettings } from '@/offline/local-cache'
+import { parseConvexIdForTable } from '@chat/shared/logic/convex-ids'
 import {
   cacheModelsToLocal,
   cacheProjectsToLocal,
@@ -231,6 +232,7 @@ export function useSettings() {
           reasoningEnabled: cachedSettings.reasoningEnabled,
           reasoningLevel: cachedSettings.reasoningLevel,
           routingPreference: cachedSettings.routingPreference,
+          auxiliaryModelId: parseConvexIdForTable('models', cachedSettings.auxiliaryModelId),
           updatedAt: cachedSettings.updatedAt,
         }
       : null)
