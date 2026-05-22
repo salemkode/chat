@@ -367,14 +367,16 @@ const collectionSuggestionSchema = z.object({
     .max(8),
 })
 
-function isCollectionAiIconOption(value: string | undefined) {
+function isCollectionAiIconOption(
+  value: string | undefined,
+): value is (typeof COLLECTION_AI_ICON_OPTIONS)[number] {
   return value !== undefined && COLLECTION_AI_ICON_OPTIONS.some((option) => option === value)
 }
 
 function normalizeSuggestedCollectionIcon(
   iconType: 'emoji' | 'phosphor' | undefined,
   icon: string | undefined,
-) {
+): { iconType: 'emoji' | 'phosphor'; icon: string } {
   if (iconType === 'emoji') {
     const trimmed = icon?.trim()
     return trimmed ? { iconType: 'emoji', icon: trimmed } : { iconType: 'emoji', icon: '✨' }
@@ -1017,6 +1019,63 @@ export const verifyAutoModelRouterConnection = action({
   },
 })
 
+const autoModelStudioCatalogEntryValidator = v.object({
+  modelId: v.string(),
+  intelligence: v.number(),
+  rawPrice: v.number(),
+  speed: v.number(),
+  latency: v.number(),
+  taskScores: v.object({
+    general: v.number(),
+    code: v.number(),
+    math: v.number(),
+    analysis: v.number(),
+  }),
+  maxContextTokens: v.optional(v.number()),
+  supportsTools: v.boolean(),
+  tags: v.array(v.string()),
+})
+
+export const getAutoModelStudioCatalog = internalQuery({
+  args: {},
+  returns: v.array(autoModelStudioCatalogEntryValidator),
+  handler: async (ctx) => {
+    const [models, profiles] = await Promise.all([
+      ctx.db.query('models').collect(),
+      ctx.db.query('modelSelectionProfiles').collect(),
+    ])
+    const profileByModelId = new Map(profiles.map((profile) => [profile.modelId, profile]))
+
+    return models.map((model) => {
+      const profile = profileByModelId.get(model._id) ?? null
+      const benchmarkScores = profile?.benchmarkScores
+      const intelligence = clamp01(
+        ((benchmarkScores?.chat ?? 0.5) +
+          (benchmarkScores?.coding ?? 0.5) +
+          (benchmarkScores?.analysis ?? 0.5)) /
+          3,
+      )
+      const estimatedCost = estimateCostFromProfile(profile?.pricing, 1500, 700) ?? 0
+      const latencyMs = profile?.latencyStats?.p95Ms ?? 2500
+      const supportsTools = (model.capabilities ?? [])
+        .map((item) => item.toLowerCase())
+        .some((item) => item === 'tools' || item === 'tool_calling')
+
+      return {
+        modelId: model.modelId,
+        intelligence,
+        rawPrice: estimatedCost,
+        speed: clamp01(1 - Math.min(latencyMs / 8000, 1)),
+        latency: clamp01(Math.min(latencyMs / 8000, 1)),
+        taskScores: normalizeTaskScores(benchmarkScores, intelligence),
+        maxContextTokens: model.contextWindow,
+        supportsTools,
+        tags: model.capabilities ?? [],
+      }
+    })
+  },
+})
+
 export const getAutoModelStudioSnapshot = action({
   args: {
     preference: v.optional(autoModelRouterPreferenceValidator),
@@ -1066,39 +1125,7 @@ export const getAutoModelStudioSnapshot = action({
       }
     }
 
-    const [models, profiles] = await Promise.all([
-      ctx.db.query('models').collect(),
-      ctx.db.query('modelSelectionProfiles').collect(),
-    ])
-    const profileByModelId = new Map(profiles.map((profile) => [profile.modelId, profile]))
-
-    const rawCatalog = models.map((model) => {
-      const profile = profileByModelId.get(model._id) ?? null
-      const benchmarkScores = profile?.benchmarkScores
-      const intelligence = clamp01(
-        ((benchmarkScores?.chat ?? 0.5) +
-          (benchmarkScores?.coding ?? 0.5) +
-          (benchmarkScores?.analysis ?? 0.5)) /
-          3,
-      )
-      const estimatedCost = estimateCostFromProfile(profile?.pricing, 1500, 700) ?? 0
-      const latencyMs = profile?.latencyStats?.p95Ms ?? 2500
-      const supportsTools = (model.capabilities ?? [])
-        .map((item) => item.toLowerCase())
-        .some((item) => item === 'tools' || item === 'tool_calling')
-
-      return {
-        modelId: model.modelId,
-        intelligence,
-        rawPrice: estimatedCost,
-        speed: clamp01(1 - Math.min(latencyMs / 8000, 1)),
-        latency: clamp01(Math.min(latencyMs / 8000, 1)),
-        taskScores: normalizeTaskScores(benchmarkScores, intelligence),
-        maxContextTokens: model.contextWindow,
-        supportsTools,
-        tags: model.capabilities ?? [],
-      }
-    })
+    const rawCatalog = await ctx.runQuery(internal.admin.getAutoModelStudioCatalog, {})
 
     if (rawCatalog.length === 0) {
       return {
@@ -1609,19 +1636,21 @@ export const listModelsWithProviders = query({
     )
 
     const visibleModelIds = new Set(modelsWithInfo.map((model) => model._id))
-    const collectionRows = await Promise.all(
-      collections.map(async (collection) => {
-        const modelIds = collection.modelIds.filter((modelId) => visibleModelIds.has(modelId))
+    const collectionRows = (
+      await Promise.all(
+        collections.map(async (collection) => {
+          const modelIds = collection.modelIds.filter((modelId) => visibleModelIds.has(modelId))
 
-        return {
-          ...collection,
-          iconUrl: collection.iconId
-            ? ((await ctx.storage.getUrl(collection.iconId)) ?? undefined)
-            : undefined,
-          modelIds,
-          modelCount: modelIds.length,
-        }
-      }),
+          return {
+            ...collection,
+            iconUrl: collection.iconId
+              ? ((await ctx.storage.getUrl(collection.iconId)) ?? undefined)
+              : undefined,
+            modelIds,
+            modelCount: modelIds.length,
+          }
+        }),
+      )
     )
       .filter((collection) => collection.modelCount > 0)
       .sort((left, right) => {
@@ -2321,18 +2350,7 @@ export const suggestModelCollections = action({
           modelIds,
         }
       })
-      .filter(
-        (
-          collection,
-        ): collection is {
-          name: string
-          description?: string
-          icon?: string
-          iconType?: 'emoji' | 'phosphor'
-          sortOrder: number
-          modelIds: Id<'models'>[]
-        } => collection !== null,
-      )
+      .filter((collection) => collection !== null)
 
     if (collections.length === 0) {
       throw new ConvexError({

@@ -103,6 +103,7 @@ export interface OfflineSettingsRecord {
   bio?: string
   reasoningEnabled?: boolean
   reasoningLevel?: 'low' | 'medium' | 'high'
+  routingPreference?: 'balanced' | 'cost' | 'speed' | 'quality'
   updatedAt: number
 }
 

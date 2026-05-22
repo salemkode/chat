@@ -230,6 +230,7 @@ export function useSettings() {
           bio: cachedSettings.bio,
           reasoningEnabled: cachedSettings.reasoningEnabled,
           reasoningLevel: cachedSettings.reasoningLevel,
+          routingPreference: cachedSettings.routingPreference,
           updatedAt: cachedSettings.updatedAt,
         }
       : null)
@@ -241,6 +242,7 @@ export function useSettings() {
       bio?: string
       reasoningEnabled?: boolean
       reasoningLevel?: 'low' | 'medium' | 'high'
+      routingPreference?: 'balanced' | 'cost' | 'speed' | 'quality'
       auxiliaryModelId?: Id<'models'>
     }) => {
       if (!isOnline) {

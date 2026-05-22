@@ -26,6 +26,13 @@ const modalitiesValidator = v.object({
 
 const reasoningLevelValidator = v.union(v.literal('low'), v.literal('medium'), v.literal('high'))
 
+const routingPreferenceValidator = v.union(
+  v.literal('balanced'),
+  v.literal('cost'),
+  v.literal('speed'),
+  v.literal('quality'),
+)
+
 const modelReasoningDefaultValidator = v.union(
   v.literal('off'),
   v.literal('low'),
@@ -891,6 +898,7 @@ export default defineSchema({
     reasoningLevel: v.optional(reasoningLevelValidator),
     voiceTranscriptionMode: v.optional(v.union(v.literal('cloud'), v.literal('device'))),
     auxiliaryModelId: v.optional(v.id('models')),
+    routingPreference: v.optional(routingPreferenceValidator),
     updatedAt: v.number(),
   }).index('by_user', ['userId']),
 })

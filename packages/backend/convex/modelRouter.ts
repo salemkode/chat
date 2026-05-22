@@ -160,7 +160,9 @@ export const getCurrentUserId = internalQuery({
 })
 
 export const getAutoModelRoutingState = internalQuery({
-  args: {},
+  args: {
+    userId: v.optional(v.id('users')),
+  },
   returns: v.object({
     available: v.boolean(),
     routerUrl: v.optional(v.string()),
@@ -194,17 +196,28 @@ export const getAutoModelRoutingState = internalQuery({
       }),
     ),
   }),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
     const settings =
       (await ctx.db
         .query('adminSettings')
         .withIndex('by_key', (q) => q.eq('key', 'global'))
         .first()) ?? null
 
+    const userId = args.userId
+    const userSettings =
+      userId === undefined
+        ? null
+        : ((await ctx.db
+            .query('userSettings')
+            .withIndex('by_user', (q) => q.eq('userId', userId))
+            .unique()) ?? null)
+
     const routerUrl = settings?.autoModelRouterUrl?.trim()
     const routerApiKey = settings?.autoModelRouterApiKey?.trim()
     const available =
       settings?.autoModelRoutingEnabled === true && Boolean(routerUrl) && Boolean(routerApiKey)
+    const preference =
+      userSettings?.routingPreference ?? settings?.autoModelRouterPreference ?? 'balanced'
 
     const [models, providers, profiles] = await Promise.all([
       ctx.db
@@ -268,7 +281,7 @@ export const getAutoModelRoutingState = internalQuery({
       available,
       routerUrl,
       routerApiKey,
-      preference: settings?.autoModelRouterPreference ?? 'balanced',
+      preference,
       models: visibleModels.map((model) => ({
         ...model,
         price: clamp01(model.price / maxPrice),
@@ -329,10 +342,10 @@ export const selectAutoModel = action({
     selectedProviderName: v.string(),
   }),
   handler: async (ctx, args) => {
-    const [userId, routingState] = await Promise.all([
-      ctx.runQuery(internal.modelRouter.getCurrentUserId, {}),
-      ctx.runQuery(internal.modelRouter.getAutoModelRoutingState, {}),
-    ])
+    const userId = await ctx.runQuery(internal.modelRouter.getCurrentUserId, {})
+    const routingState = await ctx.runQuery(internal.modelRouter.getAutoModelRoutingState, {
+      userId: userId ?? undefined,
+    })
 
     if (!routingState.available || !routingState.routerUrl || !routingState.routerApiKey) {
       throw new ConvexError({

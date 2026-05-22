@@ -1,5 +1,6 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
+import type { Id } from "@convex/_generated/dataModel";
 import { useCallback } from "react";
 
 export function useSettings() {
@@ -13,7 +14,8 @@ export function useSettings() {
       bio?: string;
       reasoningEnabled?: boolean;
       reasoningLevel?: "low" | "medium" | "high";
-      auxiliaryModelId?: string;
+      routingPreference?: "balanced" | "cost" | "speed" | "quality";
+      auxiliaryModelId?: Id<"models">;
     }) => {
       await updateSettingsMutation(values);
     },

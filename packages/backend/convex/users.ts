@@ -7,6 +7,12 @@ import { DEFAULT_APP_PLAN } from './lib/appPlan'
 
 const reasoningLevelValidator = v.union(v.literal('low'), v.literal('medium'), v.literal('high'))
 const voiceTranscriptionModeValidator = v.union(v.literal('cloud'), v.literal('device'))
+const routingPreferenceValidator = v.union(
+  v.literal('balanced'),
+  v.literal('cost'),
+  v.literal('speed'),
+  v.literal('quality'),
+)
 
 const userSettingsValidator = v.object({
   _id: v.id('userSettings'),
@@ -19,6 +25,7 @@ const userSettingsValidator = v.object({
   reasoningLevel: v.optional(reasoningLevelValidator),
   voiceTranscriptionMode: v.optional(voiceTranscriptionModeValidator),
   auxiliaryModelId: v.optional(v.id('models')),
+  routingPreference: v.optional(routingPreferenceValidator),
   updatedAt: v.number(),
 })
 
@@ -116,6 +123,7 @@ export const updateSettings = mutation({
     reasoningLevel: v.optional(reasoningLevelValidator),
     voiceTranscriptionMode: v.optional(voiceTranscriptionModeValidator),
     auxiliaryModelId: v.optional(v.id('models')),
+    routingPreference: v.optional(routingPreferenceValidator),
   },
   returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
@@ -148,6 +156,9 @@ export const updateSettings = mutation({
       if (args.auxiliaryModelId !== undefined) {
         patch.auxiliaryModelId = args.auxiliaryModelId
       }
+      if (args.routingPreference !== undefined) {
+        patch.routingPreference = args.routingPreference
+      }
 
       await ctx.db.patch(existing._id, patch)
     } else {
@@ -169,6 +180,9 @@ export const updateSettings = mutation({
       }
       if (args.auxiliaryModelId !== undefined) {
         creation.auxiliaryModelId = args.auxiliaryModelId
+      }
+      if (args.routingPreference !== undefined) {
+        creation.routingPreference = args.routingPreference
       }
 
       await ctx.db.insert('userSettings', creation)

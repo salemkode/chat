@@ -2096,6 +2096,7 @@ export declare const api: {
         image?: string;
         reasoningEnabled?: boolean;
         reasoningLevel?: "low" | "medium" | "high";
+        routingPreference?: "balanced" | "cost" | "speed" | "quality";
         updatedAt: number;
         userId: Id<"users">;
         voiceTranscriptionMode?: "cloud" | "device";
@@ -2111,6 +2112,7 @@ export declare const api: {
         image?: string;
         reasoningEnabled?: boolean;
         reasoningLevel?: "low" | "medium" | "high";
+        routingPreference?: "balanced" | "cost" | "speed" | "quality";
         voiceTranscriptionMode?: "cloud" | "device";
       },
       { success: boolean }
@@ -2144,6 +2146,27 @@ export declare const api: {
 export declare const internal: {
   admin: {
     getAdminContext: FunctionReference<"query", "internal", {}, any>;
+    getAutoModelStudioCatalog: FunctionReference<
+      "query",
+      "internal",
+      {},
+      Array<{
+        intelligence: number;
+        latency: number;
+        maxContextTokens?: number;
+        modelId: string;
+        rawPrice: number;
+        speed: number;
+        supportsTools: boolean;
+        tags: Array<string>;
+        taskScores: {
+          analysis: number;
+          code: number;
+          general: number;
+          math: number;
+        };
+      }>
+    >;
     getCollectionSuggestionContext: FunctionReference<
       "query",
       "internal",
@@ -2927,7 +2950,7 @@ export declare const internal: {
     getAutoModelRoutingState: FunctionReference<
       "query",
       "internal",
-      {},
+      { userId?: Id<"users"> },
       {
         available: boolean;
         models: Array<{

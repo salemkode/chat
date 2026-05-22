@@ -97,6 +97,7 @@ export type CachedSettingsView = {
   bio?: string
   reasoningEnabled?: boolean
   reasoningLevel?: 'low' | 'medium' | 'high'
+  routingPreference?: 'balanced' | 'cost' | 'speed' | 'quality'
   updatedAt: number
 }
 
@@ -271,6 +272,12 @@ export function cacheSettingsToLocal(userId: string, settings: SettingsRecord | 
     bio: settings.bio,
     reasoningEnabled: settings.reasoningEnabled,
     reasoningLevel: settings.reasoningLevel as 'low' | 'medium' | 'high' | undefined,
+    routingPreference: settings.routingPreference as
+      | 'balanced'
+      | 'cost'
+      | 'speed'
+      | 'quality'
+      | undefined,
     updatedAt: settings.updatedAt,
   })
 }

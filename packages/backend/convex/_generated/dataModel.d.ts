@@ -1743,6 +1743,7 @@ export type DataModel = {
       image?: string;
       reasoningEnabled?: boolean;
       reasoningLevel?: "low" | "medium" | "high";
+      routingPreference?: "balanced" | "cost" | "speed" | "quality";
       updatedAt: number;
       userId: Id<"users">;
       voiceTranscriptionMode?: "cloud" | "device";
@@ -1758,6 +1759,7 @@ export type DataModel = {
       | "image"
       | "reasoningEnabled"
       | "reasoningLevel"
+      | "routingPreference"
       | "updatedAt"
       | "userId"
       | "voiceTranscriptionMode";

@@ -13,6 +13,19 @@ import { Icon } from "@/components/icon";
 
 const DEFAULT_MODEL_STORAGE_KEY = "default-model-id";
 
+const ROUTING_PREFERENCE_OPTIONS = [
+  { value: "balanced", label: "Balanced" },
+  { value: "quality", label: "Quality" },
+  { value: "speed", label: "Speed" },
+  { value: "cost", label: "Cost" },
+] as const;
+
+type RoutingPreference = (typeof ROUTING_PREFERENCE_OPTIONS)[number]["value"];
+
+function isRoutingPreference(value: string): value is RoutingPreference {
+  return ROUTING_PREFERENCE_OPTIONS.some((option) => option.value === value);
+}
+
 export default function ModelsSettingsScreen() {
   const { models, autoModelAvailable } = useModels();
   const { settings, updateSettings } = useSettings();
@@ -53,6 +66,10 @@ export default function ModelsSettingsScreen() {
     settings?.reasoningLevel === "high"
       ? settings.reasoningLevel
       : "medium";
+  const routingPreference =
+    settings?.routingPreference && isRoutingPreference(settings.routingPreference)
+      ? settings.routingPreference
+      : "balanced";
 
   const setDefaultModel = useCallback(async (modelId: string) => {
     if (
@@ -102,6 +119,35 @@ export default function ModelsSettingsScreen() {
           </Pressable>
         );
       })}
+
+      {autoModelAvailable ? (
+        <>
+          <SettingsSectionDivider />
+
+          <Text className="text-[13px] text-muted-foreground px-5 pt-4 pb-2">
+            Routing preference
+          </Text>
+          <Text className="text-[13px] text-muted-foreground px-5 pb-3 leading-relaxed">
+            How Auto picks a model: balance quality, speed, and cost.
+          </Text>
+          {ROUTING_PREFERENCE_OPTIONS.map((option) => (
+            <Pressable
+              key={option.value}
+              onPress={() =>
+                void updateSettings({ routingPreference: option.value })
+              }
+              className="flex-row items-center px-5 py-3 gap-3 active:bg-muted"
+            >
+              <View className="w-5 items-center">
+                {routingPreference === option.value ? (
+                  <Icon icon={Check} className="w-5 h-5 text-foreground" />
+                ) : null}
+              </View>
+              <Text className="text-[17px] text-foreground">{option.label}</Text>
+            </Pressable>
+          ))}
+        </>
+      ) : null}
 
       <SettingsSectionDivider />
 

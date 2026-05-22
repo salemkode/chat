@@ -81,6 +81,19 @@ type SettingsSelectOption = {
   label: string
 }
 
+type RoutingPreference = 'balanced' | 'cost' | 'speed' | 'quality'
+
+const routingPreferenceOptions: Array<{ value: RoutingPreference; label: string }> = [
+  { value: 'balanced', label: 'Balanced' },
+  { value: 'quality', label: 'Quality' },
+  { value: 'speed', label: 'Speed' },
+  { value: 'cost', label: 'Cost' },
+]
+
+function isRoutingPreference(value: string): value is RoutingPreference {
+  return routingPreferenceOptions.some((option) => option.value === value)
+}
+
 function SettingsSelect({
   value,
   options,
@@ -212,6 +225,11 @@ export function SettingsDialog({
     reasoningLevel === 'low' || reasoningLevel === 'medium' || reasoningLevel === 'high'
       ? reasoningLevel
       : 'medium'
+  const selectedRoutingPreference =
+    settings?.routingPreference &&
+    isRoutingPreference(settings.routingPreference)
+      ? settings.routingPreference
+      : 'balanced'
 
   const modelOptions = useMemo(() => {
     const sortedModels = [...models].sort((a, b) => a.displayName.localeCompare(b.displayName))
@@ -508,6 +526,25 @@ export function SettingsDialog({
                     ]}
                   />
                 </SettingsItem>
+                {autoModelAvailable ? (
+                  <SettingsItem
+                    label="Routing preference"
+                    description="How Auto picks a model: balance quality, speed, and cost."
+                  >
+                    <SettingsSelect
+                      value={selectedRoutingPreference}
+                      onValueChange={(value) => {
+                        if (isRoutingPreference(value)) {
+                          void updateSettings({ routingPreference: value })
+                        }
+                      }}
+                      disabled={!isOnline}
+                      placeholder="Preference"
+                      className="w-[140px]"
+                      options={routingPreferenceOptions}
+                    />
+                  </SettingsItem>
+                ) : null}
               </div>
             ) : null}
 
