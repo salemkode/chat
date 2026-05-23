@@ -8,7 +8,6 @@ import {
   Archive,
   Edit3,
   LogOut,
-  MessageSquarePlus,
   PanelLeft,
   PanelLeftOpen,
   Pin,
@@ -18,6 +17,7 @@ import {
   Trash2,
   User,
 } from "lucide-react";
+import { MessageSquarePlus } from "lucide-react-native";
 import type { ReactNode } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 

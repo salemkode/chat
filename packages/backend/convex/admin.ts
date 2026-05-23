@@ -766,7 +766,6 @@ async function listAdminModelsInternal(ctx: QueryCtx) {
           ...model,
           iconUrl: model.iconId ? ((await ctx.storage.getUrl(model.iconId)) ?? undefined) : undefined,
           providerName: provider?.name ?? 'Unknown Provider',
-          provider,
           providerIconUrl: provider?.iconUrl,
           favorites: favoriteCountByModelId.get(model._id) ?? 0,
           usage: {

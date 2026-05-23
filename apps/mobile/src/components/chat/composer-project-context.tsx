@@ -22,7 +22,9 @@ import {
   useMemo,
   useRef,
   useState,
+  type Dispatch,
   type ReactNode,
+  type SetStateAction,
 } from "react";
 import { Alert } from "react-native";
 
@@ -37,7 +39,7 @@ type ComposerProjectContextValue = {
   projectMention: ProjectMentionState | null;
   mentionOptions: MentionProjectOption[];
   highlightedMentionIndex: number;
-  setHighlightedMentionIndex: (index: number) => void;
+  setHighlightedMentionIndex: Dispatch<SetStateAction<number>>;
   syncProjectMention: (value: string, caretPosition: number) => void;
   dismissProjectMention: () => void;
   handleMentionSelect: (optionId: string) => void;
