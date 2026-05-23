@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { ResponsiveSelectField } from '@/components/ui/responsive-select-field'
 import { useProjects, useSettings, useThreads } from '@/hooks/use-chat-data'
-import { useQuery } from '@/lib/convex-query-cache'
+import { usePaginatedQuery, useQuery } from '@/lib/convex-query-cache'
 
 type MemoryScope = 'all' | 'user' | 'thread' | 'project'
 type MemoryItem = FunctionReturnType<typeof api.functions.memory.listUserMemories>['page'][number]
@@ -57,27 +57,36 @@ export function MemorySettingsPanel() {
           ),
         )?.value
 
-  const userMemories = useQuery(api.functions.memory.listUserMemories, {
-    paginationOpts: { cursor: null, numItems: 200 },
-  })
-  const threadMemories = useQuery(api.functions.memory.listThreadMemories, {
-    paginationOpts: { cursor: null, numItems: 200 },
-  })
-  const projectMemories = useQuery(api.functions.memory.listProjectMemories, {
-    paginationOpts: { cursor: null, numItems: 200 },
-  })
+  const userMemories = usePaginatedQuery(
+    api.functions.memory.listUserMemories,
+    {},
+    { initialNumItems: 25 },
+  )
+  const threadMemories = usePaginatedQuery(
+    api.functions.memory.listThreadMemories,
+    {},
+    { initialNumItems: 25 },
+  )
+  const projectMemories = usePaginatedQuery(
+    api.functions.memory.listProjectMemories,
+    {},
+    { initialNumItems: 25 },
+  )
 
   const allMemories = useMemo<AggregatedMemoryItem[]>(
     () =>
       [
-        ...(userMemories?.page ?? []).map((memory) => ({ ...memory, scope: 'user' as const })),
-        ...(threadMemories?.page ?? []).map((memory) => ({ ...memory, scope: 'thread' as const })),
-        ...(projectMemories?.page ?? []).map((memory) => ({
+        ...(userMemories.results ?? []).map((memory) => ({ ...memory, scope: 'user' as const })),
+        ...(threadMemories.results ?? []).map((memory) => ({
+          ...memory,
+          scope: 'thread' as const,
+        })),
+        ...(projectMemories.results ?? []).map((memory) => ({
           ...memory,
           scope: 'project' as const,
         })),
       ].sort((a, b) => b.updatedAt - a.updatedAt),
-    [projectMemories?.page, threadMemories?.page, userMemories?.page],
+    [projectMemories.results, threadMemories.results, userMemories.results],
   )
 
   const filteredMemories = useMemo(() => {
@@ -109,7 +118,29 @@ export function MemorySettingsPanel() {
     })
   }, [allMemories, projects, scope, searchValue, threads])
 
-  const displayedMemories = filteredMemories.slice(0, 50)
+  const canLoadMore =
+    userMemories.status === 'CanLoadMore' ||
+    threadMemories.status === 'CanLoadMore' ||
+    projectMemories.status === 'CanLoadMore' ||
+    userMemories.status === 'LoadingMore' ||
+    threadMemories.status === 'LoadingMore' ||
+    projectMemories.status === 'LoadingMore'
+  const isLoadingMore =
+    userMemories.status === 'LoadingMore' ||
+    threadMemories.status === 'LoadingMore' ||
+    projectMemories.status === 'LoadingMore'
+
+  function loadMoreForScope() {
+    if (scope === 'user' || scope === 'all') {
+      userMemories.loadMore(25)
+    }
+    if (scope === 'thread' || scope === 'all') {
+      threadMemories.loadMore(25)
+    }
+    if (scope === 'project' || scope === 'all') {
+      projectMemories.loadMore(25)
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -162,50 +193,62 @@ export function MemorySettingsPanel() {
         />
       </div>
 
-      {displayedMemories.length === 0 ? (
+      {filteredMemories.length === 0 ? (
         <div className="rounded-lg border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
           No memories match this filter.
         </div>
       ) : (
-        <ul className="space-y-3">
-          {displayedMemories.map((memory) => (
-            <li
-              key={`${memory.scope}:${memory.memoryId}`}
-              className="rounded-lg border border-border bg-card px-4 py-3"
-            >
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0 flex-1 space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-sm font-semibold text-foreground">{memory.title}</h3>
-                    <Badge variant="secondary">{memory.scope}</Badge>
-                    {memory.category ? <Badge variant="outline">{memory.category}</Badge> : null}
+        <div className="space-y-3">
+          <ul className="space-y-3">
+            {filteredMemories.map((memory) => (
+              <li
+                key={`${memory.scope}:${memory.memoryId}`}
+                className="rounded-lg border border-border bg-card px-4 py-3"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-sm font-semibold text-foreground">{memory.title}</h3>
+                      <Badge variant="secondary">{memory.scope}</Badge>
+                      {memory.category ? <Badge variant="outline">{memory.category}</Badge> : null}
+                    </div>
+                    <p className="line-clamp-4 text-sm leading-relaxed text-muted-foreground">
+                      {memory.content}
+                    </p>
                   </div>
-                  <p className="line-clamp-4 text-sm leading-relaxed text-muted-foreground">
-                    {memory.content}
+                  <p className="shrink-0 text-xs text-muted-foreground">
+                    {formatDistanceToNow(new Date(memory.updatedAt), { addSuffix: true })}
                   </p>
                 </div>
-                <p className="shrink-0 text-xs text-muted-foreground">
-                  {formatDistanceToNow(new Date(memory.updatedAt), { addSuffix: true })}
-                </p>
-              </div>
 
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Badge variant="outline">{memory.source}</Badge>
-                {memory.threadId ? (
-                  <Badge variant="outline">{threadLabel(threads, memory.threadId)}</Badge>
-                ) : null}
-                {memory.projectId ? (
-                  <Badge variant="outline">{projectLabel(projects, memory.projectId)}</Badge>
-                ) : null}
-                {(memory.tags ?? []).slice(0, 4).map((tag) => (
-                  <Badge key={tag} variant="outline">
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
-            </li>
-          ))}
-        </ul>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Badge variant="outline">{memory.source}</Badge>
+                  {memory.threadId ? (
+                    <Badge variant="outline">{threadLabel(threads, memory.threadId)}</Badge>
+                  ) : null}
+                  {memory.projectId ? (
+                    <Badge variant="outline">{projectLabel(projects, memory.projectId)}</Badge>
+                  ) : null}
+                  {(memory.tags ?? []).slice(0, 4).map((tag) => (
+                    <Badge key={tag} variant="outline">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+              </li>
+            ))}
+          </ul>
+          {canLoadMore ? (
+            <button
+              type="button"
+              className="w-full rounded-lg border border-border bg-card px-4 py-3 text-sm text-foreground"
+              onClick={loadMoreForScope}
+              disabled={isLoadingMore}
+            >
+              {isLoadingMore ? 'Loading more memories...' : 'Load more memories'}
+            </button>
+          ) : null}
+        </div>
       )}
     </div>
   )

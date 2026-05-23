@@ -45,6 +45,7 @@ export type DataModel = {
       autoModelRouterPreference?: "balanced" | "cost" | "speed" | "quality";
       autoModelRouterUrl?: string;
       autoModelRoutingEnabled?: boolean;
+      defaultAuxiliaryModelId?: Id<"models">;
       defaultRateLimit?: {
         capacity?: number;
         enabled: boolean;
@@ -67,6 +68,7 @@ export type DataModel = {
       | "autoModelRouterPreference"
       | "autoModelRouterUrl"
       | "autoModelRoutingEnabled"
+      | "defaultAuxiliaryModelId"
       | "defaultRateLimit"
       | "defaultRateLimit.capacity"
       | "defaultRateLimit.enabled"
@@ -531,6 +533,9 @@ export type DataModel = {
   modelCollections: {
     document: {
       description?: string;
+      icon?: string;
+      iconId?: Id<"_storage">;
+      iconType?: "emoji" | "lucide" | "phosphor" | "upload";
       modelIds: Array<Id<"models">>;
       name: string;
       sortOrder: number;
@@ -541,6 +546,9 @@ export type DataModel = {
       | "_creationTime"
       | "_id"
       | "description"
+      | "icon"
+      | "iconId"
+      | "iconType"
       | "modelIds"
       | "name"
       | "sortOrder";
@@ -1729,11 +1737,13 @@ export type DataModel = {
   };
   userSettings: {
     document: {
+      auxiliaryModelId?: Id<"models">;
       bio?: string;
       displayName?: string;
       image?: string;
       reasoningEnabled?: boolean;
       reasoningLevel?: "low" | "medium" | "high";
+      routingPreference?: "balanced" | "cost" | "speed" | "quality";
       updatedAt: number;
       userId: Id<"users">;
       voiceTranscriptionMode?: "cloud" | "device";
@@ -1743,11 +1753,13 @@ export type DataModel = {
     fieldPaths:
       | "_creationTime"
       | "_id"
+      | "auxiliaryModelId"
       | "bio"
       | "displayName"
       | "image"
       | "reasoningEnabled"
       | "reasoningLevel"
+      | "routingPreference"
       | "updatedAt"
       | "userId"
       | "voiceTranscriptionMode";

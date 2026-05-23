@@ -1,7 +1,7 @@
 import { useChatProjects, useChatThreads } from "@chat/chat-core";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
-import { useQuery } from "convex/react";
+import { usePaginatedQuery, useQuery } from "convex/react";
 import { useMemo, useState } from "react";
 import { useSettings } from "@/hooks/use-settings";
 import { Check } from "lucide-react-native";
@@ -62,32 +62,38 @@ export default function MemorySettingsScreen() {
     return candidates.find((candidate) => candidate.isRecommended)?.modelDocId;
   }, [auxiliaryCandidates, settings?.auxiliaryModelId]);
 
-  const userMemories = useQuery(api.functions.memory.listUserMemories, {
-    paginationOpts: { cursor: null, numItems: 200 },
-  });
-  const threadMemories = useQuery(api.functions.memory.listThreadMemories, {
-    paginationOpts: { cursor: null, numItems: 200 },
-  });
-  const projectMemories = useQuery(api.functions.memory.listProjectMemories, {
-    paginationOpts: { cursor: null, numItems: 200 },
-  });
+  const userMemories = usePaginatedQuery(
+    api.functions.memory.listUserMemories,
+    {},
+    { initialNumItems: 25 },
+  );
+  const threadMemories = usePaginatedQuery(
+    api.functions.memory.listThreadMemories,
+    {},
+    { initialNumItems: 25 },
+  );
+  const projectMemories = usePaginatedQuery(
+    api.functions.memory.listProjectMemories,
+    {},
+    { initialNumItems: 25 },
+  );
 
   const allMemories = useMemo<MemoryItem[]>(() => {
     return [
-      ...(userMemories?.page ?? []).map((memory) => ({
+      ...(userMemories.results ?? []).map((memory) => ({
         ...memory,
         scope: "user" as const,
       })),
-      ...(threadMemories?.page ?? []).map((memory) => ({
+      ...(threadMemories.results ?? []).map((memory) => ({
         ...memory,
         scope: "thread" as const,
       })),
-      ...(projectMemories?.page ?? []).map((memory) => ({
+      ...(projectMemories.results ?? []).map((memory) => ({
         ...memory,
         scope: "project" as const,
       })),
     ].sort((a, b) => b.updatedAt - a.updatedAt);
-  }, [projectMemories?.page, threadMemories?.page, userMemories?.page]);
+  }, [projectMemories.results, threadMemories.results, userMemories.results]);
 
   const filteredMemories = useMemo(() => {
     const normalizedQuery = searchValue.trim().toLowerCase();
@@ -119,11 +125,32 @@ export default function MemorySettingsScreen() {
   }, [allMemories, projects, scope, searchValue, threads]);
 
   const isLoading =
-    userMemories === undefined ||
-    threadMemories === undefined ||
-    projectMemories === undefined;
+    userMemories.results === undefined ||
+    threadMemories.results === undefined ||
+    projectMemories.results === undefined;
+  const hasMore =
+    userMemories.status === "CanLoadMore" ||
+    threadMemories.status === "CanLoadMore" ||
+    projectMemories.status === "CanLoadMore" ||
+    userMemories.status === "LoadingMore" ||
+    threadMemories.status === "LoadingMore" ||
+    projectMemories.status === "LoadingMore";
+  const isLoadingMore =
+    userMemories.status === "LoadingMore" ||
+    threadMemories.status === "LoadingMore" ||
+    projectMemories.status === "LoadingMore";
 
-  const displayedMemories = filteredMemories.slice(0, 50);
+  function loadMoreForScope() {
+    if (scope === "user" || scope === "all") {
+      userMemories.loadMore(25);
+    }
+    if (scope === "thread" || scope === "all") {
+      threadMemories.loadMore(25);
+    }
+    if (scope === "project" || scope === "all") {
+      projectMemories.loadMore(25);
+    }
+  }
 
   return (
     <ScrollView
@@ -200,13 +227,13 @@ export default function MemorySettingsScreen() {
         <View className="py-12 items-center">
           <ActivityIndicator />
         </View>
-      ) : displayedMemories.length === 0 ? (
+      ) : filteredMemories.length === 0 ? (
         <Text className="text-[15px] text-muted-foreground text-center py-12">
           No memories match this filter.
         </Text>
       ) : (
         <View className="gap-3 mt-4">
-          {displayedMemories.map((memory) => (
+          {filteredMemories.map((memory) => (
             <View
               key={`${memory.scope}:${memory.memoryId}`}
               className="rounded-xl border border-border bg-card px-4 py-3"
@@ -234,6 +261,16 @@ export default function MemorySettingsScreen() {
               </Text>
             </View>
           ))}
+          {hasMore ? (
+            <Pressable
+              onPress={loadMoreForScope}
+              className="rounded-xl border border-border px-4 py-3"
+            >
+              <Text className="text-center text-[14px] text-foreground">
+                {isLoadingMore ? "Loading more memories..." : "Load more memories"}
+              </Text>
+            </Pressable>
+          ) : null}
         </View>
       )}
     </ScrollView>

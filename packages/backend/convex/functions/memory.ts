@@ -49,7 +49,7 @@ const memoryListItemValidator = v.object({
 const paginatedMemoryResultValidator = v.object({
   page: v.array(memoryListItemValidator),
   isDone: v.boolean(),
-  continueCursor: v.union(v.null(), v.string()),
+  continueCursor: v.string(),
   total: v.number(),
 })
 

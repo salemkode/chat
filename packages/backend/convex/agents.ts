@@ -11,18 +11,19 @@ import {
   query,
   type MutationCtx,
 } from './_generated/server'
+import { paginationOptsValidator } from 'convex/server'
 import { v, type Infer } from 'convex/values'
 import { getAuthUserId } from './lib/auth'
 import { createThread } from '@convex-dev/agent'
 import { match } from 'ts-pattern'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
-import { openai } from '@ai-sdk/openai'
-import { anthropic } from '@ai-sdk/anthropic'
-import { google } from '@ai-sdk/google'
-import { azure } from '@ai-sdk/azure'
-import { groq } from '@ai-sdk/groq'
-import { deepseek } from '@ai-sdk/deepseek'
-import { xai } from '@ai-sdk/xai'
+import { createOpenAI } from '@ai-sdk/openai'
+import { createAnthropic } from '@ai-sdk/anthropic'
+import { createGoogleGenerativeAI } from '@ai-sdk/google'
+import { createAzure } from '@ai-sdk/azure'
+import { createGroq } from '@ai-sdk/groq'
+import { createDeepSeek } from '@ai-sdk/deepseek'
+import { createXai } from '@ai-sdk/xai'
 import { ConvexError } from 'convex/values'
 import type { Id } from './_generated/dataModel'
 import { exaWebSearchTool } from './lib/exaWebSearch'
@@ -37,6 +38,7 @@ import { isModelUsableForPlan } from './lib/appPlan'
 import { resolveEffectiveAppPlan } from './lib/billing'
 import { getModelOfferAccessFlags } from './lib/modelOffersAccess'
 import { canViewProject, getProjectRole, requireProjectRole } from './lib/projectAccess'
+import { paginateResults } from './lib/pagination'
 import {
   evaluateToolPolicy,
   finalizeToolPolicyEvaluation,
@@ -52,6 +54,7 @@ import {
   resolveModelAttachmentMediaTypes,
   type ModelAttachmentValidationStatus,
 } from './lib/modelAttachmentPolicy'
+import { resolveProviderApiKey } from './lib/providerApiKeys'
 
 // Random emoji picker for new chats
 const CHAT_EMOJIS = [
@@ -218,9 +221,9 @@ async function getConversationSnapshot(
   }
 }
 
-// Create OpenRouter provider with API key from environment
-const openrouter = createOpenRouter({
-  apiKey: process.env.OPENROUTER_API_KEY!,
+// OpenRouter is used here for optional embeddings from env-only configuration.
+const openrouterEmbeddingProvider = createOpenRouter({
+  apiKey: process.env.OPENROUTER_API_KEY,
 })
 
 function createAuthorAgent(
@@ -230,7 +233,7 @@ function createAuthorAgent(
     name: 'Author',
     languageModel: model,
     embeddingModel: process.env.OPENROUTER_API_KEY
-      ? openrouter.textEmbeddingModel('openai/text-embedding-3-small')
+      ? openrouterEmbeddingProvider.textEmbeddingModel('openai/text-embedding-3-small')
       : undefined,
     maxSteps: 10, // Alternative to stopWhen: stepCountIs(10)
   })
@@ -1422,52 +1425,88 @@ export const streamMessage = internalAction({
         resolvedPrompt = promptMessage?.text?.trim() || ''
       }
 
+      const resolvedApiKey = resolveProviderApiKey(args.agent, args.apiKey)
+      const resolvedBaseURL = args.customUrl?.trim() || undefined
+
       const provider = match(args.agent)
         .with('openrouter', () => {
-          return openrouter.chat(args.modelId)
+          return createOpenRouter({
+            apiKey: resolvedApiKey,
+            baseURL: resolvedBaseURL,
+          }).chat(args.modelId)
         })
         .with('openai', () => {
-          return openai.chat(args.modelId)
+          return createOpenAI({
+            apiKey: resolvedApiKey,
+            baseURL: resolvedBaseURL,
+            organization: args.config?.organization,
+            project: args.config?.project,
+            headers: args.config?.headers,
+          }).chat(args.modelId)
         })
         .with('anthropic', () => {
-          return anthropic.languageModel(args.modelId)
+          return createAnthropic({
+            apiKey: resolvedApiKey,
+            baseURL: resolvedBaseURL,
+            headers: args.config?.headers,
+          }).languageModel(args.modelId)
         })
         .with('google', () => {
-          return google.chat(args.modelId)
+          return createGoogleGenerativeAI({
+            apiKey: resolvedApiKey,
+            baseURL: resolvedBaseURL,
+            headers: args.config?.headers,
+          }).chat(args.modelId)
         })
         .with('azure', () => {
-          return azure.chat(args.modelId)
+          return createAzure({
+            apiKey: resolvedApiKey,
+            baseURL: resolvedBaseURL,
+            headers: args.config?.headers,
+          }).chat(args.modelId)
         })
         .with('groq', () => {
-          return groq(args.modelId)
+          return createGroq({
+            apiKey: resolvedApiKey,
+            baseURL: resolvedBaseURL,
+            headers: args.config?.headers,
+          }).chat(args.modelId)
         })
         .with('deepseek', () => {
-          return deepseek.chat(args.modelId)
+          return createDeepSeek({
+            apiKey: resolvedApiKey,
+            baseURL: resolvedBaseURL,
+            headers: args.config?.headers,
+          }).chat(args.modelId)
         })
         .with('xai', () => {
-          return xai.chat(args.modelId)
+          return createXai({
+            apiKey: resolvedApiKey,
+            baseURL: resolvedBaseURL,
+            headers: args.config?.headers,
+          }).chat(args.modelId)
         })
         .with('cerebras', () => {
-          if (!args.apiKey) {
+          if (!resolvedApiKey) {
             throw new Error('Cerebras provider requires apiKey')
           }
           const cerebrasProvider = createOpenAICompatible({
             name: 'cerebras',
-            apiKey: args.apiKey,
-            baseURL: args.customUrl || 'https://api.cerebras.ai/v1',
+            apiKey: resolvedApiKey,
+            baseURL: resolvedBaseURL || 'https://api.cerebras.ai/v1',
             includeUsage: true,
           })
           return cerebrasProvider(args.modelId)
         })
         .with('openai-compatible', () => {
           // Generic OpenAI-compatible provider
-          if (!args.customUrl || !args.apiKey) {
+          if (!resolvedBaseURL || !resolvedApiKey) {
             throw new Error('OpenAI-compatible provider requires customUrl and apiKey')
           }
           const customProvider = createOpenAICompatible({
             name: 'openai-compatible',
-            apiKey: args.apiKey,
-            baseURL: args.customUrl,
+            apiKey: resolvedApiKey,
+            baseURL: resolvedBaseURL,
             includeUsage: true,
             headers: args.config?.headers,
             queryParams: args.config?.queryParams,
@@ -1476,14 +1515,14 @@ export const streamMessage = internalAction({
         })
         .with('opencode', () => {
           // OpenCode.ai provider - uses OpenAI-compatible format
-          if (!args.apiKey) {
+          if (!resolvedApiKey) {
             throw new Error('OpenCode provider requires apiKey')
           }
           // OpenCode uses the same pattern as other OpenAI-compatible providers
           const opencodeProvider = createOpenAICompatible({
             name: 'opencode',
-            apiKey: args.apiKey,
-            baseURL: args.customUrl || 'https://api.opencode.ai/v1',
+            apiKey: resolvedApiKey,
+            baseURL: resolvedBaseURL || 'https://api.opencode.ai/v1',
             includeUsage: true,
             headers: {
               ...args.config?.headers,
@@ -1494,104 +1533,104 @@ export const streamMessage = internalAction({
         })
         .with('mistral', () => {
           // Mistral AI - OpenAI-compatible
-          if (!args.apiKey) {
+          if (!resolvedApiKey) {
             throw new Error('Mistral provider requires apiKey')
           }
           const mistralProvider = createOpenAICompatible({
             name: 'mistral',
-            apiKey: args.apiKey,
-            baseURL: args.customUrl || 'https://api.mistral.ai/v1',
+            apiKey: resolvedApiKey,
+            baseURL: resolvedBaseURL || 'https://api.mistral.ai/v1',
             includeUsage: true,
           })
           return mistralProvider(args.modelId)
         })
         .with('cohere', () => {
           // Cohere - OpenAI-compatible
-          if (!args.apiKey) {
+          if (!resolvedApiKey) {
             throw new Error('Cohere provider requires apiKey')
           }
           const cohereProvider = createOpenAICompatible({
             name: 'cohere',
-            apiKey: args.apiKey,
-            baseURL: args.customUrl || 'https://api.cohere.ai/v1',
+            apiKey: resolvedApiKey,
+            baseURL: resolvedBaseURL || 'https://api.cohere.ai/v1',
             includeUsage: true,
           })
           return cohereProvider(args.modelId)
         })
         .with('perplexity', () => {
           // Perplexity - OpenAI-compatible
-          if (!args.apiKey) {
+          if (!resolvedApiKey) {
             throw new Error('Perplexity provider requires apiKey')
           }
           const perplexityProvider = createOpenAICompatible({
             name: 'perplexity',
-            apiKey: args.apiKey,
-            baseURL: args.customUrl || 'https://api.perplexity.ai',
+            apiKey: resolvedApiKey,
+            baseURL: resolvedBaseURL || 'https://api.perplexity.ai',
             includeUsage: true,
           })
           return perplexityProvider(args.modelId)
         })
         .with('fireworks', () => {
           // Fireworks AI - OpenAI-compatible
-          if (!args.apiKey) {
+          if (!resolvedApiKey) {
             throw new Error('Fireworks provider requires apiKey')
           }
           const fireworksProvider = createOpenAICompatible({
             name: 'fireworks',
-            apiKey: args.apiKey,
-            baseURL: args.customUrl || 'https://api.fireworks.ai/inference/v1',
+            apiKey: resolvedApiKey,
+            baseURL: resolvedBaseURL || 'https://api.fireworks.ai/inference/v1',
             includeUsage: true,
           })
           return fireworksProvider(args.modelId)
         })
         .with('together', () => {
           // Together AI - OpenAI-compatible
-          if (!args.apiKey) {
+          if (!resolvedApiKey) {
             throw new Error('Together provider requires apiKey')
           }
           const togetherProvider = createOpenAICompatible({
             name: 'together',
-            apiKey: args.apiKey,
-            baseURL: args.customUrl || 'https://api.together.xyz/v1',
+            apiKey: resolvedApiKey,
+            baseURL: resolvedBaseURL || 'https://api.together.xyz/v1',
             includeUsage: true,
           })
           return togetherProvider(args.modelId)
         })
         .with('moonshot', () => {
           // Moonshot AI - OpenAI-compatible
-          if (!args.apiKey) {
+          if (!resolvedApiKey) {
             throw new Error('Moonshot provider requires apiKey')
           }
           const moonshotProvider = createOpenAICompatible({
             name: 'moonshot',
-            apiKey: args.apiKey,
-            baseURL: args.customUrl || 'https://api.moonshot.cn/v1',
+            apiKey: resolvedApiKey,
+            baseURL: resolvedBaseURL || 'https://api.moonshot.cn/v1',
             includeUsage: true,
           })
           return moonshotProvider(args.modelId)
         })
         .with('qwen', () => {
           // Qwen (Alibaba) - OpenAI-compatible
-          if (!args.apiKey) {
+          if (!resolvedApiKey) {
             throw new Error('Qwen provider requires apiKey')
           }
           const qwenProvider = createOpenAICompatible({
             name: 'qwen',
-            apiKey: args.apiKey,
-            baseURL: args.customUrl || 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+            apiKey: resolvedApiKey,
+            baseURL: resolvedBaseURL || 'https://dashscope.aliyuncs.com/compatible-mode/v1',
             includeUsage: true,
           })
           return qwenProvider(args.modelId)
         })
         .with('stepfun', () => {
           // StepFun - OpenAI-compatible
-          if (!args.apiKey) {
+          if (!resolvedApiKey) {
             throw new Error('StepFun provider requires apiKey')
           }
           const stepfunProvider = createOpenAICompatible({
             name: 'stepfun',
-            apiKey: args.apiKey,
-            baseURL: args.customUrl || 'https://api.stepfun.com/v1',
+            apiKey: resolvedApiKey,
+            baseURL: resolvedBaseURL || 'https://api.stepfun.com/v1',
             includeUsage: true,
           })
           return stepfunProvider(args.modelId)
@@ -2575,11 +2614,19 @@ export const updateThreadTitle = mutation({
 
 // List threads with metadata (grouped by section)
 export const listThreadsWithMetadata = query({
-  args: {},
-  returns: v.array(threadListItemValidator),
-  handler: async (ctx) => {
+  args: {
+    paginationOpts: paginationOptsValidator,
+  },
+  returns: v.object({
+    page: v.array(threadListItemValidator),
+    isDone: v.boolean(),
+    continueCursor: v.string(),
+  }),
+  handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
-    if (!userId) return []
+    if (!userId) {
+      return { page: [], isDone: true, continueCursor: '' }
+    }
 
     const [threads, metadata] = await Promise.all([
       ctx.runQuery(components.agent.threads.listThreadsByUserId, {
@@ -2659,7 +2706,10 @@ export const listThreadsWithMetadata = query({
       })
     }
 
-    return orderedResults
+    return paginateResults(orderedResults, {
+      cursor: args.paginationOpts.cursor,
+      numItems: args.paginationOpts.numItems,
+    })
   },
 })
 

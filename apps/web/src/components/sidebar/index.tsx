@@ -64,8 +64,8 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
   const [deleteThreadDialog, setDeleteThreadDialog] = React.useState<DeleteThreadState | null>(null)
   const [expandedProjectIds, setExpandedProjectIds] = React.useState<Record<string, boolean>>({})
 
-  const { threads, setPinned, deleteThread } = useThreads()
-  const { projects, createProject, removeThreadFromProject } = useProjects()
+  const { threads, setPinned, deleteThread, hasMore: hasMoreThreads, isLoadingMore: isLoadingMoreThreads, loadMore: loadMoreThreads } = useThreads()
+  const { projects, createProject, removeThreadFromProject, hasMore: hasMoreProjects, isLoadingMore: isLoadingMoreProjects, loadMore: loadMoreProjects } = useProjects()
   const viewer = useViewer()
   const { user: clerkUser } = useUser()
   const { isOnline } = useOnlineStatus()
@@ -349,6 +349,19 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
                     </React.Fragment>
                   )
                 })}
+                {hasMoreProjects ? (
+                  <SidebarMenuItem>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="w-full justify-start"
+                      onClick={() => loadMoreProjects(30)}
+                      disabled={isLoadingMoreProjects}
+                    >
+                      {isLoadingMoreProjects ? 'Loading more projects...' : 'Load more projects'}
+                    </Button>
+                  </SidebarMenuItem>
+                ) : null}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
@@ -392,6 +405,17 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
                 <div className="rounded-md border border-dashed px-3 py-4 text-sm text-muted-foreground">
                   No unfiled chats.
                 </div>
+              ) : null}
+              {hasMoreThreads ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full justify-start"
+                  onClick={() => loadMoreThreads(30)}
+                  disabled={isLoadingMoreThreads}
+                >
+                  {isLoadingMoreThreads ? 'Loading more chats...' : 'Load more chats'}
+                </Button>
               ) : null}
             </SidebarMenu>
           </SidebarGroupContent>

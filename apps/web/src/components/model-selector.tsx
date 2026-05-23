@@ -120,7 +120,8 @@ export function ModelSelectorPanel({
   onSelectModel,
   className,
 }: ModelSelectorPanelProps) {
-  const { models, collections, setFavorite, autoModelAvailable } = useModels()
+  const { models, collections, setFavorite, autoModelAvailable, hasMore, isLoadingMore, loadMore } =
+    useModels()
   const [searchQuery, setSearchQuery] = useState('')
   const selectedCollectionId = parseAutoModelCollectionSelection(selectedModel)
   const [activeCategory, setActiveCategory] = useState<string>(selectedCollectionId ?? 'all')
@@ -424,6 +425,19 @@ export function ModelSelectorPanel({
               })}
             </div>
           )}
+          {hasMore ? (
+            <div className="px-2 pt-3">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full border-white/10 bg-white/[0.04] text-white hover:bg-white/[0.08]"
+                onClick={() => loadMore(40)}
+                disabled={isLoadingMore}
+              >
+                {isLoadingMore ? 'Loading more models...' : 'Load more models'}
+              </Button>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

@@ -5,11 +5,7 @@ import type { AdminModelDialogProps } from '@/components/admin/admin-model-dialo
 import { AdminModelDialog } from '@/components/admin/admin-model-dialog'
 import type { AdminProviderDialogProps } from '@/components/admin/admin-provider-dialog'
 import { AdminProviderDialog } from '@/components/admin/admin-provider-dialog'
-import {
-  AdminStatPill,
-  adminChipClass,
-  adminPanelClass,
-} from '@/components/admin/admin-surface'
+import { AdminStatPill, adminChipClass, adminPanelClass } from '@/components/admin/admin-surface'
 import type { DashboardData } from '@/components/admin/types'
 import { Button } from '@/components/ui/button'
 
@@ -56,7 +52,12 @@ export function AdminPageHeader({
       <div className="flex flex-col gap-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-3">
-            <Button variant="ghost" size="sm" className="w-fit" onClick={() => void onNavigateHome()}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-fit"
+              onClick={() => void onNavigateHome()}
+            >
               <ArrowLeft className="mr-2 size-4" />
               Back to chat
             </Button>
@@ -85,11 +86,14 @@ export function AdminPageHeader({
             </Button>
             <AdminProviderDialog state={providerDialog.state} actions={providerDialog.actions} />
             <AdminModelDialog state={modelDialog.state} actions={modelDialog.actions} />
-            <AdminCollectionDialog state={collectionDialog.state} actions={collectionDialog.actions} />
+            <AdminCollectionDialog
+              state={collectionDialog.state}
+              actions={collectionDialog.actions}
+            />
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2.5">
+        <div className="flex gap-2.5 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
           {quickStats.map(({ label, value, icon: Icon }) => (
             <AdminStatPill
               key={label}

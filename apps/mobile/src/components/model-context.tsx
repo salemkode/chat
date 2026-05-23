@@ -35,12 +35,21 @@ type ModelContextValue = {
   attachmentsSupported: boolean;
   imageAttachmentsSupported: boolean;
   setSelectedModel: (modelId: Id<"models">) => void;
+  hasMoreModels: boolean;
+  isLoadingMoreModels: boolean;
+  loadMoreModels: (numItems?: number) => void;
 };
 
 const ModelContext = createContext<ModelContextValue | null>(null);
 
 export function ModelProvider({ children }: { children: React.ReactNode }) {
-  const { models: apiModels, collections: apiCollections } = useModels();
+  const {
+    models: apiModels,
+    collections: apiCollections,
+    hasMore: hasMoreModels,
+    isLoadingMore: isLoadingMoreModels,
+    loadMore: loadMoreModels,
+  } = useModels();
   const [selectedModelId, setSelectedModelIdState] = useState<Id<"models"> | undefined>(
     undefined,
   );
@@ -140,6 +149,9 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
         attachmentsSupported,
         imageAttachmentsSupported,
         setSelectedModel,
+        hasMoreModels,
+        isLoadingMoreModels,
+        loadMoreModels,
       }}
     >
       {children}

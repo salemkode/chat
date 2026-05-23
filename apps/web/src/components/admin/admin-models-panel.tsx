@@ -32,6 +32,7 @@ import {
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { usePaginatedQuery } from '@/lib/convex-query-cache'
 
 type AdminModelsPanelProps = Pick<AdminOutletContext, 'dashboard' | 'onOpenModelDialog'>
 type RouterPreference = 'balanced' | 'cost' | 'speed' | 'quality'
@@ -203,7 +204,11 @@ function StudioModelRecord({
           <span className="truncate font-mono text-xs">{model.modelId}</span>
         </div>
       }
-      badges={<Badge variant={attachmentBadgeVariant}>file {model.attachmentValidationStatus ?? 'pending'}</Badge>}
+      badges={
+        <Badge variant={attachmentBadgeVariant}>
+          file {model.attachmentValidationStatus ?? 'pending'}
+        </Badge>
+      }
       summary={
         <div className="grid gap-3">
           <div className="flex flex-wrap gap-1.5">
@@ -220,7 +225,7 @@ function StudioModelRecord({
         </div>
       }
       metrics={
-        <div className="grid min-w-[16rem] gap-3">
+        <div className="grid w-full min-w-0 gap-3 sm:min-w-[16rem]">
           <div className="flex flex-wrap gap-2">
             <AdminStatPill label="Auto score" value={String(profile?.autoScore ?? 0)} />
             <AdminStatPill label="Requests" value={formatCompactNumber(model.usage.requests)} />
@@ -237,7 +242,10 @@ function StudioModelRecord({
       actions={
         <div className="flex flex-col gap-3 sm:items-end">
           <div className="flex items-center gap-3">
-            <Switch checked={model.isEnabled} onCheckedChange={(checked) => onToggle(model, checked)} />
+            <Switch
+              checked={model.isEnabled}
+              onCheckedChange={(checked) => onToggle(model, checked)}
+            />
             <span className={adminChipClass}>
               {model.isEnabled ? (
                 <>
@@ -286,7 +294,8 @@ export function AdminModelsPanel({ dashboard, onOpenModelDialog }: AdminModelsPa
     ).admin.getAutoModelStudioSnapshot as never,
   )
   const providers = dashboard.providers
-  const models = dashboard.models
+  const modelsQuery = usePaginatedQuery(api.admin.listAdminModels, {}, { initialNumItems: 50 })
+  const models = modelsQuery.results ?? dashboard.models
   const [studioProfiles, setStudioProfiles] = useState<Record<string, StudioProfile>>({})
   const [studioStatus, setStudioStatus] = useState<{
     loading: boolean
@@ -309,10 +318,12 @@ export function AdminModelsPanel({ dashboard, onOpenModelDialog }: AdminModelsPa
   const [isVerifyingRouter, setIsVerifyingRouter] = useState(false)
   const selectedPreference = preferenceOptionFor(routerPreference)
   const studioRows = useMemo(() => {
-    const rows = models.map((model: AdminModel): StudioModelRow => ({
-      model,
-      profile: studioProfiles[model.modelId] ?? null,
-    }))
+    const rows = models.map(
+      (model: AdminModel): StudioModelRow => ({
+        model,
+        profile: studioProfiles[model.modelId] ?? null,
+      }),
+    )
     const sortedRows: StudioModelRow[] = []
     for (const row of rows) {
       const insertAt = sortedRows.findIndex((candidate) => {
@@ -373,7 +384,11 @@ export function AdminModelsPanel({ dashboard, onOpenModelDialog }: AdminModelsPa
     let cancelled = false
     setStudioStatus((current) => ({ ...current, loading: true }))
 
-    void (getAutoModelStudioSnapshot({ preference: routerPreference } as never) as Promise<StudioSnapshotResult>)
+    void (
+      getAutoModelStudioSnapshot({
+        preference: routerPreference,
+      } as never) as Promise<StudioSnapshotResult>
+    )
       .then((result: StudioSnapshotResult) => {
         if (cancelled) {
           return
@@ -460,7 +475,9 @@ export function AdminModelsPanel({ dashboard, onOpenModelDialog }: AdminModelsPa
         </TabsList>
         <div className="flex flex-wrap gap-2">
           <span className={adminChipClass}>Python router scores</span>
-          <span className={adminChipClass}>{readyRows.length}/{models.length} ready</span>
+          <span className={adminChipClass}>
+            {readyRows.length}/{models.length} ready
+          </span>
           <span className={adminChipClass}>{productionTaggedRows.length} production-ready</span>
         </div>
       </div>
@@ -509,6 +526,18 @@ export function AdminModelsPanel({ dashboard, onOpenModelDialog }: AdminModelsPa
                   onDelete={(target) => void deleteModel({ id: target._id })}
                 />
               ))}
+              {modelsQuery.status === 'CanLoadMore' || modelsQuery.status === 'LoadingMore' ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => modelsQuery.loadMore(50)}
+                  disabled={modelsQuery.status === 'LoadingMore'}
+                >
+                  {modelsQuery.status === 'LoadingMore'
+                    ? 'Loading more models...'
+                    : 'Load more models'}
+                </Button>
+              ) : null}
             </div>
           ) : (
             <AdminEmptyState
@@ -647,10 +676,26 @@ export function AdminModelsPanel({ dashboard, onOpenModelDialog }: AdminModelsPa
         >
           <div className="grid gap-3 md:grid-cols-4">
             {[
-              { title: '1. Catalog', body: 'Enabled providers and models become candidates.', icon: Database },
-              { title: '2. Signals', body: 'Tags, context, files, tools, and prompt shape are normalized.', icon: Sparkles },
-              { title: '3. Score', body: 'Quality, speed, cost, and context combine into an Auto score.', icon: Target },
-              { title: '4. Decide', body: 'The chosen model and result are stored for review.', icon: Brain },
+              {
+                title: '1. Catalog',
+                body: 'Enabled providers and models become candidates.',
+                icon: Database,
+              },
+              {
+                title: '2. Signals',
+                body: 'Tags, context, files, tools, and prompt shape are normalized.',
+                icon: Sparkles,
+              },
+              {
+                title: '3. Score',
+                body: 'Quality, speed, cost, and context combine into an Auto score.',
+                icon: Target,
+              },
+              {
+                title: '4. Decide',
+                body: 'The chosen model and result are stored for review.',
+                icon: Brain,
+              },
             ].map(({ title, body, icon: Icon }) => (
               <div key={title} className={adminInsetClass + ' p-4'}>
                 <div className="mb-3 flex size-10 items-center justify-center rounded-xl border border-border/70 bg-muted/45">
@@ -684,6 +729,18 @@ export function AdminModelsPanel({ dashboard, onOpenModelDialog }: AdminModelsPa
                   onDelete={(target) => void deleteModel({ id: target._id })}
                 />
               ))}
+              {modelsQuery.status === 'CanLoadMore' || modelsQuery.status === 'LoadingMore' ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => modelsQuery.loadMore(50)}
+                  disabled={modelsQuery.status === 'LoadingMore'}
+                >
+                  {modelsQuery.status === 'LoadingMore'
+                    ? 'Loading more models...'
+                    : 'Load more models'}
+                </Button>
+              ) : null}
             </div>
           ) : (
             <AdminEmptyState

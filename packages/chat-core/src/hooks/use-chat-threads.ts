@@ -8,10 +8,21 @@ export function useChatThreads(): {
   setPinned: (threadId: string, pinned: boolean) => Promise<void>
   deleteThread: (threadId: string) => Promise<void>
   isLoading: boolean
+  hasMore: boolean
+  isLoadingMore: boolean
+  loadMore: (numItems?: number) => void
   threadsByProject: Map<string, ThreadSummary[]>
   unfiledThreads: ThreadSummary[]
 } {
-  const { threads, setPinned, deleteThread, isLoadingThreads } =
+  const {
+    threads,
+    setPinned,
+    deleteThread,
+    isLoadingThreads,
+    hasMoreThreads,
+    isLoadingMoreThreads,
+    loadMoreThreads,
+  } =
     useChatCoreContext()
 
   const { projectThreads: threadsByProject, unfiledThreads } = useMemo(
@@ -24,6 +35,9 @@ export function useChatThreads(): {
     setPinned,
     deleteThread,
     isLoading: isLoadingThreads,
+    hasMore: hasMoreThreads,
+    isLoadingMore: isLoadingMoreThreads,
+    loadMore: loadMoreThreads,
     threadsByProject,
     unfiledThreads,
   }

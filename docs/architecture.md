@@ -100,6 +100,7 @@ Mobile data and offline layer:
 - `apps/mobile/src/mobile-data/*`: Convex-facing hooks for threads, messages, models, drafts, projects, and sending
 - `apps/mobile/src/offline/*`: SQLite-backed cache and offline record types
 - `apps/mobile/src/store/current-chat.ts`: shared current chat selection state for drawer-driven chat navigation
+- growing mobile lists now load incrementally from paginated Convex queries; drawers, memory settings, and picker surfaces request more rows instead of assuming one full in-memory fetch
 - Convex optimistic mutation updates own thread/message handoff after send; failed sends are surfaced inline through rendered message failure state
 - `apps/mobile/src/components/chat/message-list.tsx` and `message-row.tsx`: native mobile message rendering that mirrors web row semantics for activity traces, failure presentation, stalled-generation recovery, and message actions while keeping touch-first presentation
 - `apps/mobile/src/components/chat/mobile-sidebar-*.tsx`: reusable native sidebar sections that consume the live thread and project model
@@ -125,6 +126,7 @@ Web feature areas:
 
 - `apps/web/src/routes/*`: route handlers for chat, auth, admin, share, signup, memory demo
 - `apps/web/src/components/*`: chat UI, sidebar, prompt input, auth redirect, settings, markdown, model UI
+- long-running web lists now use paginated Convex queries in the client hooks for sidebar chats, memory views, model browsing, and admin catalogs instead of relying on unbounded list queries
 - settings shell lives in `apps/web/src/components/settings-modal.tsx`; settings dropdown fields use the shared Shadcn `Select` pattern for consistent design, and appearance preferences now include theme mode, accent color, plus separately persisted English and Arabic font stacks restored from local storage before hydration
 - user-facing web copy now flows through a lightweight typed i18n layer in `apps/web/src/lib/i18n.ts` and `apps/web/src/components/i18n-provider.tsx`, which owns locale preference, `html[lang|dir]`, and translation dictionaries so adding a new language is mostly a dictionary change
 - `apps/web/src/components/chat-model-context.tsx`: model preference state; persists `default model` and `last used model` separately in `localStorage`
@@ -188,6 +190,7 @@ Primary modules:
 - `convex/admin.ts`: admin operations
 - `convex/shares.ts`: shared-chat capabilities
 - `convex/functions/memory*.ts`: durable memory, extraction, search, and sync pipeline
+- list-style backend queries that back user-facing clients now prefer Convex pagination contracts (`paginationOpts`, `page`, `isDone`, `continueCursor`) so web and mobile can grow list UIs without full-collection reads
 
 ### 5. Authentication
 

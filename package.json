@@ -41,7 +41,8 @@
     "eas:build:android": "cd apps/mobile && eas build --platform android --profile production",
     "eas:build:ios": "cd apps/mobile && eas build --platform ios --profile production",
     "eas:build:testflight": "cd apps/mobile && eas build --platform ios --profile production",
-    "eas:build:local:android": "cd apps/mobile && eas build --platform android --profile production --local",
+    "eas:build:local:android": "cd apps/mobile && eas env:pull --environment production --path .env.local --non-interactive && eas env:exec production 'eas build --platform android --profile production --local --non-interactive'",
+    "eas:build:local:android:env": "pnpm run eas:build:local:android",
     "eas:build:local:ios": "cd apps/mobile && eas build --platform ios --profile production --local",
     "eas:submit:testflight": "cd apps/mobile && eas submit --platform ios --profile production",
     "eas:testflight": "cd apps/mobile && eas build --platform ios --profile production --auto-submit",
@@ -55,6 +56,7 @@
     "ship": "node scripts/ship.mjs"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@types/node": "^25.8.0",
     "knip": "^5.88.1",
     "oxfmt": "^0.41.0",

@@ -100,15 +100,13 @@ function ResponsiveModalContent({
     return (
       <DrawerContent
         className={cn(
-          'max-h-[92dvh] w-full border-x-0 border-t-[--overlay-border-strong] bg-popover text-popover-foreground',
-          'rounded-t-3xl pb-0',
+          'max-h-[var(--overlay-sheet-max-height)] w-full text-popover-foreground',
           className,
         )}
         {...props}
       >
-        <div className="bg-muted mx-auto mt-3 h-1.5 w-12 rounded-full" />
         {showCloseButton ? (
-          <DrawerClose className="ring-offset-background focus:ring-ring absolute top-4 right-4 inline-flex size-8 items-center justify-center rounded-full border border-border/80 text-muted-foreground transition-colors hover:text-foreground focus:ring-2 focus:ring-offset-2 focus:outline-hidden">
+          <DrawerClose className="overlay-sheet-close ring-offset-background focus:ring-ring absolute top-4 right-4 inline-flex size-9 items-center justify-center rounded-full text-muted-foreground transition-all duration-200 hover:scale-[1.02] hover:text-foreground focus:ring-2 focus:ring-offset-2 focus:outline-hidden">
             <XIcon className="size-4" />
             <span className="sr-only">Close</span>
           </DrawerClose>
@@ -137,7 +135,7 @@ function ResponsiveModalHeader({ className, ...props }: React.HTMLAttributes<HTM
   return (
     <div
       className={cn(
-        'flex items-center justify-between gap-3 border-b border-border/80 px-5 py-4 md:px-6',
+        'flex items-center justify-between gap-3 border-b border-border/70 px-5 py-4 md:px-6 md:py-5',
         className,
       )}
       {...props}
@@ -147,14 +145,17 @@ function ResponsiveModalHeader({ className, ...props }: React.HTMLAttributes<HTM
 
 function ResponsiveModalBody({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn('min-h-0 flex-1 overflow-y-auto px-5 py-4 md:px-6', className)} {...props} />
+    <div
+      className={cn('min-h-0 flex-1 overflow-y-auto px-5 py-4 md:px-6 md:py-5', className)}
+      {...props}
+    />
   )
 }
 
 function ResponsiveModalFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn('mt-auto border-t border-border/80 px-5 py-4 md:px-6', className)}
+      className={cn('mt-auto border-t border-border/70 px-5 py-4 md:px-6 md:py-5', className)}
       {...props}
     />
   )
@@ -262,14 +263,8 @@ function ResponsivePopupContent({
 
   if (isMobile) {
     return (
-      <DrawerContent
-        className={cn(
-          'max-h-[92dvh] w-full border-x-0 border-t-[--overlay-border-strong] bg-popover text-popover-foreground rounded-t-3xl',
-          className,
-        )}
-      >
-        <div className="bg-muted mx-auto mt-3 h-1.5 w-12 rounded-full" />
-        <DrawerClose className="ring-offset-background focus:ring-ring absolute top-4 right-4 inline-flex size-8 items-center justify-center rounded-full border border-border/80 text-muted-foreground transition-colors hover:text-foreground focus:ring-2 focus:ring-offset-2 focus:outline-hidden">
+      <DrawerContent className={cn('max-h-[var(--overlay-sheet-max-height)] w-full', className)}>
+        <DrawerClose className="overlay-sheet-close ring-offset-background focus:ring-ring absolute top-4 right-4 inline-flex size-9 items-center justify-center rounded-full text-muted-foreground transition-all duration-200 hover:scale-[1.02] hover:text-foreground focus:ring-2 focus:ring-offset-2 focus:outline-hidden">
           <XIcon className="size-4" />
           <span className="sr-only">Close</span>
         </DrawerClose>
@@ -301,7 +296,7 @@ function ResponsivePopupHeader({ className, ...props }: React.HTMLAttributes<HTM
   return (
     <div
       className={cn(
-        'flex items-center justify-between gap-3 border-b border-border/80 px-4 py-3',
+        'flex items-center justify-between gap-3 border-b border-border/70 px-4 py-3.5',
         className,
       )}
       {...props}
@@ -330,7 +325,7 @@ function ResponsivePopupClose({
     <button
       type="button"
       className={cn(
-        'inline-flex size-8 items-center justify-center rounded-full border border-border/80 text-muted-foreground transition-colors hover:text-foreground',
+        'overlay-sheet-close inline-flex size-8 items-center justify-center rounded-full text-muted-foreground transition-all duration-200 hover:scale-[1.02] hover:text-foreground',
         className,
       )}
       onClick={(event) => {

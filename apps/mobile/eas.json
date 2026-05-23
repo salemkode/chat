@@ -16,6 +16,10 @@
       "environment": "development",
       "developmentClient": true,
       "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_EAS_ENVIRONMENT": "development",
+        "EXPO_PUBLIC_EAS_BUILD_PROFILE": "development"
+      },
       "cache": {
         "disabled": true
       }
@@ -24,6 +28,10 @@
       "extends": "monorepo",
       "environment": "preview",
       "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_EAS_ENVIRONMENT": "preview",
+        "EXPO_PUBLIC_EAS_BUILD_PROFILE": "preview"
+      },
       "android": {
         "buildType": "apk"
       },
@@ -34,6 +42,10 @@
     "production": {
       "extends": "monorepo",
       "environment": "production",
+      "env": {
+        "EXPO_PUBLIC_EAS_ENVIRONMENT": "production",
+        "EXPO_PUBLIC_EAS_BUILD_PROFILE": "production"
+      },
       "autoIncrement": true,
       "android": {
         "buildType": "apk"

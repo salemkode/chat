@@ -1,4 +1,5 @@
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
+import { ClientEnvList } from "@/components/client-env-list";
 import { useAuth } from "@clerk/expo";
 import { Redirect } from "expo-router";
 import { ActivityIndicator, Text, View } from "react-native";
@@ -28,13 +29,14 @@ export default function SignInScreen() {
         paddingBottom: Math.max(insets.bottom, 20),
       }}
     >
-      <View className="mb-10 mt-12 flex-1 justify-center">
-        <Text className="mb-3 text-4xl font-bold text-foreground">
-          Welcome back
+      <View className="mb-6 mt-8 flex-1">
+        <Text className="mb-1 text-2xl font-bold text-foreground">
+          Client environment
         </Text>
-        <Text className="text-lg text-muted-foreground">
-          Sign in to continue
+        <Text className="mb-4 text-sm text-muted-foreground">
+          EAS production env baked into this build at compile time
         </Text>
+        <ClientEnvList />
       </View>
 
       <View className="mb-8 w-full">

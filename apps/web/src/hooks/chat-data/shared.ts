@@ -29,7 +29,7 @@ const DRAFT_PREFIX = 'chat-draft:'
 type ViewerRecord = FunctionReturnType<typeof api.users.viewer>
 type SettingsRecord = FunctionReturnType<typeof api.users.getSettings>
 type ThreadsRecord = FunctionReturnType<typeof api.agents.listThreadsWithMetadata>
-type ThreadRecord = ThreadsRecord[number]
+type ThreadRecord = ThreadsRecord['page'][number]
 type ThreadWithProject = ThreadRecord & {
   project?: {
     id: string
@@ -37,22 +37,8 @@ type ThreadWithProject = ThreadRecord & {
     description?: string
   } | null
 }
-type ModelsWithProvidersRecord = FunctionReturnType<typeof api.admin.listModelsWithProviders> & {
-  collections?: Array<{
-    _id: string
-    name: string
-    description?: string
-    icon?: string
-    iconType?: 'emoji' | 'lucide' | 'phosphor' | 'upload'
-    iconId?: string
-    iconUrl?: string
-    sortOrder: number
-    modelIds: string[]
-    modelCount: number
-  }>
-}
-type ModelRecord = ModelsWithProvidersRecord['models'][number]
-type ModelCollectionRecord = NonNullable<ModelsWithProvidersRecord['collections']>[number]
+type ModelRecord = FunctionReturnType<typeof api.admin.listModelsForBrowser>['page'][number]
+type ModelCollectionRecord = FunctionReturnType<typeof api.admin.getModelBrowserMetadata>['collections'][number]
 type ProjectRecord = {
   id: string
   name: string
@@ -240,7 +226,7 @@ export function toModelDocId(modelId: string): Id<'models'> {
   return modelId as Id<'models'>
 }
 
-export function cacheThreadsToLocal(userId: string, threads: ThreadsRecord) {
+export function cacheThreadsToLocal(userId: string, threads: ThreadRecord[]) {
   const normalizedThreads = threads.map(normalizeThread)
   const summaries: ThreadSummary[] = normalizedThreads.map((t) => ({
     ...t,
@@ -249,7 +235,13 @@ export function cacheThreadsToLocal(userId: string, threads: ThreadsRecord) {
   writeThreadsCache(userId, summaries)
 }
 
-export function cacheModelsToLocal(userId: string, data: ModelsWithProvidersRecord) {
+export function cacheModelsToLocal(
+  userId: string,
+  data: {
+    models: ModelRecord[]
+    collections: ModelCollectionRecord[]
+  },
+) {
   const models = Array.isArray(data.models) ? data.models : []
   const collections = Array.isArray(data.collections) ? data.collections : []
   const payload: OfflineModelPickerCacheRecord = {

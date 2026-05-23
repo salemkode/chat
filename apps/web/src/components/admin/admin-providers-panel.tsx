@@ -32,6 +32,7 @@ import {
   CommandList,
 } from '@/components/ui/command'
 import { Switch } from '@/components/ui/switch'
+import { usePaginatedQuery } from '@/lib/convex-query-cache'
 
 type AdminProvidersPanelProps = Pick<AdminOutletContext, 'dashboard' | 'onOpenProviderDialog'>
 
@@ -47,11 +48,12 @@ function normalizeIconType(value: string | undefined): IconType {
   }
 }
 
-export function AdminProvidersPanel({ dashboard, onOpenProviderDialog }: AdminProvidersPanelProps) {
+export function AdminProvidersPanel({ dashboard: _dashboard, onOpenProviderDialog }: AdminProvidersPanelProps) {
   const discovery = useAdminDiscovery()
   const deleteProvider = useMutation(api.admin.deleteProvider)
   const toggleProviderEnabled = useMutation(api.admin.toggleProviderEnabled)
-  const providers = dashboard.providers
+  const providersQuery = usePaginatedQuery(api.admin.listAdminProviders, {}, { initialNumItems: 50 })
+  const providers = providersQuery.results ?? []
 
   return (
     <div className="grid gap-4">
@@ -60,7 +62,11 @@ export function AdminProvidersPanel({ dashboard, onOpenProviderDialog }: AdminPr
         title="Provider fleet"
         description="Each provider stays compact: identity, current visibility, traffic, and the latest inspection signal live in one operational row instead of a showcase card."
       >
-        {providers.length > 0 ? (
+        {providersQuery.results === undefined ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="size-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : providers.length > 0 ? (
           <div className="grid gap-3">
             {providers.map((provider: AdminProvider) => (
               <AdminRecord
@@ -164,6 +170,18 @@ export function AdminProvidersPanel({ dashboard, onOpenProviderDialog }: AdminPr
                 }
               />
             ))}
+            {providersQuery.status === 'CanLoadMore' || providersQuery.status === 'LoadingMore' ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => providersQuery.loadMore(50)}
+                disabled={providersQuery.status === 'LoadingMore'}
+              >
+                {providersQuery.status === 'LoadingMore'
+                  ? 'Loading more providers...'
+                  : 'Load more providers'}
+              </Button>
+            ) : null}
           </div>
         ) : (
           <AdminEmptyState

@@ -81,8 +81,6 @@ export async function hydrateOfflineCache() {
   return hydratePromise;
 }
 
-void hydrateOfflineCache();
-
 export function readSession(): OfflineSessionSnapshot | null {
   const parsed = readJson<OfflineSessionSnapshot>(memory.get(SESSION_STORAGE_KEY));
   if (!parsed || typeof parsed.userId !== "string" || !parsed.trusted) {

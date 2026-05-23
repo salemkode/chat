@@ -38,9 +38,7 @@ export function AdminSectionCard({
             ) : null}
             <h2 className="text-xl font-semibold tracking-[-0.03em] text-foreground">{title}</h2>
             {description ? (
-              <div className="max-w-3xl text-sm leading-6 text-muted-foreground">
-                {description}
-              </div>
+              <div className="max-w-3xl text-sm leading-6 text-muted-foreground">{description}</div>
             ) : null}
           </div>
           {action ? <div className="shrink-0">{action}</div> : null}
@@ -86,7 +84,9 @@ export function AdminMetricCard({
           <Icon className="size-4.5" />
         </div>
       </div>
-      {description ? <p className="mt-3 text-sm leading-6 text-muted-foreground">{description}</p> : null}
+      {description ? (
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">{description}</p>
+      ) : null}
     </article>
   )
 }
@@ -174,15 +174,19 @@ export function AdminRecord({
               {badges}
             </div>
             {subtitle ? <div className="text-sm text-muted-foreground">{subtitle}</div> : null}
-            {summary ? <div className="text-sm leading-6 text-muted-foreground">{summary}</div> : null}
+            {summary ? (
+              <div className="text-sm leading-6 text-muted-foreground">{summary}</div>
+            ) : null}
           </div>
         </div>
       </div>
       {metrics ? (
-        <div className="flex flex-1 flex-wrap gap-2 lg:justify-center">{metrics}</div>
+        <div className="flex w-full flex-wrap gap-2 lg:flex-1 lg:justify-center">{metrics}</div>
       ) : null}
       {actions ? (
-        <div className="flex shrink-0 flex-wrap items-center gap-2 lg:justify-end">{actions}</div>
+        <div className="flex w-full shrink-0 flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
+          {actions}
+        </div>
       ) : null}
     </article>
   )

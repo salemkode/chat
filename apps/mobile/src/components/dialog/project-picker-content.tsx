@@ -9,6 +9,9 @@ type ProjectPickerContentProps = {
   projects: ProjectSummary[];
   selectedProjectId: string | null;
   onSelectProject: (projectId: string | null) => void;
+  hasMore: boolean;
+  isLoadingMore: boolean;
+  onLoadMore: () => void;
 };
 
 function ProjectRow({
@@ -50,6 +53,9 @@ export function ProjectPickerContent({
   projects,
   selectedProjectId,
   onSelectProject,
+  hasMore,
+  isLoadingMore,
+  onLoadMore,
 }: ProjectPickerContentProps) {
   const insets = useSafeAreaInsets();
 
@@ -86,6 +92,17 @@ export function ProjectPickerContent({
           />
         ))
       )}
+
+      {hasMore ? (
+        <Pressable
+          onPress={onLoadMore}
+          className="mx-5 mt-3 rounded-xl border border-border px-4 py-3"
+        >
+          <Text className="text-center text-[14px] text-foreground">
+            {isLoadingMore ? "Loading more projects..." : "Load more projects"}
+          </Text>
+        </Pressable>
+      ) : null}
     </ScrollView>
   );
 }

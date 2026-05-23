@@ -13,6 +13,7 @@ import {
 import type { AdminModelCollection, IconType } from '@/components/admin/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { usePaginatedQuery } from '@/lib/convex-query-cache'
 
 function normalizeIconType(value: string | undefined): IconType {
   if (value === 'emoji' || value === 'phosphor' || value === 'upload') {
@@ -32,7 +33,8 @@ export function AdminCollectionsPanel({
   onOpenCollectionDraft,
 }: AdminCollectionsPanelProps) {
   const deleteModelCollection = useMutation(api.admin.deleteModelCollection)
-  const collections = dashboard.collections
+  const collectionsQuery = usePaginatedQuery(api.admin.listAdminCollections, {}, { initialNumItems: 50 })
+  const collections = collectionsQuery.results ?? []
 
   return (
     <AdminSectionCard
@@ -46,7 +48,11 @@ export function AdminCollectionsPanel({
         />
       }
     >
-      {collections.length > 0 ? (
+      {collectionsQuery.results === undefined ? (
+        <div className="flex justify-center py-12 text-sm text-muted-foreground">
+          Loading collections...
+        </div>
+      ) : collections.length > 0 ? (
         <div className="grid gap-3">
           {collections.map((collection: AdminModelCollection) => {
             const hiddenModels = collection.models.filter(
@@ -119,6 +125,18 @@ export function AdminCollectionsPanel({
               />
             )
           })}
+          {collectionsQuery.status === 'CanLoadMore' || collectionsQuery.status === 'LoadingMore' ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => collectionsQuery.loadMore(50)}
+              disabled={collectionsQuery.status === 'LoadingMore'}
+            >
+              {collectionsQuery.status === 'LoadingMore'
+                ? 'Loading more collections...'
+                : 'Load more collections'}
+            </Button>
+          ) : null}
         </div>
       ) : (
         <AdminEmptyState

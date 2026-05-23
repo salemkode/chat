@@ -12,6 +12,9 @@ type ModelPickerContentProps = {
   collections: ModelCollection[];
   selectedModelId: Id<"models"> | undefined;
   onSelectModel: (modelId: Id<"models">) => void;
+  hasMore: boolean;
+  isLoadingMore: boolean;
+  onLoadMore: () => void;
 };
 
 function ModelRow({
@@ -46,6 +49,9 @@ export function ModelPickerContent({
   collections,
   selectedModelId,
   onSelectModel,
+  hasMore,
+  isLoadingMore,
+  onLoadMore,
 }: ModelPickerContentProps) {
   const insets = useSafeAreaInsets();
   const [selectedCollectionId, setSelectedCollectionId] = useState<string>("all");
@@ -120,6 +126,16 @@ export function ModelPickerContent({
         ))}
         {visibleModels.length === 0 ? (
           <Text className="px-5 py-6 text-[13px] text-muted-foreground">No models in this category.</Text>
+        ) : null}
+        {hasMore ? (
+          <Pressable
+            onPress={onLoadMore}
+            className="mx-5 mt-3 mb-5 rounded-xl border border-border px-4 py-3"
+          >
+            <Text className="text-center text-[14px] text-foreground">
+              {isLoadingMore ? "Loading more models..." : "Load more models"}
+            </Text>
+          </Pressable>
         ) : null}
       </View>
     </ScrollView>

@@ -7,6 +7,7 @@ import {
   type MutationCtx,
   type ActionCtx,
 } from './_generated/server'
+import { paginationOptsValidator } from 'convex/server'
 import { components, internal } from './_generated/api'
 import type { Id } from './_generated/dataModel'
 import { v, ConvexError } from 'convex/values'
@@ -20,6 +21,7 @@ import {
   listAccessibleProjectIds,
   requireProjectRole,
 } from './lib/projectAccess'
+import { paginateResults } from './lib/pagination'
 
 async function requireUserId(ctx: QueryCtx | MutationCtx): Promise<Id<'users'> | null> {
   const userId = await getAuthUserId(ctx)
@@ -72,6 +74,17 @@ const PROJECT_SUGGESTION_DEFAULT_MODEL = 'openai/gpt-4.1-mini'
 const projectSuggestionSchema = z.object({
   name: z.string().min(1).max(PROJECT_NAME_MAX_LENGTH),
   description: z.string().max(PROJECT_DESCRIPTION_MAX_LENGTH).optional(),
+})
+
+const publicProjectSummaryValidator = v.object({
+  id: v.string(),
+  name: v.string(),
+  description: v.optional(v.string()),
+  visibility: v.union(v.literal('private'), v.literal('shared')),
+  role: v.union(v.literal('owner'), v.literal('editor'), v.literal('viewer')),
+  threadCount: v.number(),
+  createdAt: v.number(),
+  updatedAt: v.number(),
 })
 
 const openrouter = process.env.OPENROUTER_API_KEY
@@ -351,9 +364,19 @@ export const createProject = mutation({
 })
 
 export const listProjects = query({
-  handler: async (ctx) => {
+  args: {
+    paginationOpts: paginationOptsValidator,
+  },
+  returns: v.object({
+    page: v.array(publicProjectSummaryValidator),
+    isDone: v.boolean(),
+    continueCursor: v.string(),
+  }),
+  handler: async (ctx, args) => {
     const userId = await requireUserId(ctx)
-    if (!userId) return []
+    if (!userId) {
+      return { page: [], isDone: true, continueCursor: '' }
+    }
 
     const [projectIds, metadata] = await Promise.all([
       listAccessibleProjectIds(ctx, userId),
@@ -372,7 +395,7 @@ export const listProjects = query({
       counts.set(item.projectId.toString(), (counts.get(item.projectId.toString()) ?? 0) + 1)
     }
 
-    return await Promise.all(
+    const rows = await Promise.all(
       projects.map(async (project) => {
         const role = await getAccessibleProject(ctx, project._id, userId, 'viewer')
         return {
@@ -387,6 +410,11 @@ export const listProjects = query({
         }
       }),
     )
+
+    return paginateResults(rows, {
+      cursor: args.paginationOpts.cursor,
+      numItems: args.paginationOpts.numItems,
+    })
   },
 })
 

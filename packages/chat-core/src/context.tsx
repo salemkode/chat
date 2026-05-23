@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo, useCallback, useState, useEffect } from 'react'
-import { useMutation, useQuery } from 'convex/react'
+import { useMutation, usePaginatedQuery } from 'convex/react'
 import { resolveChatSnapshot } from './cache/resolve-snapshot'
 import type { ProjectSummary, ThreadSummary } from './types'
 import { compareThreadsForSidebar } from './sidebar'
@@ -29,6 +29,12 @@ export type ChatCoreContextValue = {
   isOnline: boolean
   isLoadingProjects: boolean
   isLoadingThreads: boolean
+  hasMoreProjects: boolean
+  hasMoreThreads: boolean
+  isLoadingMoreProjects: boolean
+  isLoadingMoreThreads: boolean
+  loadMoreProjects: (numItems?: number) => void
+  loadMoreThreads: (numItems?: number) => void
   pendingProjectId: string | null
   setPendingProjectId: (id: string | null) => void
 }
@@ -95,8 +101,12 @@ export function ChatCoreProvider({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const refs = apiRefs as any
 
-  const liveProjects = useQuery(refs.projects.listProjects, {})
-  const liveThreads = useQuery(refs.agents.listThreadsWithMetadata, {})
+  const liveProjectsQuery = usePaginatedQuery(refs.projects.listProjects, {}, { initialNumItems: 30 })
+  const liveThreadsQuery = usePaginatedQuery(
+    refs.agents.listThreadsWithMetadata,
+    {},
+    { initialNumItems: 30 },
+  )
   const createProjectMutation = useMutation(refs.projects.createProject)
   const assignThreadToProjectMutation = useMutation(refs.projects.assignThreadToProject)
   const setThreadPinnedMutation = useMutation(refs.agents.setThreadPinned)
@@ -115,47 +125,47 @@ export function ChatCoreProvider({
 
   const projects = useMemo<ProjectSummary[]>(() => {
     const normalized =
-      liveProjects === undefined
+      liveProjectsQuery.results === undefined
         ? undefined
-        : (liveProjects as Record<string, unknown>[]).map(normalizeProject)
+        : (liveProjectsQuery.results as Record<string, unknown>[]).map(normalizeProject)
     return resolveChatSnapshot({
       live: normalized,
       persisted: cachedProjects ?? [],
     })
-  }, [cachedProjects, liveProjects])
+  }, [cachedProjects, liveProjectsQuery.results])
 
   const threads = useMemo<ThreadSummary[]>(() => {
     const normalized =
-      liveThreads === undefined
+      liveThreadsQuery.results === undefined
         ? undefined
-        : [...(liveThreads as Record<string, unknown>[])]
+        : [...(liveThreadsQuery.results as Record<string, unknown>[])]
             .map(normalizeThread)
             .sort(compareThreadsForSidebar)
     return resolveChatSnapshot({
       live: normalized,
       persisted: cachedThreads ?? [],
     })
-  }, [cachedThreads, liveThreads])
+  }, [cachedThreads, liveThreadsQuery.results])
 
   useEffect(() => {
-    if (liveProjects === undefined || !cacheAccessors?.writeCachedProjects) {
+    if (liveProjectsQuery.results === undefined || !cacheAccessors?.writeCachedProjects) {
       return
     }
     cacheAccessors.writeCachedProjects(
-      (liveProjects as Record<string, unknown>[]).map(normalizeProject),
+      (liveProjectsQuery.results as Record<string, unknown>[]).map(normalizeProject),
     )
-  }, [cacheAccessors, liveProjects])
+  }, [cacheAccessors, liveProjectsQuery.results])
 
   useEffect(() => {
-    if (liveThreads === undefined || !cacheAccessors?.writeCachedThreads) {
+    if (liveThreadsQuery.results === undefined || !cacheAccessors?.writeCachedThreads) {
       return
     }
     cacheAccessors.writeCachedThreads(
-      [...(liveThreads as Record<string, unknown>[])]
+      [...(liveThreadsQuery.results as Record<string, unknown>[])]
         .map(normalizeThread)
         .sort(compareThreadsForSidebar),
     )
-  }, [cacheAccessors, liveThreads])
+  }, [cacheAccessors, liveThreadsQuery.results])
 
   const createProject = useCallback(
     async (args: { name: string; description?: string }) => {
@@ -199,8 +209,16 @@ export function ChatCoreProvider({
       setPinned,
       deleteThread,
       isOnline,
-      isLoadingProjects: liveProjects === undefined,
-      isLoadingThreads: liveThreads === undefined,
+      isLoadingProjects: liveProjectsQuery.results === undefined,
+      isLoadingThreads: liveThreadsQuery.results === undefined,
+      hasMoreProjects:
+        liveProjectsQuery.status === 'CanLoadMore' || liveProjectsQuery.status === 'LoadingMore',
+      hasMoreThreads:
+        liveThreadsQuery.status === 'CanLoadMore' || liveThreadsQuery.status === 'LoadingMore',
+      isLoadingMoreProjects: liveProjectsQuery.status === 'LoadingMore',
+      isLoadingMoreThreads: liveThreadsQuery.status === 'LoadingMore',
+      loadMoreProjects: (numItems = 30) => liveProjectsQuery.loadMore(numItems),
+      loadMoreThreads: (numItems = 30) => liveThreadsQuery.loadMore(numItems),
       pendingProjectId,
       setPendingProjectId,
     }),
@@ -212,8 +230,12 @@ export function ChatCoreProvider({
       setPinned,
       deleteThread,
       isOnline,
-      liveProjects,
-      liveThreads,
+      liveProjectsQuery.loadMore,
+      liveProjectsQuery.results,
+      liveProjectsQuery.status,
+      liveThreadsQuery.loadMore,
+      liveThreadsQuery.results,
+      liveThreadsQuery.status,
       pendingProjectId,
     ],
   )

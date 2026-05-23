@@ -5,7 +5,7 @@ import { api } from '@convex/_generated/api'
 import type { FunctionReturnType } from 'convex/server'
 import { useOnlineStatus } from '@/hooks/use-online-status'
 import { resolveChatSnapshot } from '@chat/chat-core'
-import { useQuery } from 'convex/react'
+import { usePaginatedQuery, useQuery } from '@/lib/convex-query-cache'
 import { readModelsCache, readProjectsCache, readSettings } from '@/offline/local-cache'
 import { parseConvexIdForTable } from '@chat/shared/logic/convex-ids'
 import {
@@ -17,31 +17,22 @@ import {
   normalizeModel,
   type OfflineModelPickerCacheRecord,
   toModelDocId,
-  type ProjectsRecord,
   useConvexUserIdForCache,
   useOfflineCacheVersion,
 } from '@/hooks/chat-data/shared'
 
-type ModelsWithCollections = FunctionReturnType<typeof api.admin.listModelsWithProviders> & {
-  collections?: Array<{
-    _id: string
-    name: string
-    description?: string
-    icon?: string
-    iconType?: 'emoji' | 'lucide' | 'phosphor' | 'upload'
-    iconId?: string
-    iconUrl?: string
-    sortOrder: number
-    modelIds: string[]
-    modelCount: number
-  }>
-}
+type ModelRecord = FunctionReturnType<typeof api.admin.listModelsForBrowser>['page'][number]
 
 export function useModels() {
   const cacheUserId = useConvexUserIdForCache()
   const { isOnline } = useOnlineStatus()
   const cacheVersion = useOfflineCacheVersion()
-  const data = useQuery(api.admin.listModelsWithProviders) as ModelsWithCollections | undefined
+  const metadata = useQuery(api.admin.getModelBrowserMetadata, {})
+  const paginatedModels = usePaginatedQuery(
+    api.admin.listModelsForBrowser,
+    {},
+    { initialNumItems: 40 },
+  )
   const setFavoriteModel = useMutation(api.admin.setFavoriteModel)
 
   const cachedModelPicker = useMemo(() => {
@@ -62,24 +53,27 @@ export function useModels() {
   }, [cacheUserId, cacheVersion])
 
   useEffect(() => {
-    if (cacheUserId && (Array.isArray(data?.models) || Array.isArray(data?.collections))) {
-      cacheModelsToLocal(cacheUserId, data)
+    if (cacheUserId && (Array.isArray(paginatedModels.results) || Array.isArray(metadata?.collections))) {
+      cacheModelsToLocal(cacheUserId, {
+        models: paginatedModels.results ?? [],
+        collections: metadata?.collections ?? [],
+      })
     }
-  }, [data, cacheUserId])
+  }, [cacheUserId, metadata?.collections, paginatedModels.results])
 
   const models = useMemo(
     () =>
-      Array.isArray(data?.models)
-        ? data.models.map(normalizeModel)
+      Array.isArray(paginatedModels.results)
+        ? (paginatedModels.results as ModelRecord[]).map(normalizeModel)
         : cachedModelPicker.models || [],
-    [cachedModelPicker.models, data?.models],
+    [cachedModelPicker.models, paginatedModels.results],
   )
   const collections = useMemo(
     () =>
-      Array.isArray(data?.collections)
-        ? data.collections.map(normalizeModelCollection)
+      Array.isArray(metadata?.collections)
+        ? metadata.collections.map(normalizeModelCollection)
         : cachedModelPicker.collections || [],
-    [cachedModelPicker.collections, data?.collections],
+    [cachedModelPicker.collections, metadata?.collections],
   )
 
   const setFavorite = useCallback(
@@ -96,7 +90,10 @@ export function useModels() {
     models,
     collections,
     setFavorite,
-    autoModelAvailable: data?.autoModelAvailable ?? false,
+    autoModelAvailable: metadata?.autoModelAvailable ?? false,
+    hasMore: paginatedModels.status === 'CanLoadMore' || paginatedModels.status === 'LoadingMore',
+    isLoadingMore: paginatedModels.status === 'LoadingMore',
+    loadMore: (numItems = 40) => paginatedModels.loadMore(numItems),
   }
 }
 
@@ -104,21 +101,7 @@ export function useProjects() {
   const cacheUserId = useConvexUserIdForCache()
   const { isOnline } = useOnlineStatus()
   const cacheVersion = useOfflineCacheVersion()
-  const projectsApi = (
-    api as typeof api & {
-      projects: {
-        listProjects: unknown
-        createProject: unknown
-        updateProject: unknown
-        deleteProject: unknown
-        assignThreadToProject: unknown
-        removeThreadFromProject: unknown
-      }
-    }
-  ).projects
-  const liveProjectsQuery = useQuery(projectsApi.listProjects as never) as
-    | ProjectsRecord
-    | undefined
+  const liveProjectsQuery = usePaginatedQuery(api.projects.listProjects, {}, { initialNumItems: 30 })
   const cachedProjects = useMemo(() => {
     if (!cacheUserId) {
       return []
@@ -126,25 +109,25 @@ export function useProjects() {
     const fromLs = readProjectsCache(cacheUserId)
     return Array.isArray(fromLs) ? fromLs : []
   }, [cacheUserId, cacheVersion])
-  const createProjectMutation = useMutation(projectsApi.createProject as never)
-  const updateProjectMutation = useMutation(projectsApi.updateProject as never)
-  const deleteProjectMutation = useMutation(projectsApi.deleteProject as never)
-  const assignThreadToProjectMutation = useMutation(projectsApi.assignThreadToProject as never)
-  const removeThreadFromProjectMutation = useMutation(projectsApi.removeThreadFromProject as never)
+  const createProjectMutation = useMutation(api.projects.createProject)
+  const updateProjectMutation = useMutation(api.projects.updateProject)
+  const deleteProjectMutation = useMutation(api.projects.deleteProject)
+  const assignThreadToProjectMutation = useMutation(api.projects.assignThreadToProject)
+  const removeThreadFromProjectMutation = useMutation(api.projects.removeThreadFromProject)
 
   useEffect(() => {
-    if (liveProjectsQuery && liveProjectsQuery.length > 0 && cacheUserId) {
-      cacheProjectsToLocal(cacheUserId, liveProjectsQuery)
+    if (liveProjectsQuery.results && liveProjectsQuery.results.length > 0 && cacheUserId) {
+      cacheProjectsToLocal(cacheUserId, liveProjectsQuery.results)
     }
-  }, [liveProjectsQuery, cacheUserId])
+  }, [liveProjectsQuery.results, cacheUserId])
 
   const projects = useMemo(
     () =>
       resolveChatSnapshot({
-        live: liveProjectsQuery,
+        live: liveProjectsQuery.results,
         persisted: cachedProjects,
       }),
-    [cachedProjects, liveProjectsQuery],
+    [cachedProjects, liveProjectsQuery.results],
   )
 
   const createProject = useCallback(
@@ -152,7 +135,7 @@ export function useProjects() {
       if (!isOnline) {
         return null
       }
-      return await createProjectMutation(values as never)
+      return await createProjectMutation(values)
     },
     [createProjectMutation, isOnline],
   )
@@ -162,7 +145,7 @@ export function useProjects() {
       if (!isOnline) {
         return
       }
-      await updateProjectMutation(values as never)
+      await updateProjectMutation(values)
     },
     [isOnline, updateProjectMutation],
   )
@@ -172,7 +155,7 @@ export function useProjects() {
       if (!isOnline) {
         return
       }
-      await deleteProjectMutation({ projectId } as never)
+      await deleteProjectMutation({ projectId })
     },
     [deleteProjectMutation, isOnline],
   )
@@ -182,7 +165,7 @@ export function useProjects() {
       if (!isOnline) {
         return
       }
-      await assignThreadToProjectMutation({ threadId, projectId } as never)
+      await assignThreadToProjectMutation({ threadId, projectId })
     },
     [assignThreadToProjectMutation, isOnline],
   )
@@ -192,7 +175,7 @@ export function useProjects() {
       if (!isOnline) {
         return
       }
-      await removeThreadFromProjectMutation({ threadId } as never)
+      await removeThreadFromProjectMutation({ threadId })
     },
     [isOnline, removeThreadFromProjectMutation],
   )
@@ -204,6 +187,10 @@ export function useProjects() {
     deleteProject,
     assignThreadToProject,
     removeThreadFromProject,
+    hasMore: liveProjectsQuery.status === 'CanLoadMore' || liveProjectsQuery.status === 'LoadingMore',
+    isLoading: liveProjectsQuery.results === undefined,
+    isLoadingMore: liveProjectsQuery.status === 'LoadingMore',
+    loadMore: (numItems = 30) => liveProjectsQuery.loadMore(numItems),
   }
 }
 

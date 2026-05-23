@@ -283,6 +283,9 @@ export function DrawerContent({
     setPinned,
     deleteThread,
     isLoading,
+    hasMore,
+    isLoadingMore,
+    loadMore,
   } = useChatThreads();
   const { setPendingProjectId } = useChatCoreContext();
   const viewer = useViewer();
@@ -494,6 +497,16 @@ export function DrawerContent({
                   />
                 );
               })}
+            {hasMore ? (
+              <Pressable
+                onPress={() => loadMore(30)}
+                className="mx-4 mt-3 rounded-[10px] border border-border px-4 py-3 active:bg-accent"
+              >
+                <Text className="text-center text-[14px] text-foreground">
+                  {isLoadingMore ? "Loading more chats..." : "Load more chats"}
+                </Text>
+              </Pressable>
+            ) : null}
 
             {hasProjects && (
               <View className="mx-6 my-2 border-b border-border" />

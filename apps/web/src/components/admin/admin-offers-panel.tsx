@@ -33,12 +33,12 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { useQuery } from '@/lib/convex-query-cache'
+import { usePaginatedQuery } from '@/lib/convex-query-cache'
 import { Loader2, PencilLine, Plus, Trash2 } from '@/lib/icons'
 import { toast } from 'sonner'
 
 type OfferKind = 'free_access' | 'availability_window'
-type OfferRow = FunctionReturnType<typeof api.admin.listModelOffers>[number]
+type OfferRow = FunctionReturnType<typeof api.admin.listModelOffers>['page'][number]
 
 function pad2(value: number) {
   return String(value).padStart(2, '0')
@@ -67,7 +67,8 @@ type AdminOffersPanelProps = Pick<AdminOutletContext, 'dashboard'>
 
 export function AdminOffersPanel({ dashboard }: AdminOffersPanelProps) {
   const models = dashboard.models
-  const offers = useQuery(api.admin.listModelOffers, {})
+  const offersQuery = usePaginatedQuery(api.admin.listModelOffers, {}, { initialNumItems: 50 })
+  const offers = offersQuery.results ?? []
 
   const createOffer = useMutation(api.admin.createModelOffer)
   const updateOffer = useMutation(api.admin.updateModelOffer)
@@ -206,7 +207,7 @@ export function AdminOffersPanel({ dashboard }: AdminOffersPanelProps) {
           </Button>
         }
       >
-        {offers === undefined ? (
+        {offersQuery.results === undefined ? (
           <div className="flex justify-center py-12">
             <Loader2 className="size-8 animate-spin text-muted-foreground" />
           </div>
@@ -272,6 +273,16 @@ export function AdminOffersPanel({ dashboard }: AdminOffersPanelProps) {
                 />
               )
             })}
+            {offersQuery.status === 'CanLoadMore' || offersQuery.status === 'LoadingMore' ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => offersQuery.loadMore(50)}
+                disabled={offersQuery.status === 'LoadingMore'}
+              >
+                {offersQuery.status === 'LoadingMore' ? 'Loading more offers...' : 'Load more offers'}
+              </Button>
+            ) : null}
           </div>
         )}
       </AdminSectionCard>

@@ -11,7 +11,7 @@ import { threadSelection$ } from "@/state/thread-selection";
 export default function ProjectPickerSheet() {
   const router = useRouter();
   const { showComposerToast } = useComposerToast();
-  const { projects } = useChatProjects();
+  const { projects, hasMore, isLoadingMore, loadMore } = useChatProjects();
   const { pendingProjectId, setPendingProjectId, assignThreadToProject } =
     useChatCoreContext();
   const threadId = useSelector(() => threadSelection$.selectedThreadId.get());
@@ -68,6 +68,9 @@ export default function ProjectPickerSheet() {
       onSelectProject={(projectId) => {
         void onSelectProject(projectId);
       }}
+      hasMore={hasMore}
+      isLoadingMore={isLoadingMore}
+      onLoadMore={() => loadMore(30)}
     />
   );
 }

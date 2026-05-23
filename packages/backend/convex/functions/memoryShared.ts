@@ -166,7 +166,7 @@ export function matchesMemoryFilters(
 export function paginateMemories<T>(
   items: T[],
   args: {
-    cursor?: string
+    cursor?: string | null
     limit?: number
   },
 ) {
@@ -179,7 +179,7 @@ export function paginateMemories<T>(
   return {
     page,
     isDone: nextOffset >= items.length,
-    continueCursor: nextOffset >= items.length ? null : String(nextOffset),
+    continueCursor: nextOffset >= items.length ? '' : String(nextOffset),
     total: items.length,
   }
 }

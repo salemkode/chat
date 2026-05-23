@@ -4,7 +4,15 @@ import type { Id } from "@convex/_generated/dataModel";
 import { useRouter } from "expo-router";
 
 export default function ModelPickerSheet() {
-  const { models, collections, selectedModelId, setSelectedModel } = useModel();
+  const {
+    models,
+    collections,
+    selectedModelId,
+    setSelectedModel,
+    hasMoreModels,
+    isLoadingMoreModels,
+    loadMoreModels,
+  } = useModel();
   const router = useRouter();
 
   const selectModelAndClose = (modelId: Id<"models">) => {
@@ -18,6 +26,9 @@ export default function ModelPickerSheet() {
       collections={collections}
       selectedModelId={selectedModelId}
       onSelectModel={selectModelAndClose}
+      hasMore={hasMoreModels}
+      isLoadingMore={isLoadingMoreModels}
+      onLoadMore={() => loadMoreModels(40)}
     />
   );
 }

@@ -1,7 +1,7 @@
 import { resolveChatSnapshot } from "@chat/chat-core";
 import { compareThreadsForSidebar } from "@chat/chat-core/sidebar";
 import type { ThreadSummary } from "@chat/chat-core/types";
-import { useQuery, useMutation } from "convex/react";
+import { useMutation, usePaginatedQuery, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { useMemo, useCallback } from "react";
 import {
@@ -13,7 +13,7 @@ import { deleteThreadCache, readThreadsCache } from "@/offline/local-cache";
 function normalizeThread(thread: {
   _id: string;
   title?: string;
-  metadata?: { emoji?: string; icon?: string; sortOrder?: number };
+  metadata?: { emoji?: string; icon?: string; sortOrder?: number } | null;
   project?: { id: string; name: string } | null;
   lastMessageAt?: number;
   _creationTime: number;
@@ -35,7 +35,11 @@ function normalizeThread(thread: {
 export function useThreads() {
   const cacheUserId = useConvexUserIdForCache();
   const cacheVersion = useOfflineCacheVersion();
-  const liveThreads = useQuery(api.agents.listThreadsWithMetadata);
+  const liveThreadsQuery = usePaginatedQuery(
+    api.agents.listThreadsWithMetadata,
+    {},
+    { initialNumItems: 30 },
+  );
   const setThreadPinned = useMutation(api.agents.setThreadPinned);
   const deleteThreadMutation = useMutation(api.chat.deleteThread);
 
@@ -49,12 +53,14 @@ export function useThreads() {
 
   const threads = useMemo<ThreadSummary[]>(() => {
     const normalized =
-      liveThreads === undefined ? undefined : liveThreads.map(normalizeThread);
+      liveThreadsQuery.results === undefined
+        ? undefined
+        : liveThreadsQuery.results.map(normalizeThread);
     return resolveChatSnapshot({
       live: normalized,
       persisted: cachedThreads,
     }).sort(compareThreadsForSidebar);
-  }, [cachedThreads, liveThreads]);
+  }, [cachedThreads, liveThreadsQuery.results]);
 
   const setPinned = useCallback(
     async (threadId: string, pinned: boolean) => {
@@ -73,7 +79,15 @@ export function useThreads() {
     [cacheUserId, deleteThreadMutation],
   );
 
-  return { threads, setPinned, deleteThread, isLoading: liveThreads === undefined };
+  return {
+    threads,
+    setPinned,
+    deleteThread,
+    isLoading: liveThreadsQuery.results === undefined,
+    hasMore: liveThreadsQuery.status === "CanLoadMore" || liveThreadsQuery.status === "LoadingMore",
+    isLoadingMore: liveThreadsQuery.status === "LoadingMore",
+    loadMore: (numItems = 30) => liveThreadsQuery.loadMore(numItems),
+  };
 }
 
 export function useThread(threadId?: string) {

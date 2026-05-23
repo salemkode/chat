@@ -7,6 +7,7 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from './_generated/server'
+import { paginationOptsValidator } from 'convex/server'
 import { api, internal } from './_generated/api'
 import { ConvexError, v } from 'convex/values'
 import { generateObject } from 'ai'
@@ -37,6 +38,7 @@ import {
   normalizeAttachmentMediaTypes,
   resolveModelAttachmentMediaTypes,
 } from './lib/modelAttachmentPolicy'
+import { paginateResults } from './lib/pagination'
 import { z } from 'zod'
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -310,6 +312,17 @@ const modelOfferRowValidator = v.object({
   description: v.optional(v.string()),
   isEnabled: v.boolean(),
   updatedAt: v.number(),
+})
+
+const adminAccountRowValidator = v.object({
+  userId: v.id('users'),
+  name: v.string(),
+  email: v.optional(v.string()),
+  appPlan: appPlanValidator,
+  requests30d: v.number(),
+  tokens30d: v.number(),
+  models30d: v.number(),
+  lastUsedAt: v.optional(v.number()),
 })
 
 const routerStudioCategoryValidator = v.union(
@@ -586,6 +599,282 @@ async function normalizeCollectionModelIds(ctx: MutationCtx, modelIds: Id<'model
   }
 
   return uniqueModelIds
+}
+
+async function listAdminProvidersInternal(ctx: QueryCtx) {
+  const providers = await ctx.db.query('providers').collect()
+  const models = await ctx.db.query('models').collect()
+  const since30d = Date.now() - 30 * DAY_MS
+  const usageEvents = await ctx.db
+    .query('modelUsageEvents')
+    .withIndex('by_createdAt', (q) => q.gte('createdAt', since30d))
+    .collect()
+
+  const modelCountByProvider = new Map<Id<'providers'>, { total: number; enabled: number }>()
+  for (const model of models) {
+    const counts = modelCountByProvider.get(model.providerId) ?? { total: 0, enabled: 0 }
+    counts.total += 1
+    if (model.isEnabled) {
+      counts.enabled += 1
+    }
+    modelCountByProvider.set(model.providerId, counts)
+  }
+
+  const usageByProviderId = new Map<
+    Id<'providers'>,
+    {
+      requests: number
+      tokens: number
+      users: Set<string>
+      lastUsedAt: number
+    }
+  >()
+  for (const event of usageEvents) {
+    const usage = usageByProviderId.get(event.providerId) ?? {
+      requests: 0,
+      tokens: 0,
+      users: new Set<string>(),
+      lastUsedAt: 0,
+    }
+    usage.requests += 1
+    usage.tokens += event.totalTokens
+    usage.users.add(event.userId)
+    usage.lastUsedAt = Math.max(usage.lastUsedAt, event.createdAt)
+    usageByProviderId.set(event.providerId, usage)
+  }
+
+  return await Promise.all(
+    providers
+      .sort((left, right) => left.sortOrder - right.sortOrder)
+      .map(async (provider) => {
+        const counts = modelCountByProvider.get(provider._id) ?? { total: 0, enabled: 0 }
+        const usage = usageByProviderId.get(provider._id)
+        return {
+          ...provider,
+          iconUrl: provider.iconId ? ((await ctx.storage.getUrl(provider.iconId)) ?? undefined) : undefined,
+          modelCount: counts.total,
+          enabledModelCount: counts.enabled,
+          usage: {
+            requests: usage?.requests ?? 0,
+            tokens: usage?.tokens ?? 0,
+            users: usage?.users.size ?? 0,
+            lastUsedAt: usage?.lastUsedAt,
+          },
+        }
+      }),
+  )
+}
+
+async function listBrowserModelsInternal(ctx: QueryCtx, userId: Id<'users'>) {
+  const [models, providers, favorites, settings, user, collections] = await Promise.all([
+    ctx.db
+      .query('models')
+      .withIndex('by_enabled', (q) => q.eq('isEnabled', true))
+      .collect(),
+    ctx.db
+      .query('providers')
+      .withIndex('by_enabled', (q) => q.eq('isEnabled', true))
+      .collect(),
+    ctx.db
+      .query('userFavoriteModels')
+      .withIndex('by_user', (q) => q.eq('userId', userId))
+      .collect(),
+    getCurrentAdminSettings(ctx),
+    ctx.db.get(userId),
+    ctx.db.query('modelCollections').collect(),
+  ])
+  const effectiveAppPlan = await resolveEffectiveAppPlan(ctx, settings, user ?? undefined)
+  const nowMs = Date.now()
+  const modelOffers = await ctx.db.query('modelOffers').collect()
+  const favoriteModelIds = new Set(favorites.map((favorite) => favorite.modelId))
+  const providerMap = new Map(providers.map((provider) => [provider._id, provider]))
+
+  const modelsWithInfo = await Promise.all(
+    models
+      .filter((model) => {
+        if (!providerMap.has(model.providerId)) {
+          return false
+        }
+        const flags = getModelOfferAccessFlags(model._id, modelOffers, nowMs)
+        if (flags.blocksAllAccess) {
+          return false
+        }
+        return isModelUsableForPlan({
+          model,
+          effectiveAppPlan,
+          hasActiveFreeAccessOffer: flags.grantsFreeAccess,
+        })
+      })
+      .map(async (model) => {
+        const provider = providerMap.get(model.providerId)
+        const providerIconUrl = provider?.iconId
+          ? ((await ctx.storage.getUrl(provider.iconId)) ?? undefined)
+          : undefined
+        const modelIconUrl = model.iconId
+          ? ((await ctx.storage.getUrl(model.iconId)) ?? undefined)
+          : undefined
+
+        return {
+          ...model,
+          iconUrl: modelIconUrl,
+          provider: provider
+            ? {
+                _id: provider._id,
+                name: provider.name,
+                providerType: provider.providerType,
+                icon: provider.icon,
+                iconType: provider.iconType,
+                iconId: provider.iconId,
+                iconUrl: providerIconUrl,
+              }
+            : null,
+          isFavorite: favoriteModelIds.has(model._id),
+        }
+      }),
+  )
+
+  const sortedModels = modelsWithInfo.sort((left, right) => {
+    if (left.sortOrder !== right.sortOrder) {
+      return left.sortOrder - right.sortOrder
+    }
+    return left.displayName.localeCompare(right.displayName)
+  })
+
+  const visibleModelIds = new Set(sortedModels.map((model) => model._id))
+  const collectionRows = (
+    await Promise.all(
+      collections.map(async (collection) => {
+        const modelIds = collection.modelIds.filter((modelId) => visibleModelIds.has(modelId))
+        return {
+          ...collection,
+          iconUrl: collection.iconId
+            ? ((await ctx.storage.getUrl(collection.iconId)) ?? undefined)
+            : undefined,
+          modelIds,
+          modelCount: modelIds.length,
+        }
+      }),
+    )
+  )
+    .filter((collection) => collection.modelCount > 0)
+    .sort((left, right) => {
+      if (left.sortOrder !== right.sortOrder) {
+        return left.sortOrder - right.sortOrder
+      }
+      return left.name.localeCompare(right.name)
+    })
+
+  return {
+    autoModelAvailable: isAutoModelRoutingAvailable(settings),
+    collections: collectionRows,
+    models: sortedModels,
+  }
+}
+
+async function listAdminModelsInternal(ctx: QueryCtx) {
+  const providers = await listAdminProvidersInternal(ctx)
+  const providerMap = new Map(providers.map((provider) => [provider._id, provider]))
+  const models = await ctx.db.query('models').collect()
+  const favoriteCounts = await ctx.db.query('userFavoriteModels').collect()
+  const favoriteCountByModelId = new Map<Id<'models'>, number>()
+  for (const favorite of favoriteCounts) {
+    favoriteCountByModelId.set(
+      favorite.modelId,
+      (favoriteCountByModelId.get(favorite.modelId) ?? 0) + 1,
+    )
+  }
+  const since30d = Date.now() - 30 * DAY_MS
+  const usageEvents = await ctx.db
+    .query('modelUsageEvents')
+    .withIndex('by_createdAt', (q) => q.gte('createdAt', since30d))
+    .collect()
+  const usageByModelId = new Map<
+    Id<'models'>,
+    {
+      requests: number
+      tokens: number
+      users: Set<string>
+      lastUsedAt: number
+    }
+  >()
+  for (const event of usageEvents) {
+    const usage = usageByModelId.get(event.modelId) ?? {
+      requests: 0,
+      tokens: 0,
+      users: new Set<string>(),
+      lastUsedAt: 0,
+    }
+    usage.requests += 1
+    usage.tokens += event.totalTokens
+    usage.users.add(event.userId)
+    usage.lastUsedAt = Math.max(usage.lastUsedAt, event.createdAt)
+    usageByModelId.set(event.modelId, usage)
+  }
+
+  return await Promise.all(
+    models
+      .sort((left, right) => left.sortOrder - right.sortOrder)
+      .map(async (model) => {
+        const provider = providerMap.get(model.providerId)
+        const usage = usageByModelId.get(model._id)
+        return {
+          ...model,
+          iconUrl: model.iconId ? ((await ctx.storage.getUrl(model.iconId)) ?? undefined) : undefined,
+          providerName: provider?.name ?? 'Unknown Provider',
+          provider,
+          providerIconUrl: provider?.iconUrl,
+          favorites: favoriteCountByModelId.get(model._id) ?? 0,
+          usage: {
+            requests: usage?.requests ?? 0,
+            tokens: usage?.tokens ?? 0,
+            users: usage?.users.size ?? 0,
+            lastUsedAt: usage?.lastUsedAt,
+          },
+        }
+      }),
+  )
+}
+
+async function listAdminCollectionsInternal(ctx: QueryCtx) {
+  const models = await listAdminModelsInternal(ctx)
+  const modelById = new Map(models.map((model) => [model._id, model]))
+  const collections = await ctx.db.query('modelCollections').collect()
+
+  return await Promise.all(
+    collections
+      .sort((left, right) => {
+        if (left.sortOrder !== right.sortOrder) {
+          return left.sortOrder - right.sortOrder
+        }
+        return left.name.localeCompare(right.name)
+      })
+      .map(async (collection) => {
+        const collectionModels = collection.modelIds
+          .map((modelId) => modelById.get(modelId))
+          .filter((model): model is NonNullable<typeof model> => model !== undefined)
+          .map((model) => ({
+            _id: model._id,
+            modelId: model.modelId,
+            displayName: model.displayName,
+            providerId: model.providerId,
+            providerName: model.providerName,
+            isEnabled: model.isEnabled,
+            icon: model.icon,
+            iconType: model.iconType,
+            iconUrl: model.iconUrl,
+            providerIconUrl: model.providerIconUrl,
+          }))
+
+        return {
+          ...collection,
+          iconUrl: collection.iconId
+            ? ((await ctx.storage.getUrl(collection.iconId)) ?? undefined)
+            : undefined,
+          modelCount: collectionModels.length,
+          models: collectionModels,
+        }
+      }),
+  )
 }
 
 const collectionSuggestionContextValidator = v.object({
@@ -1325,12 +1614,22 @@ export const searchUsersForAdmin = query({
 export const listAdminAccounts = query({
   args: {
     query: v.optional(v.string()),
+    paginationOpts: paginationOptsValidator,
   },
+  returns: v.object({
+    page: v.array(adminAccountRowValidator),
+    isDone: v.boolean(),
+    continueCursor: v.string(),
+  }),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
-    if (!userId) return []
+    if (!userId) {
+      return { page: [], isDone: true, continueCursor: '' }
+    }
     const isAdminLike = await hasAdminAccess(ctx, userId)
-    if (!isAdminLike) return []
+    if (!isAdminLike) {
+      return { page: [], isDone: true, continueCursor: '' }
+    }
 
     const needle = args.query?.trim().toLowerCase() ?? ''
     const since30d = Date.now() - 30 * DAY_MS
@@ -1365,7 +1664,7 @@ export const listAdminAccounts = query({
       usageByUserId.set(event.userId, existing)
     }
 
-    return users
+    const rows = users
       .filter((candidate) => {
         if (!needle) {
           return true
@@ -1393,6 +1692,11 @@ export const listAdminAccounts = query({
         }
         return left.name.localeCompare(right.name)
       })
+
+    return paginateResults(rows, {
+      cursor: args.paginationOpts.cursor,
+      numItems: args.paginationOpts.numItems,
+    })
   },
 })
 
@@ -1479,6 +1783,29 @@ export const listAllModels = query({
           }
         }),
     )
+  },
+})
+
+export const listAdminProviders = query({
+  args: {
+    paginationOpts: paginationOptsValidator,
+  },
+  returns: v.object({
+    page: v.array(dashboardProviderValidator),
+    isDone: v.boolean(),
+    continueCursor: v.string(),
+  }),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId || !(await hasAdminAccess(ctx, userId))) {
+      return { page: [], isDone: true, continueCursor: '' }
+    }
+
+    const rows = await listAdminProvidersInternal(ctx)
+    return paginateResults(rows, {
+      cursor: args.paginationOpts.cursor,
+      numItems: args.paginationOpts.numItems,
+    })
   },
 })
 
@@ -1667,6 +1994,128 @@ export const listModelsWithProviders = query({
       favorites: modelsWithInfo.filter((model) => model.isFavorite),
       models: modelsWithInfo.sort((left, right) => left.sortOrder - right.sortOrder),
     }
+  },
+})
+
+export const getModelBrowserMetadata = query({
+  args: {},
+  returns: v.object({
+    autoModelAvailable: v.boolean(),
+    collections: v.array(publicModelCollectionValidator),
+  }),
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId) {
+      return {
+        autoModelAvailable: false,
+        collections: [],
+      }
+    }
+
+    const { autoModelAvailable, collections } = await listBrowserModelsInternal(ctx, userId)
+    return {
+      autoModelAvailable,
+      collections,
+    }
+  },
+})
+
+export const listModelsForBrowser = query({
+  args: {
+    paginationOpts: paginationOptsValidator,
+    query: v.optional(v.string()),
+    collectionId: v.optional(v.id('modelCollections')),
+    favoritesOnly: v.optional(v.boolean()),
+  },
+  returns: v.object({
+    page: v.array(modelWithProviderValidator),
+    isDone: v.boolean(),
+    continueCursor: v.string(),
+  }),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId) {
+      return { page: [], isDone: true, continueCursor: '' }
+    }
+
+    const { models, collections } = await listBrowserModelsInternal(ctx, userId)
+    const activeCollection =
+      args.collectionId === undefined
+        ? undefined
+        : collections.find((collection) => collection._id === args.collectionId)
+    const allowedModelIds = activeCollection ? new Set(activeCollection.modelIds) : null
+    const needle = args.query?.trim().toLowerCase() ?? ''
+
+    const rows = models.filter((model) => {
+      if (args.favoritesOnly && !model.isFavorite) {
+        return false
+      }
+      if (allowedModelIds && !allowedModelIds.has(model._id)) {
+        return false
+      }
+      if (!needle) {
+        return true
+      }
+      return (
+        model.displayName.toLowerCase().includes(needle) ||
+        model.modelId.toLowerCase().includes(needle) ||
+        model.description?.toLowerCase().includes(needle) ||
+        model.provider?.name.toLowerCase().includes(needle) === true ||
+        model.capabilities?.some((capability) => capability.toLowerCase().includes(needle)) ===
+          true
+      )
+    })
+
+    return paginateResults(rows, {
+      cursor: args.paginationOpts.cursor,
+      numItems: args.paginationOpts.numItems,
+    })
+  },
+})
+
+export const listAdminModels = query({
+  args: {
+    paginationOpts: paginationOptsValidator,
+  },
+  returns: v.object({
+    page: v.array(dashboardModelValidator),
+    isDone: v.boolean(),
+    continueCursor: v.string(),
+  }),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId || !(await hasAdminAccess(ctx, userId))) {
+      return { page: [], isDone: true, continueCursor: '' }
+    }
+
+    const rows = await listAdminModelsInternal(ctx)
+    return paginateResults(rows, {
+      cursor: args.paginationOpts.cursor,
+      numItems: args.paginationOpts.numItems,
+    })
+  },
+})
+
+export const listAdminCollections = query({
+  args: {
+    paginationOpts: paginationOptsValidator,
+  },
+  returns: v.object({
+    page: v.array(dashboardModelCollectionValidator),
+    isDone: v.boolean(),
+    continueCursor: v.string(),
+  }),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId || !(await hasAdminAccess(ctx, userId))) {
+      return { page: [], isDone: true, continueCursor: '' }
+    }
+
+    const rows = await listAdminCollectionsInternal(ctx)
+    return paginateResults(rows, {
+      cursor: args.paginationOpts.cursor,
+      numItems: args.paginationOpts.numItems,
+    })
   },
 })
 
@@ -3052,15 +3501,25 @@ export const setUserRole = mutation({
 })
 
 export const listModelOffers = query({
-  args: {},
-  returns: v.array(modelOfferRowValidator),
-  handler: async (ctx) => {
+  args: {
+    paginationOpts: paginationOptsValidator,
+  },
+  returns: v.object({
+    page: v.array(modelOfferRowValidator),
+    isDone: v.boolean(),
+    continueCursor: v.string(),
+  }),
+  handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
     if (!userId || !(await hasAdminAccess(ctx, userId))) {
-      return []
+      return { page: [], isDone: true, continueCursor: '' }
     }
     const offers = await ctx.db.query('modelOffers').collect()
-    return offers.sort((a, b) => b.endsAt - a.endsAt)
+    const rows = offers.sort((a, b) => b.endsAt - a.endsAt)
+    return paginateResults(rows, {
+      cursor: args.paginationOpts.cursor,
+      numItems: args.paginationOpts.numItems,
+    })
   },
 })
 

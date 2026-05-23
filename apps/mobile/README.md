@@ -45,12 +45,16 @@ cd apps/mobile
 eas env:pull --environment production --path .env.local
 ```
 
-You can still create a local `.env` file manually when needed, but the EAS environment is the source of truth for cloud builds.
+You can still create a local `.env` file manually when needed, but the EAS environment is the source of truth for cloud builds. See `.env.example` for the full variable list.
 
-| Variable              | Description                                                                                                                                                    |
-| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk publishable key used for the dedicated Google sign-in flow. |
+| Variable | Description |
+| --- | --- |
 | `EXPO_PUBLIC_CONVEX_URL` | Convex deployment URL used by the mobile client. |
+| `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk publishable key used for the dedicated Google sign-in flow. |
+| `EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID` | Google OAuth web client ID for Clerk sign-in. |
+| `EXPO_PUBLIC_CLERK_GOOGLE_IOS_CLIENT_ID` | Google OAuth iOS client ID for Clerk sign-in. |
+| `EXPO_PUBLIC_CLERK_GOOGLE_ANDROID_CLIENT_ID` | Google OAuth Android client ID for Clerk sign-in. |
+| `EXPO_PUBLIC_APP_URL` | Public web app origin used to build share links (for example `https://chat.salemkode.com`). |
 
 ### Install & Run
 
@@ -87,17 +91,19 @@ eas build --platform android --profile production
 eas build --platform ios --profile production
 ```
 
-Local debugging builds:
+Local debugging builds (use `eas env:exec` so production secrets are available to Metro and `app.config.js`):
 
 ```bash
-pnpm run eas:build:local:android
+pnpm run eas:build:local:android:env
 pnpm run eas:build:local:ios
 
-# Or run EAS directly from the app workspace:
+# equivalent direct invocation
 cd apps/mobile
-eas build --platform android --profile production --local
-eas build --platform ios --profile production --local
+eas env:exec production 'eas build --platform android --profile production --local'
+eas env:exec production 'eas build --platform ios --profile production --local'
 ```
+
+Plain local builds without `eas env:exec` omit Google OAuth credentials from the embedded manifest.
 
 The repo is set up so cloud builds are the standard release path. Local builds are mainly for debugging native issues on a developer machine.
 

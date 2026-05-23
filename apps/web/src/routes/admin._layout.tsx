@@ -15,9 +15,7 @@ import {
 } from '@/components/admin/admin-form-state'
 import { useAdminModelDialog } from '@/components/admin/admin-model-dialog'
 import type { AdminOutletContext } from '@/components/admin/admin-outlet-context'
-import {
-  AdminOverviewSection,
-} from '@/components/admin/admin-overview-section'
+import { AdminOverviewSection } from '@/components/admin/admin-overview-section'
 import { AdminPageHeader } from '@/components/admin/admin-page-header'
 import { useAdminProviderDialog } from '@/components/admin/admin-provider-dialog'
 import { adminPanelClass } from '@/components/admin/admin-surface'
@@ -128,24 +126,26 @@ function AdminLayoutShell({
         </div>
       ) : (
         <>
-          <nav className={`${adminPanelClass} flex flex-wrap gap-2 p-2`} aria-label="Admin sections">
-            {adminSections.map(({ to, title, icon: Icon }) => (
-              <NavLink
-                key={to}
-                to={to}
-                className={({ isActive }) =>
-                  cn(
-                    'inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-                    isActive
-                      ? 'bg-foreground text-background shadow-sm'
-                      : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
-                  )
-                }
-              >
-                <Icon className="size-4" />
-                {title}
-              </NavLink>
-            ))}
+          <nav className={`${adminPanelClass} overflow-x-auto p-2`} aria-label="Admin sections">
+            <div className="flex min-w-max gap-2 sm:min-w-0 sm:flex-wrap">
+              {adminSections.map(({ to, title, icon: Icon }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  className={({ isActive }) =>
+                    cn(
+                      'inline-flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                      isActive
+                        ? 'bg-foreground text-background shadow-sm'
+                        : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+                    )
+                  }
+                >
+                  <Icon className="size-4" />
+                  {title}
+                </NavLink>
+              ))}
+            </div>
           </nav>
           <AdminOverviewSection summary={summary} />
           {outletContext ? <Outlet context={outletContext} /> : null}

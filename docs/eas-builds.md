@@ -11,7 +11,7 @@ The standard path should be:
 
 ## What is standard now
 
-- Expo config lives only in `apps/mobile/app.json` (no root `app.config.js` shim)
+- Expo config lives in `apps/mobile/app.json`, with `apps/mobile/app.config.js` copying EAS `EXPO_PUBLIC_*` values into the embedded `extra` manifest (required for Clerk Google sign-in)
 - Run EAS CLI from `apps/mobile` so the archive includes the monorepo correctly
 - Repo-root wrappers are available so automation can call EAS from the monorepo root without guessing the working directory
 - `apps/mobile/eas.json` maps `development`, `preview`, and `production` to matching EAS environments
@@ -36,7 +36,33 @@ eas env:pull --environment development --path .env.local
 eas env:pull --environment production --path .env.local
 ```
 
+Required `EXPO_PUBLIC_*` variables for cloud builds:
+
+- `EXPO_PUBLIC_CONVEX_URL`
+- `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`
+- `EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID`
+- `EXPO_PUBLIC_CLERK_GOOGLE_IOS_CLIENT_ID`
+- `EXPO_PUBLIC_CLERK_GOOGLE_ANDROID_CLIENT_ID`
+- `EXPO_PUBLIC_APP_URL` (public web origin for share links, for example `https://chat.salemkode.com`)
+
 For production PR validation, prefer making sure the `production` EAS environment is complete rather than copying secrets from another checkout.
+
+For **local EAS builds**, EAS environment variables are not injected into the Metro bundler unless you wrap the build with `eas env:exec`. Local `.env.local` files are also excluded from the EAS upload archive (see `.easignore`), so pulling env vars to disk is not enough on its own.
+
+`app.config.js` reads `process.env` during the build and writes the Google OAuth client IDs into `extra`, which `@clerk/expo` reads at runtime through `expo-constants`.
+
+```bash
+cd apps/mobile
+eas env:exec production 'eas build --platform android --profile production --local'
+```
+
+Or from the repo root:
+
+```bash
+pnpm run eas:build:local:android:env
+```
+
+Use `eas env:pull --environment production --path .env.local` only for local `expo start` / simulator development, not for local EAS builds.
 
 ## Debugging bundle failures
 
@@ -78,7 +104,7 @@ eas build --platform android --profile production
 eas build --platform ios --profile production
 ```
 
-Local debugging builds:
+Local debugging builds (Android requires `eas env:exec` — see Environment variables above):
 
 ```bash
 pnpm run eas:build:local:android
@@ -86,7 +112,7 @@ pnpm run eas:build:local:ios
 
 # equivalent direct invocation
 cd apps/mobile
-eas build --platform android --profile production --local
+eas env:exec production 'eas build --platform android --profile production --local'
 eas build --platform ios --profile production --local
 ```
 

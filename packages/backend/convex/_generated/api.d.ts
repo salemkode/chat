@@ -192,6 +192,27 @@ export declare const api: {
       }
     >;
     getDashboardData: FunctionReference<"query", "public", {}, any>;
+    getModelBrowserMetadata: FunctionReference<
+      "query",
+      "public",
+      {},
+      {
+        autoModelAvailable: boolean;
+        collections: Array<{
+          _creationTime: number;
+          _id: Id<"modelCollections">;
+          description?: string;
+          icon?: string;
+          iconId?: Id<"_storage">;
+          iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+          iconUrl?: string;
+          modelCount: number;
+          modelIds: Array<Id<"models">>;
+          name: string;
+          sortOrder: number;
+        }>;
+      }
+    >;
     getRoleContext: FunctionReference<
       "query",
       "public",
@@ -257,8 +278,218 @@ export declare const api: {
     listAdminAccounts: FunctionReference<
       "query",
       "public",
-      { query?: string },
-      any
+      {
+        paginationOpts: {
+          cursor: string | null;
+          endCursor?: string | null;
+          id?: number;
+          maximumBytesRead?: number;
+          maximumRowsRead?: number;
+          numItems: number;
+        };
+        query?: string;
+      },
+      {
+        continueCursor: string;
+        isDone: boolean;
+        page: Array<{
+          appPlan: "free" | "pro";
+          email?: string;
+          lastUsedAt?: number;
+          models30d: number;
+          name: string;
+          requests30d: number;
+          tokens30d: number;
+          userId: Id<"users">;
+        }>;
+      }
+    >;
+    listAdminCollections: FunctionReference<
+      "query",
+      "public",
+      {
+        paginationOpts: {
+          cursor: string | null;
+          endCursor?: string | null;
+          id?: number;
+          maximumBytesRead?: number;
+          maximumRowsRead?: number;
+          numItems: number;
+        };
+      },
+      {
+        continueCursor: string;
+        isDone: boolean;
+        page: Array<{
+          _creationTime: number;
+          _id: Id<"modelCollections">;
+          description?: string;
+          icon?: string;
+          iconId?: Id<"_storage">;
+          iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+          iconUrl?: string;
+          modelCount: number;
+          modelIds: Array<Id<"models">>;
+          models: Array<{
+            _id: Id<"models">;
+            displayName: string;
+            icon?: string;
+            iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+            iconUrl?: string;
+            isEnabled: boolean;
+            modelId: string;
+            providerIconUrl?: string;
+            providerId: Id<"providers">;
+            providerName: string;
+          }>;
+          name: string;
+          sortOrder: number;
+        }>;
+      }
+    >;
+    listAdminModels: FunctionReference<
+      "query",
+      "public",
+      {
+        paginationOpts: {
+          cursor: string | null;
+          endCursor?: string | null;
+          id?: number;
+          maximumBytesRead?: number;
+          maximumRowsRead?: number;
+          numItems: number;
+        };
+      },
+      {
+        continueCursor: string;
+        isDone: boolean;
+        page: Array<{
+          _creationTime: number;
+          _id: Id<"models">;
+          attachmentValidatedAt?: number;
+          attachmentValidationMessage?: string;
+          attachmentValidationStatus?: "pending" | "valid" | "invalid";
+          capabilities?: Array<string>;
+          contextWindow?: number;
+          defaultReasoningLevel?: "off" | "low" | "medium" | "high";
+          description?: string;
+          discoveredAt?: number;
+          displayName: string;
+          favorites: number;
+          icon?: string;
+          iconId?: Id<"_storage">;
+          iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+          iconUrl?: string;
+          isEnabled: boolean;
+          isFree: boolean;
+          lastSyncedAt?: number;
+          maxOutputTokens?: number;
+          modalities?: { input: Array<string>; output: Array<string> };
+          modelId: string;
+          ownedBy?: string;
+          providerIconUrl?: string;
+          providerId: Id<"providers">;
+          providerName: string;
+          rateLimit?: {
+            capacity?: number;
+            enabled: boolean;
+            kind: "fixed window" | "token bucket";
+            period: number;
+            rate: number;
+            scope: "global" | "user";
+            shards?: number;
+          };
+          reasoningLevels?: Array<"low" | "medium" | "high">;
+          sortOrder: number;
+          supportedAttachmentMediaTypes?: Array<string>;
+          supportsReasoning?: boolean;
+          usage: {
+            lastUsedAt?: number;
+            requests: number;
+            tokens: number;
+            users: number;
+          };
+        }>;
+      }
+    >;
+    listAdminProviders: FunctionReference<
+      "query",
+      "public",
+      {
+        paginationOpts: {
+          cursor: string | null;
+          endCursor?: string | null;
+          id?: number;
+          maximumBytesRead?: number;
+          maximumRowsRead?: number;
+          numItems: number;
+        };
+      },
+      {
+        continueCursor: string;
+        isDone: boolean;
+        page: Array<{
+          _creationTime: number;
+          _id: Id<"providers">;
+          apiKey: string;
+          baseURL?: string;
+          config?: {
+            headers?: Record<string, string>;
+            organization?: string;
+            project?: string;
+            queryParams?: Record<string, string>;
+          };
+          description?: string;
+          enabledModelCount: number;
+          icon?: string;
+          iconId?: Id<"_storage">;
+          iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+          iconUrl?: string;
+          isEnabled: boolean;
+          lastDiscoveredAt?: number;
+          lastDiscoveredModelCount?: number;
+          lastDiscoveryError?: string;
+          modelCount: number;
+          name: string;
+          providerType:
+            | "openrouter"
+            | "openai"
+            | "anthropic"
+            | "google"
+            | "azure"
+            | "groq"
+            | "deepseek"
+            | "xai"
+            | "cerebras"
+            | "openai-compatible"
+            | "opencode"
+            | "mistral"
+            | "cohere"
+            | "perplexity"
+            | "fireworks"
+            | "together"
+            | "replicate"
+            | "moonshot"
+            | "qwen"
+            | "stepfun";
+          rateLimit?: {
+            capacity?: number;
+            enabled: boolean;
+            kind: "fixed window" | "token bucket";
+            period: number;
+            rate: number;
+            scope: "global" | "user";
+            shards?: number;
+          };
+          sortOrder: number;
+          usage: {
+            lastUsedAt?: number;
+            requests: number;
+            tokens: number;
+            users: number;
+          };
+        }>;
+      }
     >;
     listAllModels: FunctionReference<"query", "public", {}, any>;
     listAllProviders: FunctionReference<"query", "public", {}, any>;
@@ -307,19 +538,121 @@ export declare const api: {
     listModelOffers: FunctionReference<
       "query",
       "public",
-      {},
-      Array<{
-        _creationTime: number;
-        _id: Id<"modelOffers">;
-        description?: string;
-        endsAt: number;
-        isEnabled: boolean;
-        kind: "free_access" | "availability_window";
-        label?: string;
-        modelId: Id<"models">;
-        startsAt: number;
-        updatedAt: number;
-      }>
+      {
+        paginationOpts: {
+          cursor: string | null;
+          endCursor?: string | null;
+          id?: number;
+          maximumBytesRead?: number;
+          maximumRowsRead?: number;
+          numItems: number;
+        };
+      },
+      {
+        continueCursor: string;
+        isDone: boolean;
+        page: Array<{
+          _creationTime: number;
+          _id: Id<"modelOffers">;
+          description?: string;
+          endsAt: number;
+          isEnabled: boolean;
+          kind: "free_access" | "availability_window";
+          label?: string;
+          modelId: Id<"models">;
+          startsAt: number;
+          updatedAt: number;
+        }>;
+      }
+    >;
+    listModelsForBrowser: FunctionReference<
+      "query",
+      "public",
+      {
+        collectionId?: Id<"modelCollections">;
+        favoritesOnly?: boolean;
+        paginationOpts: {
+          cursor: string | null;
+          endCursor?: string | null;
+          id?: number;
+          maximumBytesRead?: number;
+          maximumRowsRead?: number;
+          numItems: number;
+        };
+        query?: string;
+      },
+      {
+        continueCursor: string;
+        isDone: boolean;
+        page: Array<{
+          _creationTime: number;
+          _id: Id<"models">;
+          attachmentValidatedAt?: number;
+          attachmentValidationMessage?: string;
+          attachmentValidationStatus?: "pending" | "valid" | "invalid";
+          capabilities?: Array<string>;
+          contextWindow?: number;
+          defaultReasoningLevel?: "off" | "low" | "medium" | "high";
+          description?: string;
+          discoveredAt?: number;
+          displayName: string;
+          icon?: string;
+          iconId?: Id<"_storage">;
+          iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+          iconUrl?: string;
+          isEnabled: boolean;
+          isFavorite: boolean;
+          isFree: boolean;
+          lastSyncedAt?: number;
+          maxOutputTokens?: number;
+          modalities?: { input: Array<string>; output: Array<string> };
+          modelId: string;
+          ownedBy?: string;
+          provider: null | {
+            _id: Id<"providers">;
+            icon?: string;
+            iconId?: Id<"_storage">;
+            iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+            iconUrl?: string;
+            name: string;
+            providerType:
+              | "openrouter"
+              | "openai"
+              | "anthropic"
+              | "google"
+              | "azure"
+              | "groq"
+              | "deepseek"
+              | "xai"
+              | "cerebras"
+              | "openai-compatible"
+              | "opencode"
+              | "mistral"
+              | "cohere"
+              | "perplexity"
+              | "fireworks"
+              | "together"
+              | "replicate"
+              | "moonshot"
+              | "qwen"
+              | "stepfun";
+          };
+          providerId: Id<"providers">;
+          rateLimit?: {
+            capacity?: number;
+            enabled: boolean;
+            kind: "fixed window" | "token bucket";
+            period: number;
+            rate: number;
+            scope: "global" | "user";
+            shards?: number;
+          };
+          reasoningLevels?: Array<"low" | "medium" | "high">;
+          sortOrder: number;
+          supportedAttachmentMediaTypes?: Array<string>;
+          supportsReasoning?: boolean;
+        }>;
+      }
     >;
     listModelsWithProviders: FunctionReference<
       "query",
@@ -787,29 +1120,42 @@ export declare const api: {
     listThreadsWithMetadata: FunctionReference<
       "query",
       "public",
-      {},
-      Array<{
-        _creationTime: number;
-        _id: string;
-        lastMessageAt: number;
-        metadata: null | {
-          _creationTime: number;
-          _id: Id<"threadMetadata">;
-          clientThreadKey?: string;
-          emoji: string;
-          icon?: string;
-          lastLabelUpdateAt: number;
-          lastMessageAt?: number;
-          projectId?: Id<"projects">;
-          sectionId?: Id<"sections">;
-          sortOrder: number;
-          threadId: string;
-          userId: Id<"users">;
+      {
+        paginationOpts: {
+          cursor: string | null;
+          endCursor?: string | null;
+          id?: number;
+          maximumBytesRead?: number;
+          maximumRowsRead?: number;
+          numItems: number;
         };
-        project: null | { description?: string; id: string; name: string };
-        title?: string;
-        userId?: string;
-      }>
+      },
+      {
+        continueCursor: string;
+        isDone: boolean;
+        page: Array<{
+          _creationTime: number;
+          _id: string;
+          lastMessageAt: number;
+          metadata: null | {
+            _creationTime: number;
+            _id: Id<"threadMetadata">;
+            clientThreadKey?: string;
+            emoji: string;
+            icon?: string;
+            lastLabelUpdateAt: number;
+            lastMessageAt?: number;
+            projectId?: Id<"projects">;
+            sectionId?: Id<"sections">;
+            sortOrder: number;
+            threadId: string;
+            userId: Id<"users">;
+          };
+          project: null | { description?: string; id: string; name: string };
+          title?: string;
+          userId?: string;
+        }>;
+      }
     >;
     listVisibleThreadLastMessages: FunctionReference<
       "query",
@@ -1100,7 +1446,7 @@ export declare const api: {
           tags?: Array<string>;
         },
         {
-          continueCursor: null | string;
+          continueCursor: string;
           isDone: boolean;
           page: Array<{
             category?: string;
@@ -1153,7 +1499,7 @@ export declare const api: {
           threadId?: string;
         },
         {
-          continueCursor: null | string;
+          continueCursor: string;
           isDone: boolean;
           page: Array<{
             category?: string;
@@ -1192,7 +1538,7 @@ export declare const api: {
           tags?: Array<string>;
         },
         {
-          continueCursor: null | string;
+          continueCursor: string;
           isDone: boolean;
           page: Array<{
             category?: string;
@@ -1933,7 +2279,34 @@ export declare const api: {
         updatedAt: number;
       }
     >;
-    listProjects: FunctionReference<"query", "public", any, any>;
+    listProjects: FunctionReference<
+      "query",
+      "public",
+      {
+        paginationOpts: {
+          cursor: string | null;
+          endCursor?: string | null;
+          id?: number;
+          maximumBytesRead?: number;
+          maximumRowsRead?: number;
+          numItems: number;
+        };
+      },
+      {
+        continueCursor: string;
+        isDone: boolean;
+        page: Array<{
+          createdAt: number;
+          description?: string;
+          id: string;
+          name: string;
+          role: "owner" | "editor" | "viewer";
+          threadCount: number;
+          updatedAt: number;
+          visibility: "private" | "shared";
+        }>;
+      }
+    >;
     listThreadsByProject: FunctionReference<
       "query",
       "public",
