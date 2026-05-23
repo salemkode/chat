@@ -127,7 +127,6 @@
   --sidebar-ring: oklch(0.708 0 0);
   /* Chat input variables */
   --chat-input-background: oklch(0.98 0.002 286.375);
-  --chat-input-gradient: var(--custom-primary);
   --chat-background: oklch(1 0 0);
   --overlay-radius-mobile: 1.85rem;
   --overlay-radius-desktop: 1rem;
@@ -172,7 +171,6 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
   --chat-input-background: oklch(0.22 0.012 265);
-  --chat-input-gradient: var(--custom-primary);
   --chat-background: oklch(0.2 0.012 265);
   --overlay-scrim: rgb(2 6 15 / 0.74);
 }
@@ -310,17 +308,7 @@
 
   .overlay-sheet-surface {
     border-color: color-mix(in srgb, var(--border) 74%, transparent);
-    background:
-      radial-gradient(
-        140% 96% at 50% 0%,
-        color-mix(in srgb, var(--primary) 13%, transparent) 0%,
-        transparent 56%
-      ),
-      linear-gradient(
-        180deg,
-        color-mix(in srgb, white 62%, var(--popover) 38%) 0%,
-        color-mix(in srgb, var(--popover) 98%, transparent) 100%
-      );
+    background: var(--popover);
     box-shadow:
       0 30px 80px rgba(15, 23, 42, 0.16),
       0 1px 0 rgba(255, 255, 255, 0.72) inset,
@@ -331,17 +319,7 @@
 
   .dark .overlay-sheet-surface {
     border-color: color-mix(in srgb, var(--border) 92%, transparent);
-    background:
-      radial-gradient(
-        140% 96% at 50% 0%,
-        color-mix(in srgb, var(--primary) 16%, transparent) 0%,
-        transparent 58%
-      ),
-      linear-gradient(
-        180deg,
-        color-mix(in srgb, #21273a 46%, var(--popover) 54%) 0%,
-        color-mix(in srgb, var(--popover) 94%, #11141d 6%) 100%
-      );
+    background: var(--popover);
     box-shadow:
       0 32px 88px rgba(0, 0, 0, 0.4),
       0 1px 0 rgba(255, 255, 255, 0.08) inset,
@@ -352,12 +330,7 @@
     height: 0.3125rem;
     width: 3.25rem;
     border-radius: 999px;
-    background: linear-gradient(
-      90deg,
-      color-mix(in srgb, var(--muted-foreground) 18%, transparent) 0%,
-      color-mix(in srgb, var(--foreground) 34%, transparent) 50%,
-      color-mix(in srgb, var(--muted-foreground) 18%, transparent) 100%
-    );
+    background: color-mix(in srgb, var(--muted-foreground) 26%, transparent);
     box-shadow:
       0 1px 0 rgba(255, 255, 255, 0.36) inset,
       0 6px 16px rgba(15, 23, 42, 0.08);
@@ -476,10 +449,7 @@
 
 /* Scroll shadow effect */
 .scroll-shadow {
-  background:
-    linear-gradient(to bottom, var(--sidebar) 0%, transparent 10%),
-    linear-gradient(to top, var(--sidebar) 0%, transparent 10%);
-  background-attachment: local, local;
+  background: transparent;
 }
 
 /* Ease snappy utility */
@@ -525,33 +495,11 @@
   }
 
   .mobile-chat-page {
-    background:
-      radial-gradient(
-        120% 55% at 50% 0%,
-        color-mix(in srgb, var(--primary) 14%, transparent) 0%,
-        transparent 72%
-      ),
-      linear-gradient(
-        180deg,
-        color-mix(in srgb, var(--background) 82%, #f3efe7 18%) 0%,
-        var(--background) 42%,
-        color-mix(in srgb, var(--background) 92%, #f6f3ee 8%) 100%
-      );
+    background: var(--background);
   }
 
   .dark .mobile-chat-page {
-    background:
-      radial-gradient(
-        120% 60% at 50% 0%,
-        color-mix(in srgb, var(--primary) 16%, transparent) 0%,
-        transparent 70%
-      ),
-      linear-gradient(
-        180deg,
-        color-mix(in srgb, var(--background) 86%, #1d2130 14%) 0%,
-        var(--background) 40%,
-        color-mix(in srgb, var(--background) 92%, #141822 8%) 100%
-      );
+    background: var(--background);
   }
 
   .mobile-chat-header {
@@ -563,11 +511,7 @@
 
   .mobile-chat-composer-tray {
     border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
-    background: linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--background) 30%, transparent) 0%,
-      color-mix(in srgb, var(--background) 88%, transparent) 22%
-    );
+    background: color-mix(in srgb, var(--background) 88%, transparent);
     box-shadow: 0 -20px 40px rgba(15, 23, 42, 0.08);
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
@@ -593,17 +537,7 @@
   .mobile-sidebar-sheet {
     border: 1px solid color-mix(in srgb, var(--sidebar-border) 74%, transparent);
     border-radius: 1.9rem;
-    background:
-      radial-gradient(
-        120% 82% at 0% 0%,
-        color-mix(in srgb, var(--sidebar-primary) 15%, transparent) 0%,
-        transparent 58%
-      ),
-      linear-gradient(
-        180deg,
-        color-mix(in srgb, white 24%, var(--sidebar) 76%) 0%,
-        color-mix(in srgb, var(--sidebar) 97%, transparent) 100%
-      );
+    background: var(--sidebar);
     box-shadow:
       0 26px 68px rgba(15, 23, 42, 0.18),
       0 1px 0 rgba(255, 255, 255, 0.56) inset;

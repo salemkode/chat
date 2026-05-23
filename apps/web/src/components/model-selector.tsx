@@ -202,7 +202,7 @@ export function ModelSelectorPanel({
 
   return (
     <div className={cn('flex min-h-0 overflow-hidden', className)}>
-      <div className="flex w-16 shrink-0 flex-col border-r border-border/80 bg-[linear-gradient(180deg,rgba(19,17,26,0.96)_0%,rgba(20,18,27,0.92)_100%)] px-2 py-3">
+      <div className="flex w-16 shrink-0 flex-col border-r border-border/80 bg-muted px-2 py-3">
         <div className="flex flex-1 flex-col items-center gap-2">
           <button
             type="button"
@@ -267,7 +267,7 @@ export function ModelSelectorPanel({
         </div>
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-col bg-[radial-gradient(circle_at_top,rgba(244,233,255,0.12),transparent_40%),linear-gradient(180deg,rgba(23,20,31,0.98)_0%,rgba(19,17,26,0.98)_100%)]">
+      <div className="flex min-w-0 flex-1 flex-col bg-popover">
         <div className="shrink-0 border-b border-white/6 px-3 py-3">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-white/45" />

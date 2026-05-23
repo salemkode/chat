@@ -188,24 +188,21 @@ export function SettingsDialog({
       label: 'Light',
       description: 'Bright neutral surfaces for daytime use.',
       icon: Sun,
-      previewClassName:
-        'bg-[linear-gradient(135deg,#ffffff_0%,#f3f4f6_60%,#dbeafe_100%)] border-zinc-200',
+      previewClassName: 'bg-zinc-100 border-zinc-200',
     },
     {
       id: 'dark',
       label: 'Dark',
       description: 'A darker workspace for low-light environments.',
       icon: Moon,
-      previewClassName:
-        'bg-[linear-gradient(135deg,#0f172a_0%,#111827_55%,#1d4ed8_100%)] border-slate-700',
+      previewClassName: 'bg-slate-900 border-slate-700',
     },
     {
       id: 'system',
       label: 'System',
       description: 'Matches your device appearance automatically.',
       icon: Monitor,
-      previewClassName:
-        'bg-[linear-gradient(135deg,#f8fafc_0%,#dbeafe_45%,#0f172a_100%)] border-slate-300',
+      previewClassName: 'bg-slate-200 border-slate-300',
     },
   ] satisfies Array<{
     id: ThemeMode

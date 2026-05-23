@@ -679,7 +679,7 @@ export function AIPromptInput({
           'pointer-events-auto relative flex w-full min-w-0 flex-col items-stretch text-secondary-foreground',
           mobile
             ? 'rounded-4xl border border-border/90 bg-card p-3.5 shadow-[0_4px_24px_rgba(15,23,42,0.1)] dark:border-border/55 dark:bg-card/98 dark:shadow-[0_6px_28px_rgba(0,0,0,0.45)]'
-            : 'rounded-4xl border border-border bg-linear-to-b from-background/95 to-background/90 bg-muted/80 p-3 backdrop-blur-2xl sm:max-w-3xl sm:p-4',
+            : 'rounded-4xl border border-border bg-muted/80 p-3 backdrop-blur-2xl sm:max-w-3xl sm:p-4',
           isDragging && 'border-primary/60 bg-primary/5',
         )}
       >

@@ -5,7 +5,6 @@ import { useMutation } from 'convex/react'
 import { Bot, Boxes, CreditCard, Loader2, Settings2, Sparkles, User, Users } from '@/lib/icons'
 import { useEffect, useMemo, useReducer } from 'react'
 import { api } from '@convex/_generated/api'
-import { AdminBackdrop } from '@/components/admin/admin-backdrop'
 import { useAdminCollectionDialog } from '@/components/admin/admin-collection-dialog'
 import { AdminDiscoveryProvider } from '@/components/admin/admin-discovery-context'
 import {
@@ -111,7 +110,7 @@ function AdminLayoutShell({
         summary={summary}
       />
 
-      {!isAdmin ? (
+      {isAdmin === false ? (
         <Card className={adminPanelClass}>
           <CardHeader>
             <CardTitle>Admin access required</CardTitle>
@@ -120,7 +119,7 @@ function AdminLayoutShell({
             </CardDescription>
           </CardHeader>
         </Card>
-      ) : dashboard === undefined ? (
+      ) : isAdmin !== true || dashboard === undefined ? (
         <div className="flex min-h-[40vh] items-center justify-center">
           <Loader2 className="size-8 animate-spin" />
         </div>
@@ -201,11 +200,13 @@ export default function AdminLayoutRoute() {
     }
   }, [ensureCurrentUser, isAuthenticated, userId])
 
-  if (isLoading || (isAuthenticated && !isUserReady)) {
+  if (isLoading) {
     return (
-      <div className="flex h-screen w-full items-center justify-center">
-        <Loader2 className="size-8 animate-spin" />
-      </div>
+      <AdminPageShell>
+        <div className="flex min-h-screen w-full items-center justify-center">
+          <Loader2 className="size-8 animate-spin" />
+        </div>
+      </AdminPageShell>
     )
   }
 
@@ -213,9 +214,18 @@ export default function AdminLayoutRoute() {
     return <AuthRedirect />
   }
 
+  if (!isUserReady) {
+    return (
+      <AdminPageShell>
+        <div className="flex min-h-screen w-full items-center justify-center">
+          <Loader2 className="size-8 animate-spin" />
+        </div>
+      </AdminPageShell>
+    )
+  }
+
   return (
-    <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
-      <AdminBackdrop />
+    <AdminPageShell>
       <AdminDiscoveryProvider models={models}>
         <AdminLayoutShell
           navigate={navigate}
@@ -226,6 +236,14 @@ export default function AdminLayoutRoute() {
           summary={summary}
         />
       </AdminDiscoveryProvider>
+    </AdminPageShell>
+  )
+}
+
+function AdminPageShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
+      {children}
     </div>
   )
 }

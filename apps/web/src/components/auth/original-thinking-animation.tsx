@@ -35,7 +35,6 @@ export function OriginalThinkingAnimation({
   const pathRef = useRef<SVGPathElement | null>(null)
   const particleRefs = useRef<Array<SVGCircleElement | null>>([])
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(Boolean(reducedMotion))
-  const gradientId = useId().replace(/:/g, '')
   const glowId = useId().replace(/:/g, '')
   const resolvedReducedMotion = reducedMotion ?? prefersReducedMotion
   const isMinimal = variant === 'minimal'
@@ -127,11 +126,6 @@ export function OriginalThinkingAnimation({
       >
         {!isMinimal ? (
           <defs>
-            <linearGradient id={gradientId} x1="18" y1="16" x2="82" y2="84">
-              <stop offset="0%" stopColor="var(--color-foreground)" stopOpacity="0.92" />
-              <stop offset="46%" stopColor="var(--color-primary)" stopOpacity="0.96" />
-              <stop offset="100%" stopColor="var(--color-chart-2)" stopOpacity="0.72" />
-            </linearGradient>
             <filter
               id={glowId}
               x="-50%"
@@ -174,7 +168,7 @@ export function OriginalThinkingAnimation({
         <g ref={groupRef}>
           <path
             ref={pathRef}
-            stroke={isMinimal ? 'currentColor' : `url(#${gradientId})`}
+            stroke="currentColor"
             strokeLinecap="round"
             strokeLinejoin="round"
             opacity={isMinimal ? '0.1' : '0.92'}
@@ -186,7 +180,7 @@ export function OriginalThinkingAnimation({
               ref={(node) => {
                 particleRefs.current[index] = node
               }}
-              fill={isMinimal ? 'currentColor' : `url(#${gradientId})`}
+              fill="currentColor"
             />
           ))}
         </g>

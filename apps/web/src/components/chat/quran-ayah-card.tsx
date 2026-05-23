@@ -12,7 +12,7 @@ export function QuranAyahCard({
   return (
     <section
       className={cn(
-        'not-prose overflow-hidden rounded-[1.6rem] border border-amber-500/20 bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.16),transparent_38%),linear-gradient(180deg,rgba(36,26,14,0.96),rgba(17,14,10,0.98))] p-4 text-amber-50 shadow-[0_18px_48px_rgba(15,23,42,0.22)] sm:p-5',
+        'not-prose overflow-hidden rounded-[1.6rem] border border-amber-500/20 bg-amber-950 p-4 text-amber-50 shadow-[0_18px_48px_rgba(15,23,42,0.22)] sm:p-5',
         className,
       )}
     >
