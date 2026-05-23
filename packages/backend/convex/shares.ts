@@ -1,5 +1,5 @@
 import { paginationOptsValidator, type FunctionReturnType } from 'convex/server'
-import { ConvexError, v } from 'convex/values'
+import { v } from 'convex/values'
 import type { Id } from './_generated/dataModel'
 import { components } from './_generated/api'
 import { mutation, query, type MutationCtx } from './_generated/server'

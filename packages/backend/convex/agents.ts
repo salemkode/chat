@@ -1470,7 +1470,7 @@ export const streamMessage = internalAction({
             apiKey: resolvedApiKey,
             baseURL: resolvedBaseURL,
             headers: args.config?.headers,
-          }).chat(args.modelId)
+          }).languageModel(args.modelId)
         })
         .with('deepseek', () => {
           return createDeepSeek({

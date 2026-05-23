@@ -1,6 +1,6 @@
 import { embedMany } from 'ai'
 import { createOpenRouter } from '@openrouter/ai-sdk-provider'
-import { v, ConvexError } from 'convex/values'
+import { v } from 'convex/values'
 import { action, internalQuery } from './_generated/server'
 import { components, internal } from './_generated/api'
 import { getAuthUserId } from './lib/auth'

@@ -10,7 +10,6 @@ import { cn } from "@/utils/tailwind";
 import {
   COMPOSER_FLOATING_INSET_CLASS,
   COMPOSER_FLOATING_PILL_RADIUS,
-  COMPOSER_FLOATING_PILL_STYLE,
   COMPOSER_FLOATING_SOLID_CLASS,
 } from "./composer-layout";
 

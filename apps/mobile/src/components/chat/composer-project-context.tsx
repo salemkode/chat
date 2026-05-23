@@ -66,7 +66,6 @@ export function ComposerProjectProvider({
   const { showComposerToast } = useComposerToast();
   const { projects } = useChatProjects();
   const {
-    pendingProjectId,
     setPendingProjectId,
     assignThreadToProject,
     createProject,

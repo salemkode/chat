@@ -6,7 +6,7 @@ import {
   ThemedGlassView,
 } from "@/components/themed-glass";
 import { useEffect, useRef, type ReactNode } from "react";
-import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, TextInput, View } from "react-native";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 
 import { cn } from "@/utils/tailwind";

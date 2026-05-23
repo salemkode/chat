@@ -1,7 +1,6 @@
 import { query, mutation } from './_generated/server'
 import { v } from 'convex/values'
 import { getAuthUserId } from './lib/auth'
-import { ConvexError } from 'convex/values'
 
 // List all sections for the current user
 export const listSections = query({

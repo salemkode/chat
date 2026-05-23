@@ -294,6 +294,13 @@ Generation path:
 
 This design lets admin configuration change model availability without redeploying clients.
 
+Provider credentials are resolved per request in this order:
+
+1. provider `apiKey` stored in Convex `providers`
+2. provider-specific environment fallback (for example `GOOGLE_GENERATIVE_AI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY`, `GROQ_API_KEY`, `DEEPSEEK_API_KEY`, `XAI_API_KEY`, and related provider env vars)
+
+This fallback is applied consistently across chat generation and auxiliary/background model calls.
+
 Model records now also carry attachment policy metadata (`supportedAttachmentMediaTypes`, validation status/message/timestamp). When `supportedAttachmentMediaTypes` is set explicitly (even to an empty list), it becomes the source of truth for whether uploads are enabled for that model. Admin settings can run a bulk validation pass to refresh per-model status for the admin models table. Attachment policy is runtime-aware as well, so provider adapters that are text-only today, such as the native DeepSeek adapter in this backend, override optimistic capability inference and disable file inputs until backend support exists.
 
 ## Memory Subsystem

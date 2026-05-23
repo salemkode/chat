@@ -41,7 +41,6 @@ function FallbackAppleGlassView({
   children,
   style,
   className,
-  ...rest
 }: FallbackAppleGlassViewProps) {
   const themeBlurTint = useGlassBlurFallbackTint();
 

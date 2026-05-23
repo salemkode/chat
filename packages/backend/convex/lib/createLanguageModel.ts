@@ -62,7 +62,7 @@ export function createLanguageModelFromAuxiliary(resolved: ResolvedAuxiliaryMode
         apiKey: resolvedApiKey,
         baseURL: customUrl,
         headers: config?.headers,
-      }).chat(modelId)
+      }).languageModel(modelId)
     })
     .with('deepseek', () => {
       return createDeepSeek({

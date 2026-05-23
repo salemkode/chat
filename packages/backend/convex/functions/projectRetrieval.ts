@@ -1,6 +1,5 @@
 import { v } from 'convex/values'
 import { action, internalAction, internalQuery, query } from '../_generated/server'
-import type { Id } from '../_generated/dataModel'
 import { api, internal } from '../_generated/api'
 import { getAuthUserId } from '../lib/auth'
 import { requireProjectRole } from '../lib/projectAccess'

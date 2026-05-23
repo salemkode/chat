@@ -18,7 +18,6 @@ import {
   iconTypeValidator,
   modelAttachmentValidationStatusValidator,
   modalitiesValidator,
-  providerCatalogResultValidator,
   providerConfigValidator,
   providerTypeValidator,
   rateLimitPolicyValidator,
@@ -60,60 +59,6 @@ const autoModelRouterPreferenceValidator = v.union(
   v.literal('speed'),
   v.literal('quality'),
 )
-
-const adminSettingsValidator = v.object({
-  _id: v.optional(v.id('adminSettings')),
-  key: v.string(),
-  appPlan: appPlanValidator,
-  defaultRateLimit: v.optional(rateLimitPolicyValidator),
-  autoModelRoutingEnabled: v.optional(v.boolean()),
-  autoModelRouterUrl: v.optional(v.string()),
-  autoModelRouterApiKey: v.optional(v.string()),
-  autoModelRouterPreference: v.optional(autoModelRouterPreferenceValidator),
-  defaultAuxiliaryModelId: v.optional(v.id('models')),
-  updatedAt: v.number(),
-})
-
-const providerBaseValidator = v.object({
-  _id: v.id('providers'),
-  _creationTime: v.number(),
-  apiKey: v.string(),
-  baseURL: v.optional(v.string()),
-  description: v.optional(v.string()),
-  isEnabled: v.boolean(),
-  name: v.string(),
-  providerType: providerTypeValidator,
-  sortOrder: v.number(),
-  icon: v.optional(v.string()),
-  iconType: v.optional(iconTypeValidator),
-  iconId: v.optional(v.id('_storage')),
-  rateLimit: v.optional(rateLimitPolicyValidator),
-  lastDiscoveredAt: v.optional(v.number()),
-  lastDiscoveryError: v.optional(v.string()),
-  lastDiscoveredModelCount: v.optional(v.number()),
-  config: v.optional(providerConfigValidator),
-})
-
-const providerWithIconUrlValidator = v.object({
-  _id: v.id('providers'),
-  _creationTime: v.number(),
-  apiKey: v.string(),
-  baseURL: v.optional(v.string()),
-  description: v.optional(v.string()),
-  isEnabled: v.boolean(),
-  name: v.string(),
-  providerType: providerTypeValidator,
-  sortOrder: v.number(),
-  icon: v.optional(v.string()),
-  iconType: v.optional(iconTypeValidator),
-  iconId: v.optional(v.id('_storage')),
-  rateLimit: v.optional(rateLimitPolicyValidator),
-  lastDiscoveredAt: v.optional(v.number()),
-  lastDiscoveryError: v.optional(v.string()),
-  lastDiscoveredModelCount: v.optional(v.number()),
-  config: v.optional(providerConfigValidator),
-  iconUrl: v.optional(v.string()),
-})
 
 const providerSummaryValidator = v.object({
   _id: v.id('providers'),

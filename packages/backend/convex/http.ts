@@ -254,7 +254,7 @@ async function validateRequest(req: Request): Promise<WebhookEvent | undefined> 
   let evt: Event | null = null
   try {
     evt = wh.verify(payloadString, svixHeaders) as Event
-  } catch (_) {
+  } catch {
     console.log('error verifying')
     return
   }

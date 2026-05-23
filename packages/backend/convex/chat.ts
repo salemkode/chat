@@ -9,31 +9,10 @@ import {
   toUIMessages,
   vStreamArgs,
 } from '@convex-dev/agent'
-import { ConvexError } from 'convex/values'
-import { threadMetadataValidator } from './lib/validators'
 import { GENERATION_STOPPED_BY_USER } from './agents'
 import { canViewProject, getProjectRole } from './lib/projectAccess'
 
 type AgentThreadId = FunctionArgs<typeof components.agent.threads.getThread>['threadId']
-
-const threadDetailValidator = v.union(
-  v.null(),
-  v.object({
-    _id: v.string(),
-    _creationTime: v.number(),
-    title: v.optional(v.string()),
-    userId: v.optional(v.string()),
-    metadata: v.union(v.null(), threadMetadataValidator),
-    project: v.union(
-      v.null(),
-      v.object({
-        id: v.string(),
-        name: v.string(),
-        description: v.optional(v.string()),
-      }),
-    ),
-  }),
-)
 
 function isInvalidThreadIdError(error: unknown) {
   if (!(error instanceof Error)) {

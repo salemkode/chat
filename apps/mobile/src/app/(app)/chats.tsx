@@ -6,8 +6,8 @@ import { useThreads } from "@/hooks/use-threads";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Color, Stack, useRouter } from "expo-router";
 import { ChevronRight, Menu, Search } from "lucide-react-native";
-import { useCallback, useMemo, useState } from "react";
-import { Alert, FlatList, Pressable, Text, View } from "react-native";
+import { useMemo, useState } from "react";
+import { FlatList, Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type Filter = "all" | "starred";
@@ -27,17 +27,13 @@ function ChatRow({
   emoji,
   subtitle,
   onNavigate,
-  onDelete,
   onStar,
-  starred,
 }: {
   title: string;
   emoji: string;
   subtitle: string;
   onNavigate: () => void;
-  onDelete: () => void;
   onStar: () => void;
-  starred: boolean;
 }) {
   return (
     <Pressable
@@ -89,7 +85,7 @@ export default function ChatsScreen() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const insets = useSafeAreaInsets();
-  const { threads, setPinned, deleteThread } = useThreads();
+  const { threads, setPinned } = useThreads();
 
   const filtered = useMemo(() => {
     let results = threads;
@@ -104,20 +100,6 @@ export default function ChatsScreen() {
     }
     return results;
   }, [search, threads, filter]);
-
-  const handleDelete = useCallback(
-    (threadId: string, title: string) => {
-      Alert.alert("Delete Chat", `Delete "${title}"?`, [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => deleteThread(threadId),
-        },
-      ]);
-    },
-    [deleteThread],
-  );
 
   return (
     <>
@@ -136,14 +118,12 @@ export default function ChatsScreen() {
             title={item.title || "Untitled"}
             emoji={item.emoji}
             subtitle={formatTimeAgo(item.lastMessageAt)}
-            starred={item.pinned}
             onNavigate={() =>
               {
                 selectThread(item.id);
                 router.navigate("/");
               }
             }
-            onDelete={() => handleDelete(item.id, item.title || "Untitled")}
             onStar={() => setPinned(item.id, !item.pinned)}
           />
         )}

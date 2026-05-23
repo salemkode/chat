@@ -18,8 +18,6 @@ import { useChatProjects, useChatThreads, useChatCoreContext } from "@chat/chat-
 import type { ProjectSummary, ThreadSummary } from "@chat/chat-core/types";
 import type { Href } from "expo-router";
 import {
-  ChevronDown,
-  ChevronRight,
   FolderOpen,
   Folder,
   Plus,

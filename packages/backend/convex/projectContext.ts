@@ -55,8 +55,6 @@ const extractionStatusValidator = v.union(
   v.literal('error'),
 )
 
-type SourceDoc = Doc<'projectSources'>
-
 function parseJsonOrNull(value?: string) {
   if (!value) {
     return null

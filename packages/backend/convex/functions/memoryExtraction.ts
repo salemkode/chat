@@ -24,9 +24,6 @@ const extractionSchema = z.object({
 type ThreadMessageBatch = FunctionReturnType<
   typeof components.agent.messages.listMessagesByThreadId
 >
-type LinkedProject = FunctionReturnType<
-  typeof internal.functions.memoryInternal.listProjectsForThread
->[number]
 
 function getExtractionErrorMessage(error: unknown) {
   if (error instanceof Error) {
