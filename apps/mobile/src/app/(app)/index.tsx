@@ -66,7 +66,8 @@ export default function ChatScreen() {
   const { send, stop } = useSendMessage();
   const { attachments, clearAttachments, hasUploadingAttachments } =
     useChatAttachments();
-  const { messages, hasActiveStreaming } = useMessages(threadId);
+  const { messages, hasActiveStreaming, hasMore, isLoadingMore, loadOlderMessages } =
+    useMessages(threadId);
   const { activeGeneration, canStop, canForceStop } = useGenerationState(messages);
   const { pendingProjectId, setPendingProjectId, assignThreadToProject } =
     useChatCoreContext();
@@ -306,6 +307,9 @@ export default function ChatScreen() {
         <ComposerProjectProvider threadId={threadId}>
           <Conversation
             renderMessage={renderMessage}
+            hasOlderMessages={hasMore}
+            isLoadingOlder={isLoadingMore}
+            onLoadOlder={loadOlderMessages}
             emptyState={
               <ConversationEmptyState
                 title="Chat"

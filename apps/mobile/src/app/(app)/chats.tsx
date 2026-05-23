@@ -6,8 +6,9 @@ import { useThreads } from "@/hooks/use-threads";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Color, Stack, useRouter } from "expo-router";
 import { ChevronRight, Menu, Search } from "lucide-react-native";
+import { LegendList } from "@legendapp/list/react-native";
 import { useMemo, useState } from "react";
-import { FlatList, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type Filter = "all" | "starred";
@@ -103,9 +104,10 @@ export default function ChatsScreen() {
 
   return (
     <>
-      <FlatList
+      <LegendList
         data={filtered}
         keyExtractor={(item) => item.id}
+        estimatedItemSize={72}
         contentInsetAdjustmentBehavior="automatic"
         automaticallyAdjustContentInsets
         automaticallyAdjustsScrollIndicatorInsets

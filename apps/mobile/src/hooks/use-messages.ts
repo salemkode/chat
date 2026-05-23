@@ -74,7 +74,8 @@ export function useMessages(threadId?: string) {
     })) as ChatMessage[];
   }, [paginatedMessages.results, threadId]);
 
-  const { messages, hasMore, loadOlderMessages, hasRenderableMessages } = useThreadMessages({
+  const { messages, hasMore, isLoadingMore, loadOlderMessages, hasRenderableMessages } =
+    useThreadMessages({
     threadId,
     threadKey: threadId ?? "new",
     liveResults,
@@ -188,6 +189,7 @@ export function useMessages(threadId?: string) {
     messages,
     status: paginatedMessages.status,
     hasMore,
+    isLoadingMore,
     loadOlderMessages,
     hasActiveStreaming,
     hasRenderableMessages,

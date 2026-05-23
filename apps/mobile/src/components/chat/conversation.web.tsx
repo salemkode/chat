@@ -1,8 +1,9 @@
-import { LegendList, LegendListRef } from "@legendapp/list";
+import { LegendList, type LegendListRef } from "@legendapp/list/react-native";
 import {
   createContext,
   use,
   useCallback,
+  useMemo,
   useRef,
   useState,
   type ReactElement,
@@ -37,10 +38,16 @@ export function Conversation({
   renderMessage,
   emptyState,
   children,
+  hasOlderMessages = false,
+  isLoadingOlder = false,
+  onLoadOlder,
 }: {
   renderMessage: (info: { item: ChatMessage }) => ReactElement;
   emptyState?: ReactElement;
   children?: ReactNode;
+  hasOlderMessages?: boolean;
+  isLoadingOlder?: boolean;
+  onLoadOlder?: (numItems: number) => void;
 }) {
   const { messages } = useChatContext();
   const listRef = useRef<LegendListRef>(null);
@@ -119,6 +126,13 @@ export function Conversation({
     scrollButtonStyle: {},
   };
 
+  const latestMessage = messages[messages.length - 1];
+  const dataVersion = useMemo(
+    () =>
+      `${messages.length}:${latestMessage?.id ?? ""}:${latestMessage?.content ?? ""}`,
+    [latestMessage?.content, latestMessage?.id, messages.length],
+  );
+
   return (
     <ConversationCtx value={contextValue}>
       <View className="relative flex-1 bg-background">
@@ -133,8 +147,9 @@ export function Conversation({
         <LegendList
           ref={listRef}
           data={messages}
-          renderItem={renderMessage as any}
-          keyExtractor={(item) => (item as ChatMessage).id}
+          dataVersion={dataVersion}
+          renderItem={renderMessage}
+          keyExtractor={(item) => item.id}
           contentContainerStyle={{
             paddingBottom: composerHeight + 16,
             maxWidth: 896,
@@ -146,10 +161,38 @@ export function Conversation({
           }}
           className="flex-1"
           estimatedItemSize={80}
+          getEstimatedItemSize={(message) =>
+            message.role === "assistant" ? 220 : 108
+          }
+          drawDistance={600}
+          alignItemsAtEnd
+          initialScrollAtEnd
+          maintainScrollAtEnd
+          maintainScrollAtEndThreshold={0.15}
+          maintainVisibleContentPosition={{ data: true, size: true }}
+          onStartReached={
+            onLoadOlder && hasOlderMessages && !isLoadingOlder
+              ? () => onLoadOlder(30)
+              : undefined
+          }
+          onStartReachedThreshold={0.15}
           onLayout={onScrollViewLayout}
           onScroll={onScroll}
           scrollEventThrottle={16}
           onContentSizeChange={onContentSizeChange}
+          ListHeaderComponent={
+            hasOlderMessages ? (
+              <View className="items-center pb-3">
+                <View className="rounded-full border border-border/70 bg-card/90 px-3 py-1">
+                  <Text className="text-xs text-muted-foreground">
+                    {isLoadingOlder
+                      ? "Loading older messages..."
+                      : "Scroll up to load older messages"}
+                  </Text>
+                </View>
+              </View>
+            ) : null
+          }
         />
 
         {/* Scroll to bottom */}

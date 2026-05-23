@@ -1,9 +1,13 @@
 import { SymbolImage } from "@/components/symbol-image";
-import { LegendList, LegendListRef } from "@legendapp/list";
+import {
+  AnimatedLegendList,
+} from "@legendapp/list/reanimated";
+import { type LegendListRef } from "@legendapp/list/react-native";
 import {
   createContext,
   use,
   useCallback,
+  useMemo,
   useRef,
   useState,
   type ReactElement,
@@ -28,8 +32,6 @@ import { useChatContext } from "./chat-context";
 import type { ChatMessage } from "./types";
 
 const IS_GLASS = isLiquidGlassAvailable();
-
-const AnimatedLegendList = Animated.createAnimatedComponent(LegendList);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Reanimated animated styles are opaque worklet objects
 type AnimatedStyle = any;
@@ -59,6 +61,9 @@ export function Conversation({
   renderMessage,
   emptyState,
   children,
+  hasOlderMessages = false,
+  isLoadingOlder = false,
+  onLoadOlder,
 }: {
   /** Render callback for each message – passed to the underlying list. */
   renderMessage: (info: { item: ChatMessage }) => ReactElement;
@@ -66,6 +71,9 @@ export function Conversation({
   emptyState?: ReactElement;
   /** Compound children: <ConversationScrollButton />, <PromptInput />, etc. */
   children?: ReactNode;
+  hasOlderMessages?: boolean;
+  isLoadingOlder?: boolean;
+  onLoadOlder?: (numItems: number) => void;
 }) {
   const { messages } = useChatContext();
   const listRef = useRef<LegendListRef>(null);
@@ -258,6 +266,13 @@ export function Conversation({
     scrollButtonStyle,
   };
 
+  const latestMessage = messages[messages.length - 1];
+  const dataVersion = useMemo(
+    () =>
+      `${messages.length}:${latestMessage?.id ?? ""}:${latestMessage?.content ?? ""}`,
+    [latestMessage?.content, latestMessage?.id, messages.length],
+  );
+
   // -- Render --------------------------------------------------------------
 
   return (
@@ -273,8 +288,9 @@ export function Conversation({
             ref={listRef}
             className="flex-1"
             data={messages}
-            renderItem={renderMessage as any}
-            keyExtractor={(item) => (item as ChatMessage).id}
+            dataVersion={dataVersion}
+            renderItem={renderMessage}
+            keyExtractor={(item) => item.id}
             contentContainerStyle={{
               padding: 16,
               // transparent header spacing.
@@ -282,14 +298,37 @@ export function Conversation({
             }}
             keyboardDismissMode="interactive"
             automaticallyAdjustsScrollIndicatorInsets={false}
-            maintainVisibleContentPosition
+            maintainVisibleContentPosition={{ data: true, size: true }}
             estimatedItemSize={80}
+            getEstimatedItemSize={(message) =>
+              message.role === "assistant" ? 220 : 108
+            }
+            drawDistance={600}
+            onStartReached={
+              onLoadOlder && hasOlderMessages && !isLoadingOlder
+                ? () => onLoadOlder(30)
+                : undefined
+            }
+            onStartReachedThreshold={0.15}
             animatedProps={listAnimatedProps}
             onLayout={onScrollViewLayout}
             onScroll={onScroll}
             scrollEventThrottle={16}
             onContentSizeChange={onContentSizeChange}
             ListEmptyComponent={emptyState}
+            ListHeaderComponent={
+              hasOlderMessages ? (
+                <View className="items-center pb-3">
+                  <View className="rounded-full border border-border/70 bg-background/90 px-3 py-1">
+                    <Text className="text-xs text-muted-foreground">
+                      {isLoadingOlder
+                        ? "Loading older messages..."
+                        : "Scroll up to load older messages"}
+                    </Text>
+                  </View>
+                </View>
+              ) : null
+            }
             ListFooterComponent={
               <Animated.View style={footerSpacerStyle} />
             }
