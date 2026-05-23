@@ -1,5 +1,5 @@
 export const THEME_STORAGE_KEY = 'theme-preference'
-const DEFAULT_CUSTOM_PRIMARY = '#8b5cf6'
+const DEFAULT_CUSTOM_PRIMARY = '#059669'
 
 export type ThemeMode = 'light' | 'dark' | 'system'
 export type ResolvedTheme = 'light' | 'dark'

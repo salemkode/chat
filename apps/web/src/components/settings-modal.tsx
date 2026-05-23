@@ -212,7 +212,7 @@ export function SettingsDialog({
     previewClassName: string
   }>
 
-  const presetColors = ['#8b5cf6', '#2563eb', '#0891b2', '#059669', '#ea580c', '#dc2626', '#db2777']
+  const presetColors = ['#059669', '#2563eb', '#0891b2', '#ea580c', '#dc2626', '#db2777', '#8b5cf6']
 
   const displayNameValue = displayName || user?.name || ''
   const emailValue = user?.email || ''

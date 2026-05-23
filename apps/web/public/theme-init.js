@@ -1,6 +1,6 @@
 ;(function () {
   const STORAGE_KEY = 'theme-preference'
-  const DEFAULT_PRIMARY = '#8b5cf6'
+  const DEFAULT_PRIMARY = '#059669'
   const root = document.documentElement
   const storedValue = localStorage.getItem(STORAGE_KEY)
 
