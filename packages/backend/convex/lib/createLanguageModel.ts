@@ -10,7 +10,7 @@ import { createOpenRouter } from '@openrouter/ai-sdk-provider'
 import { match } from 'ts-pattern'
 import type { Doc } from '../_generated/dataModel'
 import type { ResolvedAuxiliaryModel } from './auxiliaryModel'
-import { resolveProviderApiKey } from './providerApiKeys'
+import { requireProviderApiKey, resolveProviderApiKey } from './providerApiKeys'
 
 export function createLanguageModelFromAuxiliary(resolved: ResolvedAuxiliaryModel) {
   const providerType = resolved.providerType
@@ -18,7 +18,11 @@ export function createLanguageModelFromAuxiliary(resolved: ResolvedAuxiliaryMode
   const apiKey = resolved.apiKey
   const customUrl = resolved.customUrl
   const config = resolved.config
-  const resolvedApiKey = resolveProviderApiKey(providerType, apiKey)
+  const resolvedApiKey = requireProviderApiKey(
+    providerType,
+    apiKey,
+    `Cannot call ${modelId} through ${providerType}`,
+  )
 
   return match(providerType)
     .with('openrouter', () => {
@@ -79,9 +83,6 @@ export function createLanguageModelFromAuxiliary(resolved: ResolvedAuxiliaryMode
       }).chat(modelId)
     })
     .with('cerebras', () => {
-      if (!resolvedApiKey) {
-        throw new Error('Cerebras provider requires apiKey')
-      }
       return createOpenAICompatible({
         name: 'cerebras',
         apiKey: resolvedApiKey,
@@ -90,8 +91,8 @@ export function createLanguageModelFromAuxiliary(resolved: ResolvedAuxiliaryMode
       })(modelId)
     })
     .with('openai-compatible', () => {
-      if (!customUrl || !resolvedApiKey) {
-        throw new Error('OpenAI-compatible provider requires customUrl and apiKey')
+      if (!customUrl) {
+        throw new Error('OpenAI-compatible provider requires customUrl')
       }
       return createOpenAICompatible({
         name: 'openai-compatible',
@@ -103,9 +104,6 @@ export function createLanguageModelFromAuxiliary(resolved: ResolvedAuxiliaryMode
       })(modelId)
     })
     .with('opencode', () => {
-      if (!resolvedApiKey) {
-        throw new Error('OpenCode provider requires apiKey')
-      }
       return createOpenAICompatible({
         name: 'opencode',
         apiKey: resolvedApiKey,
@@ -115,9 +113,6 @@ export function createLanguageModelFromAuxiliary(resolved: ResolvedAuxiliaryMode
       })(modelId)
     })
     .with('mistral', () => {
-      if (!resolvedApiKey) {
-        throw new Error('Mistral provider requires apiKey')
-      }
       return createOpenAICompatible({
         name: 'mistral',
         apiKey: resolvedApiKey,
@@ -126,9 +121,6 @@ export function createLanguageModelFromAuxiliary(resolved: ResolvedAuxiliaryMode
       })(modelId)
     })
     .with('cohere', () => {
-      if (!resolvedApiKey) {
-        throw new Error('Cohere provider requires apiKey')
-      }
       return createOpenAICompatible({
         name: 'cohere',
         apiKey: resolvedApiKey,
@@ -137,9 +129,6 @@ export function createLanguageModelFromAuxiliary(resolved: ResolvedAuxiliaryMode
       })(modelId)
     })
     .with('perplexity', () => {
-      if (!resolvedApiKey) {
-        throw new Error('Perplexity provider requires apiKey')
-      }
       return createOpenAICompatible({
         name: 'perplexity',
         apiKey: resolvedApiKey,
@@ -148,9 +137,6 @@ export function createLanguageModelFromAuxiliary(resolved: ResolvedAuxiliaryMode
       })(modelId)
     })
     .with('fireworks', () => {
-      if (!resolvedApiKey) {
-        throw new Error('Fireworks provider requires apiKey')
-      }
       return createOpenAICompatible({
         name: 'fireworks',
         apiKey: resolvedApiKey,
@@ -159,9 +145,6 @@ export function createLanguageModelFromAuxiliary(resolved: ResolvedAuxiliaryMode
       })(modelId)
     })
     .with('together', () => {
-      if (!resolvedApiKey) {
-        throw new Error('Together provider requires apiKey')
-      }
       return createOpenAICompatible({
         name: 'together',
         apiKey: resolvedApiKey,
@@ -170,9 +153,6 @@ export function createLanguageModelFromAuxiliary(resolved: ResolvedAuxiliaryMode
       })(modelId)
     })
     .with('moonshot', () => {
-      if (!resolvedApiKey) {
-        throw new Error('Moonshot provider requires apiKey')
-      }
       return createOpenAICompatible({
         name: 'moonshot',
         apiKey: resolvedApiKey,
@@ -181,9 +161,6 @@ export function createLanguageModelFromAuxiliary(resolved: ResolvedAuxiliaryMode
       })(modelId)
     })
     .with('qwen', () => {
-      if (!resolvedApiKey) {
-        throw new Error('Qwen provider requires apiKey')
-      }
       return createOpenAICompatible({
         name: 'qwen',
         apiKey: resolvedApiKey,
@@ -192,9 +169,6 @@ export function createLanguageModelFromAuxiliary(resolved: ResolvedAuxiliaryMode
       })(modelId)
     })
     .with('stepfun', () => {
-      if (!resolvedApiKey) {
-        throw new Error('StepFun provider requires apiKey')
-      }
       return createOpenAICompatible({
         name: 'stepfun',
         apiKey: resolvedApiKey,

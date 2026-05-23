@@ -7,7 +7,7 @@ import {
   modelSupportsImageInput,
   type ModelAttachmentValidationStatus,
 } from './lib/modelAttachmentPolicy'
-import { estimateCostFromProfile } from './lib/pricingTier'
+import { resolveStudioRawPrice } from './lib/modelStudioCost'
 
 const autoModelRouterPreferenceValidator = v.union(
   v.literal('balanced'),
@@ -247,7 +247,7 @@ export const getAutoModelRoutingState = internalQuery({
             3,
         )
 
-        const estimatedCost = estimateCostFromProfile(profile?.pricing, 1500, 700) ?? 0
+        const estimatedCost = resolveStudioRawPrice(profile)
         const latencyMs = profile?.latencyStats?.p95Ms ?? 2500
         const supportsTools = (profile?.capabilities ?? model.capabilities ?? [])
           .map((item) => item.toLowerCase())

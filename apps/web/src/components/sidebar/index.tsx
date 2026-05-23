@@ -48,6 +48,7 @@ import {
   RemoveFromProjectState,
 } from '@/components/sidebar/project-dialogs'
 import { consumeSettingsTabIntent, type SettingsTab } from '@/lib/settings-navigation'
+import { useSidebarScrollPreservation } from '@/hooks/use-sidebar-scroll-preservation'
 
 interface AppSidebarProps {
   selectedThreadId?: string | null
@@ -63,6 +64,8 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
     React.useState<RemoveFromProjectState | null>(null)
   const [deleteThreadDialog, setDeleteThreadDialog] = React.useState<DeleteThreadState | null>(null)
   const [expandedProjectIds, setExpandedProjectIds] = React.useState<Record<string, boolean>>({})
+  const { containerRef: sidebarScrollRef, runPreservingScroll, syncScrollAfterListChange } =
+    useSidebarScrollPreservation()
 
   const { threads, setPinned, deleteThread, hasMore: hasMoreThreads, isLoadingMore: isLoadingMoreThreads, loadMore: loadMoreThreads } = useThreads()
   const { projects, createProject, removeThreadFromProject, hasMore: hasMoreProjects, isLoadingMore: isLoadingMoreProjects, loadMore: loadMoreProjects } = useProjects()
@@ -84,6 +87,10 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
     () => groupThreadsByProject(threads),
     [threads],
   )
+
+  React.useLayoutEffect(() => {
+    syncScrollAfterListChange(threads.length, projects.length)
+  }, [threads.length, projects.length, syncScrollAfterListChange])
 
   const orderedThreadIds = React.useMemo(
     () => threads.filter((thread) => !thread.isOptimistic).map((thread) => thread.id),
@@ -246,7 +253,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
         <SidebarSearchDialog isOnline={isOnline} />
       </SidebarHeader>
 
-      <SidebarContent>
+      <SidebarContent ref={sidebarScrollRef}>
         {projects.length > 0 ? (
           <SidebarGroup>
             <SidebarGroupLabel>Projects</SidebarGroupLabel>
@@ -258,7 +265,10 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
 
                   return (
                     <React.Fragment key={project.id}>
-                      <SidebarMenuItem className="group/project">
+                      <SidebarMenuItem
+                        className="group/project"
+                        data-sidebar-scroll-anchor={`project-${project.id}`}
+                      >
                         <SidebarMenuButton asChild className="w-full justify-between">
                           <div>
                             <button
@@ -285,20 +295,19 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
                               ) : (
                                 <Folder className="size-4 shrink-0 text-primary" />
                               )}
-                              <span className="truncate">
-                                {project.name}
-                                <span className="ml-2 text-xs text-muted-foreground">
-                                  {projectThreads.length}
-                                </span>
-                              </span>
+                              <span className="truncate">{project.name}</span>
                             </button>
-                            <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover/project:opacity-100">
-                              <IconActionButton
-                                label="New chat in project"
-                                onClick={() => handleNewChatInProject(project.id)}
-                                icon={<Plus className="size-3.5" />}
-                              />
-                            </div>
+                            <IconActionButton
+                              label={`New chat in project (${projectThreads.length} chats)`}
+                              onClick={() => handleNewChatInProject(project.id)}
+                              icon={
+                                <>
+                                  <span className="text-xs tabular-nums">{projectThreads.length}</span>
+                                  <Plus className="size-3.5 shrink-0" />
+                                </>
+                              }
+                              className="h-6 w-auto shrink-0 gap-0.5 px-1.5"
+                            />
                           </div>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
@@ -355,7 +364,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
                       type="button"
                       variant="ghost"
                       className="w-full justify-start"
-                      onClick={() => loadMoreProjects(30)}
+                      onClick={() => runPreservingScroll(() => loadMoreProjects(30))}
                       disabled={isLoadingMoreProjects}
                     >
                       {isLoadingMoreProjects ? 'Loading more projects...' : 'Load more projects'}
@@ -411,7 +420,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
                   type="button"
                   variant="ghost"
                   className="w-full justify-start"
-                  onClick={() => loadMoreThreads(30)}
+                  onClick={() => runPreservingScroll(() => loadMoreThreads(30))}
                   disabled={isLoadingMoreThreads}
                 >
                   {isLoadingMoreThreads ? 'Loading more chats...' : 'Load more chats'}
@@ -532,15 +541,20 @@ function IconActionButton({
   icon,
   label,
   onClick,
+  className,
 }: {
   icon: React.ReactNode
   label: string
   onClick: () => void
+  className?: string
 }) {
   return (
     <button
       type="button"
-      className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
+      className={cn(
+        'inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground',
+        className,
+      )}
       aria-label={label}
       onClick={(event) => {
         event.preventDefault()

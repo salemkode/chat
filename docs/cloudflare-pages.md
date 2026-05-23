@@ -76,6 +76,18 @@ Cloudflare Pages hosts your web app. Your chat/model API remains in Convex (`con
 
 That is the expected architecture for this repo and avoids re-implementing Convex server logic inside Pages Functions.
 
+## PWA updates
+
+The web app registers a Workbox service worker for offline shell caching. After each deploy, browsers may briefly keep an old cached bundle until the new service worker activates.
+
+The client handles this automatically:
+
+- reloads once when a new service worker is ready
+- reloads once when a stale JS chunk fails to load
+- shows a visible loading/fallback message instead of a blank black screen if hydration stalls
+
+If a user still sees a stuck screen after one automatic reload, a hard refresh or clearing site data for the production origin resets the service worker and Clerk session cookies.
+
 ## React Router Workers guide note
 
 Cloudflare's React Router Workers framework guide is for full-stack React Router deployments with SSR (`ssr: true`) and Worker server entry.

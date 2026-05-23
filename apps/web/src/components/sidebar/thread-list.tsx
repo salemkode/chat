@@ -184,6 +184,7 @@ export function AnimatedThreadList<TThread extends BaseAnimatedThread>({
       {threads.map((thread) => (
         <div
           key={thread.id}
+          data-sidebar-scroll-anchor={thread.id}
           ref={(node) => {
             if (node) {
               rowRefs.current.set(thread.id, node)

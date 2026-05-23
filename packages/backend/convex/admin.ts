@@ -10,7 +10,6 @@ import {
 import { paginationOptsValidator } from 'convex/server'
 import { api, internal } from './_generated/api'
 import { ConvexError, v } from 'convex/values'
-import { generateObject } from 'ai'
 import { getAuthUserId } from './lib/auth'
 import { fetchProviderCatalog } from './lib/providerCatalog'
 import {
@@ -30,8 +29,21 @@ import {
   isStripeSubscriptionActive,
   resolveEffectiveAppPlan,
 } from './lib/billing'
-import { estimateCostFromProfile } from './lib/pricingTier'
+import {
+  fetchArtificialAnalysisModels,
+  matchArtificialAnalysisModel,
+  type ArtificialAnalysisModel,
+} from './lib/artificialAnalysis'
+import { resolveStudioRawPrice } from './lib/modelStudioCost'
 import { createLanguageModelFromAuxiliary } from './lib/createLanguageModel'
+import { generateStructuredObject } from './lib/generateStructuredObject'
+import { resolveAuxiliaryModelForUser } from './lib/auxiliaryModel'
+import {
+  describeCollectionSuggestionAuthError,
+  describeProviderApiKeySources,
+  hasResolvableProviderApiKey,
+  resolveProviderApiKey,
+} from './lib/providerApiKeys'
 import {
   isValidAttachmentMediaTypePattern,
   normalizeAttachmentMediaTypes,
@@ -192,6 +204,8 @@ const dashboardModelValidator = v.object({
   lastSyncedAt: v.optional(v.number()),
   iconUrl: v.optional(v.string()),
   providerName: v.string(),
+  providerType: v.optional(providerTypeValidator),
+  hasResolvableProviderApiKey: v.boolean(),
   providerIconUrl: v.optional(v.string()),
   favorites: v.number(),
   usage: v.object({
@@ -422,6 +436,7 @@ async function getCurrentAdminSettings(ctx: QueryCtx | MutationCtx) {
       autoModelRouterApiKey: undefined,
       autoModelRouterPreference: 'balanced',
       defaultAuxiliaryModelId: undefined,
+      artificialAnalysisApiKey: undefined,
       updatedAt: 0,
     }
   )
@@ -766,6 +781,10 @@ async function listAdminModelsInternal(ctx: QueryCtx) {
           ...model,
           iconUrl: model.iconId ? ((await ctx.storage.getUrl(model.iconId)) ?? undefined) : undefined,
           providerName: provider?.name ?? 'Unknown Provider',
+          providerType: provider?.providerType,
+          hasResolvableProviderApiKey: provider
+            ? hasResolvableProviderApiKey(provider.providerType, provider.apiKey)
+            : false,
           providerIconUrl: provider?.iconUrl,
           favorites: favoriteCountByModelId.get(model._id) ?? 0,
           usage: {
@@ -875,6 +894,81 @@ export const getCollectionSuggestionContext = internalQuery({
   },
 })
 
+export const resolveCollectionSuggestionModel = internalQuery({
+  args: {
+    userId: v.id('users'),
+    modelDocId: v.optional(v.id('models')),
+  },
+  handler: async (ctx, args) => {
+    if (args.modelDocId) {
+      const model = await ctx.db.get(args.modelDocId)
+      if (!model) {
+        throw new ConvexError({
+          code: 'NOT_FOUND',
+          message: 'Selected model was not found.',
+        })
+      }
+
+      const provider = await ctx.db.get(model.providerId)
+      if (!provider) {
+        throw new ConvexError({
+          code: 'FAILED_PRECONDITION',
+          message: 'Selected model has no provider configured.',
+        })
+      }
+
+      if (!hasResolvableProviderApiKey(provider.providerType, provider.apiKey)) {
+        throw new ConvexError({
+          code: 'FAILED_PRECONDITION',
+          message: describeCollectionSuggestionAuthError({
+            providerName: provider.name,
+            providerType: provider.providerType,
+          }),
+        })
+      }
+
+      return {
+        modelDocId: model._id,
+        modelId: model.modelId,
+        displayName: model.displayName,
+        providerType: provider.providerType,
+        providerDocId: provider._id,
+        providerName: provider.name,
+        providerApiKey: provider.apiKey,
+        customUrl: provider.baseURL,
+        config: provider.config,
+      }
+    }
+
+    const auxiliary = await resolveAuxiliaryModelForUser(ctx, args.userId)
+    if (!hasResolvableProviderApiKey(auxiliary.providerType, auxiliary.apiKey)) {
+      throw new ConvexError({
+        code: 'FAILED_PRECONDITION',
+        message:
+          auxiliary.providerType === 'openrouter'
+            ? `No OpenRouter model is ready for collection generation. Configure ${describeProviderApiKeySources('openrouter')} or select an OpenRouter model below.`
+            : 'No model is configured for collection generation. Select an OpenRouter model below, set a default auxiliary model in Admin settings, or configure the provider API key.',
+      })
+    }
+
+    const auxiliaryProvider = auxiliary.providerDocId
+      ? await ctx.db.get(auxiliary.providerDocId)
+      : null
+
+    return {
+      modelDocId: auxiliary.modelDocId,
+      modelId: auxiliary.modelId,
+      displayName: auxiliary.displayName,
+      providerType: auxiliary.providerType,
+      providerDocId: auxiliary.providerDocId,
+      providerName: auxiliaryProvider?.name,
+      providerApiKey: auxiliary.apiKey,
+      customUrl: auxiliary.customUrl,
+      config: auxiliary.config,
+    }
+  },
+})
+
 export const getAdminContext = internalQuery({
   args: {},
   handler: async (ctx) => {
@@ -952,6 +1046,7 @@ export const getAdminSettings = query({
         autoModelRouterUrl: undefined,
         autoModelRouterApiKey: undefined,
         autoModelRouterPreference: 'balanced',
+        artificialAnalysisApiKey: undefined,
         updatedAt: 0,
       }
 
@@ -968,6 +1063,7 @@ export const updateAdminSettings = mutation({
     autoModelRouterApiKey: v.optional(v.string()),
     autoModelRouterPreference: v.optional(autoModelRouterPreferenceValidator),
     defaultAuxiliaryModelId: v.optional(v.id('models')),
+    artificialAnalysisApiKey: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
@@ -985,6 +1081,8 @@ export const updateAdminSettings = mutation({
       (args.autoModelRouterUrl ?? existing?.autoModelRouterUrl)?.trim() || undefined
     const nextRouterApiKey =
       (args.autoModelRouterApiKey ?? existing?.autoModelRouterApiKey)?.trim() || undefined
+    const nextArtificialAnalysisApiKey =
+      (args.artificialAnalysisApiKey ?? existing?.artificialAnalysisApiKey)?.trim() || undefined
     const autoEnableFromRouterUrlInput =
       typeof args.autoModelRouterUrl === 'string' && args.autoModelRouterUrl.trim().length > 0
 
@@ -1001,6 +1099,7 @@ export const updateAdminSettings = mutation({
         args.autoModelRouterPreference ?? existing?.autoModelRouterPreference ?? 'balanced',
       defaultAuxiliaryModelId:
         args.defaultAuxiliaryModelId ?? existing?.defaultAuxiliaryModelId,
+      artificialAnalysisApiKey: nextArtificialAnalysisApiKey,
       updatedAt: Date.now(),
     }
 
@@ -1269,6 +1368,78 @@ const autoModelStudioCatalogEntryValidator = v.object({
   tags: v.array(v.string()),
 })
 
+const artificialAnalysisProfilePatchValidator = v.object({
+  modelId: v.id('models'),
+  providerId: v.id('providers'),
+  artificialAnalysisId: v.string(),
+  intelligenceIndexRunCostUsd: v.optional(v.number()),
+  pricing: v.optional(
+    v.object({
+      inputPer1M: v.number(),
+      outputPer1M: v.number(),
+      currency: v.optional(v.string()),
+    }),
+  ),
+  benchmarkScores: v.optional(v.record(v.string(), v.number())),
+  latencyStats: v.optional(
+    v.object({
+      p50Ms: v.number(),
+      p95Ms: v.number(),
+    }),
+  ),
+})
+
+export const applyArtificialAnalysisProfileUpdates = internalMutation({
+  args: {
+    updates: v.array(artificialAnalysisProfilePatchValidator),
+  },
+  returns: v.object({
+    updated: v.number(),
+    inserted: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    let updated = 0
+    let inserted = 0
+
+    for (const update of args.updates) {
+      const existing = await ctx.db
+        .query('modelSelectionProfiles')
+        .withIndex('by_modelId', (q) => q.eq('modelId', update.modelId))
+        .first()
+
+      const patch = {
+        modelId: update.modelId,
+        providerId: update.providerId,
+        tierAllowed: existing?.tierAllowed ?? ['free', 'pro', 'advanced'],
+        artificialAnalysisId: update.artificialAnalysisId,
+        intelligenceIndexRunCostUsd: update.intelligenceIndexRunCostUsd,
+        pricing: update.pricing ?? existing?.pricing,
+        benchmarkScores: update.benchmarkScores ?? existing?.benchmarkScores,
+        latencyStats: update.latencyStats ?? existing?.latencyStats,
+        contextWindow: existing?.contextWindow,
+        maxOutputTokens: existing?.maxOutputTokens,
+        capabilities: existing?.capabilities,
+        toolCallReliability: existing?.toolCallReliability,
+        historicalSuccessRate: existing?.historicalSuccessRate,
+        riskScore: existing?.riskScore,
+        isExternal: existing?.isExternal,
+        updatedAt: Date.now(),
+      }
+
+      if (existing) {
+        await ctx.db.patch(existing._id, patch)
+        updated += 1
+        continue
+      }
+
+      await ctx.db.insert('modelSelectionProfiles', patch)
+      inserted += 1
+    }
+
+    return { updated, inserted }
+  },
+})
+
 export const getAutoModelStudioCatalog = internalQuery({
   args: {},
   returns: v.array(autoModelStudioCatalogEntryValidator),
@@ -1288,7 +1459,7 @@ export const getAutoModelStudioCatalog = internalQuery({
           (benchmarkScores?.analysis ?? 0.5)) /
           3,
       )
-      const estimatedCost = estimateCostFromProfile(profile?.pricing, 1500, 700) ?? 0
+      const estimatedCost = resolveStudioRawPrice(profile)
       const latencyMs = profile?.latencyStats?.p95Ms ?? 2500
       const supportsTools = (model.capabilities ?? [])
         .map((item) => item.toLowerCase())
@@ -1477,6 +1648,187 @@ export const getAutoModelStudioSnapshot = action({
           error instanceof Error ? `Could not score models: ${error.message}` : 'Could not score models',
         models: [],
       }
+    }
+  },
+})
+
+function buildArtificialAnalysisProfilePatch(
+  model: {
+    _id: Id<'models'>
+    providerId: Id<'providers'>
+  },
+  matched: ArtificialAnalysisModel,
+) {
+  return {
+    modelId: model._id,
+    providerId: model.providerId,
+    artificialAnalysisId: matched.id,
+    intelligenceIndexRunCostUsd: matched.intelligenceIndexRunCostUsd,
+    pricing: matched.pricing,
+    benchmarkScores: matched.benchmarkScores,
+    latencyStats: matched.latencyStats,
+  }
+}
+
+export const syncModelMetadataFromArtificialAnalysis = action({
+  args: {
+    apiKey: v.optional(v.string()),
+  },
+  returns: v.object({
+    ok: v.boolean(),
+    message: v.string(),
+    matched: v.number(),
+    updated: v.number(),
+    inserted: v.number(),
+    withIndexCost: v.number(),
+    unmatchedModelIds: v.array(v.string()),
+  }),
+  handler: async (ctx, args) => {
+    const adminContext = await ctx.runQuery(internal.admin.getAdminContext, {})
+    if (!adminContext.isAdmin) {
+      return {
+        ok: false,
+        message: 'Admin access required',
+        matched: 0,
+        updated: 0,
+        inserted: 0,
+        withIndexCost: 0,
+        unmatchedModelIds: [],
+      }
+    }
+
+    const settings = await ctx.runQuery(api.admin.getAdminSettings, {})
+    const apiKey =
+      args.apiKey?.trim() ||
+      settings.artificialAnalysisApiKey?.trim() ||
+      process.env.ARTIFICIAL_ANALYSIS_API_KEY?.trim() ||
+      ''
+
+    if (!apiKey) {
+      return {
+        ok: false,
+        message: 'Artificial Analysis API key is not configured',
+        matched: 0,
+        updated: 0,
+        inserted: 0,
+        withIndexCost: 0,
+        unmatchedModelIds: [],
+      }
+    }
+
+    const catalog = await fetchArtificialAnalysisModels(apiKey)
+    if (catalog.length === 0) {
+      return {
+        ok: false,
+        message: 'Artificial Analysis returned no models',
+        matched: 0,
+        updated: 0,
+        inserted: 0,
+        withIndexCost: 0,
+        unmatchedModelIds: [],
+      }
+    }
+
+    const syncContext = await ctx.runQuery(internal.admin.getArtificialAnalysisSyncContext, {})
+    const providersById = new Map(
+      syncContext.providers.map((provider) => [provider._id, provider]),
+    )
+    const profilesByModelId = new Map(
+      syncContext.profiles.map((profile) => [profile.modelId, profile]),
+    )
+    const updates = []
+    const unmatchedModelIds: string[] = []
+
+    for (const model of syncContext.models) {
+      const provider = providersById.get(model.providerId) ?? null
+      const existingProfile = profilesByModelId.get(model._id) ?? null
+      const matched = matchArtificialAnalysisModel(
+        {
+          modelId: model.modelId,
+          displayName: model.displayName,
+          providerName: provider?.name,
+          providerType: provider?.providerType,
+          artificialAnalysisId: existingProfile?.artificialAnalysisId,
+        },
+        catalog,
+      )
+
+      if (!matched) {
+        unmatchedModelIds.push(model.modelId)
+        continue
+      }
+
+      updates.push(buildArtificialAnalysisProfilePatch(model, matched))
+    }
+
+    const result = await ctx.runMutation(internal.admin.applyArtificialAnalysisProfileUpdates, {
+      updates,
+    })
+
+    const withIndexCost = updates.filter(
+      (update) => update.intelligenceIndexRunCostUsd !== undefined,
+    ).length
+
+    return {
+      ok: true,
+      message: `Synced ${updates.length} models from Artificial Analysis (${withIndexCost} with Intelligence Index run cost)`,
+      matched: updates.length,
+      updated: result.updated,
+      inserted: result.inserted,
+      withIndexCost,
+      unmatchedModelIds,
+    }
+  },
+})
+
+export const getArtificialAnalysisSyncContext = internalQuery({
+  args: {},
+  returns: v.object({
+    models: v.array(
+      v.object({
+        _id: v.id('models'),
+        modelId: v.string(),
+        displayName: v.string(),
+        providerId: v.id('providers'),
+      }),
+    ),
+    providers: v.array(
+      v.object({
+        _id: v.id('providers'),
+        name: v.string(),
+        providerType: providerTypeValidator,
+      }),
+    ),
+    profiles: v.array(
+      v.object({
+        modelId: v.id('models'),
+        artificialAnalysisId: v.optional(v.string()),
+      }),
+    ),
+  }),
+  handler: async (ctx) => {
+    const [models, providers, profiles] = await Promise.all([
+      ctx.db.query('models').collect(),
+      ctx.db.query('providers').collect(),
+      ctx.db.query('modelSelectionProfiles').collect(),
+    ])
+
+    return {
+      models: models.map((model) => ({
+        _id: model._id,
+        modelId: model.modelId,
+        displayName: model.displayName,
+        providerId: model.providerId,
+      })),
+      providers: providers.map((provider) => ({
+        _id: provider._id,
+        name: provider.name,
+        providerType: provider.providerType,
+      })),
+      profiles: profiles.map((profile) => ({
+        modelId: profile.modelId,
+        artificialAnalysisId: profile.artificialAnalysisId,
+      })),
     }
   },
 })
@@ -2637,6 +2989,7 @@ export const suggestModelCollections = action({
   args: {
     prompt: v.optional(v.string()),
     includeHiddenModels: v.optional(v.boolean()),
+    modelDocId: v.optional(v.id('models')),
   },
   returns: v.object({
     modelUsed: v.string(),
@@ -2658,9 +3011,10 @@ export const suggestModelCollections = action({
       })
     }
 
-    const [auxiliary, suggestionContext] = await Promise.all([
-      ctx.runQuery(internal.auxiliaryModels.resolveAuxiliaryModel, {
+    const [suggestionModel, suggestionContext] = await Promise.all([
+      ctx.runQuery(internal.admin.resolveCollectionSuggestionModel, {
         userId: adminContext.userId,
+        modelDocId: args.modelDocId,
       }),
       ctx.runQuery(internal.admin.getCollectionSuggestionContext, {
         includeHiddenModels: args.includeHiddenModels ?? true,
@@ -2679,12 +3033,24 @@ export const suggestModelCollections = action({
     for (const model of suggestionContext.models) {
       modelIdByString.set(model._id, model._id)
     }
-    const promptHeader = [
+    const catalog = suggestionContext.models.map((model) => ({
+      id: model._id,
+      displayName: model.displayName,
+      providerName: model.providerName,
+      description: model.description,
+      isFree: model.isFree,
+      capabilities: model.capabilities ?? [],
+      supportsReasoning: model.supportsReasoning ?? false,
+      supportsAttachments: (model.supportedAttachmentMediaTypes?.length ?? 0) > 0,
+    }))
+
+    const system = [
       'You are organizing AI chat models into user-facing collections.',
       'These collections will drive categories in the web model picker instead of provider-based grouping.',
       'Create several distinct, useful collections with clear names and concise descriptions.',
       'A model may appear in multiple collections when that improves discoverability.',
-      'Only use model IDs that appear in the catalog below.',
+      'Only use model IDs from the catalog id field.',
+      'Return JSON only. Do not wrap the response in markdown or add commentary.',
       'Choose an icon for each collection. Use either iconType="phosphor" with one of these icons:',
       COLLECTION_AI_ICON_OPTIONS.join(', '),
       'or iconType="emoji" with a single emoji.',
@@ -2692,30 +3058,60 @@ export const suggestModelCollections = action({
         ? `Existing collection names to avoid duplicating: ${suggestionContext.existingCollectionNames.join(', ')}`
         : 'There are no existing collections yet.',
       args.prompt?.trim() ? `User goal: ${args.prompt.trim()}` : 'User goal: create sensible default collections.',
-      '',
-      'Catalog:',
-      JSON.stringify(
-        suggestionContext.models.map((model) => ({
-          id: model._id,
-          modelId: model.modelId,
-          displayName: model.displayName,
-          description: model.description,
-          providerName: model.providerName,
-          isEnabled: model.isEnabled,
-          isFree: model.isFree,
-          capabilities: model.capabilities ?? [],
-          supportsReasoning: model.supportsReasoning ?? false,
-          supportsAttachments: (model.supportedAttachmentMediaTypes?.length ?? 0) > 0,
-        })),
-      ),
     ].join('\n')
 
-    const { object } = await generateObject({
-      model: createLanguageModelFromAuxiliary(auxiliary),
-      schema: collectionSuggestionSchema,
-      temperature: 0.3,
-      prompt: promptHeader,
-    })
+    const prompt = ['Catalog:', JSON.stringify(catalog)].join('\n')
+
+    const apiKey = resolveProviderApiKey(
+      suggestionModel.providerType,
+      suggestionModel.providerApiKey,
+    )
+    if (!apiKey) {
+      throw new ConvexError({
+        code: 'FAILED_PRECONDITION',
+        message: describeCollectionSuggestionAuthError({
+          providerName: suggestionModel.providerName,
+          providerType: suggestionModel.providerType,
+        }),
+      })
+    }
+
+    let object: z.infer<typeof collectionSuggestionSchema>
+    try {
+      object = await generateStructuredObject({
+        model: createLanguageModelFromAuxiliary({
+          modelDocId: suggestionModel.modelDocId,
+          modelId: suggestionModel.modelId,
+          displayName: suggestionModel.displayName,
+          providerType: suggestionModel.providerType,
+          providerDocId: suggestionModel.providerDocId,
+          apiKey,
+          customUrl: suggestionModel.customUrl,
+          config: suggestionModel.config,
+        }),
+        schema: collectionSuggestionSchema,
+        schemaName: 'ModelCollectionSuggestions',
+        schemaDescription:
+          'Suggested model collections for the admin model picker, each with name, description, icon, and modelIds.',
+        system,
+        prompt,
+        temperature: 0.3,
+        maxOutputTokens: 8192,
+      })
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : 'Unknown AI error'
+      const providerLabel =
+        suggestionModel.providerName?.trim() || suggestionModel.providerType
+      const authHint =
+        detail.includes('Missing Authentication header') ||
+        detail.toLowerCase().includes('authentication')
+          ? ` Add or update the API key for ${providerLabel} in Admin → Providers.`
+          : ''
+      throw new ConvexError({
+        code: 'INTERNAL',
+        message: `Collection draft generation failed using ${suggestionModel.displayName} (${providerLabel}). ${detail}${authHint}`,
+      })
+    }
 
     const collections = object.collections
       .map((collection, index) => {
@@ -2753,7 +3149,7 @@ export const suggestModelCollections = action({
     }
 
     return {
-      modelUsed: auxiliary.displayName,
+      modelUsed: suggestionModel.displayName,
       collections,
     }
   },
@@ -2926,6 +3322,7 @@ export const getDashboardData = query({
           autoModelRouterApiKey: undefined,
           autoModelRouterPreference: 'balanced',
           defaultAuxiliaryModelId: undefined,
+          artificialAnalysisApiKey: undefined,
           updatedAt: 0,
         },
         billing: {
@@ -2976,6 +3373,7 @@ export const getDashboardData = query({
           autoModelRouterApiKey: undefined,
           autoModelRouterPreference: 'balanced',
           defaultAuxiliaryModelId: undefined,
+          artificialAnalysisApiKey: undefined,
           updatedAt: 0,
         },
         billing: {
@@ -3174,6 +3572,10 @@ export const getDashboardData = query({
               ? ((await ctx.storage.getUrl(model.iconId)) ?? undefined)
               : undefined,
             providerName: provider?.name ?? 'Unknown Provider',
+            providerType: provider?.providerType,
+            hasResolvableProviderApiKey: provider
+              ? hasResolvableProviderApiKey(provider.providerType, provider.apiKey)
+              : false,
             providerIconUrl: provider?.iconUrl,
             favorites: favoritesByModelId.get(model._id) ?? 0,
             usage: {

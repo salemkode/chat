@@ -284,6 +284,8 @@ export default defineSchema({
     historicalSuccessRate: v.optional(v.number()),
     riskScore: v.optional(v.number()),
     isExternal: v.optional(v.boolean()),
+    artificialAnalysisId: v.optional(v.string()),
+    intelligenceIndexRunCostUsd: v.optional(v.number()),
     updatedAt: v.number(),
   })
     .index('by_modelId', ['modelId'])
@@ -364,6 +366,7 @@ export default defineSchema({
       v.union(v.literal('balanced'), v.literal('cost'), v.literal('speed'), v.literal('quality')),
     ),
     defaultAuxiliaryModelId: v.optional(v.id('models')),
+    artificialAnalysisApiKey: v.optional(v.string()),
     updatedAt: v.number(),
   }).index('by_key', ['key']),
 

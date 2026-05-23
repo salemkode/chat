@@ -284,6 +284,9 @@ export function AdminModelsPanel({ dashboard, onOpenModelDialog }: AdminModelsPa
   const deleteModel = useMutation(api.admin.deleteModel)
   const updateAdminSettings = useMutation(api.admin.updateAdminSettings)
   const verifyAutoModelRouterConnection = useAction(api.admin.verifyAutoModelRouterConnection)
+  const syncModelMetadataFromArtificialAnalysis = useAction(
+    api.admin.syncModelMetadataFromArtificialAnalysis,
+  )
   const getAutoModelStudioSnapshot = useAction(
     (
       api as unknown as {
@@ -314,8 +317,12 @@ export function AdminModelsPanel({ dashboard, onOpenModelDialog }: AdminModelsPa
   const [routerPreference, setRouterPreference] = useState<RouterPreference>(
     dashboard.settings.autoModelRouterPreference ?? 'balanced',
   )
+  const [artificialAnalysisApiKey, setArtificialAnalysisApiKey] = useState(
+    dashboard.settings.artificialAnalysisApiKey ?? '',
+  )
   const [isSavingRouter, setIsSavingRouter] = useState(false)
   const [isVerifyingRouter, setIsVerifyingRouter] = useState(false)
+  const [isSyncingArtificialAnalysis, setIsSyncingArtificialAnalysis] = useState(false)
   const selectedPreference = preferenceOptionFor(routerPreference)
   const studioRows = useMemo(() => {
     const rows = models.map(
@@ -359,7 +366,9 @@ export function AdminModelsPanel({ dashboard, onOpenModelDialog }: AdminModelsPa
     setRouterUrl(dashboard.settings.autoModelRouterUrl ?? '')
     setRouterApiKey(dashboard.settings.autoModelRouterApiKey ?? '')
     setRouterPreference(dashboard.settings.autoModelRouterPreference ?? 'balanced')
+    setArtificialAnalysisApiKey(dashboard.settings.artificialAnalysisApiKey ?? '')
   }, [
+    dashboard.settings.artificialAnalysisApiKey,
     dashboard.settings.autoModelRouterApiKey,
     dashboard.settings.autoModelRouterPreference,
     dashboard.settings.autoModelRouterUrl,
@@ -437,6 +446,7 @@ export function AdminModelsPanel({ dashboard, onOpenModelDialog }: AdminModelsPa
         autoModelRouterUrl: routerUrl.trim() || undefined,
         autoModelRouterApiKey: routerApiKey.trim() || undefined,
         autoModelRouterPreference: routerPreference,
+        artificialAnalysisApiKey: artificialAnalysisApiKey.trim() || undefined,
       })
       toast.success('Router controls saved')
     } catch (error) {
@@ -462,6 +472,39 @@ export function AdminModelsPanel({ dashboard, onOpenModelDialog }: AdminModelsPa
       toast.error(error instanceof Error ? error.message : 'Failed to verify router')
     } finally {
       setIsVerifyingRouter(false)
+    }
+  }
+
+  const handleSyncArtificialAnalysis = async () => {
+    setIsSyncingArtificialAnalysis(true)
+    try {
+      if (artificialAnalysisApiKey.trim()) {
+        await updateAdminSettings({
+          appPlan: dashboard.settings.appPlan,
+          defaultRateLimit: dashboard.settings.defaultRateLimit,
+          defaultAuxiliaryModelId: dashboard.settings.defaultAuxiliaryModelId,
+          autoModelRoutingEnabled: routerEnabled,
+          autoModelRouterUrl: routerUrl.trim() || undefined,
+          autoModelRouterApiKey: routerApiKey.trim() || undefined,
+          autoModelRouterPreference: routerPreference,
+          artificialAnalysisApiKey: artificialAnalysisApiKey.trim(),
+        })
+      }
+
+      const result = await syncModelMetadataFromArtificialAnalysis({
+        apiKey: artificialAnalysisApiKey.trim() || undefined,
+      })
+      if (result.ok) {
+        toast.success(result.message)
+      } else {
+        toast.error(result.message)
+      }
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to sync Artificial Analysis metadata',
+      )
+    } finally {
+      setIsSyncingArtificialAnalysis(false)
     }
   }
 
@@ -506,8 +549,37 @@ export function AdminModelsPanel({ dashboard, onOpenModelDialog }: AdminModelsPa
         <AdminSectionCard
           eyebrow="Model Studio"
           title="Auto-selection board"
-          description="The Python router scores every model into a plain-language category so the routing story stays explainable and the scoring logic has one source of truth."
+          description="Sync Artificial Analysis Intelligence Index run cost into model profiles, then let the Python router turn that into explainable Cost scores."
         >
+          <div className={`${adminInsetClass} grid gap-4 p-4 md:grid-cols-[1fr_auto]`}>
+            <div className="grid gap-2">
+              <Label htmlFor="model-studio-aa-api-key">Artificial Analysis API key</Label>
+              <Input
+                id="model-studio-aa-api-key"
+                type="password"
+                value={artificialAnalysisApiKey}
+                onChange={(event) => setArtificialAnalysisApiKey(event.target.value)}
+                placeholder="From artificialanalysis.ai/insights"
+              />
+              <p className="text-sm text-muted-foreground">
+                Uses Cost to Run Artificial Analysis Intelligence Index when available, otherwise
+                token pricing from the same catalog.
+              </p>
+            </div>
+            <div className="flex items-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void handleSyncArtificialAnalysis()}
+                disabled={isSyncingArtificialAnalysis}
+              >
+                {isSyncingArtificialAnalysis ? (
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                ) : null}
+                Sync AA cost
+              </Button>
+            </div>
+          </div>
           <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
             {studioStatus.loading ? <Loader2 className="size-4 animate-spin" /> : null}
             <span>{studioStatus.message}</span>
@@ -639,7 +711,7 @@ export function AdminModelsPanel({ dashboard, onOpenModelDialog }: AdminModelsPa
               <RouterWeightPreview
                 label="Cost"
                 value={selectedPreference.weights.cost}
-                description="Free, mini, flash, and budget-friendly signals."
+                description="Intelligence Index run cost from Artificial Analysis, normalized for the Python router."
               />
               <RouterWeightPreview
                 label="Context"

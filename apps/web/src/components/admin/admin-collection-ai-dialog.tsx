@@ -1,8 +1,10 @@
 import { useAction } from 'convex/react'
-import { useMemo, useState } from 'react'
+import type { Id } from '@convex/_generated/dataModel'
+import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { api } from '@convex/_generated/api'
 import type { AdminCollectionDraft } from '@/components/admin/admin-collection-dialog'
+import { formatAdminMutationError } from '@/components/admin/admin-mutation-error'
 import { EntityIcon } from '@/components/admin/entity-icon'
 import type { AdminModel, IconType } from '@/components/admin/types'
 import { Sparkles, Loader2 } from '@/lib/icons'
@@ -18,6 +20,13 @@ import {
 } from '@/components/ui/responsive-overlay'
 import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 
 type SuggestedCollectionDraft = AdminCollectionDraft
@@ -29,29 +38,106 @@ function normalizeIconType(value: string | undefined): IconType {
   return undefined
 }
 
+function pickDefaultModelId(
+  models: AdminModel[],
+  defaultAuxiliaryModelId?: Id<'models'>,
+): string {
+  const credentialReadyModels = models.filter((model) => model.hasResolvableProviderApiKey)
+  const candidates = credentialReadyModels.length > 0 ? credentialReadyModels : models
+
+  if (
+    defaultAuxiliaryModelId &&
+    candidates.some((model) => model._id === defaultAuxiliaryModelId)
+  ) {
+    return defaultAuxiliaryModelId
+  }
+
+  const openRouterModel = candidates.find(
+    (model) => model.isEnabled && model.providerType === 'openrouter',
+  )
+  if (openRouterModel) {
+    return openRouterModel._id
+  }
+
+  const enabledModel = candidates.find((model) => model.isEnabled)
+  return enabledModel?._id ?? candidates[0]?._id ?? ''
+}
+
+function sortModelsForCollectionPicker(left: AdminModel, right: AdminModel) {
+  const leftHasCredentials = left.hasResolvableProviderApiKey ? 0 : 1
+  const rightHasCredentials = right.hasResolvableProviderApiKey ? 0 : 1
+  if (leftHasCredentials !== rightHasCredentials) {
+    return leftHasCredentials - rightHasCredentials
+  }
+  const leftIsOpenRouter = left.providerType === 'openrouter' ? 0 : 1
+  const rightIsOpenRouter = right.providerType === 'openrouter' ? 0 : 1
+  if (leftIsOpenRouter !== rightIsOpenRouter) {
+    return leftIsOpenRouter - rightIsOpenRouter
+  }
+  if (left.isEnabled !== right.isEnabled) {
+    return Number(right.isEnabled) - Number(left.isEnabled)
+  }
+  return left.displayName.localeCompare(right.displayName)
+}
+
 export function AdminCollectionAiDialog({
   models,
+  defaultAuxiliaryModelId,
   onOpenCollectionDraft,
 }: {
   models: AdminModel[]
+  defaultAuxiliaryModelId?: Id<'models'>
   onOpenCollectionDraft: (draft: AdminCollectionDraft) => void
 }) {
   const suggestModelCollections = useAction(api.admin.suggestModelCollections)
   const [open, setOpen] = useState(false)
   const [prompt, setPrompt] = useState('')
   const [includeHiddenModels, setIncludeHiddenModels] = useState(true)
+  const [selectedModelDocId, setSelectedModelDocId] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
   const [drafts, setDrafts] = useState<SuggestedCollectionDraft[]>([])
   const [modelUsed, setModelUsed] = useState<string | null>(null)
 
+  const selectableModels = useMemo(
+    () =>
+      [...models]
+        .filter((model) => model.hasResolvableProviderApiKey)
+        .sort(sortModelsForCollectionPicker),
+    [models],
+  )
+
+  const modelsMissingCredentials = useMemo(
+    () => models.filter((model) => !model.hasResolvableProviderApiKey).length,
+    [models],
+  )
+
   const modelsById = useMemo(() => new Map(models.map((model) => [model._id, model])), [models])
 
+  useEffect(() => {
+    if (!open || selectableModels.length === 0) {
+      return
+    }
+
+    setSelectedModelDocId((current) => {
+      if (current && selectableModels.some((model) => model._id === current)) {
+        return current
+      }
+      return pickDefaultModelId(selectableModels, defaultAuxiliaryModelId)
+    })
+  }, [defaultAuxiliaryModelId, open, selectableModels])
+
   const handleGenerate = async () => {
+    if (!selectedModelDocId) {
+      toast.error('Select a model before generating collection drafts.')
+      return
+    }
+
     setIsGenerating(true)
     try {
       const result = await suggestModelCollections({
         prompt: prompt.trim() || undefined,
         includeHiddenModels,
+        modelDocId: selectedModelDocId as Id<'models'>,
       })
       setDrafts(
         result.collections.map((collection) => ({
@@ -65,7 +151,9 @@ export function AdminCollectionAiDialog({
       )
       setModelUsed(result.modelUsed)
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to generate collection drafts')
+      toast.error(
+        formatAdminMutationError(error, 'Failed to generate collection drafts'),
+      )
     } finally {
       setIsGenerating(false)
     }
@@ -82,14 +170,58 @@ export function AdminCollectionAiDialog({
           <DialogHeader>
             <ResponsiveModalTitle>Generate collection drafts</ResponsiveModalTitle>
             <ResponsiveModalDescription>
-              Use the shared background actions model to propose several category-style
-              collections from your current catalog. Review a draft in the editor before saving it.
+              Pick an OpenRouter model (or any model whose provider has an API key), describe the
+              categories you want, and review the drafts before saving them.
             </ResponsiveModalDescription>
           </DialogHeader>
 
           <ScrollArea className="max-h-[70vh] pr-6">
             <div className="grid gap-6 py-4">
               <div className="grid gap-3 rounded-xl border border-border/70 bg-muted/20 p-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="collection-ai-model">Model</Label>
+                  <Select
+                    value={selectedModelDocId || undefined}
+                    onValueChange={setSelectedModelDocId}
+                    disabled={selectableModels.length === 0}
+                  >
+                    <SelectTrigger id="collection-ai-model">
+                      <SelectValue
+                        placeholder={
+                          selectableModels.length === 0
+                            ? 'No models available'
+                            : 'Select a model'
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {selectableModels.map((model) => (
+                        <SelectItem key={model._id} value={model._id}>
+                          {model.displayName}
+                          {!model.isEnabled ? ' (hidden)' : ''} · {model.providerName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectableModels.length === 0 ? (
+                    <p className="text-xs text-destructive">
+                      No models have a configured provider API key. Add keys in Admin → Providers,
+                      then reopen this dialog.
+                    </p>
+                  ) : modelsMissingCredentials > 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                      {modelsMissingCredentials} model
+                      {modelsMissingCredentials === 1 ? '' : 's'} hidden because their provider
+                      has no API key configured.
+                    </p>
+                  ) : null}
+                  <p className="text-xs text-muted-foreground">
+                    Uses the selected model&apos;s provider credentials. OpenRouter models are listed
+                    first. Hidden models can still be included in drafts when the checkbox below is
+                    enabled.
+                  </p>
+                </div>
+
                 <div className="grid gap-2">
                   <Label htmlFor="collection-ai-prompt">Goal</Label>
                   <Textarea
@@ -119,7 +251,10 @@ export function AdminCollectionAiDialog({
                 </label>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  <Button onClick={() => void handleGenerate()} disabled={isGenerating}>
+                  <Button
+                    onClick={() => void handleGenerate()}
+                    disabled={isGenerating || !selectedModelDocId}
+                  >
                     {isGenerating ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Sparkles className="mr-2 size-4" />}
                     Generate drafts
                   </Button>

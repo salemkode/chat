@@ -119,7 +119,7 @@ That last point is especially relevant for research framing. A routing system is
 ## Tradeoffs and Limits
 
 - The current router is heuristic and admin-informed, not a fully learned policy.
-- Good routing depends on maintaining accurate profiles, latency data, and pricing metadata.
+- Good routing depends on maintaining accurate profiles, latency data, and pricing metadata. Model Studio can sync **Cost to Run Artificial Analysis Intelligence Index** from [Artificial Analysis](https://artificialanalysis.ai/) into `modelSelectionProfiles`, which Convex then normalizes into the Python router `price` signal.
 - Automatic task inference can misread ambiguous prompts.
 - The standalone `services/router-agent` exists in the repo, but the primary routing story for this research set is the Convex-native selection path.
 

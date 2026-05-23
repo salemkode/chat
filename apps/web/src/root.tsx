@@ -3,9 +3,11 @@ import { useEffect, useState } from 'react'
 import { ClerkProvider } from '@clerk/react-router'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 import { ConvexClientProvider } from '@/components/convex-client-provider'
+import { DeployRecovery } from '@/components/deploy-recovery'
 import { HotkeysProvider } from '@/components/hotkeys-provider'
 import { ThemeProvider } from '@/components/theme-provider'
 import { getRequiredEnv } from '@/lib/parsers'
+import { attemptDeployRecovery, hasAttemptedDeployRecovery } from '@/lib/deploy-recovery'
 import appCss from '@/styles.css?url'
 import { useConvex } from 'convex/react'
 export const links = () => [{ rel: 'stylesheet', href: appCss }]
@@ -44,7 +46,46 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export function HydrateFallback() {
-  return <div className="min-h-screen w-full bg-[#050505]" />
+  const [stuck, setStuck] = useState(false)
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      if (attemptDeployRecovery('hydrate-timeout')) {
+        return
+      }
+      setStuck(true)
+    }, 10_000)
+
+    return () => window.clearTimeout(timeout)
+  }, [])
+
+  return (
+    <div className="flex min-h-screen w-full flex-col items-center justify-center gap-3 bg-[#050505] p-6 text-center">
+      <div
+        className="size-8 animate-spin rounded-full border-2 border-[#2447ff] border-t-transparent"
+        aria-hidden="true"
+      />
+      {stuck ? (
+        <div className="max-w-sm space-y-2 text-sm text-white/70">
+          <p>A new version of the app is available.</p>
+          <p>
+            {hasAttemptedDeployRecovery()
+              ? 'Please hard-refresh the page or clear this site’s cache, then sign in again.'
+              : 'Reloading to fetch the latest version…'}
+          </p>
+          <button
+            type="button"
+            className="rounded-md border border-white/20 px-3 py-1.5 text-white/90"
+            onClick={() => window.location.reload()}
+          >
+            Reload
+          </button>
+        </div>
+      ) : (
+        <p className="text-sm text-white/60">Loading…</p>
+      )}
+    </div>
+  )
 }
 
 function TestConvex() {
@@ -66,6 +107,7 @@ export default function App() {
       <ThemeProvider>
         <HotkeysProvider>
           <ConvexClientProvider>
+            <DeployRecovery />
             <TestConvex />
             <Outlet />
             {showDevtools ? (

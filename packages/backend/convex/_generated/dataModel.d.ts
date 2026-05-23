@@ -41,6 +41,7 @@ export type DataModel = {
   adminSettings: {
     document: {
       appPlan: "free" | "pro";
+      artificialAnalysisApiKey?: string;
       autoModelRouterApiKey?: string;
       autoModelRouterPreference?: "balanced" | "cost" | "speed" | "quality";
       autoModelRouterUrl?: string;
@@ -64,6 +65,7 @@ export type DataModel = {
       | "_creationTime"
       | "_id"
       | "appPlan"
+      | "artificialAnalysisApiKey"
       | "autoModelRouterApiKey"
       | "autoModelRouterPreference"
       | "autoModelRouterUrl"
@@ -726,10 +728,12 @@ export type DataModel = {
   };
   modelSelectionProfiles: {
     document: {
+      artificialAnalysisId?: string;
       benchmarkScores?: Record<string, number>;
       capabilities?: Array<string>;
       contextWindow?: number;
       historicalSuccessRate?: number;
+      intelligenceIndexRunCostUsd?: number;
       isExternal?: boolean;
       latencyStats?: { p50Ms: number; p95Ms: number };
       maxOutputTokens?: number;
@@ -755,11 +759,13 @@ export type DataModel = {
     fieldPaths:
       | "_creationTime"
       | "_id"
+      | "artificialAnalysisId"
       | "benchmarkScores"
       | `benchmarkScores.${string}`
       | "capabilities"
       | "contextWindow"
       | "historicalSuccessRate"
+      | "intelligenceIndexRunCostUsd"
       | "isExternal"
       | "latencyStats"
       | "latencyStats.p50Ms"

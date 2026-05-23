@@ -255,13 +255,13 @@ export function RepeatButton({
       </PopoverAnchor>
 
       <PopoverContent
-        className="w-[min(100vw-1rem,20rem)] overflow-hidden p-0"
+        className="flex h-[min(420px,70dvh)] w-[min(100vw-1rem,20rem)] max-h-[70dvh] flex-col overflow-hidden p-0"
         side="top"
         align="start"
         onMouseEnter={clearCloseTimer}
         onMouseLeave={scheduleClose}
       >
-        <div className="border-b border-border px-3 py-2.5">
+        <div className="shrink-0 border-b border-border px-3 py-2.5">
           <p className="text-sm font-medium">Repeat with model</p>
           <p className="text-xs text-muted-foreground">
             Current:{' '}
@@ -278,6 +278,7 @@ export function RepeatButton({
             setOpen(false)
             void triggerRepeat(modelId)
           }}
+          className="min-h-0 flex-1"
         />
       </PopoverContent>
     </Popover>

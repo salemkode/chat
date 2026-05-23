@@ -46,3 +46,42 @@ export function resolveProviderApiKey(providerType: ProviderType, configuredApiK
 
   return undefined
 }
+
+export function describeProviderApiKeySources(providerType: ProviderType) {
+  const envVars = PROVIDER_API_KEY_ENV_FALLBACKS[providerType]
+  return envVars.length > 0 ? envVars.join(' or ') : 'a provider API key'
+}
+
+export function hasResolvableProviderApiKey(
+  providerType: ProviderType,
+  configuredApiKey?: string,
+) {
+  return resolveProviderApiKey(providerType, configuredApiKey) !== undefined
+}
+
+export function requireProviderApiKey(
+  providerType: ProviderType,
+  configuredApiKey?: string,
+  context?: string,
+) {
+  const resolved = resolveProviderApiKey(providerType, configuredApiKey)
+  if (resolved) {
+    return resolved
+  }
+
+  const prefix = context ? `${context}. ` : ''
+  throw new Error(
+    `${prefix}Configure ${describeProviderApiKeySources(providerType)} for the ${providerType} provider.`,
+  )
+}
+
+export function describeCollectionSuggestionAuthError(args: {
+  providerName?: string
+  providerType: ProviderType
+}) {
+  const providerLabel = args.providerName?.trim() || args.providerType
+  if (args.providerType === 'openrouter') {
+    return `Configure an OpenRouter API key for ${providerLabel} in Admin → Providers (or set ${describeProviderApiKeySources('openrouter')}).`
+  }
+  return `Configure an API key for ${providerLabel} in Admin → Providers. For OpenRouter-only setups, pick a model under your OpenRouter provider instead.`
+}

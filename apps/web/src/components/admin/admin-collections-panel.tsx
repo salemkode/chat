@@ -44,6 +44,7 @@ export function AdminCollectionsPanel({
       action={
         <AdminCollectionAiDialog
           models={dashboard.models}
+          defaultAuxiliaryModelId={dashboard.settings.defaultAuxiliaryModelId}
           onOpenCollectionDraft={onOpenCollectionDraft}
         />
       }

@@ -142,19 +142,17 @@ function DrawerProjectSection({
         >
           {project.name}
         </Text>
-        <View className="px-1.5 py-0.5 rounded-full bg-muted mr-1.5">
-          <Text className="text-[11px] text-muted-foreground">
-            {threads.length > 0 ? threads.length : project.threadCount}
-          </Text>
-        </View>
         <Pressable
           onPress={(e) => {
             e.stopPropagation();
             onNewChatInProject();
           }}
           hitSlop={8}
-          className="w-6 h-6 rounded-full items-center justify-center active:bg-accent"
+          className="h-6 flex-row items-center gap-0.5 rounded-full px-1.5 active:bg-accent"
         >
+          <Text className="text-[11px] tabular-nums text-muted-foreground">
+            {threads.length > 0 ? threads.length : project.threadCount}
+          </Text>
           <Icon icon={Plus} className="w-3.5 h-3.5 text-muted-foreground" />
         </Pressable>
       </Pressable>
@@ -452,6 +450,9 @@ export function DrawerContent({
         className="flex-1"
         contentContainerStyle={{ paddingBottom: 8 }}
         keyboardShouldPersistTaps="handled"
+        maintainVisibleContentPosition={{
+          minIndexForVisible: 0,
+        }}
       >
         {searchActive ? (
           <DrawerSearchResults
@@ -495,18 +496,7 @@ export function DrawerContent({
                   />
                 );
               })}
-            {hasMore ? (
-              <Pressable
-                onPress={() => loadMore(30)}
-                className="mx-4 mt-3 rounded-[10px] border border-border px-4 py-3 active:bg-accent"
-              >
-                <Text className="text-center text-[14px] text-foreground">
-                  {isLoadingMore ? "Loading more chats..." : "Load more chats"}
-                </Text>
-              </Pressable>
-            ) : null}
-
-            {hasProjects && (
+            {hasProjects && unfiledThreads.length > 0 && (
               <View className="mx-6 my-2 border-b border-border" />
             )}
             {(!hasProjects || unfiledThreads.length > 0) &&
@@ -520,6 +510,16 @@ export function DrawerContent({
                   onDelete={() => confirmDelete(thread)}
                 />
               ))}
+            {hasMore ? (
+              <Pressable
+                onPress={() => loadMore(30)}
+                className="mx-4 mt-3 rounded-[10px] border border-border px-4 py-3 active:bg-accent"
+              >
+                <Text className="text-center text-[14px] text-foreground">
+                  {isLoadingMore ? "Loading more chats..." : "Load more chats"}
+                </Text>
+              </Pressable>
+            ) : null}
             {!hasProjects && unfiledThreads.length === 0 && (
               <DrawerEmptyState onNewChat={handleNewChat} />
             )}
