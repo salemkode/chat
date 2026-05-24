@@ -1,27 +1,12 @@
-import {
-  useState,
-  useCallback,
-  useRef,
-  useEffect,
-  useMemo,
-  type ComponentRef,
-} from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Alert,
-  Linking,
-  Pressable,
-} from 'react-native';
-import { StreamdownText } from '@0xbanky/react-native-streamdown';
-import { sampleMarkdown, sampleGfmMarkdown } from './sampleMarkdown';
+import { useState, useCallback, useRef, useEffect, useMemo, type ComponentRef } from 'react'
+import { View, Text, StyleSheet, ScrollView, Alert, Linking, Pressable } from 'react-native'
+import { StreamdownText } from '@0xbanky/react-native-streamdown'
+import { sampleMarkdown, sampleGfmMarkdown } from './sampleMarkdown'
 
-const STREAMING_SPEED = 10;
-const STREAMING_INTERVAL = 50;
+const STREAMING_SPEED = 10
+const STREAMING_INTERVAL = 50
 
-type SampleKey = 'commonmark' | 'gfm';
+type SampleKey = 'commonmark' | 'gfm'
 
 const SAMPLES: Record<
   SampleKey,
@@ -37,80 +22,77 @@ const SAMPLES: Record<
     source: sampleGfmMarkdown,
     flavor: 'github',
   },
-};
+}
 
 export default function StreamingMarkdownSimulator() {
-  const [sampleKey, setSampleKey] = useState<SampleKey>('commonmark');
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isStreaming, setIsStreaming] = useState(false);
+  const [sampleKey, setSampleKey] = useState<SampleKey>('commonmark')
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [isStreaming, setIsStreaming] = useState(false)
 
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null)
 
-  const activeSample = SAMPLES[sampleKey];
-  const sourceLength = activeSample.source.length;
+  const activeSample = SAMPLES[sampleKey]
+  const sourceLength = activeSample.source.length
 
   const partialMarkdown = useMemo(
     () => activeSample.source.slice(0, currentIndex),
-    [activeSample.source, currentIndex]
-  );
-  const progress = useMemo(
-    () => (currentIndex / sourceLength) * 100,
-    [currentIndex, sourceLength]
-  );
+    [activeSample.source, currentIndex],
+  )
+  const progress = useMemo(() => (currentIndex / sourceLength) * 100, [currentIndex, sourceLength])
 
   const stopStreaming = useCallback(() => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    setIsStreaming(false);
-  }, []);
+    if (intervalRef.current) clearInterval(intervalRef.current)
+    setIsStreaming(false)
+  }, [])
 
   const resetStream = useCallback(() => {
-    stopStreaming();
-    setCurrentIndex(0);
-  }, [stopStreaming]);
+    stopStreaming()
+    setCurrentIndex(0)
+  }, [stopStreaming])
 
   const startStreaming = useCallback(() => {
-    if (isStreaming) return;
-    if (currentIndex >= sourceLength) setCurrentIndex(0);
+    if (isStreaming) return
+    if (currentIndex >= sourceLength) setCurrentIndex(0)
 
-    setIsStreaming(true);
+    setIsStreaming(true)
     intervalRef.current = setInterval(() => {
       setCurrentIndex((prev) => {
-        const next = prev + STREAMING_SPEED;
+        const next = prev + STREAMING_SPEED
         if (next >= sourceLength) {
-          stopStreaming();
-          return sourceLength;
+          stopStreaming()
+          return sourceLength
         }
-        return next;
-      });
-    }, STREAMING_INTERVAL);
-  }, [isStreaming, currentIndex, sourceLength, stopStreaming]);
+        return next
+      })
+    }, STREAMING_INTERVAL)
+  }, [isStreaming, currentIndex, sourceLength, stopStreaming])
 
   const selectSample = useCallback(
     (key: SampleKey) => {
-      if (key === sampleKey) return;
-      stopStreaming();
-      setCurrentIndex(0);
-      setSampleKey(key);
+      if (key === sampleKey) return
+      stopStreaming()
+      setCurrentIndex(0)
+      setSampleKey(key)
     },
-    [sampleKey, stopStreaming]
-  );
+    [sampleKey, stopStreaming],
+  )
 
   const handleLinkPress = (url: string) => {
     Alert.alert('Open Link?', url, [
       { text: 'Open', onPress: () => Linking.openURL(url) },
       { text: 'Cancel', style: 'cancel' },
-    ]);
-  };
+    ])
+  }
 
-  useEffect(() => stopStreaming, [stopStreaming]);
+  useEffect(() => stopStreaming, [stopStreaming])
 
   return (
     <View style={styles.container}>
       <View style={styles.controls}>
         <View style={styles.sampleRow}>
           {(Object.keys(SAMPLES) as SampleKey[]).map((key) => {
-            const isActive = key === sampleKey;
+            const isActive = key === sampleKey
             return (
               <Pressable
                 key={key}
@@ -118,16 +100,11 @@ export default function StreamingMarkdownSimulator() {
                 onPress={() => selectSample(key)}
                 disabled={isStreaming}
               >
-                <Text
-                  style={[
-                    styles.sampleChipText,
-                    isActive && styles.sampleChipTextActive,
-                  ]}
-                >
+                <Text style={[styles.sampleChipText, isActive && styles.sampleChipTextActive]}>
                   {SAMPLES[key].label}
                 </Text>
               </Pressable>
-            );
+            )
           })}
         </View>
 
@@ -172,29 +149,25 @@ export default function StreamingMarkdownSimulator() {
         {isStreaming && <Text style={styles.streamingDot}>● Streaming…</Text>}
       </ScrollView>
     </View>
-  );
+  )
 }
 
 type ControlButtonProps = {
-  label: string;
-  onPress: () => void;
-  disabled?: boolean;
-  color: string;
-};
+  label: string
+  onPress: () => void
+  disabled?: boolean
+  color: string
+}
 
 const ControlButton = ({ label, onPress, disabled, color }: ControlButtonProps) => (
   <Pressable
-    style={[
-      styles.button,
-      { backgroundColor: color },
-      disabled && styles.disabled,
-    ]}
+    style={[styles.button, { backgroundColor: color }, disabled && styles.disabled]}
     onPress={onPress}
     disabled={disabled}
   >
     <Text style={styles.buttonText}>{label}</Text>
   </Pressable>
-);
+)
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
@@ -247,4 +220,4 @@ const styles = StyleSheet.create({
     color: '#4CAF50',
     fontWeight: '500',
   },
-});
+})

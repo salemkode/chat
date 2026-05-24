@@ -1,9 +1,9 @@
-import { Icon } from "@/components/icon";
-import { MOCK_CHATS } from "@/utils/mock-chats";
-import * as ContextMenu from "@radix-ui/react-context-menu";
-import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import * as Tooltip from "@radix-ui/react-tooltip";
-import { Link, usePathname, type Href } from "expo-router";
+import { Icon } from '@/components/icon'
+import { MOCK_CHATS } from '@/utils/mock-chats'
+import * as ContextMenu from '@radix-ui/react-context-menu'
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
+import * as Tooltip from '@radix-ui/react-tooltip'
+import { Link, usePathname, type Href } from 'expo-router'
 import {
   Archive,
   Edit3,
@@ -16,29 +16,23 @@ import {
   SquarePen,
   Trash2,
   User,
-} from "lucide-react";
-import { MessageSquarePlus } from "lucide-react-native";
-import type { ReactNode } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+} from 'lucide-react'
+import { MessageSquarePlus } from 'lucide-react-native'
+import type { ReactNode } from 'react'
+import { Pressable, ScrollView, Text, View } from 'react-native'
 
 const MENU_CONTENT_CLASS =
-  "z-[100] min-w-[180px] rounded-xl bg-card p-1.5 shadow-float border border-border/40 animate-fade-up";
+  'z-[100] min-w-[180px] rounded-xl bg-card p-1.5 shadow-float border border-border/40 animate-fade-up'
 
 const MENU_ITEM_CLASS =
-  "flex cursor-default select-none items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-foreground outline-none data-[highlighted]:bg-accent";
+  'flex cursor-default select-none items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-foreground outline-none data-[highlighted]:bg-accent'
 
-const MENU_SEPARATOR_CLASS = "my-1 h-px bg-border/40";
+const MENU_SEPARATOR_CLASS = 'my-1 h-px bg-border/40'
 
 const MENU_DESTRUCTIVE_CLASS =
-  "flex cursor-default select-none items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-red-500 outline-none data-[highlighted]:bg-red-500/10";
+  'flex cursor-default select-none items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-red-500 outline-none data-[highlighted]:bg-red-500/10'
 
-function SidebarTooltip({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
+function SidebarTooltip({ label, children }: { label: string; children: ReactNode }) {
   return (
     <Tooltip.Root>
       <Tooltip.Trigger asChild>{children}</Tooltip.Trigger>
@@ -53,14 +47,13 @@ function SidebarTooltip({
         </Tooltip.Content>
       </Tooltip.Portal>
     </Tooltip.Root>
-  );
+  )
 }
 
 const NAV_ITEMS = [
-  { href: "/", label: "Chats" },
-  { href: "/settings", label: "Settings" },
-] satisfies { href: Href; label: string }[];
-
+  { href: '/', label: 'Chats' },
+  { href: '/settings', label: 'Settings' },
+] satisfies { href: Href; label: string }[]
 
 /**
  * Sidebar matching the native drawer content layout:
@@ -77,21 +70,18 @@ export function Sidebar({
   isCollapsed,
   onCollapse,
 }: {
-  isOpen: boolean;
-  onToggle: () => void;
-  isCollapsed: boolean;
-  onCollapse: () => void;
+  isOpen: boolean
+  onToggle: () => void
+  isCollapsed: boolean
+  onCollapse: () => void
 }) {
-  const pathname = usePathname();
+  const pathname = usePathname()
 
   return (
     <>
       {/* Mobile overlay */}
       {isOpen && (
-        <Pressable
-          onPress={onToggle}
-          className="fixed inset-0 z-40 bg-black/30 md:hidden"
-        />
+        <Pressable onPress={onToggle} className="fixed inset-0 z-40 bg-black/30 md:hidden" />
       )}
 
       {/* Sidebar */}
@@ -99,22 +89,20 @@ export function Sidebar({
         className={`
           fixed left-0 top-0 z-50 flex h-screen flex-col bg-sidebar
           md:relative md:z-auto
-          ${isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
+          ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         `}
         style={{
           width: isCollapsed ? 48 : 280,
-          overflow: "hidden",
+          overflow: 'hidden',
           // @ts-expect-error: Web-only CSS transition property
-          transition: "width 0.3s cubic-bezier(0.32, 0.72, 0, 1)",
+          transition: 'width 0.3s cubic-bezier(0.32, 0.72, 0, 1)',
         }}
       >
         {/* Header */}
         {!isCollapsed && (
           <View className="flex flex-row items-center px-4 pt-5 pb-3">
             <View className="flex flex-row items-center justify-between flex-1">
-              <Text className="text-[28px] font-bold text-foreground">
-                Chat
-              </Text>
+              <Text className="text-[28px] font-bold text-foreground">Chat</Text>
               <View className="flex flex-row items-center gap-1">
                 {/* Close button on mobile */}
                 <Pressable
@@ -137,34 +125,27 @@ export function Sidebar({
 
         {/* Nav + Chat history */}
         {!isCollapsed && (
-          <ScrollView
-            className="flex-1"
-            contentContainerStyle={{ paddingBottom: 8 }}
-          >
+          <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 8 }}>
             {/* Nav items */}
             {NAV_ITEMS.map((item) => {
-              const isActive = pathname === item.href;
+              const isActive = pathname === item.href
               return (
                 <Link key={item.href} href={item.href} asChild>
                   <Pressable
                     className={`px-4 py-3 mx-2 rounded-[10px] ${
-                      isActive
-                        ? "bg-accent"
-                        : "hover:bg-accent/50 active:bg-accent"
+                      isActive ? 'bg-accent' : 'hover:bg-accent/50 active:bg-accent'
                     }`}
                   >
                     <Text
                       className={`text-base ${
-                        isActive
-                          ? "text-foreground font-medium"
-                          : "text-foreground"
+                        isActive ? 'text-foreground font-medium' : 'text-foreground'
                       }`}
                     >
                       {item.label}
                     </Text>
                   </Pressable>
                 </Link>
-              );
+              )
             })}
 
             {/* Recents */}
@@ -172,24 +153,20 @@ export function Sidebar({
               Recents
             </Text>
             {MOCK_CHATS.map((chat) => {
-              const isActive = chat.id === "1";
+              const isActive = chat.id === '1'
               return (
                 <ContextMenu.Root key={chat.id}>
                   <ContextMenu.Trigger asChild>
                     <Link href="/" asChild>
                       <Pressable
                         className={`px-4 py-2.5 mx-2 rounded-[10px] ${
-                          isActive
-                            ? "bg-accent"
-                            : "hover:bg-accent/50 active:bg-accent"
+                          isActive ? 'bg-accent' : 'hover:bg-accent/50 active:bg-accent'
                         }`}
                       >
                         <Text
                           numberOfLines={1}
                           className={`text-[15px] ${
-                            isActive
-                              ? "text-foreground"
-                              : "text-muted-foreground"
+                            isActive ? 'text-foreground' : 'text-muted-foreground'
                           }`}
                         >
                           {chat.title}
@@ -223,7 +200,7 @@ export function Sidebar({
                     </ContextMenu.Content>
                   </ContextMenu.Portal>
                 </ContextMenu.Root>
-              );
+              )
             })}
           </ScrollView>
         )}
@@ -272,9 +249,7 @@ export function Sidebar({
                 <DropdownMenu.Trigger asChild>
                   <Pressable className="flex flex-row items-center gap-2.5 rounded-full hover:opacity-70 active:opacity-60">
                     <View className="rounded-full bg-muted items-center justify-center shrink-0 w-8 h-8">
-                      <Text className="font-semibold text-foreground text-[13px]">
-                        EB
-                      </Text>
+                      <Text className="font-semibold text-foreground text-[13px]">EB</Text>
                     </View>
                     <Text className="text-sm text-foreground">Evan Bacon</Text>
                   </Pressable>
@@ -294,9 +269,7 @@ export function Sidebar({
                       <Settings size={14} strokeWidth={1.5} />
                       Settings
                     </DropdownMenu.Item>
-                    <DropdownMenu.Separator
-                      className={MENU_SEPARATOR_CLASS}
-                    />
+                    <DropdownMenu.Separator className={MENU_SEPARATOR_CLASS} />
                     <DropdownMenu.Item className={MENU_DESTRUCTIVE_CLASS}>
                       <LogOut size={14} strokeWidth={1.5} />
                       Sign out
@@ -320,7 +293,7 @@ export function Sidebar({
         )}
       </View>
     </>
-  );
+  )
 }
 
 export function SidebarToggle({ onPress }: { onPress: () => void }) {
@@ -331,5 +304,5 @@ export function SidebarToggle({ onPress }: { onPress: () => void }) {
     >
       <PanelLeft size={18} strokeWidth={1.5} />
     </Pressable>
-  );
+  )
 }

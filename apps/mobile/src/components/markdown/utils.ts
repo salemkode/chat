@@ -1,244 +1,224 @@
-import type { Node, Parent } from "mdast";
-import type { Extension } from "mdast-util-from-markdown";
-import {
-  Platform,
-  StyleSheet,
-  type ImageStyle,
-  type TextStyle,
-  type ViewStyle,
-} from "react-native";
-import type { StyleMap } from "./types";
+import type { Node, Parent } from 'mdast'
+import type { Extension } from 'mdast-util-from-markdown'
+import { Platform, StyleSheet, type TextStyle, type ViewStyle } from 'react-native'
+import type { StyleMap } from './types'
 
 const defaultStyles: StyleMap = {
   root: {},
   heading1: {
     fontSize: 48,
-    fontWeight: "bold",
+    fontWeight: 'bold',
   },
   heading2: {
     fontSize: 36,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   heading3: {
     fontSize: 32,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   heading4: {
     fontSize: 28,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   heading5: {
     fontSize: 24,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   heading6: {
     fontSize: 20,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   paragraph: {
     marginVertical: 8,
-    flexWrap: "wrap",
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "flex-start",
-    width: "100%",
+    flexWrap: 'wrap',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'flex-start',
+    width: '100%',
   },
   strong: {
-    fontWeight: "bold",
+    fontWeight: 'bold',
   },
   emphasis: {
-    fontStyle: "italic",
+    fontStyle: 'italic',
   },
   text: {},
   thematicBreak: {
     flex: 1,
     height: 1,
-    backgroundColor: "#0000006c",
+    backgroundColor: '#0000006c',
     marginVertical: 8,
   },
   blockquote: {
-    backgroundColor: "#f5f5f5",
-    borderColor: "#3840ba",
+    backgroundColor: '#f5f5f5',
+    borderColor: '#3840ba',
     borderLeftWidth: 4,
     paddingHorizontal: 5,
     marginVertical: 8,
   },
   codeContainer: {
-    backgroundColor: "#f0f0f0",
+    backgroundColor: '#f0f0f0',
     padding: 8,
     borderRadius: 4,
     marginVertical: 4,
   },
   codeText: {
-    color: "#1c1c1c",
+    color: '#1c1c1c',
     fontSize: 14,
     ...Platform.select({
       ios: {
-        fontFamily: "ui-monospace",
+        fontFamily: 'ui-monospace',
       },
       android: {
-        fontFamily: "monospace",
+        fontFamily: 'monospace',
       },
     }),
   },
   inlineCode: {
     ...Platform.select({
       ios: {
-        fontFamily: "ui-monospace",
+        fontFamily: 'ui-monospace',
       },
       android: {
-        fontFamily: "monospace",
+        fontFamily: 'monospace',
       },
     }),
-    backgroundColor: "#f0f0f0",
+    backgroundColor: '#f0f0f0',
   },
   link: {
     transform: [{ translateY: 2 }],
     fontSize: 16,
-    color: "#1e90ff",
-    textDecorationLine: "underline",
+    color: '#1e90ff',
+    textDecorationLine: 'underline',
   },
   image: {
-    width: "100%",
+    width: '100%',
     height: 300,
     aspectRatio: 1,
-    resizeMode: "cover",
-    backgroundColor: "#f0f0f0",
-    overflow: "hidden",
+    resizeMode: 'cover',
+    backgroundColor: '#f0f0f0',
+    overflow: 'hidden',
   },
   list: {
     flex: 1,
   },
   listItem: {
-    flexDirection: "row",
-    alignItems: "baseline",
-    justifyContent: "flex-start",
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'flex-start',
     gap: 8,
   },
   listBullet: {
     fontSize: 16,
-    fontWeight: "900",
+    fontWeight: '900',
   },
   listItemContent: {
     flex: 1,
-    flexWrap: "wrap",
+    flexWrap: 'wrap',
   },
   delete: {
-    textDecorationLine: "line-through",
+    textDecorationLine: 'line-through',
   },
   // Table styles
   table: {
     marginVertical: 8,
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: '#ddd',
     borderRadius: 4,
-    overflow: "hidden",
+    overflow: 'hidden',
   },
   tableRow: {
-    flexDirection: "row",
+    flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: "#ddd",
+    borderBottomColor: '#ddd',
   },
   tableHeaderRow: {
-    backgroundColor: "#f5f5f5",
+    backgroundColor: '#f5f5f5',
   },
   tableCell: {
     flex: 1,
     padding: 8,
     borderRightWidth: 1,
-    borderRightColor: "#ddd",
+    borderRightColor: '#ddd',
   },
   tableHeaderCell: {
-    backgroundColor: "#f5f5f5",
+    backgroundColor: '#f5f5f5',
   },
   tableCellText: {
     fontSize: 14,
   },
   tableHeaderCellText: {
-    fontWeight: "600",
+    fontWeight: '600',
   },
-};
-
-// Remove text-only style props for View-safe styles
-type TextOnlyProps = Omit<TextStyle, keyof ViewStyle>;
-
-type FlattenedMarkdownStyle = ViewStyle | TextStyle | ImageStyle;
-
-function removeTextStyleProps<T extends FlattenedMarkdownStyle>(
-  style: T,
-): ViewStyle {
-  const textOnlyKeys: (keyof TextOnlyProps)[] = [
-    "color",
-    "fontFamily",
-    "fontSize",
-    "fontStyle",
-    "fontWeight",
-    "letterSpacing",
-    "lineHeight",
-    "textAlign",
-    "textDecorationLine",
-    "textDecorationStyle",
-    "textDecorationColor",
-    "textShadowColor",
-    "textShadowOffset",
-    "textShadowRadius",
-    "textTransform",
-    "includeFontPadding",
-    "textAlignVertical",
-    "fontVariant",
-    "writingDirection",
-  ];
-  const result: Record<string, unknown> = { ...style };
-  textOnlyKeys.forEach((key) => {
-    delete result[key];
-  });
-  return result as ViewStyle;
 }
 
-export function getMergedStyles(
-  styles: StyleMap | null = null,
-  merge = false,
-): StyleMap {
-  const output: Record<string, FlattenedMarkdownStyle> = {};
+// Remove text-only style props for View-safe styles
+type TextOnlyProps = Omit<TextStyle, keyof ViewStyle>
 
-  const allKeys = new Set([
-    ...Object.keys(defaultStyles),
-    ...(styles ? Object.keys(styles) : []),
-  ]);
+function removeTextStyleProps(style: object): ViewStyle {
+  const textOnlyKeys: (keyof TextOnlyProps)[] = [
+    'color',
+    'fontFamily',
+    'fontSize',
+    'fontStyle',
+    'fontWeight',
+    'letterSpacing',
+    'lineHeight',
+    'textAlign',
+    'textDecorationLine',
+    'textDecorationStyle',
+    'textDecorationColor',
+    'textShadowColor',
+    'textShadowOffset',
+    'textShadowRadius',
+    'textTransform',
+    'includeFontPadding',
+    'textAlignVertical',
+    'fontVariant',
+    'writingDirection',
+  ]
+  const result = { ...style } as Record<string, unknown>
+  textOnlyKeys.forEach((key) => {
+    delete result[key]
+  })
+  return result as ViewStyle
+}
+
+export function getMergedStyles(styles: StyleMap | null = null, merge = false): StyleMap {
+  const output: StyleMap = {}
+
+  const allKeys = new Set([...Object.keys(defaultStyles), ...(styles ? Object.keys(styles) : [])])
 
   for (const key of allKeys) {
-    const base = StyleSheet.flatten(defaultStyles[key]) ?? {};
-    const custom = StyleSheet.flatten(styles?.[key]) ?? {};
+    const base = StyleSheet.flatten(defaultStyles[key]) ?? {}
+    const custom = StyleSheet.flatten(styles?.[key]) ?? {}
 
-    const final = merge
-      ? { ...base, ...custom }
-      : styles?.[key]
-        ? custom
-        : base;
+    const final = merge ? { ...base, ...custom } : styles?.[key] ? custom : base
 
-    output[key] = final;
-    output[`_VIEW_SAFE_${key}`] = removeTextStyleProps(final);
+    output[key] = final as StyleMap[string]
+    output[`_VIEW_SAFE_${key}`] = removeTextStyleProps(final)
   }
 
-  return StyleSheet.create(output);
+  return output
 }
 
 // Generate unique keys for nodes based on position
 function getKey(node: Node): string {
-  const { start, end } = node.position ?? {};
+  const { start, end } = node.position ?? {}
   if (start && end) {
-    return `${node.type}-${start.line}:${start.column}-${end.line}:${end.column}`;
+    return `${node.type}-${start.line}:${start.column}-${end.line}:${end.column}`
   }
-  return `${node.type}-${Math.random().toString(16).slice(2, 8)}`;
+  return `${node.type}-${Math.random().toString(16).slice(2, 8)}`
 }
 
 function addKeysRecursively(node: Node): void {
   if (node.position) {
-    node.key = getKey(node);
+    node.key = getKey(node)
   }
-  if ("children" in node && Array.isArray((node as Parent).children)) {
+  if ('children' in node && Array.isArray((node as Parent).children)) {
     for (const child of (node as Parent).children) {
-      addKeysRecursively(child);
+      addKeysRecursively(child)
     }
   }
 }
@@ -247,73 +227,70 @@ export function getKeyFromMarkdown(): Extension {
   return {
     transforms: [
       (tree) => {
-        addKeysRecursively(tree);
+        addKeysRecursively(tree)
       },
     ],
-  };
+  }
 }
 
 // Resolve link and image references
-import type { Definition, Root, RootContent } from "mdast";
+import type { Definition, Root, RootContent } from 'mdast'
 
 function normalizeIdentifier(id: string): string {
-  return id.trim().toLowerCase();
+  return id.trim().toLowerCase()
 }
 
-const transform = (
-  node: RootContent | Root,
-  definitions: Map<string, Definition>,
-): void => {
-  if (node.type === "linkReference" || node.type === "imageReference") {
-    const def = definitions.get(normalizeIdentifier(node.identifier));
-    if (!def) return;
+const transform = (node: RootContent | Root, definitions: Map<string, Definition>): void => {
+  if (node.type === 'linkReference' || node.type === 'imageReference') {
+    const def = definitions.get(normalizeIdentifier(node.identifier))
+    if (!def) return
 
-    if (node.type === "linkReference") {
+    if (node.type === 'linkReference') {
       Object.assign(node, {
-        type: "link",
+        type: 'link',
         url: def.url,
         title: def.title ?? null,
-      });
+      })
     }
 
-    if (node.type === "imageReference") {
+    if (node.type === 'imageReference') {
       Object.assign(node, {
-        type: "image",
+        type: 'image',
         url: def.url,
         title: def.title ?? null,
-      });
+      })
     }
   }
 
-  if ("children" in node && Array.isArray(node.children)) {
+  if ('children' in node && Array.isArray(node.children)) {
     for (const child of node.children) {
-      transform(child, definitions);
+      transform(child, definitions)
     }
   }
-};
+}
 
 export function resolveReference(): Extension {
   return {
     transforms: [
       (tree) => {
-        const definitions = new Map<string, Definition>();
-        const definitionIndices: number[] = [];
+        const definitions = new Map<string, Definition>()
+        const definitionIndices: number[] = []
 
         for (const node of tree.children) {
-          if (node.type === "definition") {
-            definitions.set(normalizeIdentifier(node.identifier), node);
-            definitionIndices.push(tree.children.indexOf(node));
+          if (node.type === 'definition') {
+            definitions.set(normalizeIdentifier(node.identifier), node)
+            definitionIndices.push(tree.children.indexOf(node))
           }
         }
 
-        if (definitions.size === 0) return;
+        if (definitions.size === 0) return
 
-        transform(tree, definitions);
+        transform(tree, definitions)
 
         for (const index of definitionIndices.reverse()) {
-          tree.children.splice(index, 1);
+          tree.children.splice(index, 1)
         }
       },
     ],
-  };
+  }
 }

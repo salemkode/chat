@@ -1,5 +1,5 @@
-import { ArrowUp, Paperclip } from "lucide-react";
-import { Children, type ReactNode, isValidElement } from "react";
+import { ArrowUp, Paperclip } from 'lucide-react'
+import { Children, type ReactNode, isValidElement } from 'react'
 import {
   ActivityIndicator,
   type NativeSyntheticEvent,
@@ -9,20 +9,18 @@ import {
   type TextInputKeyPressEventData,
   type TextStyle,
   View,
-} from "react-native";
+} from 'react-native'
 
-import { useChatContext } from "./chat-context";
-import { useConversationContext } from "./conversation";
+import { useChatContext } from './chat-context'
+import { useConversationContext } from './conversation'
 
 type WebTextInputStyle = TextStyle & {
-  resize: "none";
-};
+  resize: 'none'
+}
 
-type WebKeyPressEvent = NativeSyntheticEvent<
-  TextInputKeyPressEventData & { shiftKey?: boolean }
->;
+type WebKeyPressEvent = NativeSyntheticEvent<TextInputKeyPressEventData & { shiftKey?: boolean }>
 
-const textareaStyle: WebTextInputStyle = { maxHeight: 200, resize: "none" };
+const textareaStyle: WebTextInputStyle = { maxHeight: 200, resize: 'none' }
 
 /**
  * Root container for the message composer matching Vercel chatbot design.
@@ -30,19 +28,19 @@ const textareaStyle: WebTextInputStyle = { maxHeight: 200, resize: "none" };
  * Collects PromptInputAction children and renders them in a footer row.
  */
 export function PromptInput({ children }: { children: ReactNode }) {
-  const { onPromptInputLayout } = useConversationContext();
+  const { onPromptInputLayout } = useConversationContext()
 
   // Separate action buttons from body (which contains textarea + submit)
-  const actions: ReactNode[] = [];
-  let body: ReactNode = null;
+  const actions: ReactNode[] = []
+  let body: ReactNode = null
 
   Children.forEach(children, (child) => {
     if (isValidElement(child) && child.type === PromptInputAction) {
-      actions.push(child);
+      actions.push(child)
     } else if (isValidElement(child) && child.type === PromptInputBody) {
-      body = child;
+      body = child
     }
-  });
+  })
 
   return (
     <View
@@ -53,7 +51,7 @@ export function PromptInput({ children }: { children: ReactNode }) {
         {body}
       </View>
     </View>
-  );
+  )
 }
 
 /**
@@ -63,8 +61,8 @@ export function PromptInputAction({
   children,
   onPress,
 }: {
-  children: ReactNode;
-  onPress?: () => void;
+  children: ReactNode
+  onPress?: () => void
 }) {
   return (
     <Pressable
@@ -73,7 +71,7 @@ export function PromptInputAction({
     >
       {children}
     </Pressable>
-  );
+  )
 }
 
 /**
@@ -82,16 +80,16 @@ export function PromptInputAction({
  */
 export function PromptInputBody({ children }: { children: ReactNode }) {
   // Separate textarea from submit button
-  const textarea: ReactNode[] = [];
-  let submit: ReactNode = null;
+  const textarea: ReactNode[] = []
+  let submit: ReactNode = null
 
   Children.forEach(children, (child) => {
     if (isValidElement(child) && child.type === PromptInputSubmit) {
-      submit = child;
+      submit = child
     } else {
-      textarea.push(child);
+      textarea.push(child)
     }
-  });
+  })
 
   return (
     <View className="flex flex-col">
@@ -112,7 +110,7 @@ export function PromptInputBody({ children }: { children: ReactNode }) {
         {submit}
       </View>
     </View>
-  );
+  )
 }
 
 /**
@@ -120,13 +118,13 @@ export function PromptInputBody({ children }: { children: ReactNode }) {
  * resize: none removes the browser resize handle.
  */
 export function PromptInputTextarea({
-  placeholder = "Chat with Agent...",
+  placeholder = 'Chat with Agent...',
   maxLength = 1000,
 }: {
-  placeholder?: string;
-  maxLength?: number;
+  placeholder?: string
+  maxLength?: number
 }) {
-  const { input, setInput, onSend } = useChatContext();
+  const { input, setInput, onSend } = useChatContext()
 
   return (
     <TextInput
@@ -140,32 +138,34 @@ export function PromptInputTextarea({
       multiline
       maxLength={maxLength}
       onKeyPress={(e: WebKeyPressEvent) => {
-        if (e.nativeEvent.key === "Enter" && !e.nativeEvent.shiftKey) {
-          e.preventDefault();
-          onSend();
+        if (e.nativeEvent.key === 'Enter' && !e.nativeEvent.shiftKey) {
+          e.preventDefault()
+          onSend()
         }
       }}
     />
-  );
+  )
 }
 
 /**
  * Submit button matching Vercel chatbot's send/stop button.
  */
 export function PromptInputSubmit() {
-  const { input, isGenerating, canStop, canForceStop, onSend, onStop } = useChatContext();
-  const showStop = isGenerating && canStop;
-  const sendDisabled = !input.trim() || (isGenerating && !showStop);
+  const { input, isGenerating, canStop, canForceStop, onSend, onStop } = useChatContext()
+  const showStop = isGenerating && canStop
+  const sendDisabled = !input.trim() || (isGenerating && !showStop)
 
   return (
     <Pressable
       onPress={showStop ? onStop : onSend}
       disabled={sendDisabled && !showStop}
-      accessibilityLabel={showStop ? (canForceStop ? "Force stop" : "Stop generation") : "Send message"}
+      accessibilityLabel={
+        showStop ? (canForceStop ? 'Force stop' : 'Stop generation') : 'Send message'
+      }
       className={`flex h-7 w-7 items-center justify-center rounded-xl transition-all duration-200 ${
         sendDisabled && !showStop
-          ? "bg-muted cursor-not-allowed"
-          : "bg-foreground hover:opacity-85 active:scale-95"
+          ? 'bg-muted cursor-not-allowed'
+          : 'bg-foreground hover:opacity-85 active:scale-95'
       }`}
     >
       {isGenerating && !showStop ? (
@@ -176,9 +176,9 @@ export function PromptInputSubmit() {
         <ArrowUp
           size={16}
           strokeWidth={2.5}
-          className={sendDisabled ? "text-muted-foreground/25" : "text-background"}
+          className={sendDisabled ? 'text-muted-foreground/25' : 'text-background'}
         />
       )}
     </Pressable>
-  );
+  )
 }

@@ -1,25 +1,31 @@
-import * as WebBrowser from "expo-web-browser";
-import React from "react";
-import { Linking, Platform, StyleSheet, Text, View, type TextStyle, type ViewStyle } from "react-native";
-import { useNativeThemeColors } from "@/hooks/use-native-theme-colors";
-import { isArabic } from "@/lib/is-arabic";
-import Markdown from "./markdown";
-import type { StyleMap } from "./types";
+import * as WebBrowser from 'expo-web-browser'
+import React from 'react'
+import {
+  Linking,
+  Platform,
+  StyleSheet,
+  Text,
+  View,
+  type TextStyle,
+  type ViewStyle,
+} from 'react-native'
+import { useNativeThemeColors } from '@/hooks/use-native-theme-colors'
+import { isArabic } from '@/lib/is-arabic'
+import Markdown from './markdown'
+import type { StyleMap } from './types'
 
 /**
  * Convert single newlines to hard breaks (two trailing spaces) so they render
  * the same way they appear during streaming. Skips fenced code blocks.
  */
 function preserveNewlines(md: string): string {
-  return md.replace(/(```[\s\S]*?```)|(\n)/g, (match, codeBlock) =>
-    codeBlock ? match : "  \n",
-  );
+  return md.replace(/(```[\s\S]*?```)|(\n)/g, (match, codeBlock) => (codeBlock ? match : '  \n'))
 }
 
 const getViewStyle = (styles: StyleMap, key: string): ViewStyle | undefined =>
-  styles[key] as ViewStyle | undefined;
+  styles[key] as ViewStyle | undefined
 const getTextStyle = (styles: StyleMap, key: string): TextStyle | undefined =>
-  styles[key] as TextStyle | undefined;
+  styles[key] as TextStyle | undefined
 
 export function ChatMarkdown({ children }: { children: string }) {
   const {
@@ -31,16 +37,16 @@ export function ChatMarkdown({ children }: { children: string }) {
     muted: bg3,
     accent: fill3,
     link,
-  } = useNativeThemeColors();
+  } = useNativeThemeColors()
 
-  const isWeb = process.env.EXPO_OS === "web";
-  const baseFontSize = isWeb ? 13 : 16;
-  const baseLineHeight = isWeb ? 21.5 : 22;
+  const isWeb = process.env.EXPO_OS === 'web'
+  const baseFontSize = isWeb ? 13 : 16
+  const baseLineHeight = isWeb ? 21.5 : 22
 
   // Only overrides — defaults from utils.ts are merged automatically
   const markdownStyles = {
     heading1: { fontSize: 24, color: text },
-    heading2: { fontSize: 20, lineHeight: 28, fontWeight: "bold" as const, color: text },
+    heading2: { fontSize: 20, lineHeight: 28, fontWeight: 'bold' as const, color: text },
     heading3: { fontSize: 18, color: text },
     heading4: { fontSize: 16, color: text },
     heading5: { fontSize: 14, color: text },
@@ -58,78 +64,76 @@ export function ChatMarkdown({ children }: { children: string }) {
     codeText: {
       fontSize: isWeb ? 12 : 14,
       color: text,
-      fontFamily: Platform.select({ ios: "ui-monospace", default: "monospace" }),
+      fontFamily: Platform.select({ ios: 'ui-monospace', default: 'monospace' }),
     },
     inlineCode: {
-      fontFamily: Platform.select({ ios: "ui-monospace", default: "monospace" }),
+      fontFamily: Platform.select({ ios: 'ui-monospace', default: 'monospace' }),
       paddingHorizontal: 4,
       fontSize: isWeb ? 12 : 15,
       color: text,
-      overflow: "hidden" as const,
+      overflow: 'hidden' as const,
       borderRadius: 4,
       backgroundColor: fill3,
     },
     link: { fontSize: baseFontSize, color: link },
     image: { height: 200, aspectRatio: 16 / 9, backgroundColor: fill3, borderRadius: 8 },
-    listBullet: { color: text2, fontVariant: ["tabular-nums" as const], marginRight: 8 },
+    listBullet: { color: text2, fontVariant: ['tabular-nums' as const], marginRight: 8 },
     table: { borderColor: border, borderRadius: 10, backgroundColor: card },
     tableRow: { borderBottomColor: border, backgroundColor: card },
     tableHeaderRow: { backgroundColor: bg2 },
     tableCell: { padding: 10, borderRightColor: border, backgroundColor: card },
     tableHeaderCell: { backgroundColor: bg2 },
     tableCellText: { color: text },
-    tableHeaderCellText: { color: text, fontWeight: "600" as const },
-  };
+    tableHeaderCellText: { color: text, fontWeight: '600' as const },
+  }
 
-  const dir = isArabic(children) ? "rtl" : "ltr";
+  const dir = isArabic(children) ? 'rtl' : 'ltr'
 
   return (
     <View style={{ direction: dir }}>
       <Markdown
         styles={markdownStyles}
         onLinkPress={(url) => {
-          if (process.env.EXPO_OS === "web") {
-            Linking.openURL(url);
+          if (process.env.EXPO_OS === 'web') {
+            Linking.openURL(url)
           } else {
             WebBrowser.openBrowserAsync(url, {
               presentationStyle: WebBrowser.WebBrowserPresentationStyle.AUTOMATIC,
-            });
+            })
           }
         }}
         renderRules={{
           listItem: ({ node, styles, children, extras }) => (
-            <View key={node.key} style={getViewStyle(styles, "listItem")}>
+            <View key={node.key} style={getViewStyle(styles, 'listItem')}>
               {extras?.customListStyleType ? (
                 extras.customListStyleType
               ) : (
                 <Text
                   style={[
-                    getTextStyle(styles, "listBullet"),
-                    extras?.ordered
-                      ? fullStyles.orderedBullet
-                      : fullStyles.unorderedBullet,
+                    getTextStyle(styles, 'listBullet'),
+                    extras?.ordered ? fullStyles.orderedBullet : fullStyles.unorderedBullet,
                   ]}
                 >
                   {extras?.listStyleType}
                 </Text>
               )}
-              <View style={getViewStyle(styles, "listItemContent")}>{children}</View>
+              <View style={getViewStyle(styles, 'listItemContent')}>{children}</View>
             </View>
           ),
         }}
         markdown={preserveNewlines(children)}
       />
     </View>
-  );
+  )
 }
 
 const fullStyles = StyleSheet.create({
   orderedBullet: {
-    fontFamily: Platform.select({ ios: "ui-monospace", default: "monospace" }),
-    fontWeight: "normal",
+    fontFamily: Platform.select({ ios: 'ui-monospace', default: 'monospace' }),
+    fontWeight: 'normal',
   },
   unorderedBullet: {
     fontSize: 18,
-    fontWeight: "900",
+    fontWeight: '900',
   },
-});
+})

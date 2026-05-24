@@ -15,19 +15,12 @@ import type {
 import { getFunctionName, paginationOptsValidator } from 'convex/server'
 import { useContext, useEffect, useMemo, useState } from 'react'
 import { ConvexQueryCacheContext } from './provider'
-import {
-  ConvexError,
-  convexToJson,
-  type Infer,
-  type Value,
-} from 'convex/values'
+import { ConvexError, convexToJson, type Infer, type Value } from 'convex/values'
 
 const uuid =
   typeof crypto !== 'undefined' && crypto.randomUUID
     ? crypto.randomUUID.bind(crypto)
-    : () =>
-        Math.random().toString(36).substring(2) +
-        Math.random().toString(36).substring(2)
+    : () => Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2)
 
 function isPaginationResult(value: unknown): value is PaginationResult<Value> {
   if (typeof value !== 'object' || value === null) {
@@ -185,32 +178,31 @@ const splitQuery =
     }
   }
 
-const completeSplitQuery =
-  (key: QueryPageKey) => (prevState: UsePaginatedQueryState) => {
-    const completedSplit = prevState.ongoingSplits[key]
-    if (completedSplit === undefined) {
-      return prevState
-    }
-    const queries = { ...prevState.queries }
-    delete queries[key]
-    const ongoingSplits = { ...prevState.ongoingSplits }
-    delete ongoingSplits[key]
-    let pageKeys = prevState.pageKeys.slice()
-    const pageIndex = prevState.pageKeys.findIndex((v) => v === key)
-    if (pageIndex >= 0) {
-      pageKeys = [
-        ...prevState.pageKeys.slice(0, pageIndex),
-        ...completedSplit,
-        ...prevState.pageKeys.slice(pageIndex + 1),
-      ]
-    }
-    return {
-      ...prevState,
-      queries,
-      pageKeys,
-      ongoingSplits,
-    }
+const completeSplitQuery = (key: QueryPageKey) => (prevState: UsePaginatedQueryState) => {
+  const completedSplit = prevState.ongoingSplits[key]
+  if (completedSplit === undefined) {
+    return prevState
   }
+  const queries = { ...prevState.queries }
+  delete queries[key]
+  const ongoingSplits = { ...prevState.ongoingSplits }
+  delete ongoingSplits[key]
+  let pageKeys = prevState.pageKeys.slice()
+  const pageIndex = prevState.pageKeys.findIndex((v) => v === key)
+  if (pageIndex >= 0) {
+    pageKeys = [
+      ...prevState.pageKeys.slice(0, pageIndex),
+      ...completedSplit,
+      ...prevState.pageKeys.slice(pageIndex + 1),
+    ]
+  }
+  return {
+    ...prevState,
+    queries,
+    pageKeys,
+    ongoingSplits,
+  }
+}
 
 /**
  * Paginated query hook that uses the query cache (convex-helpers-style).
@@ -228,10 +220,7 @@ export function usePaginatedQuery<Query extends PaginatedQueryReference>(
     customPagination?: boolean
   },
 ): UsePaginatedQueryReturnType<Query> {
-  if (
-    typeof options?.initialNumItems !== 'number' ||
-    options.initialNumItems <= 0
-  ) {
+  if (typeof options?.initialNumItems !== 'number' || options.initialNumItems <= 0) {
     throw new Error(
       `\`options.initialNumItems\` must be a positive number. Received \`${options?.initialNumItems}\`.`,
     )
@@ -267,22 +256,15 @@ export function usePaginatedQuery<Query extends PaginatedQueryReference>(
         skip,
       }
     }
-  }, [
-    JSON.stringify(convexToJson(argsObject as Value)),
-    queryName,
-    options.initialNumItems,
-    skip,
-  ])
+  }, [JSON.stringify(convexToJson(argsObject as Value)), queryName, options.initialNumItems, skip])
 
-  const [state, setState] =
-    useState<UsePaginatedQueryState>(createInitialState)
+  const [state, setState] = useState<UsePaginatedQueryState>(createInitialState)
 
   let currState = state
   if (
     skip !== state.skip ||
     getFunctionName(query) !== getFunctionName(state.query) ||
-    JSON.stringify(convexToJson(argsObject as Value)) !==
-      JSON.stringify(convexToJson(state.args))
+    JSON.stringify(convexToJson(argsObject as Value)) !== JSON.stringify(convexToJson(state.args))
   ) {
     currState = createInitialState()
     setState(currState)
@@ -292,10 +274,7 @@ export function usePaginatedQuery<Query extends PaginatedQueryReference>(
 
   const resultsObject = useQueries(currState.queries)
 
-  const [results, maybeLastResult]: [
-    Value[],
-    undefined | PaginationResult<Value>,
-  ] = useMemo(() => {
+  const [results, maybeLastResult]: [Value[], undefined | PaginationResult<Value>] = useMemo(() => {
     let currResult: PaginationResult<Value> | undefined = undefined
 
     const allItems: Value[] = []
@@ -316,10 +295,7 @@ export function usePaginatedQuery<Query extends PaginatedQueryReference>(
             'paginationError' in entry.data &&
             Reflect.get(entry.data, 'paginationError') === 'InvalidCursor')
         ) {
-          logger.warn(
-            'usePaginatedQuery hit error, resetting pagination state: ' +
-              entry.message,
-          )
+          logger.warn('usePaginatedQuery hit error, resetting pagination state: ' + entry.message)
           setState(createInitialState)
           return [[], undefined]
         } else {
@@ -348,13 +324,7 @@ export function usePaginatedQuery<Query extends PaginatedQueryReference>(
             ? pageResult.page.length > options.initialNumItems
             : pageResult.page.length > options.initialNumItems * 2))
       ) {
-        setState(
-          splitQuery(
-            pageKey,
-            pageResult.splitCursor,
-            pageResult.continueCursor,
-          ),
-        )
+        setState(splitQuery(pageKey, pageResult.splitCursor, pageResult.continueCursor))
       }
       if (pageResult.pageStatus === 'SplitRequired') {
         return [allItems, undefined]
@@ -460,12 +430,7 @@ export function usePaginatedQuery<Query extends PaginatedQueryReference>(
         }
       },
     } as const
-  }, [
-    maybeLastResult,
-    currState.pageKeys,
-    currState.nextPageKey,
-    options.customPagination,
-  ])
+  }, [maybeLastResult, currState.pageKeys, currState.nextPageKey, options.customPagination])
 
   return {
     results,
