@@ -32,6 +32,7 @@ import {
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { InfiniteScrollTrigger } from '@/components/infinite-scroll-trigger'
 import { usePaginatedQuery } from '@/lib/convex-query-cache'
 
 type AdminModelsPanelProps = Pick<AdminOutletContext, 'dashboard' | 'onOpenModelDialog'>
@@ -598,18 +599,14 @@ export function AdminModelsPanel({ dashboard, onOpenModelDialog }: AdminModelsPa
                   onDelete={(target) => void deleteModel({ id: target._id })}
                 />
               ))}
-              {modelsQuery.status === 'CanLoadMore' || modelsQuery.status === 'LoadingMore' ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => modelsQuery.loadMore(50)}
-                  disabled={modelsQuery.status === 'LoadingMore'}
-                >
-                  {modelsQuery.status === 'LoadingMore'
-                    ? 'Loading more models...'
-                    : 'Load more models'}
-                </Button>
-              ) : null}
+              <InfiniteScrollTrigger
+                hasMore={
+                  modelsQuery.status === 'CanLoadMore' || modelsQuery.status === 'LoadingMore'
+                }
+                isLoadingMore={modelsQuery.status === 'LoadingMore'}
+                onLoadMore={() => modelsQuery.loadMore(50)}
+                loadingLabel="Loading more models..."
+              />
             </div>
           ) : (
             <AdminEmptyState
@@ -801,18 +798,14 @@ export function AdminModelsPanel({ dashboard, onOpenModelDialog }: AdminModelsPa
                   onDelete={(target) => void deleteModel({ id: target._id })}
                 />
               ))}
-              {modelsQuery.status === 'CanLoadMore' || modelsQuery.status === 'LoadingMore' ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => modelsQuery.loadMore(50)}
-                  disabled={modelsQuery.status === 'LoadingMore'}
-                >
-                  {modelsQuery.status === 'LoadingMore'
-                    ? 'Loading more models...'
-                    : 'Load more models'}
-                </Button>
-              ) : null}
+              <InfiniteScrollTrigger
+                hasMore={
+                  modelsQuery.status === 'CanLoadMore' || modelsQuery.status === 'LoadingMore'
+                }
+                isLoadingMore={modelsQuery.status === 'LoadingMore'}
+                onLoadMore={() => modelsQuery.loadMore(50)}
+                loadingLabel="Loading more models..."
+              />
             </div>
           ) : (
             <AdminEmptyState

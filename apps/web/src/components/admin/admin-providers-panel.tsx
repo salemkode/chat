@@ -32,6 +32,7 @@ import {
   CommandList,
 } from '@/components/ui/command'
 import { Switch } from '@/components/ui/switch'
+import { InfiniteScrollTrigger } from '@/components/infinite-scroll-trigger'
 import { usePaginatedQuery } from '@/lib/convex-query-cache'
 
 type AdminProvidersPanelProps = Pick<AdminOutletContext, 'dashboard' | 'onOpenProviderDialog'>
@@ -170,18 +171,15 @@ export function AdminProvidersPanel({ dashboard: _dashboard, onOpenProviderDialo
                 }
               />
             ))}
-            {providersQuery.status === 'CanLoadMore' || providersQuery.status === 'LoadingMore' ? (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => providersQuery.loadMore(50)}
-                disabled={providersQuery.status === 'LoadingMore'}
-              >
-                {providersQuery.status === 'LoadingMore'
-                  ? 'Loading more providers...'
-                  : 'Load more providers'}
-              </Button>
-            ) : null}
+            <InfiniteScrollTrigger
+              hasMore={
+                providersQuery.status === 'CanLoadMore' ||
+                providersQuery.status === 'LoadingMore'
+              }
+              isLoadingMore={providersQuery.status === 'LoadingMore'}
+              onLoadMore={() => providersQuery.loadMore(50)}
+              loadingLabel="Loading more providers..."
+            />
           </div>
         ) : (
           <AdminEmptyState

@@ -1,12 +1,13 @@
 import type { Node, Root } from 'mdast';
 import defaultRenderRules from './render-rules';
 import { getMergedStyles } from './utils';
-import type { ReactElement } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import type {
   StyleMap,
   ASTRendererOptions,
   ListBulletStyle,
   NodeTypeMap,
+  RenderExtras,
   RenderFunction,
   RenderRules,
   ValidNodeKey,
@@ -67,9 +68,9 @@ export default class ASTRenderer {
   private renderNode = (
     node: Node,
     parentStack: Node[] = [],
-    extras?: Record<string, any>
-  ): any => {
-    const children: any[] = [];
+    extras?: RenderExtras
+  ): ReactNode => {
+    const children: ReactNode[] = [];
     let type = node.type as ValidNodeKey;
 
     if (type === 'link' && this._onLinkPress) {
@@ -153,7 +154,7 @@ export default class ASTRenderer {
     });
   };
 
-  public render = (tree: Root): any => {
+  public render = (tree: Root): ReactNode => {
     return this.renderNode(tree);
   };
 }

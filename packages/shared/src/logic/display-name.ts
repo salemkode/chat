@@ -1,3 +1,12 @@
+export type ProfileNameParts = {
+  givenName?: string | null
+  familyName?: string | null
+}
+
+export function formatProfileName(fullName?: ProfileNameParts | null): string {
+  return [fullName?.givenName, fullName?.familyName].filter(Boolean).join(' ').trim()
+}
+
 function stripNullishNameParts(name: string): string {
   return name
     .replace(/\bnull\b/gi, '')
@@ -35,11 +44,7 @@ export function formatClerkDisplayName(
   lastName: string | null | undefined,
   email?: string,
 ): string {
-  const parts = [firstName, lastName]
-    .map((part) => (typeof part === 'string' ? part.trim() : ''))
-    .filter((part) => part.length > 0 && part.toLowerCase() !== 'null')
-
-  const joined = parts.join(' ').trim()
+  const joined = formatProfileName({ givenName: firstName, familyName: lastName })
   if (joined) {
     return joined
   }

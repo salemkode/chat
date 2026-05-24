@@ -8,8 +8,8 @@ import { fetch } from "expo/fetch";
 
 interface ExpoExtraRouterConfig {
   router?: {
-    origin?: any;
-    generatedOrigin?: any;
+    origin?: unknown;
+    generatedOrigin?: unknown;
   };
 }
 
@@ -17,14 +17,14 @@ const manifest = Constants.expoConfig;
 
 const polyfillSymbol = Symbol.for("expo.polyfillFetchWithWindowLocation");
 
-function wrapFetchWithWindowLocation(
-  fetch: Function & { [polyfillSymbol]?: boolean },
-) {
+type FetchWithMarker = typeof globalThis.fetch & { [polyfillSymbol]?: boolean };
+
+function wrapFetchWithWindowLocation(fetch: FetchWithMarker) {
   if (fetch[polyfillSymbol]) {
     return fetch;
   }
 
-  const _fetch = (...props: any[]) => {
+  const _fetch: FetchWithMarker = (...props: Parameters<typeof globalThis.fetch>) => {
     if (props[0] && typeof props[0] === "string" && props[0].startsWith("/")) {
       props[0] = new URL(props[0], getOrigin()).toString();
     } else if (props[0] && typeof props[0] === "object") {

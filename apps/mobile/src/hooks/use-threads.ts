@@ -8,6 +8,7 @@ import {
   useConvexUserIdForCache,
   useOfflineCacheVersion,
 } from "@/hooks/chat-data/shared";
+import { sortedCopy } from "@/lib/sorted-copy";
 import { deleteThreadCache, readThreadsCache } from "@/offline/local-cache";
 
 function normalizeThread(thread: {
@@ -48,7 +49,7 @@ export function useThreads() {
       return [] as ThreadSummary[];
     }
     const fromCache = readThreadsCache<ThreadSummary[]>(cacheUserId);
-    return Array.isArray(fromCache) ? [...fromCache].sort(compareThreadsForSidebar) : [];
+    return Array.isArray(fromCache) ? sortedCopy(fromCache, compareThreadsForSidebar) : [];
   }, [cacheUserId, cacheVersion]);
 
   const threads = useMemo<ThreadSummary[]>(() => {
@@ -56,10 +57,10 @@ export function useThreads() {
       liveThreadsQuery.results === undefined
         ? undefined
         : liveThreadsQuery.results.map(normalizeThread);
-    return resolveChatSnapshot({
+    return sortedCopy(resolveChatSnapshot({
       live: normalized,
       persisted: cachedThreads,
-    }).sort(compareThreadsForSidebar);
+    }), compareThreadsForSidebar);
   }, [cachedThreads, liveThreadsQuery.results]);
 
   const setPinned = useCallback(

@@ -29,6 +29,18 @@ const uuid =
         Math.random().toString(36).substring(2) +
         Math.random().toString(36).substring(2)
 
+function isPaginationResult(value: unknown): value is PaginationResult<Value> {
+  if (typeof value !== 'object' || value === null) {
+    return false
+  }
+
+  return (
+    Array.isArray(Reflect.get(value, 'page')) &&
+    typeof Reflect.get(value, 'isDone') === 'boolean' &&
+    typeof Reflect.get(value, 'continueCursor') === 'string'
+  )
+}
+
 /**
  * Load a variable number of reactive Convex queries, utilizing
  * the query cache.
@@ -40,7 +52,7 @@ const uuid =
  */
 export function useQueries(
   queries: RequestForQueries,
-): Record<string, undefined | Error | any> {
+): Record<string, undefined | Error | unknown> {
   const { registry } = useContext(ConvexQueryCacheContext)
   if (registry === null) {
     throw new Error(
@@ -314,7 +326,11 @@ export function usePaginatedQuery<Query extends PaginatedQueryReference>(
           throw entry
         }
       }
-      const pageResult: PaginationResult<Value> = entry
+      if (!isPaginationResult(entry)) {
+        throw new Error('usePaginatedQuery expected a pagination result.')
+      }
+
+      const pageResult = entry
       currResult = pageResult
       const ongoingSplit = currState.ongoingSplits[pageKey]
       if (ongoingSplit !== undefined) {

@@ -1,7 +1,7 @@
 import type { ImageStyle, StyleProp, TextStyle, ViewStyle } from 'react-native';
 import type { Node, Root, RootContentMap } from 'mdast';
 import type { Extension } from 'mdast-util-from-markdown';
-import type { ReactElement } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 
 // Style types
 type NamedStyle = StyleProp<ViewStyle | TextStyle | ImageStyle>;
@@ -27,14 +27,26 @@ export type NodeTypeMap = Prettify<
   }
 >;
 
+export type RenderExtras = {
+  cellIndex?: number;
+  customListStyleType?: ReactNode;
+  index?: number;
+  isHeader?: boolean;
+  listStyleType?: ReactNode;
+  onPress?: (url: string) => void;
+  ordered?: boolean;
+  rowIndex?: number;
+  start?: number;
+};
+
 // Render function types
 export type RenderFunction<K extends ValidNodeKey = ValidNodeKey> = (params: {
   node: NodeTypeMap[K];
   styles: StyleMap;
-  children: any[];
+  children: ReactNode[];
   parentStack: Node[];
-  extras?: any;
-}) => any;
+  extras?: RenderExtras;
+}) => ReactNode;
 
 export type RenderRules = {
   [K in ValidNodeKey]?: RenderFunction<K>;

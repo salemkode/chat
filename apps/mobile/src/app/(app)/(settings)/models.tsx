@@ -10,6 +10,7 @@ import { Check } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { Icon } from "@/components/icon";
+import { sortedCopy } from "@/lib/sorted-copy";
 
 const DEFAULT_MODEL_STORAGE_KEY = "default-model-id";
 
@@ -40,7 +41,7 @@ export default function ModelsSettingsScreen() {
   }, []);
 
   const modelOptions = useMemo(() => {
-    const sorted = [...models].sort((a, b) =>
+    const sorted = sortedCopy(models, (a, b) =>
       a.displayName.localeCompare(b.displayName),
     );
     const options = sorted.map((model) => ({

@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { ResponsiveSelectField } from '@/components/ui/responsive-select-field'
 import { useProjects, useSettings, useThreads } from '@/hooks/use-chat-data'
+import { InfiniteScrollTrigger } from '@/components/infinite-scroll-trigger'
 import { usePaginatedQuery, useQuery } from '@/lib/convex-query-cache'
 
 type MemoryScope = 'all' | 'user' | 'thread' | 'project'
@@ -238,16 +239,12 @@ export function MemorySettingsPanel() {
               </li>
             ))}
           </ul>
-          {canLoadMore ? (
-            <button
-              type="button"
-              className="w-full rounded-lg border border-border bg-card px-4 py-3 text-sm text-foreground"
-              onClick={loadMoreForScope}
-              disabled={isLoadingMore}
-            >
-              {isLoadingMore ? 'Loading more memories...' : 'Load more memories'}
-            </button>
-          ) : null}
+          <InfiniteScrollTrigger
+            hasMore={canLoadMore}
+            isLoadingMore={isLoadingMore}
+            onLoadMore={loadMoreForScope}
+            loadingLabel="Loading more memories..."
+          />
         </div>
       )}
     </div>

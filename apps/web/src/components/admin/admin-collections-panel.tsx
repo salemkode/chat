@@ -13,6 +13,7 @@ import {
 import type { AdminModelCollection, IconType } from '@/components/admin/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { InfiniteScrollTrigger } from '@/components/infinite-scroll-trigger'
 import { usePaginatedQuery } from '@/lib/convex-query-cache'
 
 function normalizeIconType(value: string | undefined): IconType {
@@ -126,18 +127,15 @@ export function AdminCollectionsPanel({
               />
             )
           })}
-          {collectionsQuery.status === 'CanLoadMore' || collectionsQuery.status === 'LoadingMore' ? (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => collectionsQuery.loadMore(50)}
-              disabled={collectionsQuery.status === 'LoadingMore'}
-            >
-              {collectionsQuery.status === 'LoadingMore'
-                ? 'Loading more collections...'
-                : 'Load more collections'}
-            </Button>
-          ) : null}
+          <InfiniteScrollTrigger
+            hasMore={
+              collectionsQuery.status === 'CanLoadMore' ||
+              collectionsQuery.status === 'LoadingMore'
+            }
+            isLoadingMore={collectionsQuery.status === 'LoadingMore'}
+            onLoadMore={() => collectionsQuery.loadMore(50)}
+            loadingLabel="Loading more collections..."
+          />
         </div>
       ) : (
         <AdminEmptyState

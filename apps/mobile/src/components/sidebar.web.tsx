@@ -3,7 +3,7 @@ import { MOCK_CHATS } from "@/utils/mock-chats";
 import * as ContextMenu from "@radix-ui/react-context-menu";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import * as Tooltip from "@radix-ui/react-tooltip";
-import { Link, usePathname } from "expo-router";
+import { Link, usePathname, type Href } from "expo-router";
 import {
   Archive,
   Edit3,
@@ -59,7 +59,7 @@ function SidebarTooltip({
 const NAV_ITEMS = [
   { href: "/", label: "Chats" },
   { href: "/settings", label: "Settings" },
-] as const;
+] satisfies { href: Href; label: string }[];
 
 
 /**
@@ -145,7 +145,7 @@ export function Sidebar({
             {NAV_ITEMS.map((item) => {
               const isActive = pathname === item.href;
               return (
-                <Link key={item.href} href={item.href as any} asChild>
+                <Link key={item.href} href={item.href} asChild>
                   <Pressable
                     className={`px-4 py-3 mx-2 rounded-[10px] ${
                       isActive

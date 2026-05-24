@@ -9,12 +9,19 @@ import {
   type ReactElement,
   type ReactNode,
 } from "react";
-import { LayoutChangeEvent, Pressable, Text, View } from "react-native";
+import {
+  LayoutChangeEvent,
+  Pressable,
+  Text,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
 
 import { useChatContext } from "./chat-context";
 import type { ChatMessage } from "./types";
 
-type AnimatedStyle = any;
+type AnimatedStyle = StyleProp<ViewStyle>;
 
 type ConversationContextValue = {
   scrollToBottom: () => void;

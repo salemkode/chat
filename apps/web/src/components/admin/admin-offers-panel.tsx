@@ -33,6 +33,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import { InfiniteScrollTrigger } from '@/components/infinite-scroll-trigger'
 import { usePaginatedQuery } from '@/lib/convex-query-cache'
 import { Loader2, PencilLine, Plus, Trash2 } from '@/lib/icons'
 import { toast } from 'sonner'
@@ -273,16 +274,14 @@ export function AdminOffersPanel({ dashboard }: AdminOffersPanelProps) {
                 />
               )
             })}
-            {offersQuery.status === 'CanLoadMore' || offersQuery.status === 'LoadingMore' ? (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => offersQuery.loadMore(50)}
-                disabled={offersQuery.status === 'LoadingMore'}
-              >
-                {offersQuery.status === 'LoadingMore' ? 'Loading more offers...' : 'Load more offers'}
-              </Button>
-            ) : null}
+            <InfiniteScrollTrigger
+              hasMore={
+                offersQuery.status === 'CanLoadMore' || offersQuery.status === 'LoadingMore'
+              }
+              isLoadingMore={offersQuery.status === 'LoadingMore'}
+              onLoadMore={() => offersQuery.loadMore(50)}
+              loadingLabel="Loading more offers..."
+            />
           </div>
         )}
       </AdminSectionCard>

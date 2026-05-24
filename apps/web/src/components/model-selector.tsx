@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   AUTO_MODEL_ID,
   encodeAutoModelCollectionSelection,
@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils'
 import { useModels } from '@/hooks/use-chat-data'
 import { EntityIcon } from '@/components/admin/entity-icon'
 import { ModelCapabilityBadges } from '@/components/model-capability-badges'
+import { InfiniteScrollTrigger } from '@/components/infinite-scroll-trigger'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -122,6 +123,7 @@ export function ModelSelectorPanel({
 }: ModelSelectorPanelProps) {
   const { models, collections, setFavorite, autoModelAvailable, hasMore, isLoadingMore, loadMore } =
     useModels()
+  const modelsScrollRef = useRef<HTMLDivElement>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const selectedCollectionId = parseAutoModelCollectionSelection(selectedModel)
   const [activeCategory, setActiveCategory] = useState<string>(selectedCollectionId ?? 'all')
@@ -298,7 +300,7 @@ export function ModelSelectorPanel({
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-2">
+        <div ref={modelsScrollRef} className="min-h-0 flex-1 overflow-y-auto p-2">
           {autoModelAvailable ? (
             <div className="mb-4">
               <div className={cn(modelSectionLabelClass(), 'text-white/45')}>Routing</div>
@@ -425,19 +427,14 @@ export function ModelSelectorPanel({
               })}
             </div>
           )}
-          {hasMore ? (
-            <div className="px-2 pt-3">
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full border-white/10 bg-white/[0.04] text-white hover:bg-white/[0.08]"
-                onClick={() => loadMore(40)}
-                disabled={isLoadingMore}
-              >
-                {isLoadingMore ? 'Loading more models...' : 'Load more models'}
-              </Button>
-            </div>
-          ) : null}
+          <InfiniteScrollTrigger
+            hasMore={hasMore}
+            isLoadingMore={isLoadingMore}
+            onLoadMore={() => loadMore(40)}
+            rootRef={modelsScrollRef}
+            loadingLabel="Loading more models..."
+            loadingClassName="text-white/45"
+          />
         </div>
       </div>
     </div>

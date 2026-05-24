@@ -1,3 +1,4 @@
+import { resolveViewerDisplayName } from '@chat/shared/logic/display-name'
 import { useAuth } from '@clerk/react-router'
 import { useEffect, useMemo } from 'react'
 import { api } from '@convex/_generated/api'
@@ -42,7 +43,11 @@ export function useViewer() {
     if (viewer) {
       return {
         id: viewer._id,
-        name: viewer.settings?.displayName || viewer.name,
+        name: resolveViewerDisplayName({
+          displayName: viewer.settings?.displayName,
+          fallbackName: viewer.name,
+          email: viewer.email,
+        }),
         email: viewer.email,
         image: viewer.settings?.image || viewer.image,
         appPlan: viewer.appPlan,
@@ -57,7 +62,11 @@ export function useViewer() {
 
     return {
       id: cachedSession.userId,
-      name: cachedSettings?.displayName || cachedSession.name,
+      name: resolveViewerDisplayName({
+        displayName: cachedSettings?.displayName,
+        fallbackName: cachedSession.name,
+        email: cachedSession.email,
+      }),
       email: cachedSession.email,
       image: cachedSettings?.image || cachedSession.image,
       appPlan: undefined,

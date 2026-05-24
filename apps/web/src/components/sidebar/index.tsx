@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { formatProfileName } from '@chat/shared/logic/display-name'
 import { useUser } from '@clerk/react-router'
 import { generatePath, useNavigate } from 'react-router'
 import { toast } from 'sonner'
@@ -49,6 +50,7 @@ import {
 } from '@/components/sidebar/project-dialogs'
 import { consumeSettingsTabIntent, type SettingsTab } from '@/lib/settings-navigation'
 import { useSidebarScrollPreservation } from '@/hooks/use-sidebar-scroll-preservation'
+import { InfiniteScrollTrigger } from '@/components/infinite-scroll-trigger'
 
 interface AppSidebarProps {
   selectedThreadId?: string | null
@@ -67,10 +69,15 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
   const { containerRef: sidebarScrollRef, runPreservingScroll, syncScrollAfterListChange } =
     useSidebarScrollPreservation()
 
-  const { threads, setPinned, deleteThread, hasMore: hasMoreThreads, isLoadingMore: isLoadingMoreThreads, loadMore: loadMoreThreads } = useThreads()
+  const { threads, setPinned, deleteThread } = useThreads()
   const { projects, createProject, removeThreadFromProject, hasMore: hasMoreProjects, isLoadingMore: isLoadingMoreProjects, loadMore: loadMoreProjects } = useProjects()
   const viewer = useViewer()
   const { user: clerkUser } = useUser()
+  const clerkProfileName = formatProfileName({
+    givenName: clerkUser?.firstName,
+    familyName: clerkUser?.lastName,
+  })
+  const profileName = viewer?.name || clerkProfileName || 'User'
   const { isOnline } = useOnlineStatus()
 
   React.useEffect(() => {
@@ -358,19 +365,13 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
                     </React.Fragment>
                   )
                 })}
-                {hasMoreProjects ? (
-                  <SidebarMenuItem>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="w-full justify-start"
-                      onClick={() => runPreservingScroll(() => loadMoreProjects(30))}
-                      disabled={isLoadingMoreProjects}
-                    >
-                      {isLoadingMoreProjects ? 'Loading more projects...' : 'Load more projects'}
-                    </Button>
-                  </SidebarMenuItem>
-                ) : null}
+                <InfiniteScrollTrigger
+                  hasMore={hasMoreProjects}
+                  isLoadingMore={isLoadingMoreProjects}
+                  onLoadMore={() => runPreservingScroll(() => loadMoreProjects(30))}
+                  rootRef={sidebarScrollRef}
+                  loadingLabel="Loading more projects..."
+                />
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
@@ -415,17 +416,6 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
                   No unfiled chats.
                 </div>
               ) : null}
-              {hasMoreThreads ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="w-full justify-start"
-                  onClick={() => runPreservingScroll(() => loadMoreThreads(30))}
-                  disabled={isLoadingMoreThreads}
-                >
-                  {isLoadingMoreThreads ? 'Loading more chats...' : 'Load more chats'}
-                </Button>
-              ) : null}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -454,12 +444,19 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
                     <Avatar className="size-8 shrink-0">
                       <AvatarImage
                         src={viewer?.image || clerkUser?.imageUrl || undefined}
-                        alt={viewer?.name || clerkUser?.fullName || 'User'}
+                        alt={profileName}
                         className="object-cover"
                       />
                       <AvatarFallback className="bg-primary text-xs font-medium text-primary-foreground">
                         {viewer?.name ? (
                           viewer.name
+                            .split(' ')
+                            .map((part: string) => part[0])
+                            .join('')
+                            .toUpperCase()
+                            .slice(0, 2)
+                        ) : clerkProfileName ? (
+                          clerkProfileName
                             .split(' ')
                             .map((part: string) => part[0])
                             .join('')
@@ -472,7 +469,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
                     </Avatar>
                     <div className="min-w-0 flex-1 text-left">
                       <span className="block truncate text-sm font-medium text-foreground">
-                        {viewer?.name || clerkUser?.fullName || 'User'}
+                        {profileName}
                       </span>
                       <span className="block truncate text-xs text-muted-foreground">
                         {viewer?.email || clerkUser?.primaryEmailAddress?.emailAddress || ''}

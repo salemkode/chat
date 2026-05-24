@@ -3,6 +3,7 @@ import type { Extension } from "mdast-util-from-markdown";
 import {
   Platform,
   StyleSheet,
+  type ImageStyle,
   type TextStyle,
   type ViewStyle,
 } from "react-native";
@@ -161,7 +162,9 @@ const defaultStyles: StyleMap = {
 // Remove text-only style props for View-safe styles
 type TextOnlyProps = Omit<TextStyle, keyof ViewStyle>;
 
-function removeTextStyleProps<T extends ViewStyle | TextStyle>(
+type FlattenedMarkdownStyle = ViewStyle | TextStyle | ImageStyle;
+
+function removeTextStyleProps<T extends FlattenedMarkdownStyle>(
   style: T,
 ): ViewStyle {
   const textOnlyKeys: (keyof TextOnlyProps)[] = [
@@ -185,9 +188,9 @@ function removeTextStyleProps<T extends ViewStyle | TextStyle>(
     "fontVariant",
     "writingDirection",
   ];
-  const result = { ...style };
+  const result: Record<string, unknown> = { ...style };
   textOnlyKeys.forEach((key) => {
-    delete (result as any)[key];
+    delete result[key];
   });
   return result as ViewStyle;
 }
@@ -196,7 +199,7 @@ export function getMergedStyles(
   styles: StyleMap | null = null,
   merge = false,
 ): StyleMap {
-  const output: Record<string, any> = {};
+  const output: Record<string, FlattenedMarkdownStyle> = {};
 
   const allKeys = new Set([
     ...Object.keys(defaultStyles),
@@ -204,8 +207,8 @@ export function getMergedStyles(
   ]);
 
   for (const key of allKeys) {
-    const base = StyleSheet.flatten(defaultStyles[key] as any) ?? {};
-    const custom = StyleSheet.flatten(styles?.[key] as any) ?? {};
+    const base = StyleSheet.flatten(defaultStyles[key]) ?? {};
+    const custom = StyleSheet.flatten(styles?.[key]) ?? {};
 
     const final = merge
       ? { ...base, ...custom }
@@ -214,7 +217,7 @@ export function getMergedStyles(
         : base;
 
     output[key] = final;
-    output[`_VIEW_SAFE_${key}`] = removeTextStyleProps(final as any);
+    output[`_VIEW_SAFE_${key}`] = removeTextStyleProps(final);
   }
 
   return StyleSheet.create(output);
@@ -266,17 +269,19 @@ const transform = (
     if (!def) return;
 
     if (node.type === "linkReference") {
-      const linkNode: any = node;
-      linkNode.type = "link";
-      linkNode.url = def.url;
-      linkNode.title = def.title ?? null;
+      Object.assign(node, {
+        type: "link",
+        url: def.url,
+        title: def.title ?? null,
+      });
     }
 
     if (node.type === "imageReference") {
-      const imageNode: any = node;
-      imageNode.type = "image";
-      imageNode.url = def.url;
-      imageNode.title = def.title ?? null;
+      Object.assign(node, {
+        type: "image",
+        url: def.url,
+        title: def.title ?? null,
+      });
     }
   }
 

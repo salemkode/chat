@@ -3,6 +3,7 @@ import { api } from "@convex/_generated/api";
 import { usePaginatedQuery, useQuery } from "convex/react";
 import { useMemo, useState } from "react";
 import { useSettings } from "@/hooks/use-settings";
+import { sortedCopy } from "@/lib/sorted-copy";
 import { InfiniteScrollFooter } from "@/components/infinite-scroll-footer";
 import { LegendList } from "@legendapp/list/react-native";
 import { Check } from "lucide-react-native";
@@ -79,7 +80,7 @@ export default function MemorySettingsScreen() {
   );
 
   const allMemories = useMemo<MemoryItem[]>(() => {
-    return [
+    return sortedCopy([
       ...(userMemories.results ?? []).map((memory) => ({
         ...memory,
         scope: "user" as const,
@@ -92,7 +93,7 @@ export default function MemorySettingsScreen() {
         ...memory,
         scope: "project" as const,
       })),
-    ].sort((a, b) => b.updatedAt - a.updatedAt);
+    ], (a, b) => b.updatedAt - a.updatedAt);
   }, [projectMemories.results, threadMemories.results, userMemories.results]);
 
   const filteredMemories = useMemo(() => {

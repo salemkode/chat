@@ -2,14 +2,27 @@ import { ArrowUp, Paperclip } from "lucide-react";
 import { Children, type ReactNode, isValidElement } from "react";
 import {
   ActivityIndicator,
+  type NativeSyntheticEvent,
   Pressable,
   Text,
   TextInput,
+  type TextInputKeyPressEventData,
+  type TextStyle,
   View,
 } from "react-native";
 
 import { useChatContext } from "./chat-context";
 import { useConversationContext } from "./conversation";
+
+type WebTextInputStyle = TextStyle & {
+  resize: "none";
+};
+
+type WebKeyPressEvent = NativeSyntheticEvent<
+  TextInputKeyPressEventData & { shiftKey?: boolean }
+>;
+
+const textareaStyle: WebTextInputStyle = { maxHeight: 200, resize: "none" };
 
 /**
  * Root container for the message composer matching Vercel chatbot design.
@@ -24,12 +37,9 @@ export function PromptInput({ children }: { children: ReactNode }) {
   let body: ReactNode = null;
 
   Children.forEach(children, (child) => {
-    if (isValidElement(child) && (child.type as any) === PromptInputAction) {
+    if (isValidElement(child) && child.type === PromptInputAction) {
       actions.push(child);
-    } else if (
-      isValidElement(child) &&
-      (child.type as any) === PromptInputBody
-    ) {
+    } else if (isValidElement(child) && child.type === PromptInputBody) {
       body = child;
     }
   });
@@ -76,7 +86,7 @@ export function PromptInputBody({ children }: { children: ReactNode }) {
   let submit: ReactNode = null;
 
   Children.forEach(children, (child) => {
-    if (isValidElement(child) && (child.type as any) === PromptInputSubmit) {
+    if (isValidElement(child) && child.type === PromptInputSubmit) {
       submit = child;
     } else {
       textarea.push(child);
@@ -122,18 +132,15 @@ export function PromptInputTextarea({
     <TextInput
       nativeID="composer"
       className="min-h-24 w-full bg-transparent px-4 pt-3.5 pb-1.5 text-[13px] leading-relaxed text-foreground placeholder:text-muted-foreground/35 outline-none"
-      style={{ maxHeight: 200, resize: "none" } as any}
+      style={textareaStyle}
       value={input}
       onChangeText={setInput}
       placeholder={placeholder}
       placeholderTextColorClassName="tint-muted-foreground"
       multiline
       maxLength={maxLength}
-      onKeyPress={(e) => {
-        if (
-          (e as any).nativeEvent.key === "Enter" &&
-          !(e as any).nativeEvent.shiftKey
-        ) {
+      onKeyPress={(e: WebKeyPressEvent) => {
+        if (e.nativeEvent.key === "Enter" && !e.nativeEvent.shiftKey) {
           e.preventDefault();
           onSend();
         }

@@ -1,4 +1,5 @@
 import type { ChatMessage } from "@/hooks/chat-data/shared";
+import { sortedCopy } from "@/lib/sorted-copy";
 
 function getPrimaryOrder(message: ChatMessage) {
   if (typeof message.order === "number") {
@@ -29,5 +30,5 @@ function compareChatMessages(left: ChatMessage, right: ChatMessage) {
 }
 
 export function sortChatMessages(messages: ChatMessage[]) {
-  return messages.slice().sort(compareChatMessages);
+  return sortedCopy(messages, compareChatMessages);
 }

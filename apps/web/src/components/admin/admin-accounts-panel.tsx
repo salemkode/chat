@@ -24,6 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { InfiniteScrollTrigger } from '@/components/infinite-scroll-trigger'
 import { usePaginatedQuery } from '@/lib/convex-query-cache'
 import { toast } from 'sonner'
 
@@ -224,21 +225,16 @@ export function AdminAccountsPanel() {
                 })}
               </TableBody>
             </Table>
-            {accountsQuery.status === 'CanLoadMore' || accountsQuery.status === 'LoadingMore' ? (
-              <div className="border-t border-border px-4 py-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => accountsQuery.loadMore(50)}
-                  disabled={accountsQuery.status === 'LoadingMore'}
-                >
-                  {accountsQuery.status === 'LoadingMore'
-                    ? 'Loading more accounts...'
-                    : 'Load more accounts'}
-                </Button>
-              </div>
-            ) : null}
+            <InfiniteScrollTrigger
+              hasMore={
+                accountsQuery.status === 'CanLoadMore' ||
+                accountsQuery.status === 'LoadingMore'
+              }
+              isLoadingMore={accountsQuery.status === 'LoadingMore'}
+              onLoadMore={() => accountsQuery.loadMore(50)}
+              loadingLabel="Loading more accounts..."
+              className="border-t border-border px-4 py-3"
+            />
           </div>
         </>
       )}

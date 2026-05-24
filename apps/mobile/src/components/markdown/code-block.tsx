@@ -20,6 +20,10 @@ import { githubGist } from "react-syntax-highlighter/dist/esm/styles/hljs";
 type HighlighterStyleSheet = { [key: string]: TextStyle };
 type ReactStyle = { [key: string]: CSSProperties };
 
+type SyntaxRendererProps = {
+  rows: RendererNode[];
+};
+
 interface RendererNode {
   children?: RendererNode[];
   properties?: {
@@ -134,7 +138,7 @@ export const CodeBlock = memo(function CodeBlock({
   );
 
   const renderer = useCallback(
-    (props: any) => {
+    (props: SyntaxRendererProps) => {
       const { rows } = props;
       return (
         <ScrollView
@@ -159,8 +163,8 @@ export const CodeBlock = memo(function CodeBlock({
     <View style={containerStyle}>
       <SyntaxHighlighter
         renderer={renderer}
-        CodeTag={View as any}
-        PreTag={View as any}
+        CodeTag={View}
+        PreTag={View}
         style={undefined}
         customStyle={{ backgroundColor: "transparent" }}
         language={language || "typescript"}

@@ -56,5 +56,5 @@ export function SymbolImage({
   }
 
   const Icon = LUCIDE_FALLBACKS[name] ?? HelpCircle;
-  return <Icon size={size} color={tintColor} style={style as any} />;
+  return <Icon size={size} color={tintColor} />;
 }

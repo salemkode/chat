@@ -175,7 +175,14 @@ export default function StreamingMarkdownSimulator() {
   );
 }
 
-const ControlButton = ({ label, onPress, disabled, color }: any) => (
+type ControlButtonProps = {
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+  color: string;
+};
+
+const ControlButton = ({ label, onPress, disabled, color }: ControlButtonProps) => (
   <Pressable
     style={[
       styles.button,

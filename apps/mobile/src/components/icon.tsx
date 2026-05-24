@@ -1,4 +1,4 @@
-import { StyleSheet } from "react-native";
+import { StyleSheet, type StyleProp, type TextStyle, type ViewStyle } from "react-native";
 import { withUniwind } from "uniwind";
 import type { LucideIcon } from "lucide-react-native";
 
@@ -9,7 +9,7 @@ function IconBase({
   strokeWidth,
 }: {
   icon: LucideIcon;
-  style?: any;
+  style?: StyleProp<ViewStyle | TextStyle>;
   color?: string;
   strokeWidth?: number;
   className?: string;

@@ -1,9 +1,10 @@
 import * as WebBrowser from "expo-web-browser";
 import React from "react";
-import { Linking, Platform, StyleSheet, Text, View } from "react-native";
+import { Linking, Platform, StyleSheet, Text, View, type TextStyle, type ViewStyle } from "react-native";
 import { useNativeThemeColors } from "@/hooks/use-native-theme-colors";
 import { isArabic } from "@/lib/is-arabic";
 import Markdown from "./markdown";
+import type { StyleMap } from "./types";
 
 /**
  * Convert single newlines to hard breaks (two trailing spaces) so they render
@@ -14,6 +15,11 @@ function preserveNewlines(md: string): string {
     codeBlock ? match : "  \n",
   );
 }
+
+const getViewStyle = (styles: StyleMap, key: string): ViewStyle | undefined =>
+  styles[key] as ViewStyle | undefined;
+const getTextStyle = (styles: StyleMap, key: string): TextStyle | undefined =>
+  styles[key] as TextStyle | undefined;
 
 export function ChatMarkdown({ children }: { children: string }) {
   const {
@@ -92,13 +98,13 @@ export function ChatMarkdown({ children }: { children: string }) {
         }}
         renderRules={{
           listItem: ({ node, styles, children, extras }) => (
-            <View key={node.key} style={styles.listItem as any}>
+            <View key={node.key} style={getViewStyle(styles, "listItem")}>
               {extras?.customListStyleType ? (
                 extras.customListStyleType
               ) : (
                 <Text
                   style={[
-                    styles.listBullet as any,
+                    getTextStyle(styles, "listBullet"),
                     extras?.ordered
                       ? fullStyles.orderedBullet
                       : fullStyles.unorderedBullet,
@@ -107,7 +113,7 @@ export function ChatMarkdown({ children }: { children: string }) {
                   {extras?.listStyleType}
                 </Text>
               )}
-              <View style={styles.listItemContent as any}>{children}</View>
+              <View style={getViewStyle(styles, "listItemContent")}>{children}</View>
             </View>
           ),
         }}
