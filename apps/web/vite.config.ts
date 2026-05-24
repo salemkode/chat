@@ -54,11 +54,12 @@ const config = defineConfig({
         'fonts/*',
       ],
       workbox: {
+        additionalManifestEntries: [{ url: '/index.html', revision: null }],
         cleanupOutdatedCaches: true,
         globPatterns: ['**/*.{css,html,ico,js,png,svg,woff2}'],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/api\b/, /^\/__/],
+        navigateFallbackDenylist: [/^\/api\b/, /^\/__/, /^\/assets\//, /\/[^/?]+\.[^/]+$/],
       },
     }),
   ],
