@@ -1,5 +1,6 @@
 import { useDrawer } from "@/components/drawer-content";
 import { Icon } from "@/components/icon";
+import { InfiniteScrollFooter } from "@/components/infinite-scroll-footer";
 import { selectThread } from "@/state/thread-selection";
 import { Image } from "@/components/tw";
 import { useThreads } from "@/hooks/use-threads";
@@ -86,7 +87,7 @@ export default function ChatsScreen() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const insets = useSafeAreaInsets();
-  const { threads, setPinned } = useThreads();
+  const { threads, setPinned, hasMore, isLoadingMore, loadMore } = useThreads();
 
   const filtered = useMemo(() => {
     let results = threads;
@@ -130,6 +131,14 @@ export default function ChatsScreen() {
           />
         )}
         ListEmptyComponent={search ? <EmptySearch query={search} /> : null}
+        ListFooterComponent={
+          <InfiniteScrollFooter
+            isLoadingMore={isLoadingMore}
+            label="Loading more chats..."
+          />
+        }
+        onEndReached={!search && hasMore && !isLoadingMore ? () => loadMore(30) : undefined}
+        onEndReachedThreshold={0.35}
       />
 
       <Stack.SearchBar

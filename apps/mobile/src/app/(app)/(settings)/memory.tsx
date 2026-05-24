@@ -1,15 +1,15 @@
 import { useChatProjects, useChatThreads } from "@chat/chat-core";
 import { api } from "@convex/_generated/api";
-import type { Id } from "@convex/_generated/dataModel";
 import { usePaginatedQuery, useQuery } from "convex/react";
 import { useMemo, useState } from "react";
 import { useSettings } from "@/hooks/use-settings";
+import { InfiniteScrollFooter } from "@/components/infinite-scroll-footer";
+import { LegendList } from "@legendapp/list/react-native";
 import { Check } from "lucide-react-native";
 import { Icon } from "@/components/icon";
 import {
   ActivityIndicator,
   Pressable,
-  ScrollView,
   Text,
   TextInput,
   View,
@@ -153,126 +153,127 @@ export default function MemorySettingsScreen() {
   }
 
   return (
-    <ScrollView
+    <LegendList
       className="flex-1 bg-background"
+      data={isLoading ? [] : filteredMemories}
+      keyExtractor={(item) => `${item.scope}:${item.memoryId}`}
+      estimatedItemSize={156}
       contentInsetAdjustmentBehavior="automatic"
       contentContainerClassName="px-5 pb-10"
-    >
-      <Text className="text-[13px] text-muted-foreground pt-6 pb-2">
-        Background memory model
-      </Text>
-      <Text className="text-[13px] text-muted-foreground pb-3 leading-relaxed">
-        Used when your chat model does not support tools. Pick a small, fast model to save cost.
-      </Text>
-      {(auxiliaryCandidates ?? []).map((candidate) => {
-        const selected = selectedAuxiliaryModelId === candidate.modelDocId;
-        const costHint =
-          candidate.estimatedCostPerExtraction != null
-            ? ` (~$${candidate.estimatedCostPerExtraction.toFixed(4)}/run)`
-            : "";
-        return (
-          <Pressable
-            key={candidate.modelDocId}
-            onPress={() =>
-              void updateSettings({
-                auxiliaryModelId: candidate.modelDocId as Id<"models">,
-              })
-            }
-            className="flex-row items-center px-1 py-3 gap-3 active:bg-muted"
-          >
-            <View className="w-5 items-center">
-              {selected ? (
-                <Icon icon={Check} className="w-5 h-5 text-foreground" />
-              ) : null}
+      onEndReached={hasMore && !isLoadingMore ? loadMoreForScope : undefined}
+      onEndReachedThreshold={0.35}
+      renderItem={({ item: memory }) => (
+        <View
+          className="mb-3 rounded-xl border border-border bg-card px-4 py-3"
+          style={{ borderCurve: "continuous" }}
+        >
+          <View className="flex-row items-start justify-between gap-3">
+            <View className="flex-1">
+              <Text className="text-[15px] font-semibold text-foreground">
+                {memory.title}
+              </Text>
+              <Text className="text-[12px] text-muted-foreground mt-1 uppercase">
+                {memory.scope}
+                {memory.category ? ` · ${memory.category}` : ""}
+              </Text>
             </View>
-            <Text className="text-[17px] text-foreground flex-1">
-              {candidate.displayName}
-              {costHint}
+            <Text className="text-[12px] text-muted-foreground">
+              {formatRelativeTime(memory.updatedAt)}
             </Text>
-          </Pressable>
-        );
-      })}
-
-      <View className="flex-row flex-wrap gap-2 mt-4">
-        {(
-          [
-            ["all", "All"],
-            ["user", "User"],
-            ["thread", "Thread"],
-            ["project", "Project"],
-          ] as const
-        ).map(([value, label]) => (
-          <Pressable
-            key={value}
-            onPress={() => setScope(value)}
-            className={`px-3 py-1.5 rounded-full border ${
-              scope === value ? "border-foreground bg-muted" : "border-border"
-            }`}
+          </View>
+          <Text
+            className="text-[14px] text-muted-foreground mt-2 leading-relaxed"
+            numberOfLines={4}
           >
-            <Text className="text-[13px] text-foreground">{label}</Text>
-          </Pressable>
-        ))}
-      </View>
-
-      <TextInput
-        value={searchValue}
-        onChangeText={setSearchValue}
-        placeholder="Search memories…"
-        placeholderTextColor="#999"
-        className="bg-muted rounded-xl px-4 py-3 text-[15px] text-foreground mt-4"
-        style={{ borderCurve: "continuous" }}
-      />
-
-      {isLoading ? (
-        <View className="py-12 items-center">
-          <ActivityIndicator />
-        </View>
-      ) : filteredMemories.length === 0 ? (
-        <Text className="text-[15px] text-muted-foreground text-center py-12">
-          No memories match this filter.
-        </Text>
-      ) : (
-        <View className="gap-3 mt-4">
-          {filteredMemories.map((memory) => (
-            <View
-              key={`${memory.scope}:${memory.memoryId}`}
-              className="rounded-xl border border-border bg-card px-4 py-3"
-              style={{ borderCurve: "continuous" }}
-            >
-              <View className="flex-row items-start justify-between gap-3">
-                <View className="flex-1">
-                  <Text className="text-[15px] font-semibold text-foreground">
-                    {memory.title}
-                  </Text>
-                  <Text className="text-[12px] text-muted-foreground mt-1 uppercase">
-                    {memory.scope}
-                    {memory.category ? ` · ${memory.category}` : ""}
-                  </Text>
-                </View>
-                <Text className="text-[12px] text-muted-foreground">
-                  {formatRelativeTime(memory.updatedAt)}
-                </Text>
-              </View>
-              <Text
-                className="text-[14px] text-muted-foreground mt-2 leading-relaxed"
-                numberOfLines={4}
-              >
-                {memory.content}
-              </Text>
-            </View>
-          ))}
-          {hasMore ? (
-            <Pressable
-              onPress={loadMoreForScope}
-              className="rounded-xl border border-border px-4 py-3"
-            >
-              <Text className="text-center text-[14px] text-foreground">
-                {isLoadingMore ? "Loading more memories..." : "Load more memories"}
-              </Text>
-            </Pressable>
-          ) : null}
+            {memory.content}
+          </Text>
         </View>
       )}
-    </ScrollView>
+      ListHeaderComponent={
+        <>
+          <Text className="text-[13px] text-muted-foreground pt-6 pb-2">
+            Background memory model
+          </Text>
+          <Text className="text-[13px] text-muted-foreground pb-3 leading-relaxed">
+            Used when your chat model does not support tools. Pick a small, fast model to save cost.
+          </Text>
+          {(auxiliaryCandidates ?? []).map((candidate) => {
+            const selected = selectedAuxiliaryModelId === candidate.modelDocId;
+            const costHint =
+              candidate.estimatedCostPerExtraction != null
+                ? ` (~$${candidate.estimatedCostPerExtraction.toFixed(4)}/run)`
+                : "";
+            return (
+              <Pressable
+                key={candidate.modelDocId}
+                onPress={() =>
+                  void updateSettings({
+                    auxiliaryModelId: candidate.modelDocId,
+                  })
+                }
+                className="flex-row items-center px-1 py-3 gap-3 active:bg-muted"
+              >
+                <View className="w-5 items-center">
+                  {selected ? (
+                    <Icon icon={Check} className="w-5 h-5 text-foreground" />
+                  ) : null}
+                </View>
+                <Text className="text-[17px] text-foreground flex-1">
+                  {candidate.displayName}
+                  {costHint}
+                </Text>
+              </Pressable>
+            );
+          })}
+
+          <View className="flex-row flex-wrap gap-2 mt-4">
+            {(
+              [
+                ["all", "All"],
+                ["user", "User"],
+                ["thread", "Thread"],
+                ["project", "Project"],
+              ] as const
+            ).map(([value, label]) => (
+              <Pressable
+                key={value}
+                onPress={() => setScope(value)}
+                className={`px-3 py-1.5 rounded-full border ${
+                  scope === value ? "border-foreground bg-muted" : "border-border"
+                }`}
+              >
+                <Text className="text-[13px] text-foreground">{label}</Text>
+              </Pressable>
+            ))}
+          </View>
+
+          <TextInput
+            value={searchValue}
+            onChangeText={setSearchValue}
+            placeholder="Search memories…"
+            placeholderTextColor="#999"
+            className="bg-muted rounded-xl px-4 py-3 text-[15px] text-foreground mt-4 mb-4"
+            style={{ borderCurve: "continuous" }}
+          />
+        </>
+      }
+      ListEmptyComponent={
+        isLoading ? (
+          <View className="py-12 items-center">
+            <ActivityIndicator />
+          </View>
+        ) : (
+          <Text className="text-[15px] text-muted-foreground text-center py-12">
+            No memories match this filter.
+          </Text>
+        )
+      }
+      ListFooterComponent={
+        <InfiniteScrollFooter
+          isLoadingMore={isLoadingMore}
+          label="Loading more memories..."
+        />
+      }
+    />
   );
 }

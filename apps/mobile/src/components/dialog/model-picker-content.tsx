@@ -1,7 +1,9 @@
 import { AndroidGrabber } from "@/components/grabber";
+import { InfiniteScrollFooter } from "@/components/infinite-scroll-footer";
 import { Icon } from "@/components/icon";
 import type { Model, ModelCollection } from "@/components/model-context";
 import type { Id } from "@convex/_generated/dataModel";
+import { LegendList } from "@legendapp/list/react-native";
 import { Check } from "lucide-react-native";
 import { useMemo, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
@@ -70,74 +72,76 @@ export function ModelPickerContent({
   }, [activeCollection, models]);
 
   return (
-    <ScrollView
+    <LegendList
       className="flex-1"
+      data={visibleModels}
+      keyExtractor={(item) => item.id}
+      estimatedItemSize={58}
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={{
         paddingBottom: process.env.EXPO_OS === "android" ? insets.bottom : undefined,
       }}
-    >
-      <AndroidGrabber />
+      onEndReached={hasMore && !isLoadingMore ? onLoadMore : undefined}
+      onEndReachedThreshold={0.35}
+      renderItem={({ item }) => (
+        <ModelRow
+          label={item.label}
+          subtitle={item.subtitle}
+          selected={item.id === selectedModelId}
+          onPress={() => onSelectModel(item.id)}
+        />
+      )}
+      ListHeaderComponent={
+        <>
+          <AndroidGrabber />
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4, gap: 8 }}
-      >
-        <Pressable
-          onPress={() => setSelectedCollectionId("all")}
-          className={`rounded-full border px-3 py-1.5 ${
-            selectedCollectionId === "all" ? "bg-foreground border-foreground" : "bg-card border-border"
-          }`}
-        >
-          <Text
-            className={`text-[13px] ${selectedCollectionId === "all" ? "text-background" : "text-foreground"}`}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4, gap: 8 }}
           >
-            All
-          </Text>
-        </Pressable>
-        {collections.map((collection) => {
-          const active = collection.id === selectedCollectionId;
-          return (
             <Pressable
-              key={collection.id}
-              onPress={() => setSelectedCollectionId(collection.id)}
+              onPress={() => setSelectedCollectionId("all")}
               className={`rounded-full border px-3 py-1.5 ${
-                active ? "bg-foreground border-foreground" : "bg-card border-border"
+                selectedCollectionId === "all" ? "bg-foreground border-foreground" : "bg-card border-border"
               }`}
             >
-              <Text className={`text-[13px] ${active ? "text-background" : "text-foreground"}`}>
-                {collection.name}
+              <Text
+                className={`text-[13px] ${selectedCollectionId === "all" ? "text-background" : "text-foreground"}`}
+              >
+                All
               </Text>
             </Pressable>
-          );
-        })}
-      </ScrollView>
+            {collections.map((collection) => {
+              const active = collection.id === selectedCollectionId;
+              return (
+                <Pressable
+                  key={collection.id}
+                  onPress={() => setSelectedCollectionId(collection.id)}
+                  className={`rounded-full border px-3 py-1.5 ${
+                    active ? "bg-foreground border-foreground" : "bg-card border-border"
+                  }`}
+                >
+                  <Text className={`text-[13px] ${active ? "text-background" : "text-foreground"}`}>
+                    {collection.name}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
 
-      <View className="pt-2">
-        {visibleModels.map((model) => (
-          <ModelRow
-            key={model.id}
-            label={model.label}
-            subtitle={model.subtitle}
-            selected={model.id === selectedModelId}
-            onPress={() => onSelectModel(model.id)}
-          />
-        ))}
-        {visibleModels.length === 0 ? (
-          <Text className="px-5 py-6 text-[13px] text-muted-foreground">No models in this category.</Text>
-        ) : null}
-        {hasMore ? (
-          <Pressable
-            onPress={onLoadMore}
-            className="mx-5 mt-3 mb-5 rounded-xl border border-border px-4 py-3"
-          >
-            <Text className="text-center text-[14px] text-foreground">
-              {isLoadingMore ? "Loading more models..." : "Load more models"}
-            </Text>
-          </Pressable>
-        ) : null}
-      </View>
-    </ScrollView>
+          <View className="pt-2" />
+        </>
+      }
+      ListEmptyComponent={
+        <Text className="px-5 py-6 text-[13px] text-muted-foreground">No models in this category.</Text>
+      }
+      ListFooterComponent={
+        <InfiniteScrollFooter
+          isLoadingMore={isLoadingMore}
+          label="Loading more models..."
+        />
+      }
+    />
   );
 }

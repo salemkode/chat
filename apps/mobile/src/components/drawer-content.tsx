@@ -3,6 +3,7 @@ import "@/global.css";
 import { Icon } from "@/components/icon";
 import { TouchableGlass } from "@/components/touchable-glass";
 import { SafeAreaView } from "@/components/tw";
+import { InfiniteScrollFooter } from "@/components/infinite-scroll-footer";
 import {
   DrawerSearchBar,
   DrawerSearchResults,
@@ -13,6 +14,7 @@ import { useViewer } from "@/hooks/use-viewer";
 import { selectThread, threadSelection$ } from "@/state/thread-selection";
 import { api } from "@convex/_generated/api";
 import { useMutation } from "convex/react";
+import { LegendList } from "@legendapp/list/react-native";
 import { useSelector } from "@legendapp/state/react";
 import { useChatProjects, useChatThreads, useChatCoreContext } from "@chat/chat-core";
 import type { ProjectSummary, ThreadSummary } from "@chat/chat-core/types";
@@ -27,17 +29,26 @@ import React, {
   createContext,
   use,
   useCallback,
+  useMemo,
   useState,
 } from "react";
 import {
   ActivityIndicator,
   Alert,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+
+type DrawerListRow =
+  | { kind: "loading" }
+  | { kind: "projectsHeader" }
+  | { kind: "project"; project: ProjectSummary }
+  | { kind: "projectsLoading" }
+  | { kind: "divider" }
+  | { kind: "thread"; thread: ThreadSummary }
+  | { kind: "threadsLoading" };
 
 type DrawerContextValue = {
   isOpen: boolean;
@@ -272,16 +283,23 @@ export function DrawerContent({
   onNavigate: (path: Href) => void;
   onOpenModal: (path: Href) => void;
 }) {
-  const { projects, createProject } = useChatProjects();
+  const {
+    projects,
+    createProject,
+    isLoading: isLoadingProjects,
+    hasMore: hasMoreProjects,
+    isLoadingMore: isLoadingMoreProjects,
+    loadMore: loadMoreProjects,
+  } = useChatProjects();
   const {
     threadsByProject,
     unfiledThreads,
     setPinned,
     deleteThread,
     isLoading,
-    hasMore,
-    isLoadingMore,
-    loadMore,
+    hasMore: hasMoreThreads,
+    isLoadingMore: isLoadingMoreThreads,
+    loadMore: loadMoreThreads,
   } = useChatThreads();
   const { setPendingProjectId } = useChatCoreContext();
   const viewer = useViewer();
@@ -427,6 +445,57 @@ export function DrawerContent({
     : "??";
 
   const hasProjects = projects.length > 0;
+  const drawerRows = useMemo<DrawerListRow[]>(() => {
+    if (isLoading || isLoadingProjects) {
+      return [{ kind: "loading" }];
+    }
+
+    const rows: DrawerListRow[] = [];
+    if (hasProjects) {
+      rows.push({ kind: "projectsHeader" });
+      rows.push(...projects.map((project) => ({ kind: "project", project }) satisfies DrawerListRow));
+      if (isLoadingMoreProjects) {
+        rows.push({ kind: "projectsLoading" });
+      }
+      if (unfiledThreads.length > 0) {
+        rows.push({ kind: "divider" });
+      }
+    }
+
+    rows.push(...unfiledThreads.map((thread) => ({ kind: "thread", thread }) satisfies DrawerListRow));
+    if (isLoadingMoreThreads) {
+      rows.push({ kind: "threadsLoading" });
+    }
+
+    return rows;
+  }, [
+    hasProjects,
+    isLoading,
+    isLoadingProjects,
+    isLoadingMoreProjects,
+    isLoadingMoreThreads,
+    projects,
+    unfiledThreads,
+  ]);
+
+  const hasMoreDrawerRows = hasMoreProjects || hasMoreThreads;
+  const isLoadingMoreDrawerRows = isLoadingMoreProjects || isLoadingMoreThreads;
+  const loadMoreDrawerRows = useCallback(() => {
+    if (hasMoreProjects && !isLoadingMoreProjects) {
+      loadMoreProjects(30);
+      return;
+    }
+    if (hasMoreThreads && !isLoadingMoreThreads) {
+      loadMoreThreads(30);
+    }
+  }, [
+    hasMoreProjects,
+    hasMoreThreads,
+    isLoadingMoreProjects,
+    isLoadingMoreThreads,
+    loadMoreProjects,
+    loadMoreThreads,
+  ]);
 
   return (
     <SafeAreaView className="flex-1" edges={["top", "bottom", "left"]}>
@@ -446,15 +515,98 @@ export function DrawerContent({
         <DrawerErrorBanner message={error} onDismiss={clearError} />
       )}
 
-      <ScrollView
+      <LegendList
         className="flex-1"
+        data={searchActive ? [] : drawerRows}
+        keyExtractor={(item) => {
+          switch (item.kind) {
+            case "loading":
+              return "loading";
+            case "projectsHeader":
+              return "projectsHeader";
+            case "project":
+              return `project:${item.project.id}`;
+            case "projectsLoading":
+              return "projectsLoading";
+            case "divider":
+              return "divider";
+            case "thread":
+              return `thread:${item.thread.id}`;
+            case "threadsLoading":
+              return "threadsLoading";
+          }
+        }}
+        estimatedItemSize={52}
         contentContainerStyle={{ paddingBottom: 8 }}
         keyboardShouldPersistTaps="handled"
         maintainVisibleContentPosition={{
-          minIndexForVisible: 0,
+          data: true,
+          size: true,
         }}
-      >
-        {searchActive ? (
+        onEndReached={
+          !searchActive && hasMoreDrawerRows && !isLoadingMoreDrawerRows
+            ? loadMoreDrawerRows
+            : undefined
+        }
+        onEndReachedThreshold={0.35}
+        renderItem={({ item }) => {
+          switch (item.kind) {
+            case "loading":
+              return <DrawerLoadingRow />;
+            case "projectsHeader":
+              return (
+                <Text className="text-[13px] font-semibold text-foreground/70 px-6 pt-5 pb-1.5">
+                  Projects
+                </Text>
+              );
+            case "project": {
+              const projectThreads = threadsByProject.get(item.project.id) ?? [];
+              const isExpanded = expandedProjectIds[item.project.id] ?? true;
+              return (
+                <DrawerProjectSection
+                  project={item.project}
+                  threads={projectThreads}
+                  isExpanded={isExpanded}
+                  onToggle={() => toggleProject(item.project.id)}
+                  onThreadPress={handleThreadPress}
+                  onThreadPin={handlePin}
+                  onThreadRemoveFromProject={handleRemoveFromProject}
+                  onThreadDelete={confirmDelete}
+                  onNewChatInProject={() => handleNewChatInProject(item.project.id)}
+                  selectedThreadId={selectedThreadId}
+                />
+              );
+            }
+            case "projectsLoading":
+              return (
+                <InfiniteScrollFooter
+                  isLoadingMore={isLoadingMoreProjects}
+                  label="Loading more projects..."
+                />
+              );
+            case "divider":
+              return <View className="mx-6 my-2 border-b border-border" />;
+            case "thread":
+              return (
+                <DrawerThreadRow
+                  thread={item.thread}
+                  active={selectedThreadId === item.thread.id}
+                  onPress={() => handleThreadPress(item.thread)}
+                  onPin={() => handlePin(item.thread)}
+                  onDelete={() => confirmDelete(item.thread)}
+                />
+              );
+            case "threadsLoading":
+              return (
+                <InfiniteScrollFooter
+                  isLoadingMore={isLoadingMoreThreads}
+                  label="Loading more chats..."
+                />
+              );
+          }
+        }}
+        ListHeaderComponent={
+          searchActive ? (
           <DrawerSearchResults
             query={searchQuery}
             isSearching={isSearching}
@@ -462,70 +614,14 @@ export function DrawerContent({
             results={searchResults}
             onSelectThread={handleSelectSearchResult}
           />
-        ) : isLoading ? (
-          <DrawerLoadingRow />
-        ) : threadsByProject.size === 0 && unfiledThreads.length === 0 ? (
-          <DrawerEmptyState onNewChat={handleNewChat} />
-        ) : (
-          <>
-            {hasProjects && (
-              <Text className="text-[13px] font-semibold text-foreground/70 px-6 pt-5 pb-1.5">
-                Projects
-              </Text>
-            )}
-            {hasProjects &&
-              projects.map((project) => {
-                const projectThreads =
-                  threadsByProject.get(project.id) ?? [];
-                const isExpanded = expandedProjectIds[project.id] ?? true;
-                return (
-                  <DrawerProjectSection
-                    key={project.id}
-                    project={project}
-                    threads={projectThreads}
-                    isExpanded={isExpanded}
-                    onToggle={() => toggleProject(project.id)}
-                    onThreadPress={handleThreadPress}
-                    onThreadPin={handlePin}
-                    onThreadRemoveFromProject={handleRemoveFromProject}
-                    onThreadDelete={confirmDelete}
-                    onNewChatInProject={() =>
-                      handleNewChatInProject(project.id)
-                    }
-                    selectedThreadId={selectedThreadId}
-                  />
-                );
-              })}
-            {hasProjects && unfiledThreads.length > 0 && (
-              <View className="mx-6 my-2 border-b border-border" />
-            )}
-            {(!hasProjects || unfiledThreads.length > 0) &&
-              unfiledThreads.map((thread) => (
-                <DrawerThreadRow
-                  key={thread.id}
-                  thread={thread}
-                  active={selectedThreadId === thread.id}
-                  onPress={() => handleThreadPress(thread)}
-                  onPin={() => handlePin(thread)}
-                  onDelete={() => confirmDelete(thread)}
-                />
-              ))}
-            {hasMore ? (
-              <Pressable
-                onPress={() => loadMore(30)}
-                className="mx-4 mt-3 rounded-[10px] border border-border px-4 py-3 active:bg-accent"
-              >
-                <Text className="text-center text-[14px] text-foreground">
-                  {isLoadingMore ? "Loading more chats..." : "Load more chats"}
-                </Text>
-              </Pressable>
-            ) : null}
-            {!hasProjects && unfiledThreads.length === 0 && (
-              <DrawerEmptyState onNewChat={handleNewChat} />
-            )}
-          </>
-        )}
-      </ScrollView>
+        ) : null
+        }
+        ListEmptyComponent={
+          !searchActive && !isLoading && !isLoadingProjects ? (
+            <DrawerEmptyState onNewChat={handleNewChat} />
+          ) : null
+        }
+      />
 
       <DrawerFooter
         viewerInitials={userInitials}

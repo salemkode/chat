@@ -9,9 +9,10 @@ import {
   internalQuery,
   mutation,
   query,
+  type QueryCtx,
   type MutationCtx,
 } from './_generated/server'
-import { paginationOptsValidator } from 'convex/server'
+import { paginationOptsValidator, type FunctionReturnType } from 'convex/server'
 import { v, type Infer } from 'convex/values'
 import { getAuthUserId } from './lib/auth'
 import { createThread } from '@convex-dev/agent'
@@ -2612,6 +2613,30 @@ export const updateThreadTitle = mutation({
   },
 })
 
+type UserThreadListResult = FunctionReturnType<typeof components.agent.threads.listThreadsByUserId>
+type UserThreadListItem = UserThreadListResult['page'][number]
+
+async function listAllThreadsByUserId(ctx: Pick<QueryCtx, 'runQuery'>, userId: Id<'users'>) {
+  const threads: UserThreadListItem[] = []
+  let cursor: string | null = null
+
+  while (true) {
+    const result: UserThreadListResult = await ctx.runQuery(components.agent.threads.listThreadsByUserId, {
+      userId,
+      paginationOpts: { numItems: 200, cursor },
+    })
+    threads.push(...result.page)
+
+    if (result.isDone) {
+      break
+    }
+
+    cursor = result.continueCursor || null
+  }
+
+  return threads
+}
+
 // List threads with metadata (grouped by section)
 export const listThreadsWithMetadata = query({
   args: {
@@ -2629,10 +2654,7 @@ export const listThreadsWithMetadata = query({
     }
 
     const [threads, metadata] = await Promise.all([
-      ctx.runQuery(components.agent.threads.listThreadsByUserId, {
-        userId,
-        paginationOpts: { numItems: 100, cursor: null },
-      }),
+      listAllThreadsByUserId(ctx, userId),
       ctx.db
         .query('threadMetadata')
         .withIndex('by_userId_sortOrder_lastMessageAt', (q) => q.eq('userId', userId))
@@ -2640,7 +2662,7 @@ export const listThreadsWithMetadata = query({
         .collect(),
     ])
 
-    const threadsById = new Map(threads.page.map((thread) => [thread._id, thread]))
+    const threadsById = new Map(threads.map((thread) => [thread._id, thread]))
     const metadataByThreadId = new Map(metadata.map((item) => [item.threadId, item]))
     const projectIds = Array.from(
       new Set(
@@ -2690,7 +2712,7 @@ export const listThreadsWithMetadata = query({
       })
     }
 
-    for (const thread of threads.page) {
+    for (const thread of threads) {
       if (metadataByThreadId.has(thread._id)) {
         continue
       }

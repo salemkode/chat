@@ -1,8 +1,11 @@
 import { AndroidGrabber } from "@/components/grabber";
+import { InfiniteScrollFooter } from "@/components/infinite-scroll-footer";
 import { Icon } from "@/components/icon";
 import type { ProjectSummary } from "@chat/chat-core/types";
+import { LegendList } from "@legendapp/list/react-native";
 import { Check } from "lucide-react-native";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { useMemo } from "react";
+import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type ProjectPickerContentProps = {
@@ -13,6 +16,10 @@ type ProjectPickerContentProps = {
   isLoadingMore: boolean;
   onLoadMore: () => void;
 };
+
+type ProjectPickerRow =
+  | { kind: "none" }
+  | { kind: "project"; project: ProjectSummary };
 
 function ProjectRow({
   label,
@@ -58,51 +65,55 @@ export function ProjectPickerContent({
   onLoadMore,
 }: ProjectPickerContentProps) {
   const insets = useSafeAreaInsets();
+  const rows = useMemo<ProjectPickerRow[]>(
+    () => [{ kind: "none" }, ...projects.map((project) => ({ kind: "project", project }) satisfies ProjectPickerRow)],
+    [projects],
+  );
 
   return (
-    <ScrollView
+    <LegendList
       className="flex-1"
+      data={rows}
+      keyExtractor={(item) => (item.kind === "none" ? "none" : item.project.id)}
+      estimatedItemSize={58}
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={{
         paddingBottom: process.env.EXPO_OS === "android" ? insets.bottom : undefined,
       }}
-    >
-      <AndroidGrabber />
-
-      <ProjectRow
-        label="None"
-        selected={selectedProjectId === null}
-        onPress={() => onSelectProject(null)}
-      />
-
-      {projects.length === 0 ? (
-        <View className="px-5 py-4">
-          <Text className="text-[15px] text-muted-foreground">
-            Create a project from the sidebar to organize chats.
-          </Text>
-        </View>
-      ) : (
-        projects.map((project) => (
+      onEndReached={hasMore && !isLoadingMore ? onLoadMore : undefined}
+      onEndReachedThreshold={0.35}
+      renderItem={({ item }) =>
+        item.kind === "none" ? (
           <ProjectRow
-            key={project.id}
-            label={project.name}
-            subtitle={project.description}
-            selected={selectedProjectId === project.id}
-            onPress={() => onSelectProject(project.id)}
+            label="None"
+            selected={selectedProjectId === null}
+            onPress={() => onSelectProject(null)}
           />
-        ))
-      )}
-
-      {hasMore ? (
-        <Pressable
-          onPress={onLoadMore}
-          className="mx-5 mt-3 rounded-xl border border-border px-4 py-3"
-        >
-          <Text className="text-center text-[14px] text-foreground">
-            {isLoadingMore ? "Loading more projects..." : "Load more projects"}
-          </Text>
-        </Pressable>
-      ) : null}
-    </ScrollView>
+        ) : (
+          <ProjectRow
+            label={item.project.name}
+            subtitle={item.project.description}
+            selected={selectedProjectId === item.project.id}
+            onPress={() => onSelectProject(item.project.id)}
+          />
+        )
+      }
+      ListHeaderComponent={<AndroidGrabber />}
+      ListFooterComponent={
+        <>
+          {projects.length === 0 ? (
+            <View className="px-5 py-4">
+              <Text className="text-[15px] text-muted-foreground">
+                Create a project from the sidebar to organize chats.
+              </Text>
+            </View>
+          ) : null}
+          <InfiniteScrollFooter
+            isLoadingMore={isLoadingMore}
+            label="Loading more projects..."
+          />
+        </>
+      }
+    />
   );
 }
