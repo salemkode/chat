@@ -49,6 +49,7 @@ export default withMermaid(
           link: '/chat-attachments-models-and-context',
         },
         { text: 'Cloudflare Pages', link: '/cloudflare-pages' },
+        { text: 'Netlify', link: '/netlify' },
         {
           text: 'Research',
           items: [

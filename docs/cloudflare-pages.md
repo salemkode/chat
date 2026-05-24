@@ -34,18 +34,18 @@ Do **not** put provider secrets (`OPENROUTER_API_KEY`, `EXA_API_KEY`, etc.) in P
 
 ## 3. SPA routing and stale assets
 
-This app relies on Cloudflare Pages' built-in SPA behavior:
+`apps/web/public/_redirects` is included:
 
-> If the project does not include a top-level `404.html`, Pages serves the root app shell for
-> unmatched routes.
+```txt
+/assets/* /assets/:splat 200
+/* /index.html 200
+```
 
-Do not add a top-level `404.html` or a catch-all `_redirects` rewrite for the web app. A catch-all
-rewrite can turn missing hashed JavaScript chunks into `200 text/html` responses, which browsers
-reject for module scripts.
+The first rule keeps asset requests in the asset namespace. The second rule ensures deep links
+like `/chat/123` resolve to the React Router app shell.
 
-`apps/web/public/assets/404.html` is intentionally present so stale requests for removed
-`/assets/*.js` chunks return a real asset-directory 404 instead of the SPA shell. Deep links like
-`/chat/123` should still resolve through the root app shell.
+Workbox also excludes `/assets/*` and file-extension URLs from its navigation fallback so the
+service worker does not respond to missing module files with `index.html`.
 
 ## 4. CLI deploy
 
