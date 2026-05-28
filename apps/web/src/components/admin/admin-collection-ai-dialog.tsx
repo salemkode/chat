@@ -1,8 +1,9 @@
-import { useAction } from 'convex/react'
+import { useAction, useMutation } from 'convex/react'
 import type { Id } from '@convex/_generated/dataModel'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { api } from '@convex/_generated/api'
+import { parseConvexIdForTable } from '@chat/shared/logic/convex-ids'
 import type { AdminCollectionDraft } from '@/components/admin/admin-collection-dialog'
 import { formatAdminMutationError } from '@/components/admin/admin-mutation-error'
 import { EntityIcon } from '@/components/admin/entity-icon'
@@ -31,6 +32,10 @@ import { Textarea } from '@/components/ui/textarea'
 
 type SuggestedCollectionDraft = AdminCollectionDraft
 
+function isPresent<T>(value: T | null | undefined): value is T {
+  return value !== null && value !== undefined
+}
+
 function normalizeIconType(value: string | undefined): IconType {
   if (value === 'emoji' || value === 'phosphor' || value === 'upload') {
     return value
@@ -38,10 +43,7 @@ function normalizeIconType(value: string | undefined): IconType {
   return undefined
 }
 
-function pickDefaultModelId(
-  models: AdminModel[],
-  defaultAuxiliaryModelId?: Id<'models'>,
-): string {
+function pickDefaultModelId(models: AdminModel[], defaultAuxiliaryModelId?: Id<'models'>): string {
   const credentialReadyModels = models.filter((model) => model.hasResolvableProviderApiKey)
   const candidates = credentialReadyModels.length > 0 ? credentialReadyModels : models
 
@@ -90,11 +92,13 @@ export function AdminCollectionAiDialog({
   onOpenCollectionDraft: (draft: AdminCollectionDraft) => void
 }) {
   const suggestModelCollections = useAction(api.admin.suggestModelCollections)
+  const addModelCollection = useMutation(api.admin.addModelCollection)
   const [open, setOpen] = useState(false)
   const [prompt, setPrompt] = useState('')
   const [includeHiddenModels, setIncludeHiddenModels] = useState(true)
   const [selectedModelDocId, setSelectedModelDocId] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
+  const [approvingDraftIndex, setApprovingDraftIndex] = useState<number | null>(null)
   const [drafts, setDrafts] = useState<SuggestedCollectionDraft[]>([])
   const [modelUsed, setModelUsed] = useState<string | null>(null)
 
@@ -127,7 +131,8 @@ export function AdminCollectionAiDialog({
   }, [defaultAuxiliaryModelId, open, selectableModels])
 
   const handleGenerate = async () => {
-    if (!selectedModelDocId) {
+    const selectedModelId = parseConvexIdForTable('models', selectedModelDocId)
+    if (!selectedModelId) {
       toast.error('Select a model before generating collection drafts.')
       return
     }
@@ -137,7 +142,7 @@ export function AdminCollectionAiDialog({
       const result = await suggestModelCollections({
         prompt: prompt.trim() || undefined,
         includeHiddenModels,
-        modelDocId: selectedModelDocId as Id<'models'>,
+        modelDocId: selectedModelId,
       })
       setDrafts(
         result.collections.map((collection) => ({
@@ -151,11 +156,38 @@ export function AdminCollectionAiDialog({
       )
       setModelUsed(result.modelUsed)
     } catch (error) {
-      toast.error(
-        formatAdminMutationError(error, 'Failed to generate collection drafts'),
-      )
+      toast.error(formatAdminMutationError(error, 'Failed to generate collection drafts'))
     } finally {
       setIsGenerating(false)
+    }
+  }
+
+  const handleApproveDraft = async (draft: SuggestedCollectionDraft, index: number) => {
+    const modelIds = draft.modelIds
+      .map((modelId) => parseConvexIdForTable('models', modelId))
+      .filter(isPresent)
+
+    if (modelIds.length === 0) {
+      toast.error('This draft has no valid models to save.')
+      return
+    }
+
+    setApprovingDraftIndex(index)
+    try {
+      await addModelCollection({
+        name: draft.name,
+        description: draft.description.trim() || undefined,
+        icon: draft.icon,
+        iconType: draft.iconType,
+        sortOrder: draft.sortOrder,
+        modelIds,
+      })
+      setDrafts((current) => current.filter((_, currentIndex) => currentIndex !== index))
+      toast.success(`Approved and saved "${draft.name}"`)
+    } catch (error) {
+      toast.error(formatAdminMutationError(error, 'Failed to approve draft'))
+    } finally {
+      setApprovingDraftIndex(null)
     }
   }
 
@@ -188,9 +220,7 @@ export function AdminCollectionAiDialog({
                     <SelectTrigger id="collection-ai-model">
                       <SelectValue
                         placeholder={
-                          selectableModels.length === 0
-                            ? 'No models available'
-                            : 'Select a model'
+                          selectableModels.length === 0 ? 'No models available' : 'Select a model'
                         }
                       />
                     </SelectTrigger>
@@ -211,14 +241,14 @@ export function AdminCollectionAiDialog({
                   ) : modelsMissingCredentials > 0 ? (
                     <p className="text-xs text-muted-foreground">
                       {modelsMissingCredentials} model
-                      {modelsMissingCredentials === 1 ? '' : 's'} hidden because their provider
-                      has no API key configured.
+                      {modelsMissingCredentials === 1 ? '' : 's'} hidden because their provider has
+                      no API key configured.
                     </p>
                   ) : null}
                   <p className="text-xs text-muted-foreground">
-                    Uses the selected model&apos;s provider credentials. OpenRouter models are listed
-                    first. Hidden models can still be included in drafts when the checkbox below is
-                    enabled.
+                    Uses the selected model&apos;s provider credentials. OpenRouter models are
+                    listed first. Hidden models can still be included in drafts when the checkbox
+                    below is enabled.
                   </p>
                 </div>
 
@@ -232,7 +262,8 @@ export function AdminCollectionAiDialog({
                     className="min-h-28"
                   />
                   <p className="text-xs text-muted-foreground">
-                    The AI sees the current catalog, your prompt, and existing collection names.
+                    The AI sees the current catalog, your prompt, and existing collection names, and
+                    it only drafts from models that are not already assigned elsewhere.
                   </p>
                 </div>
 
@@ -244,8 +275,8 @@ export function AdminCollectionAiDialog({
                   <div className="space-y-0.5">
                     <p className="font-medium text-foreground">Include hidden models</p>
                     <p className="text-xs text-muted-foreground">
-                      Hidden models can still be part of drafts. They stay hidden in the user
-                      picker until enabled.
+                      Hidden models can still be part of drafts. They stay hidden in the user picker
+                      until enabled.
                     </p>
                   </div>
                 </label>
@@ -255,12 +286,14 @@ export function AdminCollectionAiDialog({
                     onClick={() => void handleGenerate()}
                     disabled={isGenerating || !selectedModelDocId}
                   >
-                    {isGenerating ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Sparkles className="mr-2 size-4" />}
+                    {isGenerating ? (
+                      <Loader2 className="mr-2 size-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="mr-2 size-4" />
+                    )}
                     Generate drafts
                   </Button>
-                  {modelUsed ? (
-                    <Badge variant="secondary">Using {modelUsed}</Badge>
-                  ) : null}
+                  {modelUsed ? <Badge variant="secondary">Using {modelUsed}</Badge> : null}
                 </div>
               </div>
 
@@ -307,7 +340,9 @@ export function AdminCollectionAiDialog({
                               {draftModels.slice(0, 6).map((model) => (
                                 <Badge key={model._id} variant="outline" className="gap-1.5">
                                   <span>{model.displayName}</span>
-                                  <span className="text-muted-foreground">({model.providerName})</span>
+                                  <span className="text-muted-foreground">
+                                    ({model.providerName})
+                                  </span>
                                 </Badge>
                               ))}
                               {draftModels.length > 6 ? (
@@ -318,13 +353,25 @@ export function AdminCollectionAiDialog({
 
                           <div className="flex shrink-0 gap-2">
                             <Button
+                              onClick={() => void handleApproveDraft(draft, index)}
+                              disabled={approvingDraftIndex !== null}
+                            >
+                              {approvingDraftIndex === index ? (
+                                <Loader2 className="mr-2 size-4 animate-spin" />
+                              ) : (
+                                <Sparkles className="mr-2 size-4" />
+                              )}
+                              Approve and save
+                            </Button>
+                            <Button
                               variant="outline"
                               onClick={() => {
                                 setOpen(false)
                                 onOpenCollectionDraft(draft)
                               }}
+                              disabled={approvingDraftIndex !== null}
                             >
-                              Review in editor
+                              Review before approving
                             </Button>
                           </div>
                         </div>

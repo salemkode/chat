@@ -561,6 +561,51 @@ async function normalizeCollectionModelIds(ctx: MutationCtx, modelIds: Id<'model
   return uniqueModelIds
 }
 
+async function assertModelsBelongToAtMostOneCollection(
+  ctx: MutationCtx,
+  modelIds: Id<'models'>[],
+  currentCollectionId?: Id<'modelCollections'>,
+) {
+  if (modelIds.length === 0) {
+    return
+  }
+
+  const [collections, models] = await Promise.all([
+    ctx.db.query('modelCollections').collect(),
+    Promise.all(modelIds.map((modelId) => ctx.db.get(modelId))),
+  ])
+
+  const modelNameById = new Map<Id<'models'>, string>()
+  for (const model of models) {
+    if (model) {
+      modelNameById.set(model._id, model.displayName)
+    }
+  }
+
+  const conflicts: string[] = []
+  for (const collection of collections) {
+    if (currentCollectionId && collection._id === currentCollectionId) {
+      continue
+    }
+
+    for (const modelId of collection.modelIds) {
+      if (!modelIds.includes(modelId)) {
+        continue
+      }
+
+      const modelName = modelNameById.get(modelId) ?? modelId
+      conflicts.push(`${modelName} is already in "${collection.name}"`)
+    }
+  }
+
+  if (conflicts.length > 0) {
+    throw new ConvexError({
+      code: 'VALIDATION_ERROR',
+      message: `A model can belong to only one collection. ${conflicts.join('; ')}.`,
+    })
+  }
+}
+
 async function listAdminProvidersInternal(ctx: QueryCtx) {
   const providers = await ctx.db.query('providers').collect()
   const models = await ctx.db.query('models').collect()
@@ -611,7 +656,9 @@ async function listAdminProvidersInternal(ctx: QueryCtx) {
         const usage = usageByProviderId.get(provider._id)
         return {
           ...provider,
-          iconUrl: provider.iconId ? ((await ctx.storage.getUrl(provider.iconId)) ?? undefined) : undefined,
+          iconUrl: provider.iconId
+            ? ((await ctx.storage.getUrl(provider.iconId)) ?? undefined)
+            : undefined,
           modelCount: counts.total,
           enabledModelCount: counts.enabled,
           usage: {
@@ -779,7 +826,9 @@ async function listAdminModelsInternal(ctx: QueryCtx) {
         const usage = usageByModelId.get(model._id)
         return {
           ...model,
-          iconUrl: model.iconId ? ((await ctx.storage.getUrl(model.iconId)) ?? undefined) : undefined,
+          iconUrl: model.iconId
+            ? ((await ctx.storage.getUrl(model.iconId)) ?? undefined)
+            : undefined,
           providerName: provider?.name ?? 'Unknown Provider',
           providerType: provider?.providerType,
           hasResolvableProviderApiKey: provider
@@ -854,6 +903,7 @@ const collectionSuggestionContextValidator = v.object({
       capabilities: v.optional(v.array(v.string())),
       supportsReasoning: v.optional(v.boolean()),
       supportedAttachmentMediaTypes: v.optional(v.array(v.string())),
+      assignedCollectionName: v.optional(v.string()),
     }),
   ),
 })
@@ -871,6 +921,14 @@ export const getCollectionSuggestionContext = internalQuery({
     ])
 
     const providerById = new Map(providers.map((provider) => [provider._id, provider.name]))
+    const assignedCollectionNameByModelId = new Map<Id<'models'>, string>()
+    for (const collection of collections) {
+      for (const modelId of collection.modelIds) {
+        if (!assignedCollectionNameByModelId.has(modelId)) {
+          assignedCollectionNameByModelId.set(modelId, collection.name)
+        }
+      }
+    }
 
     return {
       existingCollectionNames: collections.map((collection) => collection.name),
@@ -889,6 +947,7 @@ export const getCollectionSuggestionContext = internalQuery({
           capabilities: model.capabilities,
           supportsReasoning: model.supportsReasoning,
           supportedAttachmentMediaTypes: model.supportedAttachmentMediaTypes,
+          assignedCollectionName: assignedCollectionNameByModelId.get(model._id),
         })),
     }
   },
@@ -1097,8 +1156,7 @@ export const updateAdminSettings = mutation({
       autoModelRouterApiKey: nextRouterApiKey,
       autoModelRouterPreference:
         args.autoModelRouterPreference ?? existing?.autoModelRouterPreference ?? 'balanced',
-      defaultAuxiliaryModelId:
-        args.defaultAuxiliaryModelId ?? existing?.defaultAuxiliaryModelId,
+      defaultAuxiliaryModelId: args.defaultAuxiliaryModelId ?? existing?.defaultAuxiliaryModelId,
       artificialAnalysisApiKey: nextArtificialAnalysisApiKey,
       updatedAt: Date.now(),
     }
@@ -1506,11 +1564,7 @@ export const getAutoModelStudioSnapshot = action({
     const routerApiKey = settings.autoModelRouterApiKey?.trim() ?? ''
     const preference = args.preference ?? settings.autoModelRouterPreference ?? 'balanced'
 
-    if (
-      settings.autoModelRoutingEnabled !== true ||
-      !routerUrl ||
-      !routerApiKey
-    ) {
+    if (settings.autoModelRoutingEnabled !== true || !routerUrl || !routerApiKey) {
       return {
         ok: false,
         available: false,
@@ -1594,7 +1648,15 @@ export const getAutoModelStudioSnapshot = action({
           name?: string
           studio_profile?: {
             auto_score?: number
-            category?: 'Best default' | 'Coding' | 'Vision' | 'Long context' | 'Fast' | 'Budget' | 'Reasoning' | 'Needs metadata'
+            category?:
+              | 'Best default'
+              | 'Coding'
+              | 'Vision'
+              | 'Long context'
+              | 'Fast'
+              | 'Budget'
+              | 'Reasoning'
+              | 'Needs metadata'
             quality_score?: number
             speed_score?: number
             cost_score?: number
@@ -1645,7 +1707,9 @@ export const getAutoModelStudioSnapshot = action({
         ok: false,
         available: true,
         message:
-          error instanceof Error ? `Could not score models: ${error.message}` : 'Could not score models',
+          error instanceof Error
+            ? `Could not score models: ${error.message}`
+            : 'Could not score models',
         models: [],
       }
     }
@@ -1730,9 +1794,7 @@ export const syncModelMetadataFromArtificialAnalysis = action({
     }
 
     const syncContext = await ctx.runQuery(internal.admin.getArtificialAnalysisSyncContext, {})
-    const providersById = new Map(
-      syncContext.providers.map((provider) => [provider._id, provider]),
-    )
+    const providersById = new Map(syncContext.providers.map((provider) => [provider._id, provider]))
     const profilesByModelId = new Map(
       syncContext.profiles.map((profile) => [profile.modelId, profile]),
     )
@@ -2357,8 +2419,7 @@ export const listModelsForBrowser = query({
         model.modelId.toLowerCase().includes(needle) ||
         model.description?.toLowerCase().includes(needle) ||
         model.provider?.name.toLowerCase().includes(needle) === true ||
-        model.capabilities?.some((capability) => capability.toLowerCase().includes(needle)) ===
-          true
+        model.capabilities?.some((capability) => capability.toLowerCase().includes(needle)) === true
       )
     })
 
@@ -2924,10 +2985,20 @@ export const addModelCollection = mutation({
 
     if (!isAdminLike) return null
 
+    const name = args.name.trim()
+    if (!name) {
+      throw new ConvexError({
+        code: 'VALIDATION_ERROR',
+        message: 'Collection name is required.',
+      })
+    }
+
     const modelIds = await normalizeCollectionModelIds(ctx, args.modelIds)
+    await assertModelsBelongToAtMostOneCollection(ctx, modelIds)
 
     return await ctx.db.insert('modelCollections', {
       ...args,
+      name,
       modelIds,
     })
   },
@@ -2952,11 +3023,26 @@ export const updateModelCollection = mutation({
     if (!isAdminLike) return
 
     const { id, modelIds, ...updates } = args
+    const normalizedModelIds =
+      modelIds !== undefined ? await normalizeCollectionModelIds(ctx, modelIds) : undefined
+    if (normalizedModelIds !== undefined) {
+      await assertModelsBelongToAtMostOneCollection(ctx, normalizedModelIds, id)
+    }
+
+    const normalizedName = updates.name?.trim()
+    if (updates.name !== undefined && !normalizedName) {
+      throw new ConvexError({
+        code: 'VALIDATION_ERROR',
+        message: 'Collection name cannot be empty.',
+      })
+    }
+
     await ctx.db.patch(id, {
-      ...cleanUpdates(updates),
-      ...(modelIds !== undefined
-        ? { modelIds: await normalizeCollectionModelIds(ctx, modelIds) }
-        : {}),
+      ...cleanUpdates({
+        ...updates,
+        name: updates.name !== undefined ? normalizedName : undefined,
+      }),
+      ...(normalizedModelIds !== undefined ? { modelIds: normalizedModelIds } : {}),
     })
     return
   },
@@ -3042,13 +3128,15 @@ export const suggestModelCollections = action({
       capabilities: model.capabilities ?? [],
       supportsReasoning: model.supportsReasoning ?? false,
       supportsAttachments: (model.supportedAttachmentMediaTypes?.length ?? 0) > 0,
+      assignedCollectionName: model.assignedCollectionName,
     }))
 
     const system = [
       'You are organizing AI chat models into user-facing collections.',
       'These collections will drive categories in the web model picker instead of provider-based grouping.',
       'Create several distinct, useful collections with clear names and concise descriptions.',
-      'A model may appear in multiple collections when that improves discoverability.',
+      'A model may appear in at most one collection.',
+      'Only use models whose assignedCollectionName field is empty or missing.',
       'Only use model IDs from the catalog id field.',
       'Return JSON only. Do not wrap the response in markdown or add commentary.',
       'Choose an icon for each collection. Use either iconType="phosphor" with one of these icons:',
@@ -3057,7 +3145,9 @@ export const suggestModelCollections = action({
       suggestionContext.existingCollectionNames.length > 0
         ? `Existing collection names to avoid duplicating: ${suggestionContext.existingCollectionNames.join(', ')}`
         : 'There are no existing collections yet.',
-      args.prompt?.trim() ? `User goal: ${args.prompt.trim()}` : 'User goal: create sensible default collections.',
+      args.prompt?.trim()
+        ? `User goal: ${args.prompt.trim()}`
+        : 'User goal: create sensible default collections.',
     ].join('\n')
 
     const prompt = ['Catalog:', JSON.stringify(catalog)].join('\n')
@@ -3100,8 +3190,7 @@ export const suggestModelCollections = action({
       })
     } catch (error) {
       const detail = error instanceof Error ? error.message : 'Unknown AI error'
-      const providerLabel =
-        suggestionModel.providerName?.trim() || suggestionModel.providerType
+      const providerLabel = suggestionModel.providerName?.trim() || suggestionModel.providerType
       const authHint =
         detail.includes('Missing Authentication header') ||
         detail.toLowerCase().includes('authentication')
@@ -3140,17 +3229,40 @@ export const suggestModelCollections = action({
         }
       })
       .filter((collection) => collection !== null)
+      .map((collection) => ({
+        ...collection,
+        modelIds: collection.modelIds.filter((modelId) => {
+          const catalogModel = suggestionContext.models.find((model) => model._id === modelId)
+          return catalogModel?.assignedCollectionName === undefined
+        }),
+      }))
+      .filter((collection) => collection.modelIds.length > 0)
 
-    if (collections.length === 0) {
+    const claimedModelIds = new Set<Id<'models'>>()
+    const uniqueCollections = collections
+      .map((collection) => {
+        const uniqueModelIds = collection.modelIds.filter((modelId) => {
+          if (claimedModelIds.has(modelId)) {
+            return false
+          }
+          claimedModelIds.add(modelId)
+          return true
+        })
+
+        return uniqueModelIds.length > 0 ? { ...collection, modelIds: uniqueModelIds } : null
+      })
+      .filter((collection) => collection !== null)
+
+    if (uniqueCollections.length === 0) {
       throw new ConvexError({
         code: 'FAILED_PRECONDITION',
-        message: 'The AI model did not return any usable collection drafts.',
+        message: 'The AI model did not return any usable collection drafts for unassigned models.',
       })
     }
 
     return {
       modelUsed: suggestionModel.displayName,
-      collections,
+      collections: uniqueCollections,
     }
   },
 })
@@ -3594,30 +3706,30 @@ export const getDashboardData = query({
       collections
         .sort((left, right) => left.sortOrder - right.sortOrder)
         .map(async (collection) => {
-        const collectionModels = collection.modelIds
-          .map((modelId) => modelRowMap.get(modelId))
-          .filter((model): model is (typeof modelRows)[number] => Boolean(model))
-          .map((model) => ({
-            _id: model._id,
-            modelId: model.modelId,
-            displayName: model.displayName,
-            providerId: model.providerId,
-            providerName: model.providerName,
-            isEnabled: model.isEnabled,
-            icon: model.icon,
-            iconType: model.iconType,
-            iconUrl: model.iconUrl,
-            providerIconUrl: model.providerIconUrl,
-          }))
+          const collectionModels = collection.modelIds
+            .map((modelId) => modelRowMap.get(modelId))
+            .filter((model): model is (typeof modelRows)[number] => Boolean(model))
+            .map((model) => ({
+              _id: model._id,
+              modelId: model.modelId,
+              displayName: model.displayName,
+              providerId: model.providerId,
+              providerName: model.providerName,
+              isEnabled: model.isEnabled,
+              icon: model.icon,
+              iconType: model.iconType,
+              iconUrl: model.iconUrl,
+              providerIconUrl: model.providerIconUrl,
+            }))
 
-        return {
-          ...collection,
-          iconUrl: collection.iconId
-            ? ((await ctx.storage.getUrl(collection.iconId)) ?? undefined)
-            : undefined,
-          modelCount: collectionModels.length,
-          models: collectionModels,
-        }
+          return {
+            ...collection,
+            iconUrl: collection.iconId
+              ? ((await ctx.storage.getUrl(collection.iconId)) ?? undefined)
+              : undefined,
+            modelCount: collectionModels.length,
+            models: collectionModels,
+          }
         }),
     )
 

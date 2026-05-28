@@ -140,6 +140,7 @@ The web app is currently the richer admin surface:
 - memory and share routes
 - compact operational admin records and shared layout primitives centered in `apps/web/src/components/admin/admin-surface.tsx`, so providers, models, usage, offers, and collections read consistently instead of behaving like marketing cards
 - broader desktop-oriented UI primitives under `apps/web/src/components/ui`
+- collection management now treats membership as exclusive: each model can belong to at most one collection, the manual editor highlights already-assigned models, and AI-generated collection drafts require an explicit approval step before they are saved
 
 Streaming markdown rendering on web:
 

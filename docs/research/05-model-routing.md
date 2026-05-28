@@ -106,6 +106,7 @@ The design buys four things:
 
 - Clients can expose "Auto (router)" without embedding provider strategy in the UI.
 - Clients can optionally constrain "Auto" to an admin-defined model collection (route within a curated subset).
+- Collection curation is intentionally exclusive at the model level, so the curated subset stays legible instead of letting the same model sprawl across multiple admin buckets.
 - Admin-managed provider and model inventories can change without client redeploys.
 - Routing becomes inspectable. A decision can be explained in terms of recorded scores and constraints.
 

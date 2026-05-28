@@ -79,7 +79,10 @@ function AdminLayoutShell({
 }) {
   const providerDialog = useAdminProviderDialog({ providers })
   const modelDialog = useAdminModelDialog({ models, providers })
-  const collectionDialog = useAdminCollectionDialog({ models })
+  const collectionDialog = useAdminCollectionDialog({
+    models,
+    collections: dashboard?.collections ?? [],
+  })
 
   const outletContext = useMemo<AdminOutletContext | null>(() => {
     if (!dashboard) {

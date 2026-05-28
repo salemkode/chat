@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access -- models list matches AdminModel[] at runtime */
 import { useMutation } from 'convex/react'
-import { Plus } from '@/lib/icons'
-import { useCallback, useId, useReducer } from 'react'
+import { Plus, Search, Sparkles } from '@/lib/icons'
+import { useCallback, useId, useMemo, useReducer, useState } from 'react'
 import { toast } from 'sonner'
 import { api } from '@convex/_generated/api'
 import { parseConvexIdForTable } from '@chat/shared/logic/convex-ids'
@@ -49,7 +49,9 @@ export type AdminCollectionDialogProps = {
     iconPreviewUrl?: string
     ids: AdminCollectionFormIds
     editingCollection: AdminModelCollection | null
+    reviewSource?: 'ai'
     models: AdminModel[]
+    collections: AdminModelCollection[]
   }
   actions: {
     onTriggerOpen: () => void
@@ -67,8 +69,53 @@ export function AdminCollectionDialog({ state, actions }: AdminCollectionDialogP
     iconPreviewUrl,
     ids,
     editingCollection,
+    reviewSource,
     models,
+    collections,
   } = state
+  const [modelQuery, setModelQuery] = useState('')
+  const [showAvailableOnly, setShowAvailableOnly] = useState(true)
+
+  const assignedCollectionNameByModelId = useMemo(() => {
+    const next = new Map<string, string>()
+    for (const collection of collections) {
+      if (editingCollection && collection._id === editingCollection._id) {
+        continue
+      }
+      for (const modelId of collection.modelIds) {
+        next.set(modelId, collection.name)
+      }
+    }
+    return next
+  }, [collections, editingCollection])
+
+  const normalizedQuery = modelQuery.trim().toLowerCase()
+  const filteredModels = useMemo(
+    () =>
+      models.filter((model: AdminModel) => {
+        const assignedCollectionName = assignedCollectionNameByModelId.get(model._id)
+        const matchesAvailability = !showAvailableOnly || assignedCollectionName === undefined
+        if (!matchesAvailability) {
+          return false
+        }
+        if (!normalizedQuery) {
+          return true
+        }
+        const haystack = [
+          model.displayName,
+          model.modelId,
+          model.providerName,
+          model.description ?? '',
+        ]
+          .join(' ')
+          .toLowerCase()
+        return haystack.includes(normalizedQuery)
+      }),
+    [assignedCollectionNameByModelId, models, normalizedQuery, showAvailableOnly],
+  )
+  const availableModelCount = models.filter(
+    (model) => assignedCollectionNameByModelId.get(model._id) === undefined,
+  ).length
 
   return (
     <>
@@ -83,13 +130,28 @@ export function AdminCollectionDialog({ state, actions }: AdminCollectionDialogP
               {editingCollection ? 'Edit collection' : 'Add collection'}
             </ResponsiveModalTitle>
             <ResponsiveModalDescription>
-              Build a named group from your current models. Collections only reference existing
-              models, so any model edits stay in sync automatically.
+              {reviewSource === 'ai'
+                ? 'Review the AI draft, adjust anything you want, then approve it to save the collection.'
+                : 'Build a named group from your current models. Collections only reference existing models, so any model edits stay in sync automatically.'}
             </ResponsiveModalDescription>
           </DialogHeader>
 
           <ScrollArea className="max-h-[70vh] pr-6">
             <div className="grid gap-6 py-4">
+              {reviewSource === 'ai' ? (
+                <div className="flex items-start gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm">
+                  <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/15 text-emerald-700">
+                    <Sparkles className="size-4" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="font-medium text-foreground">AI draft pending approval</p>
+                    <p className="text-muted-foreground">
+                      Nothing is saved yet. Your final button click here is the approval step.
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="grid gap-2">
                   <Label htmlFor={ids.collectionName}>Name</Label>
@@ -160,26 +222,62 @@ export function AdminCollectionDialog({ state, actions }: AdminCollectionDialogP
                   <div>
                     <h3 className="text-sm font-medium">Models</h3>
                     <p className="text-sm text-muted-foreground">
-                      Select from the models already configured in the catalog.
+                      Models can belong to only one collection. Search the catalog, then pick from
+                      the unassigned set.
                     </p>
                   </div>
                   <Badge variant="secondary">{collectionForm.modelIds.length} selected</Badge>
                 </div>
 
+                <div className="grid gap-3 rounded-2xl border border-border/70 bg-muted/20 p-3">
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      value={modelQuery}
+                      onChange={(event) => setModelQuery(event.target.value)}
+                      placeholder="Search by model, provider, or ID"
+                      className="pl-9"
+                    />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      variant={showAvailableOnly ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setShowAvailableOnly((current) => !current)}
+                    >
+                      {showAvailableOnly ? 'Showing available only' : 'Show available only'}
+                    </Button>
+                    <Badge variant="outline">{availableModelCount} available</Badge>
+                    <Badge variant="outline">
+                      {models.length - availableModelCount} already used
+                    </Badge>
+                  </div>
+                </div>
+
                 <div className="overflow-hidden rounded-xl border border-border">
                   <ScrollArea className="h-[320px]">
                     <div className="grid gap-2 p-3">
-                      {models.length > 0 ? (
-                        models.map((model: AdminModel) => {
+                      {filteredModels.length > 0 ? (
+                        filteredModels.map((model: AdminModel) => {
                           const isSelected = collectionForm.modelIds.includes(model._id)
+                          const assignedCollectionName = assignedCollectionNameByModelId.get(
+                            model._id,
+                          )
+                          const isUnavailable = assignedCollectionName !== undefined
 
                           return (
                             <label
                               key={model._id}
-                              className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-background p-3 transition-colors hover:bg-muted/40"
+                              className={`flex items-start gap-3 rounded-xl border border-border bg-background p-3 transition-colors ${
+                                isUnavailable
+                                  ? 'cursor-not-allowed opacity-65'
+                                  : 'cursor-pointer hover:bg-muted/40'
+                              }`}
                             >
                               <Checkbox
                                 checked={isSelected}
+                                disabled={isUnavailable}
                                 onCheckedChange={(checked) =>
                                   setCollectionForm((current) => ({
                                     ...current,
@@ -192,7 +290,7 @@ export function AdminCollectionDialog({ state, actions }: AdminCollectionDialogP
                               <div className="mt-0.5 flex size-9 items-center justify-center rounded-lg border border-border bg-muted">
                                 <EntityIcon
                                   icon={model.icon}
-                                  iconType={model.iconType as IconType}
+                                  iconType={normalizeIconType(model.iconType)}
                                   iconUrl={model.iconUrl || model.providerIconUrl}
                                 />
                               </div>
@@ -200,6 +298,11 @@ export function AdminCollectionDialog({ state, actions }: AdminCollectionDialogP
                                 <div className="flex flex-wrap items-center gap-2">
                                   <span className="font-medium">{model.displayName}</span>
                                   <Badge variant="outline">{model.providerName}</Badge>
+                                  {assignedCollectionName ? (
+                                    <Badge variant="secondary">In {assignedCollectionName}</Badge>
+                                  ) : (
+                                    <Badge variant="secondary">Available</Badge>
+                                  )}
                                   {!model.isEnabled ? (
                                     <Badge variant="secondary">Hidden</Badge>
                                   ) : null}
@@ -212,13 +315,21 @@ export function AdminCollectionDialog({ state, actions }: AdminCollectionDialogP
                                     {model.description}
                                   </p>
                                 ) : null}
+                                {assignedCollectionName ? (
+                                  <p className="text-xs text-muted-foreground">
+                                    Remove this model from {assignedCollectionName} before adding it
+                                    here.
+                                  </p>
+                                ) : null}
                               </div>
                             </label>
                           )
                         })
                       ) : (
                         <div className="rounded-xl border border-dashed border-border p-6 text-sm text-muted-foreground">
-                          Add models first, then create collections from them here.
+                          {models.length === 0
+                            ? 'Add models first, then create collections from them here.'
+                            : 'No models match the current search or availability filter.'}
                         </div>
                       )}
                     </div>
@@ -233,7 +344,11 @@ export function AdminCollectionDialog({ state, actions }: AdminCollectionDialogP
               Cancel
             </Button>
             <Button onClick={() => void actions.onSave()}>
-              {editingCollection ? 'Update collection' : 'Create collection'}
+              {reviewSource === 'ai'
+                ? 'Approve and save'
+                : editingCollection
+                  ? 'Update collection'
+                  : 'Create collection'}
             </Button>
           </DialogFooter>
         </ResponsiveModalContent>
@@ -246,7 +361,20 @@ function isPresent<T>(value: T | null | undefined): value is T {
   return value !== null && value !== undefined
 }
 
-export function useAdminCollectionDialog({ models }: { models: AdminModel[] }) {
+function normalizeIconType(value: string | undefined): IconType {
+  if (value === 'emoji' || value === 'phosphor' || value === 'upload') {
+    return value
+  }
+  return undefined
+}
+
+export function useAdminCollectionDialog({
+  models,
+  collections,
+}: {
+  models: AdminModel[]
+  collections: AdminModelCollection[]
+}) {
   const [dialogState, updateDialog] = useReducer(
     mergeReducer<ModelCollectionDialogState>,
     initialModelCollectionDialogState,
@@ -261,12 +389,15 @@ export function useAdminCollectionDialog({ models }: { models: AdminModel[] }) {
   const nextCollectionSortOrder = models.length
   const collectionForm = dialogState.form
   const editingCollection = dialogState.editingCollection
+  const reviewSource = dialogState.reviewSource
 
   const setModelCollectionDialogOpen = (open: boolean) => updateDialog({ open })
   const setEditingCollection = (nextEditingCollection: AdminModelCollection | null) =>
     updateDialog({ editingCollection: nextEditingCollection })
   const setCollectionIconPreviewUrl = (iconPreviewUrl: string | undefined) =>
     updateDialog({ iconPreviewUrl })
+  const setReviewSource = (nextReviewSource: ModelCollectionDialogState['reviewSource']) =>
+    updateDialog({ reviewSource: nextReviewSource })
   const setCollectionForm = (update: StateUpdate<ModelCollectionFormData>) =>
     updateDialog((current) => ({
       ...current,
@@ -281,8 +412,16 @@ export function useAdminCollectionDialog({ models }: { models: AdminModel[] }) {
         headers: { 'Content-Type': file.type },
         body: file,
       })
-      const body = (await response.json()) as { storageId: string }
-      return body.storageId
+      const body = await response.json()
+      if (
+        typeof body === 'object' &&
+        body !== null &&
+        'storageId' in body &&
+        typeof body.storageId === 'string'
+      ) {
+        return body.storageId
+      }
+      throw new Error('Upload did not return a storage ID')
     },
     [generateUploadUrl],
   )
@@ -306,6 +445,7 @@ export function useAdminCollectionDialog({ models }: { models: AdminModel[] }) {
       if (collection) {
         setEditingCollection(collection)
         setCollectionIconPreviewUrl(collection.iconUrl)
+        setReviewSource(undefined)
         setCollectionForm({
           name: collection.name,
           description: collection.description ?? '',
@@ -318,6 +458,7 @@ export function useAdminCollectionDialog({ models }: { models: AdminModel[] }) {
       } else {
         setEditingCollection(null)
         setCollectionIconPreviewUrl(undefined)
+        setReviewSource(undefined)
         setCollectionForm(createModelCollectionForm(nextCollectionSortOrder))
       }
       setModelCollectionDialogOpen(true)
@@ -329,6 +470,7 @@ export function useAdminCollectionDialog({ models }: { models: AdminModel[] }) {
     (draft: AdminCollectionDraft) => {
       setEditingCollection(null)
       setCollectionIconPreviewUrl(undefined)
+      setReviewSource('ai')
       setCollectionForm({
         ...createModelCollectionForm(nextCollectionSortOrder),
         ...draft,
@@ -372,10 +514,17 @@ export function useAdminCollectionDialog({ models }: { models: AdminModel[] }) {
       : addModelCollection(payload)
     return request
       .then(() => {
-        toast.success(editingCollection ? 'Collection updated' : 'Collection created')
+        toast.success(
+          reviewSource === 'ai'
+            ? 'AI draft approved and saved'
+            : editingCollection
+              ? 'Collection updated'
+              : 'Collection created',
+        )
         setModelCollectionDialogOpen(false)
         setEditingCollection(null)
         setCollectionIconPreviewUrl(undefined)
+        setReviewSource(undefined)
         setCollectionForm(createModelCollectionForm(nextCollectionSortOrder))
       })
       .catch((error) => {
@@ -393,6 +542,7 @@ export function useAdminCollectionDialog({ models }: { models: AdminModel[] }) {
     editingCollection,
     models,
     nextCollectionSortOrder,
+    reviewSource,
     updateModelCollection,
   ])
 
@@ -408,7 +558,9 @@ export function useAdminCollectionDialog({ models }: { models: AdminModel[] }) {
         collectionSortOrder: collectionSortOrderId,
       },
       editingCollection,
+      reviewSource: dialogState.reviewSource,
       models,
+      collections,
     },
     actions: {
       onTriggerOpen: () => openCollectionDialog(),

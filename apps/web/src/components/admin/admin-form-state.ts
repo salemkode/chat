@@ -82,6 +82,7 @@ export type ModelCollectionDialogState = {
   open: boolean
   editingCollection: AdminModelCollection | null
   iconPreviewUrl?: string
+  reviewSource?: 'ai'
   form: ModelCollectionFormData
 }
 
@@ -184,6 +185,7 @@ export const initialModelCollectionDialogState: ModelCollectionDialogState = {
   open: false,
   editingCollection: null,
   iconPreviewUrl: undefined,
+  reviewSource: undefined,
   form: createModelCollectionForm(),
 }
 

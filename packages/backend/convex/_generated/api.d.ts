@@ -2651,6 +2651,7 @@ export declare const internal: {
         existingCollectionNames: Array<string>;
         models: Array<{
           _id: Id<"models">;
+          assignedCollectionName?: string;
           capabilities?: Array<string>;
           description?: string;
           displayName: string;

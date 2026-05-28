@@ -4,6 +4,7 @@ import { api } from '@convex/_generated/api'
 import type { AdminOutletContext } from '@/components/admin/admin-outlet-context'
 import { AdminCollectionAiDialog } from '@/components/admin/admin-collection-ai-dialog'
 import { EntityIcon } from '@/components/admin/entity-icon'
+import { Plus } from '@/lib/icons'
 import {
   AdminEmptyState,
   AdminRecord,
@@ -34,20 +35,30 @@ export function AdminCollectionsPanel({
   onOpenCollectionDraft,
 }: AdminCollectionsPanelProps) {
   const deleteModelCollection = useMutation(api.admin.deleteModelCollection)
-  const collectionsQuery = usePaginatedQuery(api.admin.listAdminCollections, {}, { initialNumItems: 50 })
+  const collectionsQuery = usePaginatedQuery(
+    api.admin.listAdminCollections,
+    {},
+    { initialNumItems: 50 },
+  )
   const collections = collectionsQuery.results ?? []
 
   return (
     <AdminSectionCard
       eyebrow="Collections"
       title="Curated bundles"
-      description="Collections use the same compact structure as the rest of admin: identity first, quick counts in the middle, and editing actions kept to the edge."
+      description="Create collections manually from the unassigned catalog, or let AI draft a set first and approve only the ones you want to keep."
       action={
-        <AdminCollectionAiDialog
-          models={dashboard.models}
-          defaultAuxiliaryModelId={dashboard.settings.defaultAuxiliaryModelId}
-          onOpenCollectionDraft={onOpenCollectionDraft}
-        />
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => onOpenCollectionDialog()}>
+            <Plus className="mr-2 size-4" />
+            Add manually
+          </Button>
+          <AdminCollectionAiDialog
+            models={dashboard.models}
+            defaultAuxiliaryModelId={dashboard.settings.defaultAuxiliaryModelId}
+            onOpenCollectionDraft={onOpenCollectionDraft}
+          />
+        </div>
       }
     >
       {collectionsQuery.results === undefined ? (
@@ -77,7 +88,9 @@ export function AdminCollectionsPanel({
                 badges={
                   <>
                     <Badge variant="secondary">{collection.modelCount} models</Badge>
-                    {hiddenModels > 0 ? <Badge variant="outline">{hiddenModels} hidden</Badge> : null}
+                    {hiddenModels > 0 ? (
+                      <Badge variant="outline">{hiddenModels} hidden</Badge>
+                    ) : null}
                   </>
                 }
                 summary={
@@ -129,8 +142,7 @@ export function AdminCollectionsPanel({
           })}
           <InfiniteScrollTrigger
             hasMore={
-              collectionsQuery.status === 'CanLoadMore' ||
-              collectionsQuery.status === 'LoadingMore'
+              collectionsQuery.status === 'CanLoadMore' || collectionsQuery.status === 'LoadingMore'
             }
             isLoadingMore={collectionsQuery.status === 'LoadingMore'}
             onLoadMore={() => collectionsQuery.loadMore(50)}
