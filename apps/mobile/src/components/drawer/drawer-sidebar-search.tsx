@@ -1,4 +1,5 @@
 import { Icon } from "@/components/icon";
+import { useNativeThemeColors } from "@/hooks/use-native-theme-colors";
 import type { SidebarSearchResult } from "@/hooks/use-sidebar-search";
 import { Search, X } from "lucide-react-native";
 import {
@@ -22,6 +23,8 @@ export function DrawerSearchBar({
   onActivate: () => void;
   onCancel: () => void;
 }) {
+  const { mutedForeground } = useNativeThemeColors();
+
   if (!active) {
     return (
       <Pressable
@@ -46,7 +49,7 @@ export function DrawerSearchBar({
         onChangeText={onQueryChange}
         autoFocus
         placeholder="Search across your chats"
-        placeholderTextColor="#999"
+        placeholderTextColor={mutedForeground}
         className="flex-1 py-2 text-[15px] text-foreground"
         returnKeyType="search"
       />

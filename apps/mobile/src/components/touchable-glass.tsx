@@ -1,6 +1,6 @@
 import { isLiquidGlassAvailable } from "expo-glass-effect";
 import React, { useState } from "react";
-import { TouchableWithoutFeedback, type ViewProps } from "react-native";
+import { Platform, TouchableWithoutFeedback, View, type ViewProps } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
@@ -109,8 +109,16 @@ function TouchableGlassFallback({
           style,
         ]}
       >
-        <BlurViewRawBackdrop />
-        {children as React.ReactNode}
+        {Platform.OS === "android" ? (
+          <View className="flex-1 border border-border/70 bg-card/95">
+            {children as React.ReactNode}
+          </View>
+        ) : (
+          <>
+            <BlurViewRawBackdrop />
+            {children as React.ReactNode}
+          </>
+        )}
       </Animated.View>
     </TouchableWithoutFeedback>
   );

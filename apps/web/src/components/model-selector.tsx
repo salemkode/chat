@@ -7,11 +7,10 @@ import {
   isAutoModelSelection,
   parseAutoModelCollectionSelection,
 } from '@chat/shared'
-import { Boxes, Check, ChevronDown, Search, Star } from '@/lib/icons'
+import { Boxes, ChevronDown, Search, Star } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { useModels } from '@/hooks/use-chat-data'
 import { EntityIcon } from '@/components/admin/entity-icon'
-import { ModelCapabilityBadges } from '@/components/model-capability-badges'
 import { InfiniteScrollTrigger } from '@/components/infinite-scroll-trigger'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -315,14 +314,8 @@ export function ModelSelectorPanel({
                   <div className={modelIconTileClass(autoAllSelected)}>
                     <span className="text-sm font-semibold">A</span>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <span className="truncate text-sm font-medium text-white">Auto</span>
-                      {autoAllSelected ? <Check className="size-3.5 shrink-0 text-primary" /> : null}
-                    </div>
-                    <p className="truncate text-[11px] text-white/45">
-                      Let the router choose from the full visible catalog.
-                    </p>
+                  <div className="flex min-w-0 flex-1 items-center">
+                    <span className="truncate text-sm font-medium text-white">Auto</span>
                   </div>
                 </Button>
               </div>
@@ -347,18 +340,10 @@ export function ModelSelectorPanel({
                           className="size-4"
                         />
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <span className="truncate text-sm font-medium text-white">
-                            Auto ({activeCollection.name})
-                          </span>
-                          {autoCollectionSelected ? (
-                            <Check className="size-3.5 shrink-0 text-primary" />
-                          ) : null}
-                        </div>
-                        <p className="truncate text-[11px] text-white/45">
-                          Route only inside this collection.
-                        </p>
+                      <div className="flex min-w-0 flex-1 items-center">
+                        <span className="truncate text-sm font-medium text-white">
+                          Auto ({activeCollection.name})
+                        </span>
                       </div>
                     </Button>
                   </div>
@@ -380,7 +365,7 @@ export function ModelSelectorPanel({
                       variant="plain"
                       size="none"
                       onClick={() => onSelectModel?.(model.modelId)}
-                      className="flex min-w-0 flex-1 items-start gap-2 rounded-full px-1 py-0.5 text-left hover:bg-transparent"
+                      className="flex min-w-0 flex-1 items-center gap-2 rounded-full px-1 py-0.5 text-left hover:bg-transparent"
                     >
                       <div className={modelIconTileClass(isSelected)}>
                         <EntityIcon
@@ -390,20 +375,10 @@ export function ModelSelectorPanel({
                           className="size-4"
                         />
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <span className="truncate text-sm font-medium text-white">
-                            {model.displayName}
-                          </span>
-                          {model.provider?.name ? (
-                            <span className="truncate text-[11px] text-white/35">
-                              {model.provider.name}
-                            </span>
-                          ) : null}
-                          {isSelected ? <Check className="size-3.5 shrink-0 text-primary" /> : null}
-                        </div>
-                        <p className="truncate font-mono text-[10px] text-white/40">{model.modelId}</p>
-                        <ModelCapabilityBadges capabilities={model.capabilities} className="mt-1" />
+                      <div className="flex min-w-0 flex-1 items-center">
+                        <span className="truncate text-sm font-medium text-white">
+                          {model.displayName}
+                        </span>
                       </div>
                     </Button>
                     <Button

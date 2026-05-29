@@ -4,9 +4,9 @@ import { Icon } from "@/components/icon";
 import type { Model, ModelCollection } from "@/components/model-context";
 import type { Id } from "@convex/_generated/dataModel";
 import { LegendList } from "@legendapp/list/react-native";
-import { Check } from "lucide-react-native";
+import { Sparkles } from "lucide-react-native";
 import { useMemo, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Image, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type ModelPickerContentProps = {
@@ -21,26 +21,39 @@ type ModelPickerContentProps = {
 
 function ModelRow({
   label,
-  subtitle,
+  icon,
+  iconType,
+  iconUrl,
   selected,
   onPress,
 }: {
   label: string;
-  subtitle?: string;
+  icon?: string;
+  iconType?: Model["iconType"];
+  iconUrl?: string;
   selected: boolean;
   onPress: () => void;
 }) {
   return (
     <Pressable
       onPress={onPress}
-      className="flex-row items-center px-5 py-3 gap-3 active:bg-muted"
+      className={`flex-row items-center gap-3 px-5 py-3 active:bg-muted ${
+        selected ? "bg-muted" : ""
+      }`}
     >
-      <View className="w-5 items-center">
-        {selected && <Icon icon={Check} className="w-5 h-5 text-foreground" />}
+      <View className="size-8 items-center justify-center rounded-full border border-border bg-card">
+        {iconType === "upload" && iconUrl ? (
+          <Image source={{ uri: iconUrl }} className="size-8 rounded-full" />
+        ) : iconType === "emoji" && icon ? (
+          <Text className="text-[17px]">{icon}</Text>
+        ) : (
+          <Icon icon={Sparkles} className="size-4 text-muted-foreground" />
+        )}
       </View>
       <View className="flex-1">
-        <Text className="text-[17px] text-foreground">{label}</Text>
-        {subtitle && <Text className="text-[13px] text-muted-foreground">{subtitle}</Text>}
+        <Text className="text-[17px] text-foreground" numberOfLines={1}>
+          {label}
+        </Text>
       </View>
     </Pressable>
   );
@@ -86,7 +99,9 @@ export function ModelPickerContent({
       renderItem={({ item }) => (
         <ModelRow
           label={item.label}
-          subtitle={item.subtitle}
+          icon={item.icon}
+          iconType={item.iconType}
+          iconUrl={item.iconUrl}
           selected={item.id === selectedModelId}
           onPress={() => onSelectModel(item.id)}
         />

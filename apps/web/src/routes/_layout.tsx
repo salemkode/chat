@@ -10,7 +10,7 @@ import { api } from '@convex/_generated/api'
 import type { Id } from '@convex/_generated/dataModel'
 import { useAction } from 'convex/react'
 import { AuthLoadingScreen } from '@/components/auth/auth-loading-screen'
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AIPromptInput } from '@/components/ai-prompt-input'
 import { AppSidebar } from '@/components/app-sidebar'
 import { AuthRedirect } from '@/components/auth-redirect'
@@ -68,7 +68,6 @@ function AuthenticatedChatLayout() {
   const { chatId } = useParams()
   const location = useLocation()
   const threadId = chatId
-  const [mobileComposerHeight] = useState(176)
   const showComposer = !location.pathname.startsWith('/projects/')
 
   return (
@@ -77,28 +76,20 @@ function AuthenticatedChatLayout() {
         <AppSidebar selectedThreadId={threadId ?? null} />
 
         <PendingSendsProvider>
-          <SidebarInset
-            className="relative min-h-0"
-            style={
-              isMobile
-                ? ({
-                    '--mobile-header-height': '52px',
-                    '--mobile-composer-height': `${mobileComposerHeight}px`,
-                  } as CSSProperties)
-                : undefined
-            }
-          >
-            <div className="min-h-0 flex-1">
-              <Outlet />
-            </div>
-
-            {showComposer ? (
-              <div className="shrink-0">
-                <div className="mx-auto w-full max-w-3xl px-2 sm:px-4">
-                  <ChatComposer threadId={threadId} mobile={isMobile} />
-                </div>
+          <SidebarInset className="relative min-h-0 overflow-hidden border-0">
+            <div className="flex min-h-0 flex-1 flex-col">
+              <div className="min-h-0 flex-1">
+                <Outlet />
               </div>
-            ) : null}
+
+              {showComposer ? (
+                <div className="shrink-0 border-t border-border/60 bg-background/88 px-3 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur-xl sm:px-4 sm:pt-4">
+                  <div className="mx-auto w-full max-w-[56rem]">
+                    <ChatComposer threadId={threadId} mobile={isMobile} />
+                  </div>
+                </div>
+              ) : null}
+            </div>
           </SidebarInset>
         </PendingSendsProvider>
       </ChatModelProvider>

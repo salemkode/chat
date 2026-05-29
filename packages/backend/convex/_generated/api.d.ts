@@ -1332,6 +1332,14 @@ export declare const api: {
       any
     >;
   };
+  devAuth: {
+    createMobileDevSignInTicket: FunctionReference<
+      "action",
+      "public",
+      { email: string },
+      { ticket: string }
+    >;
+  };
   functions: {
     admin: {
       getMemoryStats: FunctionReference<

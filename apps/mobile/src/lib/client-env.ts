@@ -9,6 +9,7 @@ export const CLIENT_PUBLIC_ENV_KEYS = [
   "EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID",
   "EXPO_PUBLIC_CLERK_GOOGLE_IOS_CLIENT_ID",
   "EXPO_PUBLIC_CLERK_GOOGLE_ANDROID_CLIENT_ID",
+  "EXPO_PUBLIC_CLERK_ENABLE_DEV_PASSWORD_AUTH",
   "EXPO_PUBLIC_APP_URL",
 ] as const;
 
@@ -17,11 +18,37 @@ export type ClientEnvEntry = {
   value: string;
 };
 
-function readProcessEnv(key: string): string | undefined {
-  const value = process.env[key];
+function normalizeEnvValue(value: string | undefined): string | undefined {
   return typeof value === "string" && value.trim().length > 0
     ? value.trim()
     : undefined;
+}
+
+function readKnownProcessEnv(
+  key: (typeof CLIENT_PUBLIC_ENV_KEYS)[number] | "EXPO_OS",
+): string | undefined {
+  switch (key) {
+    case "EXPO_OS":
+      return normalizeEnvValue(process.env.EXPO_OS);
+    case "EXPO_PUBLIC_EAS_ENVIRONMENT":
+      return normalizeEnvValue(process.env.EXPO_PUBLIC_EAS_ENVIRONMENT);
+    case "EXPO_PUBLIC_EAS_BUILD_PROFILE":
+      return normalizeEnvValue(process.env.EXPO_PUBLIC_EAS_BUILD_PROFILE);
+    case "EXPO_PUBLIC_CONVEX_URL":
+      return normalizeEnvValue(process.env.EXPO_PUBLIC_CONVEX_URL);
+    case "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY":
+      return normalizeEnvValue(process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY);
+    case "EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID":
+      return normalizeEnvValue(process.env.EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID);
+    case "EXPO_PUBLIC_CLERK_GOOGLE_IOS_CLIENT_ID":
+      return normalizeEnvValue(process.env.EXPO_PUBLIC_CLERK_GOOGLE_IOS_CLIENT_ID);
+    case "EXPO_PUBLIC_CLERK_GOOGLE_ANDROID_CLIENT_ID":
+      return normalizeEnvValue(process.env.EXPO_PUBLIC_CLERK_GOOGLE_ANDROID_CLIENT_ID);
+    case "EXPO_PUBLIC_CLERK_ENABLE_DEV_PASSWORD_AUTH":
+      return normalizeEnvValue(process.env.EXPO_PUBLIC_CLERK_ENABLE_DEV_PASSWORD_AUTH);
+    case "EXPO_PUBLIC_APP_URL":
+      return normalizeEnvValue(process.env.EXPO_PUBLIC_APP_URL);
+  }
 }
 
 function readExtraEnv(key: string): string | undefined {
@@ -31,18 +58,16 @@ function readExtraEnv(key: string): string | undefined {
   }
 
   const value = extra[key];
-  return typeof value === "string" && value.trim().length > 0
-    ? value.trim()
-    : undefined;
+  return normalizeEnvValue(typeof value === "string" ? value : undefined);
 }
 
-function readClientEnv(key: string): string | undefined {
-  return readExtraEnv(key) ?? readProcessEnv(key);
+function readClientEnv(key: (typeof CLIENT_PUBLIC_ENV_KEYS)[number]): string | undefined {
+  return readExtraEnv(key) ?? readKnownProcessEnv(key);
 }
 
 export function getClientEnvEntries(): ClientEnvEntry[] {
   const entries: ClientEnvEntry[] = [
-    { key: "EXPO_OS", value: readProcessEnv("EXPO_OS") ?? "(not set)" },
+    { key: "EXPO_OS", value: readKnownProcessEnv("EXPO_OS") ?? "(not set)" },
     { key: "__DEV__", value: String(__DEV__) },
   ];
 

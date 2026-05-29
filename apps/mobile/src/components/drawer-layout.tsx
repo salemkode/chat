@@ -239,35 +239,15 @@ export function DrawerLayout({
   );
 
   const CORNERS = process.env.EXPO_OS === "ios" ? 53 : undefined;
-  const contentAnimatedStyle = useAnimatedStyle(
-    () => ({
-      zIndex: translateX.value === -drawerWidth ? 0 : 2,
-      transform: [
-        {
-          translateX: translateX.value + drawerWidth,
-        },
-      ],
-    }),
-    [drawerWidth, translateX],
-  );
-
   const drawerAnimatedStyle = useAnimatedStyle(
     () => ({
-      // Force commit to shadow tree for pressables
-      zIndex: translateX.value === -drawerWidth ? -1 : 0,
       transform: [
         {
-          scale: interpolate(
-            drawerWidth === 0
-              ? 0
-              : (translateX.value + drawerWidth) / drawerWidth,
-            [0, 1],
-            [0.95, 1],
-          ),
+          translateX: translateX.value,
         },
       ],
     }),
-    [drawerWidth, translateX],
+    [translateX],
   );
 
   const progress = useDerivedValue(() =>
@@ -280,32 +260,33 @@ export function DrawerLayout({
     <GestureHandlerRootView className="flex-1 bg-sidebar">
       <GestureDetector gesture={pan}>
         <Animated.View className="flex-1 overflow-hidden">
-          <Animated.View
-            className="flex-1 overflow-hidden"
-            style={[
-              {
-                borderCurve: "continuous" as const,
-                borderRadius: CORNERS,
-                boxShadow: "0px 0px 16px rgba(0, 0, 0, 0.15)",
-              },
-              contentAnimatedStyle,
-            ]}
-          >
-            <View aria-hidden={open} className="flex-1 overflow-hidden">
-              {children}
-            </View>
-            <Overlay progress={progress} onPress={closeDrawerFromRN} />
-          </Animated.View>
+          <View className="flex-1 overflow-hidden">{children}</View>
+          <Overlay progress={progress} onPress={closeDrawerFromRN} />
           <Animated.View
             aria-hidden={!open}
             className="absolute top-0 bottom-0 max-w-full"
             style={[
-              { width: drawerWidth, transformOrigin: "left top" },
+              { width: drawerWidth + 16, transformOrigin: "left top" },
               drawerAnimatedStyle,
             ]}
           >
-            {drawerContent}
-            <DrawerDim progress={progress} />
+            <View
+              className="flex-1 pl-2 pr-2 py-2"
+              style={{
+                borderCurve: "continuous" as const,
+              }}
+            >
+              <View
+                className="flex-1 overflow-hidden rounded-[28px] border border-border bg-sidebar"
+                style={{
+                  borderCurve: "continuous" as const,
+                  borderRadius: CORNERS ?? 28,
+                  boxShadow: "0px 12px 32px rgba(0, 0, 0, 0.18)",
+                }}
+              >
+                {drawerContent}
+              </View>
+            </View>
           </Animated.View>
         </Animated.View>
       </GestureDetector>
@@ -326,7 +307,6 @@ function Overlay({
     }),
     [progress],
   );
-
   const animatedProps = useAnimatedProps(() => {
     const active = progress.value > PROGRESS_EPSILON;
     return {
@@ -349,28 +329,5 @@ function Overlay({
         accessible
       />
     </Animated.View>
-  );
-}
-
-function DrawerDim({
-  progress,
-}: {
-  progress: ReturnType<typeof useDerivedValue<number>>;
-}) {
-  const animatedStyle = useAnimatedStyle(() => {
-    // Counter-scale to fill the full area when parent is scaled down
-    const parentScale = interpolate(progress.value, [0, 1], [0.95, 1]);
-    const counterScale = 1 / parentScale;
-    return {
-      opacity: interpolate(progress.value, [0, 1], [0.5, 0]),
-      transform: [{ scale: counterScale }],
-    };
-  }, [progress]);
-
-  return (
-    <Animated.View
-      className={"pointer-events-none bg-black absolute inset-0"}
-      style={[{ transformOrigin: "left top" }, animatedStyle]}
-    />
   );
 }

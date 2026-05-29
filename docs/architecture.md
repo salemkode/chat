@@ -72,7 +72,7 @@ The mobile app uses Expo Router for navigation and keeps route files thin.
 Entry and shell:
 
 - `apps/mobile/src/app/_layout.tsx`: global bootstrap for Clerk, Convex, keyboard handling, and the top-level auth/app route split
-- `apps/mobile/src/app/(auth)/sign-in.tsx`: dedicated signed-out entry screen with Google-only Clerk login
+- `apps/mobile/src/app/(auth)/sign-in.tsx`: dedicated signed-out entry screen with Google Clerk login plus an optional dev-only password form controlled by `EXPO_PUBLIC_CLERK_ENABLE_DEV_PASSWORD_AUTH`
 - `apps/mobile/src/app/(app)/_layout.tsx`: authenticated native shell with the drawer layout, model provider, and protected chat stack
 - `apps/mobile/src/app/(app)/_layout.web.tsx`: authenticated web shell with the sidebar and inset content panel
 
@@ -126,6 +126,7 @@ Web feature areas:
 
 - `apps/web/src/routes/*`: route handlers for chat, auth, admin, share, signup, memory demo
 - `apps/web/src/components/*`: chat UI, sidebar, prompt input, auth redirect, settings, markdown, model UI
+- the authenticated web chat now keeps one shared responsive shell across phones and desktops: the thread header, transcript column, and composer all align to the same centered width, while smaller screens only diverge for touch sizing and overlay behavior
 - long-running web lists now use paginated Convex queries in the client hooks for sidebar chats, memory views, model browsing, and admin catalogs instead of relying on unbounded list queries
 - settings shell lives in `apps/web/src/components/settings-modal.tsx`; settings dropdown fields use the shared Shadcn `Select` pattern for consistent design, and appearance preferences now include theme mode, accent color, plus separately persisted English and Arabic font stacks restored from local storage before hydration
 - user-facing web copy now flows through a lightweight typed i18n layer in `apps/web/src/lib/i18n.ts` and `apps/web/src/components/i18n-provider.tsx`, which owns locale preference, `html[lang|dir]`, and translation dictionaries so adding a new language is mostly a dictionary change
@@ -139,8 +140,8 @@ The web app is currently the richer admin surface:
 - dedicated accounts table management at `/admin/accounts` with inline plan controls
 - memory and share routes
 - compact operational admin records and shared layout primitives centered in `apps/web/src/components/admin/admin-surface.tsx`, so providers, models, usage, offers, and collections read consistently instead of behaving like marketing cards
-- broader desktop-oriented UI primitives under `apps/web/src/components/ui`
 - collection management now treats membership as exclusive: each model can belong to at most one collection, the manual editor highlights already-assigned models, and AI-generated collection drafts require an explicit approval step before they are saved
+- broader desktop-oriented UI primitives under `apps/web/src/components/ui`
 
 Streaming markdown rendering on web:
 

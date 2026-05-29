@@ -52,7 +52,12 @@ export function ChatMessageList({
 
   if (messages.length === 0) {
     return (
-      <div className={cn('flex-1 overflow-y-auto', 'pt-4 pb-28 sm:pt-6 sm:pb-32', className)} />
+      <div
+        className={cn(
+          'flex-1 overflow-y-auto px-3 pt-4 pb-28 sm:px-4 sm:pt-6 sm:pb-32',
+          className,
+        )}
+      />
     )
   }
 
@@ -93,7 +98,7 @@ export function ChatMessageList({
         }
         renderItem={({ item: msg, index }) => (
           <div className="pb-4 sm:pb-6">
-            <div className="mx-auto w-full max-w-3xl px-3">
+            <div className="mx-auto w-full max-w-[56rem] px-3 sm:px-4">
               <Message
                 threadId={threadId}
                 message={msg}

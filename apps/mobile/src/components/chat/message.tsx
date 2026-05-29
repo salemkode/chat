@@ -19,6 +19,7 @@ import {
 /** User bubble width when the row includes file/image attachments. */
 const USER_ATTACHMENT_BUBBLE_CLASS = "w-[88%] max-w-[92%]";
 const USER_DEFAULT_BUBBLE_CLASS = "max-w-[92%]";
+const IS_ANDROID = Platform.OS === "android";
 
 export function Message({
   from,
@@ -59,9 +60,18 @@ export function Message({
     <Animated.View
       entering={FadeIn.duration(200)}
       exiting={FadeOut.duration(150)}
-      className="mb-2"
+      className={IS_ANDROID ? "mb-3 mr-5" : "mb-2"}
     >
-      {children}
+      {IS_ANDROID ? (
+        <View
+          className="rounded-[24px] border border-border/60 bg-card px-4 py-3 shadow-card"
+          style={{ borderCurve: "continuous" }}
+        >
+          {children}
+        </View>
+      ) : (
+        children
+      )}
     </Animated.View>
   );
 }

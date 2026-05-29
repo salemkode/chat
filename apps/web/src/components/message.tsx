@@ -62,7 +62,7 @@ export const Message = memo(function Message({
       )
 
       return (
-        <div className={cn('mx-auto w-full max-w-3xl', isMobile && 'px-0.5')}>
+        <div className="mx-auto w-full max-w-[52rem]">
           <ChatInlineError message={failureNote} />
         </div>
       )
@@ -75,15 +75,12 @@ export const Message = memo(function Message({
       : false
 
     return (
-      <div className={cn('mx-auto w-full max-w-3xl', isMobile && 'px-0.5')}>
+      <div className="mx-auto w-full max-w-[52rem]">
         {hasActivity ? (
           <MessageActivityTimeline parts={message.parts} messageStatus={message.status} />
         ) : null}
 
-        <div
-          dir="auto"
-          className={cn('space-y-3 px-1 py-1', isMobile && 'space-y-3.5 px-0.5 py-1.5')}
-        >
+        <div dir="auto" className="space-y-3 px-1 py-1.5">
           {ayahCard ? <QuranAyahCard ayah={ayahCard} /> : null}
           {visibleText.trim() ? (
             <ChatMarkdown
@@ -102,8 +99,8 @@ export const Message = memo(function Message({
         {!message.localOnly ? (
           <div
             className={cn(
-              'mt-3 flex items-center gap-2 border-t border-border/50 pt-2 sm:mt-4 sm:gap-3 sm:pt-3',
-              isMobile && 'mt-4 gap-3 border-border/35 pt-3',
+              'mt-4 flex items-center gap-3 border-t border-border/40 pt-3',
+              isMobile && 'border-border/35',
             )}
           >
             <CopyButton text={message.text} />
@@ -130,11 +127,11 @@ export const Message = memo(function Message({
   const isLongUserMessage = visibleText.length >= 500 || visibleText.split('\n').length >= 10
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col items-end">
+    <div className="mx-auto flex w-full max-w-[52rem] flex-col items-end">
       <div
         className={cn(
-          'max-w-[85%] space-y-3 rounded-tl-xl rounded-tr-xl rounded-bl-xl bg-secondary px-3 py-2 text-secondary-foreground sm:max-w-[75%] sm:px-4 sm:py-2.5',
-          isMobile && 'max-w-[90%] rounded-[1.35rem] bg-secondary/92 px-3.5 py-3',
+          'max-w-[min(92%,42rem)] space-y-3 rounded-[1.35rem] bg-secondary/94 px-3.5 py-3 text-secondary-foreground sm:max-w-[min(82%,42rem)] sm:px-4 sm:py-3',
+          isMobile && 'max-w-[94%]',
         )}
       >
         {fileParts.length > 0 ? <MessageAttachments files={fileParts} /> : null}

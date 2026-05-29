@@ -17,6 +17,10 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
+        "EXPO_APP_NAME": "Chat Dev",
+        "EXPO_APP_SCHEME": "salemkode-chat-mobile-dev",
+        "EXPO_IOS_BUNDLE_IDENTIFIER": "com.salemkode.agent.dev",
+        "EXPO_ANDROID_PACKAGE": "com.salemkode.agent.dev",
         "EXPO_PUBLIC_EAS_ENVIRONMENT": "development",
         "EXPO_PUBLIC_EAS_BUILD_PROFILE": "development"
       },

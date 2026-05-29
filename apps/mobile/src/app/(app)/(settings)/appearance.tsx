@@ -1,14 +1,18 @@
 import { Icon } from "@/components/icon";
+import {
+  SettingsPage,
+  SettingsSection,
+} from "@/components/settings/settings-shell";
 import { useThemePreference } from "@/hooks/use-theme-preference";
 import type { ThemeMode } from "@/lib/theme-preference";
 import { Monitor, Moon, Sun } from "lucide-react-native";
 import { Pressable, ScrollView, Text, View } from "react-native";
 
-const THEME_OPTIONS: Array<{
+const THEME_OPTIONS: {
   id: ThemeMode;
   label: string;
   description: string;
-}> = [
+}[] = [
   {
     id: "light",
     label: "Light",
@@ -30,41 +34,62 @@ export default function AppearanceScreen() {
   const { settings, setMode } = useThemePreference();
 
   return (
-    <ScrollView
-      className="flex-1 bg-background"
-      contentInsetAdjustmentBehavior="automatic"
-      contentContainerClassName="px-5 pb-10"
-    >
-      <Text className="text-[15px] font-medium text-muted-foreground mt-6 mb-3">
-        Appearance
-      </Text>
-      <View className="gap-2">
-        {THEME_OPTIONS.map((option) => {
-          const selected = settings.mode === option.id;
-          const optionIcon =
-            option.id === "light" ? Sun : option.id === "dark" ? Moon : Monitor;
-          return (
-            <Pressable
-              key={option.id}
-              onPress={() => void setMode(option.id)}
-              className={`rounded-xl border px-4 py-3 active:bg-muted ${
-                selected ? "border-foreground bg-muted/40" : "border-border"
-              }`}
-              style={{ borderCurve: "continuous" }}
-            >
-              <View className="flex-row items-center gap-2">
-                <Icon icon={optionIcon} className="w-[18px] h-[18px] text-foreground" />
-                <Text className="text-[17px] font-medium text-foreground">
-                  {option.label}
-                </Text>
+    <SettingsPage>
+      <ScrollView
+        className="flex-1 bg-background"
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerClassName="pb-10"
+      >
+        <SettingsSection
+          title="Appearance"
+          description="Pick the visual mode that should follow you through every chat."
+        >
+          {THEME_OPTIONS.map((option, index) => {
+            const selected = settings.mode === option.id;
+            const optionIcon =
+              option.id === "light" ? Sun : option.id === "dark" ? Moon : Monitor;
+            return (
+              <View key={option.id}>
+                <Pressable
+                  onPress={() => void setMode(option.id)}
+                  className={`px-4 py-4 active:bg-muted/60 ${
+                    selected ? "bg-muted/40" : ""
+                  }`}
+                >
+                  <View className="flex-row items-center gap-3">
+                    <View className="h-10 w-10 items-center justify-center rounded-2xl bg-muted">
+                      <Icon
+                        icon={optionIcon}
+                        className="h-[18px] w-[18px] text-foreground"
+                      />
+                    </View>
+                    <View className="flex-1">
+                      <View className="flex-row items-center justify-between gap-3">
+                        <Text className="text-[16px] font-medium text-foreground">
+                          {option.label}
+                        </Text>
+                        {selected ? (
+                          <View className="rounded-full bg-foreground px-2.5 py-1">
+                            <Text className="text-[11px] font-semibold uppercase tracking-[1px] text-background">
+                              Active
+                            </Text>
+                          </View>
+                        ) : null}
+                      </View>
+                      <Text className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+                        {option.description}
+                      </Text>
+                    </View>
+                  </View>
+                </Pressable>
+                {index < THEME_OPTIONS.length - 1 ? (
+                  <View className="mx-4 h-px bg-border/80" />
+                ) : null}
               </View>
-              <Text className="text-[13px] text-muted-foreground mt-1 leading-relaxed">
-                {option.description}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-    </ScrollView>
+            );
+          })}
+        </SettingsSection>
+      </ScrollView>
+    </SettingsPage>
   );
 }

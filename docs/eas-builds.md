@@ -9,9 +9,12 @@ The standard path should be:
 - use EAS Cloud for CI and release builds
 - use `eas build --local` only for debugging or validating native issues on a developer machine
 
+This app is now on Expo SDK 56, which means native iOS builds require Xcode `26.4` or newer.
+
 ## What is standard now
 
-- Expo config lives in `apps/mobile/app.json`, with `apps/mobile/app.config.js` copying EAS `EXPO_PUBLIC_*` values into the embedded `extra` manifest (required for Clerk Google sign-in)
+- Expo config lives in `apps/mobile/app.config.js`, which also copies EAS `EXPO_PUBLIC_*` values into the embedded `extra` manifest (required for Clerk Google sign-in and the optional dev password auth toggle)
+- Native app identity is profile-aware in `apps/mobile/app.config.js`: the `development` profile defaults to a separate app name, scheme, iOS bundle identifier, and Android package so dev builds install alongside production
 - Run EAS CLI from `apps/mobile` so the archive includes the monorepo correctly
 - Repo-root wrappers are available so automation can call EAS from the monorepo root without guessing the working directory
 - `apps/mobile/eas.json` maps `development`, `preview`, and `production` to matching EAS environments

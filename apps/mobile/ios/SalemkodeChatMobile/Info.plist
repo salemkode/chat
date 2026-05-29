@@ -34,13 +34,13 @@
 		<dict>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>exp+salemkode-chat-mobile</string>
+				<string>com.googleusercontent.apps.719208346092-o0aglbhq4vgg5frg2b1bi0o7e4bj1gpn</string>
 			</array>
 		</dict>
 		<dict>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.googleusercontent.apps.719208346092-o0aglbhq4vgg5frg2b1bi0o7e4bj1gpn</string>
+				<string>exp+salemkode-chat-mobile</string>
 			</array>
 		</dict>
 	</array>

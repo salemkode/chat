@@ -1,40 +1,67 @@
 import { Icon } from "@/components/icon";
-import { Link } from "expo-router";
+import { Link, type Href } from "expo-router";
 import { ChevronRight } from "lucide-react-native";
 import type { LucideIcon } from "lucide-react-native";
 import { Pressable, Switch, Text, View } from "react-native";
 
 export function SettingsSectionDivider() {
-  return <View className="h-px bg-border mx-5" />;
+  return <View className="mx-4 h-px bg-border/80" />;
 }
 
 export function SettingsRow({
   icon,
   label,
   detail,
+  description,
   href,
   onPress,
+  tone = "default",
 }: {
   icon: LucideIcon;
   label: string;
   detail?: string;
-  href?: string;
+  description?: string;
+  href?: Href;
   onPress?: () => void;
+  tone?: "default" | "destructive";
 }) {
+  const iconClassName =
+    tone === "destructive" ? "w-5 h-5 text-red-500" : "w-5 h-5 text-foreground";
+  const labelClassName =
+    tone === "destructive"
+      ? "text-[16px] font-medium text-red-500"
+      : "text-[16px] font-medium text-foreground";
+
   const content = (
-    <View className="flex-row items-center px-5 py-3.5 gap-4 active:bg-muted">
-      <Icon icon={icon} className="w-5 h-5 text-foreground" />
-      <Text className="flex-1 text-[17px] text-foreground">{label}</Text>
-      {detail ? (
-        <Text className="text-[15px] text-muted-foreground">{detail}</Text>
-      ) : null}
-      <Icon icon={ChevronRight} className="w-3.5 h-3.5 text-muted-foreground" />
+    <View className="flex-row items-center gap-4 px-4 py-4 active:bg-muted/60">
+      <View className="h-10 w-10 items-center justify-center rounded-2xl bg-muted">
+        <Icon icon={icon} className={iconClassName} />
+      </View>
+      <View className="flex-1">
+        <Text className={labelClassName}>{label}</Text>
+        {description ? (
+          <Text className="mt-1 text-[13px] leading-5 text-muted-foreground">
+            {description}
+          </Text>
+        ) : null}
+      </View>
+      <View className="items-end gap-1">
+        {detail ? (
+          <Text className="text-[13px] font-medium text-muted-foreground">
+            {detail}
+          </Text>
+        ) : null}
+        <Icon
+          icon={ChevronRight}
+          className="h-3.5 w-3.5 text-muted-foreground"
+        />
+      </View>
     </View>
   );
 
   if (href) {
     return (
-      <Link href={href as never} asChild>
+      <Link href={href} asChild>
         <Pressable>{content}</Pressable>
       </Link>
     );
@@ -59,13 +86,17 @@ export function SettingsToggleRow({
   disabled?: boolean;
 }) {
   return (
-    <View className="px-5 py-3 gap-3">
+    <View className="px-4 py-4">
       <View className="flex-row items-center gap-4">
-        {icon ? <Icon icon={icon} className="w-5 h-5 text-foreground" /> : null}
+        {icon ? (
+          <View className="h-10 w-10 items-center justify-center rounded-2xl bg-muted">
+            <Icon icon={icon} className="h-5 w-5 text-foreground" />
+          </View>
+        ) : null}
         <View className="flex-1">
-          <Text className="text-[17px] text-foreground">{label}</Text>
+          <Text className="text-[16px] font-medium text-foreground">{label}</Text>
           {description ? (
-            <Text className="text-[13px] text-muted-foreground mt-1 leading-relaxed">
+            <Text className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
               {description}
             </Text>
           ) : null}

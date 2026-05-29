@@ -103,7 +103,7 @@ export function useComposerToast() {
 
 const styles = StyleSheet.create({
   host: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.flatten(StyleSheet.absoluteFill),
     justifyContent: "flex-end",
     zIndex: 1000,
   },

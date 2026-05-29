@@ -5,43 +5,11 @@ import {
   useChatHeaderMenu,
 } from "@/components/chat/chat-header-overflow-menu";
 import { Icon } from "@/components/icon";
-import { useModel } from "@/components/model-context";
-import { useChatHeaderLabels } from "@/hooks/use-chat-header";
-import { Link, Stack } from "expo-router";
-import { ChevronDown, Menu } from "lucide-react-native";
-import { Pressable, Text, View } from "react-native";
+import { HeaderTitlePicker } from "@/components/header-title-picker";
+import { Stack } from "expo-router";
+import { Menu } from "lucide-react-native";
+import { Pressable, View } from "react-native";
 import { useDrawer } from "./drawer-content";
-
-function HeaderTitleMenu() {
-  const { selectedModel } = useModel();
-  const { threadTitle } = useChatHeaderLabels();
-
-  return (
-    <Link href="/model-picker" asChild>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Select model"
-        className="px-2 py-1 rounded-md active:bg-muted flex-col items-center self-center max-w-[260px]"
-      >
-        <Text
-          numberOfLines={1}
-          className="text-[17px] font-semibold text-foreground text-center"
-        >
-          {threadTitle}
-        </Text>
-        <View className="flex-row items-center gap-1 mt-0.5">
-          <Text
-            numberOfLines={1}
-            className="text-[12px] text-muted-foreground"
-          >
-            {selectedModel}
-          </Text>
-          <Icon icon={ChevronDown} className="w-3 h-3 text-muted-foreground" />
-        </View>
-      </Pressable>
-    </Link>
-  );
-}
 
 export function MainHeader() {
   const { openDrawer } = useDrawer();
@@ -51,7 +19,7 @@ export function MainHeader() {
   return (
     <>
       <Stack.Screen.Title asChild>
-        <HeaderTitleMenu />
+        <HeaderTitlePicker />
       </Stack.Screen.Title>
       <Stack.Toolbar placement="left" asChild={!useNativeToolbarMenu}>
         {useNativeToolbarMenu ? (

@@ -49,11 +49,16 @@ You can still create a local `.env` file manually when needed, but the EAS envir
 
 | Variable | Description |
 | --- | --- |
+| `EXPO_APP_NAME` | Optional native app display name override. Useful for dev builds you want to install alongside production. |
+| `EXPO_APP_SCHEME` | Optional Expo/native URL scheme override. For dev builds this should differ from production. |
+| `EXPO_IOS_BUNDLE_IDENTIFIER` | Optional iOS bundle identifier override. |
+| `EXPO_ANDROID_PACKAGE` | Optional Android application ID / package override. |
 | `EXPO_PUBLIC_CONVEX_URL` | Convex deployment URL used by the mobile client. |
 | `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk publishable key used for the dedicated Google sign-in flow. |
 | `EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID` | Google OAuth web client ID for Clerk sign-in. |
 | `EXPO_PUBLIC_CLERK_GOOGLE_IOS_CLIENT_ID` | Google OAuth iOS client ID for Clerk sign-in. |
 | `EXPO_PUBLIC_CLERK_GOOGLE_ANDROID_CLIENT_ID` | Google OAuth Android client ID for Clerk sign-in. |
+| `EXPO_PUBLIC_CLERK_ENABLE_DEV_PASSWORD_AUTH` | Set to `true` in local dev to show a Clerk email-or-username + password form in the mobile app. |
 | `EXPO_PUBLIC_APP_URL` | Public web app origin used to build share links (for example `https://chat.salemkode.com`). |
 
 ### Install & Run
@@ -105,6 +110,19 @@ eas env:exec production 'eas build --platform ios --profile production --local'
 
 Plain local builds without `eas env:exec` omit Google OAuth credentials from the embedded manifest.
 
+### Development App Identity
+
+The `development` EAS profile now defaults to a separate native app identity so it can coexist with production installs:
+
+- app name: `Salemkode Chat Dev`
+- iOS bundle identifier: `com.salemkode.agent.dev`
+- Android package: `com.salemkode.agent.dev`
+- scheme: `salemkode-chat-mobile-dev`
+
+You can override any of those with `EXPO_APP_NAME`, `EXPO_APP_SCHEME`, `EXPO_IOS_BUNDLE_IDENTIFIER`, and `EXPO_ANDROID_PACKAGE`.
+
+If you use Clerk native auth or Google sign-in in dev, register the dev iOS bundle ID and Android package in Clerk and Google as separate native applications that exactly match these identifiers.
+
 The repo is set up so cloud builds are the standard release path. Local builds are mainly for debugging native issues on a developer machine.
 
 ### TestFlight
@@ -143,7 +161,7 @@ I recommend using Convex, which you can setup in a single command:
 npx eas-cli@latest integrations:convex:connect
 ```
 
-This app uses Clerk for authentication with a dedicated sign-in screen and Google login. Native Google sign-in requires a native build, not Expo Go. Convex also has support for Expo Notifications: [Learn more](https://www.convex.dev/components/push-notifications).
+This app uses Clerk for authentication with a dedicated sign-in screen and Google login. If you set `EXPO_PUBLIC_CLERK_ENABLE_DEV_PASSWORD_AUTH=true`, the native sign-in screen also shows a dev-only password form for existing Clerk users. Native Google sign-in requires a native build, not Expo Go, while the password form is useful for local testing when Clerk password auth is enabled for your instance. Convex also has support for Expo Notifications: [Learn more](https://www.convex.dev/components/push-notifications).
 
 ## License
 

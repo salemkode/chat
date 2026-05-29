@@ -13,11 +13,11 @@ import { hydrateThreadSelection } from "@/state/thread-selection";
 import { useSystemBackgroundColor } from "@/utils/use-system-background-color";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Stack, useRouter } from "expo-router";
-import { useEffect } from "react";
 import {
   DefaultTheme,
-  ThemeProvider as RNTheme,
-} from "@react-navigation/native";
+  ThemeProvider as RouterThemeProvider,
+} from "expo-router/react-navigation";
+import { useEffect } from "react";
 import { useCSSVariable } from "uniwind";
 import { OfflineSessionSync } from "@/components/offline-session-sync";
 import { MobileChatCoreProvider } from "@/components/mobile-chat-core-provider";
@@ -27,9 +27,9 @@ const IS_ANDROID = process.env.EXPO_OS === "android";
 
 function ThemeProvider(props: { children: React.ReactNode }) {
   return (
-    <RNTheme value={DefaultTheme}>
+    <RouterThemeProvider value={DefaultTheme}>
       {props.children}
-    </RNTheme>
+    </RouterThemeProvider>
   );
 }
 
@@ -153,7 +153,10 @@ function StackLayout() {
       <Stack.Screen
         name="(settings)"
         options={{
-          presentation: IS_ANDROID ? undefined : "modal",
+          presentation: "formSheet",
+          sheetAllowedDetents: [0.92],
+          sheetCornerRadius: IS_ANDROID ? 32 : undefined,
+          sheetGrabberVisible: true,
           headerShown: false,
         }}
       />

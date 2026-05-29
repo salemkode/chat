@@ -57,7 +57,6 @@ function DrawerContent({
         )}
         {...props}
       >
-        <div className="overlay-sheet-handle mx-auto mt-3 hidden shrink-0 group-data-[vaul-drawer-direction=bottom]/drawer-content:block group-data-[vaul-drawer-direction=top]/drawer-content:block" />
         {children}
       </DrawerPrimitive.Content>
     </DrawerPortal>

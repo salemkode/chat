@@ -5,6 +5,20 @@ const path = require("path");
 const localConvexDir = path.join(__dirname, "convex");
 
 const config = getDefaultConfig(__dirname);
+
+// Bridgeless RN 0.85 can hit a dev-only init race: setUpPerformance →
+// TurboModuleRegistry → NativeModules → BatchedBridge → MessageQueue.
+// inlineRequires defers those requires past module evaluation.
+config.transformer = {
+  ...config.transformer,
+  getTransformOptions: async () => ({
+    transform: {
+      experimentalImportSupport: true,
+      inlineRequires: true,
+    },
+  }),
+};
+
 const existingResolver = config.resolver.resolveRequest;
 
 config.resolver.resolveRequest = (context, moduleName, platform) => {

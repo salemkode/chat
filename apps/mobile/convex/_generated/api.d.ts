@@ -376,6 +376,7 @@ export declare const api: {
           discoveredAt?: number;
           displayName: string;
           favorites: number;
+          hasResolvableProviderApiKey: boolean;
           icon?: string;
           iconId?: Id<"_storage">;
           iconType?: "emoji" | "lucide" | "phosphor" | "upload";
@@ -390,6 +391,27 @@ export declare const api: {
           providerIconUrl?: string;
           providerId: Id<"providers">;
           providerName: string;
+          providerType?:
+            | "openrouter"
+            | "openai"
+            | "anthropic"
+            | "google"
+            | "azure"
+            | "groq"
+            | "deepseek"
+            | "xai"
+            | "cerebras"
+            | "openai-compatible"
+            | "opencode"
+            | "mistral"
+            | "cohere"
+            | "perplexity"
+            | "fireworks"
+            | "together"
+            | "replicate"
+            | "moonshot"
+            | "qwen"
+            | "stepfun";
           rateLimit?: {
             capacity?: number;
             enabled: boolean;
@@ -874,7 +896,11 @@ export declare const api: {
     suggestModelCollections: FunctionReference<
       "action",
       "public",
-      { includeHiddenModels?: boolean; prompt?: string },
+      {
+        includeHiddenModels?: boolean;
+        modelDocId?: Id<"models">;
+        prompt?: string;
+      },
       {
         collections: Array<{
           description?: string;
@@ -885,6 +911,20 @@ export declare const api: {
           sortOrder: number;
         }>;
         modelUsed: string;
+      }
+    >;
+    syncModelMetadataFromArtificialAnalysis: FunctionReference<
+      "action",
+      "public",
+      { apiKey?: string },
+      {
+        inserted: number;
+        matched: number;
+        message: string;
+        ok: boolean;
+        unmatchedModelIds: Array<string>;
+        updated: number;
+        withIndexCost: number;
       }
     >;
     toggleFavoriteModel: FunctionReference<
@@ -910,6 +950,7 @@ export declare const api: {
       "public",
       {
         appPlan?: "free" | "pro";
+        artificialAnalysisApiKey?: string;
         autoModelRouterApiKey?: string;
         autoModelRouterPreference?: "balanced" | "cost" | "speed" | "quality";
         autoModelRouterUrl?: string;
@@ -1289,6 +1330,14 @@ export declare const api: {
         };
       },
       any
+    >;
+  };
+  devAuth: {
+    createMobileDevSignInTicket: FunctionReference<
+      "action",
+      "public",
+      { email: string },
+      { ticket: string }
     >;
   };
   functions: {
@@ -2518,7 +2567,69 @@ export declare const api: {
  */
 export declare const internal: {
   admin: {
+    applyArtificialAnalysisProfileUpdates: FunctionReference<
+      "mutation",
+      "internal",
+      {
+        updates: Array<{
+          artificialAnalysisId: string;
+          benchmarkScores?: Record<string, number>;
+          intelligenceIndexRunCostUsd?: number;
+          latencyStats?: { p50Ms: number; p95Ms: number };
+          modelId: Id<"models">;
+          pricing?: {
+            currency?: string;
+            inputPer1M: number;
+            outputPer1M: number;
+          };
+          providerId: Id<"providers">;
+        }>;
+      },
+      { inserted: number; updated: number }
+    >;
     getAdminContext: FunctionReference<"query", "internal", {}, any>;
+    getArtificialAnalysisSyncContext: FunctionReference<
+      "query",
+      "internal",
+      {},
+      {
+        models: Array<{
+          _id: Id<"models">;
+          displayName: string;
+          modelId: string;
+          providerId: Id<"providers">;
+        }>;
+        profiles: Array<{
+          artificialAnalysisId?: string;
+          modelId: Id<"models">;
+        }>;
+        providers: Array<{
+          _id: Id<"providers">;
+          name: string;
+          providerType:
+            | "openrouter"
+            | "openai"
+            | "anthropic"
+            | "google"
+            | "azure"
+            | "groq"
+            | "deepseek"
+            | "xai"
+            | "cerebras"
+            | "openai-compatible"
+            | "opencode"
+            | "mistral"
+            | "cohere"
+            | "perplexity"
+            | "fireworks"
+            | "together"
+            | "replicate"
+            | "moonshot"
+            | "qwen"
+            | "stepfun";
+        }>;
+      }
+    >;
     getAutoModelStudioCatalog: FunctionReference<
       "query",
       "internal",
@@ -2548,6 +2659,7 @@ export declare const internal: {
         existingCollectionNames: Array<string>;
         models: Array<{
           _id: Id<"models">;
+          assignedCollectionName?: string;
           capabilities?: Array<string>;
           description?: string;
           displayName: string;
@@ -2577,6 +2689,12 @@ export declare const internal: {
         totalTokens: number;
         userId: Id<"users">;
       },
+      any
+    >;
+    resolveCollectionSuggestionModel: FunctionReference<
+      "query",
+      "internal",
+      { modelDocId?: Id<"models">; userId: Id<"users"> },
       any
     >;
     storeProviderDiscoveryState: FunctionReference<

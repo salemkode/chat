@@ -1,14 +1,17 @@
 import { useChatProjects, useChatThreads } from '@chat/chat-core'
 import { api } from '@convex/_generated/api'
+import { TextInput, useNativeState } from '@expo/ui'
 import { usePaginatedQuery, useQuery } from 'convex/react'
 import { useMemo, useState } from 'react'
+import { SettingsPage, SettingsSection } from '@/components/settings/settings-shell'
 import { useSettings } from '@/hooks/use-settings'
+import { useNativeThemeColors } from '@/hooks/use-native-theme-colors'
 import { sortedCopy } from '@/lib/sorted-copy'
 import { InfiniteScrollFooter } from '@/components/infinite-scroll-footer'
 import { LegendList } from '@legendapp/list/react-native'
 import { Check } from 'lucide-react-native'
 import { Icon } from '@/components/icon'
-import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native'
+import { ActivityIndicator, Pressable, Text, View } from 'react-native'
 
 type MemoryScope = 'all' | 'user' | 'thread' | 'project'
 
@@ -41,8 +44,10 @@ export default function MemorySettingsScreen() {
   const { threads } = useChatThreads()
   const { projects } = useChatProjects()
   const { settings, updateSettings } = useSettings()
+  const { foreground, mutedForeground, border, card } = useNativeThemeColors()
   const [scope, setScope] = useState<MemoryScope>('all')
   const [searchValue, setSearchValue] = useState('')
+  const searchText = useNativeState('')
 
   const auxiliaryCandidates = useQuery(api.auxiliaryModels.listAuxiliaryModelCandidates, {})
 
@@ -147,120 +152,152 @@ export default function MemorySettingsScreen() {
   }
 
   return (
-    <LegendList
-      className="flex-1 bg-background"
-      data={isLoading ? [] : filteredMemories}
-      keyExtractor={(item) => `${item.scope}:${item.memoryId}`}
-      estimatedItemSize={156}
-      contentInsetAdjustmentBehavior="automatic"
-      contentContainerClassName="px-5 pb-10"
-      onEndReached={hasMore && !isLoadingMore ? loadMoreForScope : undefined}
-      onEndReachedThreshold={0.35}
-      renderItem={({ item: memory }) => (
-        <View
-          className="mb-3 rounded-xl border border-border bg-card px-4 py-3"
-          style={{ borderCurve: 'continuous' }}
-        >
-          <View className="flex-row items-start justify-between gap-3">
-            <View className="flex-1">
-              <Text className="text-[15px] font-semibold text-foreground">{memory.title}</Text>
-              <Text className="text-[12px] text-muted-foreground mt-1 uppercase">
-                {memory.scope}
-                {memory.category ? ` · ${memory.category}` : ''}
+    <SettingsPage>
+      <LegendList
+        className="flex-1 bg-background"
+        data={isLoading ? [] : filteredMemories}
+        keyExtractor={(item) => `${item.scope}:${item.memoryId}`}
+        estimatedItemSize={156}
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerClassName="px-5 pb-10"
+        onEndReached={hasMore && !isLoadingMore ? loadMoreForScope : undefined}
+        onEndReachedThreshold={0.35}
+        renderItem={({ item: memory }) => (
+          <View
+            className="mb-3 rounded-[24px] border border-border bg-card px-4 py-4 shadow-card"
+            style={{ borderCurve: 'continuous' }}
+          >
+            <View className="flex-row items-start justify-between gap-3">
+              <View className="flex-1">
+                <Text className="text-[15px] font-semibold text-foreground">{memory.title}</Text>
+                <Text className="mt-1 text-[12px] uppercase text-muted-foreground">
+                  {memory.scope}
+                  {memory.category ? ` · ${memory.category}` : ''}
+                </Text>
+              </View>
+              <Text className="text-[12px] text-muted-foreground">
+                {formatRelativeTime(memory.updatedAt)}
               </Text>
             </View>
-            <Text className="text-[12px] text-muted-foreground">
-              {formatRelativeTime(memory.updatedAt)}
+            <Text
+              className="mt-2 text-[14px] leading-relaxed text-muted-foreground"
+              numberOfLines={4}
+            >
+              {memory.content}
             </Text>
           </View>
-          <Text
-            className="text-[14px] text-muted-foreground mt-2 leading-relaxed"
-            numberOfLines={4}
-          >
-            {memory.content}
-          </Text>
-        </View>
-      )}
-      ListHeaderComponent={
-        <>
-          <Text className="text-[13px] text-muted-foreground pt-6 pb-2">
-            Background memory model
-          </Text>
-          <Text className="text-[13px] text-muted-foreground pb-3 leading-relaxed">
-            Used when your chat model does not support tools. Pick a small, fast model to save cost.
-          </Text>
-          {(auxiliaryCandidates ?? []).map((candidate) => {
-            const selected = selectedAuxiliaryModelId === candidate.modelDocId
-            const costHint =
-              candidate.estimatedCostPerExtraction != null
-                ? ` (~$${candidate.estimatedCostPerExtraction.toFixed(4)}/run)`
-                : ''
-            return (
-              <Pressable
-                key={candidate.modelDocId}
-                onPress={() =>
-                  void updateSettings({
-                    auxiliaryModelId: candidate.modelDocId,
-                  })
-                }
-                className="flex-row items-center px-1 py-3 gap-3 active:bg-muted"
-              >
-                <View className="w-5 items-center">
-                  {selected ? <Icon icon={Check} className="w-5 h-5 text-foreground" /> : null}
-                </View>
-                <Text className="text-[17px] text-foreground flex-1">
-                  {candidate.displayName}
-                  {costHint}
-                </Text>
-              </Pressable>
-            )
-          })}
+        )}
+        ListHeaderComponent={
+          <>
+            <SettingsSection
+              title="Background memory model"
+              description="Used when your chat model does not support tools. A smaller fast model keeps memory extraction responsive and inexpensive."
+            >
+              {(auxiliaryCandidates ?? []).map((candidate, index, array) => {
+                const selected = selectedAuxiliaryModelId === candidate.modelDocId
+                const costHint =
+                  candidate.estimatedCostPerExtraction != null
+                    ? ` (~$${candidate.estimatedCostPerExtraction.toFixed(4)}/run)`
+                    : ''
+                return (
+                  <View key={candidate.modelDocId}>
+                    <Pressable
+                      onPress={() =>
+                        void updateSettings({
+                          auxiliaryModelId: candidate.modelDocId,
+                        })
+                      }
+                      className="flex-row items-center gap-3 px-4 py-4 active:bg-muted/60"
+                    >
+                      <View className="w-5 items-center">
+                        {selected ? <Icon icon={Check} className="w-5 h-5 text-foreground" /> : null}
+                      </View>
+                      <Text className="flex-1 text-[16px] font-medium text-foreground">
+                        {candidate.displayName}
+                        {costHint}
+                      </Text>
+                    </Pressable>
+                    {index < array.length - 1 ? <View className="mx-4 h-px bg-border/80" /> : null}
+                  </View>
+                )
+              })}
+            </SettingsSection>
 
-          <View className="flex-row flex-wrap gap-2 mt-4">
-            {(
-              [
-                ['all', 'All'],
-                ['user', 'User'],
-                ['thread', 'Thread'],
-                ['project', 'Project'],
-              ] as const
-            ).map(([value, label]) => (
-              <Pressable
-                key={value}
-                onPress={() => setScope(value)}
-                className={`px-3 py-1.5 rounded-full border ${
-                  scope === value ? 'border-foreground bg-muted' : 'border-border'
-                }`}
-              >
-                <Text className="text-[13px] text-foreground">{label}</Text>
-              </Pressable>
-            ))}
-          </View>
+            <View className="mt-6">
+              <Text className="text-[12px] font-medium uppercase tracking-[1px] text-muted-foreground">
+                Memory browser
+              </Text>
+              <Text className="mt-2 text-[14px] leading-6 text-muted-foreground">
+                Filter by scope and search across saved memories, notes, and extracted context.
+              </Text>
 
-          <TextInput
-            value={searchValue}
-            onChangeText={setSearchValue}
-            placeholder="Search memories…"
-            placeholderTextColor="#999"
-            className="bg-muted rounded-xl px-4 py-3 text-[15px] text-foreground mt-4 mb-4"
-            style={{ borderCurve: 'continuous' }}
-          />
-        </>
-      }
-      ListEmptyComponent={
-        isLoading ? (
-          <View className="py-12 items-center">
-            <ActivityIndicator />
-          </View>
-        ) : (
-          <Text className="text-[15px] text-muted-foreground text-center py-12">
-            No memories match this filter.
-          </Text>
-        )
-      }
-      ListFooterComponent={
-        <InfiniteScrollFooter isLoadingMore={isLoadingMore} label="Loading more memories..." />
-      }
-    />
+              <View className="mt-4 flex-row flex-wrap gap-2">
+                {(
+                  [
+                    ['all', 'All'],
+                    ['user', 'User'],
+                    ['thread', 'Thread'],
+                    ['project', 'Project'],
+                  ] as const
+                ).map(([value, label]) => (
+                  <Pressable
+                    key={value}
+                    onPress={() => setScope(value)}
+                    className={`rounded-full border px-3 py-2 ${
+                      scope === value ? 'border-foreground bg-foreground' : 'border-border bg-card'
+                    }`}
+                  >
+                    <Text
+                      className={`text-[13px] font-medium ${
+                        scope === value ? 'text-background' : 'text-foreground'
+                      }`}
+                    >
+                      {label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              <View className="mt-4">
+                <TextInput
+                  value={searchText}
+                  onChangeText={setSearchValue}
+                  placeholder="Search memories..."
+                  placeholderTextColor={mutedForeground}
+                  cursorColor={foreground}
+                  selectionColor={foreground}
+                  style={{
+                    borderRadius: 20,
+                    borderWidth: 1,
+                    borderColor: border,
+                    backgroundColor: card,
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                  }}
+                  textStyle={{
+                    color: foreground,
+                    fontSize: 15,
+                  }}
+                />
+              </View>
+            </View>
+          </>
+        }
+        ListEmptyComponent={
+          isLoading ? (
+            <View className="py-12 items-center">
+              <ActivityIndicator />
+            </View>
+          ) : (
+            <Text className="py-12 text-center text-[15px] text-muted-foreground">
+              No memories match this filter.
+            </Text>
+          )
+        }
+        ListFooterComponent={
+          <InfiniteScrollFooter isLoadingMore={isLoadingMore} label="Loading more memories..." />
+        }
+      />
+    </SettingsPage>
   )
 }

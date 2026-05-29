@@ -6,7 +6,7 @@ import {
   ThemedGlassView,
 } from "@/components/themed-glass";
 import { useEffect, useRef, type ReactNode } from "react";
-import { ActivityIndicator, Pressable, TextInput, View } from "react-native";
+import { ActivityIndicator, Platform, Pressable, TextInput, View } from "react-native";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 
 import { cn } from "@/utils/tailwind";
@@ -21,6 +21,8 @@ import {
   COMPOSER_GLASS_PADDING,
   COMPOSER_ROW_GAP,
 } from "./composer-layout";
+
+const IS_ANDROID = Platform.OS === "android";
 
 /**
  * Root container for the message composer. Positions itself at the bottom of
@@ -110,6 +112,26 @@ export function PromptInputAction(props: {
   children: ReactNode;
   onPress?: () => void;
 }) {
+  if (IS_ANDROID) {
+    return (
+      <Pressable
+        hitSlop={4}
+        onPress={props.onPress}
+        style={({ pressed }) => ({
+          width: COMPOSER_ACTION_SIZE,
+          height: COMPOSER_ACTION_SIZE,
+          borderRadius: COMPOSER_ACTION_SIZE / 2,
+          justifyContent: "center",
+          alignItems: "center",
+          opacity: pressed ? 0.82 : 1,
+        })}
+        className="border border-border/70 bg-card shadow-card"
+      >
+        {props.children}
+      </Pressable>
+    );
+  }
+
   return (
     <TouchableGlass
       hitSlop={4}
@@ -129,6 +151,20 @@ export function PromptInputAction(props: {
  * Glass-wrapped container for the textarea and submit button.
  */
 export function PromptInputBody({ children }: { children: ReactNode }) {
+  if (IS_ANDROID) {
+    return (
+      <View
+        className="flex-1 flex-row rounded-[22px] border border-border/70 bg-card shadow-card"
+        style={{
+          borderRadius: 22,
+          borderCurve: "continuous",
+        }}
+      >
+        {children}
+      </View>
+    );
+  }
+
   return (
     <ThemedGlassView
       isInteractive
@@ -216,6 +252,7 @@ export function PromptInputTextarea({
         }
       }}
       placeholder={placeholder}
+      placeholderTextColor={IS_ANDROID ? "rgba(120,120,128,0.88)" : undefined}
       multiline
       maxLength={maxLength}
       blurOnSubmit={false}
@@ -244,7 +281,11 @@ export function PromptInputSubmit() {
         opacity: pressed ? 0.7 : 1,
         margin: 5,
       })}
-      className={sendDisabled && !showStop ? "bg-secondary" : "bg-foreground"}
+      className={
+        sendDisabled && !showStop
+          ? "border border-border/60 bg-secondary"
+          : "bg-foreground"
+      }
       onPress={showStop ? onStop : onSend}
       disabled={sendDisabled && !showStop}
       accessibilityLabel={showStop ? (canForceStop ? "Force stop" : "Stop generation") : "Send message"}

@@ -1,3 +1,8 @@
+import { Icon } from '@/components/icon'
+import {
+  SettingsPage,
+  SettingsSection,
+} from '@/components/settings/settings-shell'
 import { SettingsSectionDivider, SettingsToggleRow } from '@/components/settings/settings-row'
 import { useModels } from '@/hooks/use-models'
 import { useSettings } from '@/hooks/use-settings'
@@ -6,7 +11,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Check } from 'lucide-react-native'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native'
-import { Icon } from '@/components/icon'
 import { sortedCopy } from '@/lib/sorted-copy'
 
 const DEFAULT_MODEL_STORAGE_KEY = 'default-model-id'
@@ -90,84 +94,92 @@ export default function ModelsSettingsScreen() {
   }
 
   return (
-    <ScrollView
-      className="flex-1 bg-background"
-      contentInsetAdjustmentBehavior="automatic"
-      contentContainerClassName="pb-10"
-    >
-      <Text className="text-[13px] text-muted-foreground px-5 pt-6 pb-2">Default model</Text>
-      <Text className="text-[13px] text-muted-foreground px-5 pb-3 leading-relaxed">
-        Choose a fixed model or Auto when the admin router has enabled it.
-      </Text>
-      {modelOptions.map((option) => {
-        const selected = selectedDefault === option.value
-        return (
-          <Pressable
-            key={option.value}
-            onPress={() => void setDefaultModel(option.value)}
-            className="flex-row items-center px-5 py-3 gap-3 active:bg-muted"
+    <SettingsPage>
+      <ScrollView
+        className="flex-1 bg-background"
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerClassName="pb-10"
+      >
+        <SettingsSection
+          title="Default model"
+          description="Choose a fixed model, or leave it on Auto when routing is available."
+        >
+          {modelOptions.map((option, index) => {
+            const selected = selectedDefault === option.value
+            return (
+              <View key={option.value}>
+                <Pressable
+                  onPress={() => void setDefaultModel(option.value)}
+                  className="flex-row items-center gap-3 px-4 py-4 active:bg-muted/60"
+                >
+                  <View className="w-5 items-center">
+                    {selected ? <Icon icon={Check} className="w-5 h-5 text-foreground" /> : null}
+                  </View>
+                  <Text className="text-[16px] font-medium text-foreground">{option.label}</Text>
+                </Pressable>
+                {index < modelOptions.length - 1 ? <SettingsSectionDivider /> : null}
+              </View>
+            )
+          })}
+        </SettingsSection>
+
+        {autoModelAvailable ? (
+          <SettingsSection
+            title="Routing preference"
+            description="Tell Auto whether to lean toward quality, speed, or lower cost."
           >
-            <View className="w-5 items-center">
-              {selected ? <Icon icon={Check} className="w-5 h-5 text-foreground" /> : null}
-            </View>
-            <Text className="text-[17px] text-foreground">{option.label}</Text>
-          </Pressable>
-        )
-      })}
-
-      {autoModelAvailable ? (
-        <>
-          <SettingsSectionDivider />
-
-          <Text className="text-[13px] text-muted-foreground px-5 pt-4 pb-2">
-            Routing preference
-          </Text>
-          <Text className="text-[13px] text-muted-foreground px-5 pb-3 leading-relaxed">
-            How Auto picks a model: balance quality, speed, and cost.
-          </Text>
-          {ROUTING_PREFERENCE_OPTIONS.map((option) => (
-            <Pressable
-              key={option.value}
-              onPress={() => void updateSettings({ routingPreference: option.value })}
-              className="flex-row items-center px-5 py-3 gap-3 active:bg-muted"
-            >
-              <View className="w-5 items-center">
-                {routingPreference === option.value ? (
-                  <Icon icon={Check} className="w-5 h-5 text-foreground" />
+            {ROUTING_PREFERENCE_OPTIONS.map((option, index) => (
+              <View key={option.value}>
+                <Pressable
+                  onPress={() => void updateSettings({ routingPreference: option.value })}
+                  className="flex-row items-center gap-3 px-4 py-4 active:bg-muted/60"
+                >
+                  <View className="w-5 items-center">
+                    {routingPreference === option.value ? (
+                      <Icon icon={Check} className="w-5 h-5 text-foreground" />
+                    ) : null}
+                  </View>
+                  <Text className="text-[16px] font-medium text-foreground">{option.label}</Text>
+                </Pressable>
+                {index < ROUTING_PREFERENCE_OPTIONS.length - 1 ? (
+                  <SettingsSectionDivider />
                 ) : null}
               </View>
-              <Text className="text-[17px] text-foreground">{option.label}</Text>
-            </Pressable>
-          ))}
-        </>
-      ) : null}
+            ))}
+          </SettingsSection>
+        ) : null}
 
-      <SettingsSectionDivider />
-
-      <SettingsToggleRow
-        label="Reasoning"
-        description="Extra step-by-step reasoning when the model supports it."
-        value={Boolean(settings?.reasoningEnabled)}
-        onValueChange={(value) => {
-          void updateSettings({ reasoningEnabled: value })
-        }}
-      />
-
-      <Text className="text-[13px] text-muted-foreground px-5 pt-4 pb-2">Reasoning depth</Text>
-      {(['low', 'medium', 'high'] as const).map((level) => (
-        <Pressable
-          key={level}
-          onPress={() => void updateSettings({ reasoningLevel: level })}
-          className="flex-row items-center px-5 py-3 gap-3 active:bg-muted"
+        <SettingsSection
+          title="Reasoning"
+          description="Enable deeper thinking and choose how much effort supported models should use."
         >
-          <View className="w-5 items-center">
-            {reasoningLevel === level ? (
-              <Icon icon={Check} className="w-5 h-5 text-foreground" />
-            ) : null}
-          </View>
-          <Text className="text-[17px] text-foreground capitalize">{level}</Text>
-        </Pressable>
-      ))}
-    </ScrollView>
+          <SettingsToggleRow
+            label="Reasoning"
+            description="Extra step-by-step reasoning when the model supports it."
+            value={Boolean(settings?.reasoningEnabled)}
+            onValueChange={(value) => {
+              void updateSettings({ reasoningEnabled: value })
+            }}
+          />
+          <SettingsSectionDivider />
+          {(['low', 'medium', 'high'] as const).map((level, index) => (
+            <View key={level}>
+              <Pressable
+                onPress={() => void updateSettings({ reasoningLevel: level })}
+                className="flex-row items-center gap-3 px-4 py-4 active:bg-muted/60"
+              >
+                <View className="w-5 items-center">
+                  {reasoningLevel === level ? (
+                    <Icon icon={Check} className="w-5 h-5 text-foreground" />
+                  ) : null}
+                </View>
+                <Text className="text-[16px] font-medium capitalize text-foreground">{level}</Text>
+              </Pressable>
+              {index < 2 ? <SettingsSectionDivider /> : null}
+            </View>
+          ))}
+        </SettingsSection>
+      </ScrollView>
+    </SettingsPage>
   )
 }

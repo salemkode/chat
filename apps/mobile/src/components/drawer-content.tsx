@@ -41,10 +41,13 @@ import {
   View,
 } from "react-native";
 
+const settingsPath = "/(app)/(settings)/settings" satisfies Href;
+
 type DrawerListRow =
   | { kind: "loading" }
   | { kind: "projectsHeader" }
   | { kind: "project"; project: ProjectSummary }
+  | { kind: "projectThread"; projectId: string; thread: ThreadSummary }
   | { kind: "projectsLoading" }
   | { kind: "divider" }
   | { kind: "thread"; thread: ThreadSummary }
@@ -78,19 +81,36 @@ export function useDrawer() {
   return context;
 }
 
-function DrawerHeader({ onCreateProject }: { onCreateProject: () => void }) {
+function DrawerHeader({
+  onCreateProject,
+  onNewChat,
+}: {
+  onCreateProject: () => void;
+  onNewChat: () => void;
+}) {
   return (
-    <View className="px-4 pt-2 pb-1">
-      <View className="flex-row items-center justify-between">
-        <Text className="text-[28px] font-bold text-foreground">Chat</Text>
+    <View className="px-4 pt-3 pb-1">
+      <View className="items-center py-3">
+        <Text className="text-lg font-semibold text-foreground">Chat</Text>
+      </View>
+      <Pressable
+        onPress={onNewChat}
+        className="mt-1 w-full rounded-xl bg-foreground px-4 py-3 active:opacity-85"
+      >
+        <View className="flex-row items-center justify-center gap-2">
+          <Icon icon={SquarePen} className="w-4 h-4" colorClassName="accent-background" />
+          <Text className="text-[15px] font-semibold text-background">New Chat</Text>
+        </View>
+      </Pressable>
+      <View className="mt-2">
         <Pressable
           onPress={onCreateProject}
-          className="px-2.5 py-1 rounded-[8px] active:bg-accent flex-row items-center gap-1"
+          className="w-full rounded-xl border border-border bg-card px-4 py-3 active:bg-accent"
         >
-          <Icon icon={Folder} className="w-3.5 h-3.5 text-muted-foreground" />
-          <Text className="text-[13px] text-muted-foreground font-medium">
-            New Project
-          </Text>
+          <View className="flex-row items-center gap-2">
+            <Icon icon={Folder} className="w-4 h-4 text-muted-foreground" />
+            <Text className="text-[15px] font-medium text-foreground">New Project</Text>
+          </View>
         </Pressable>
       </View>
     </View>
@@ -114,28 +134,18 @@ function DrawerErrorBanner({
   );
 }
 
-function DrawerProjectSection({
+function DrawerProjectRow({
   project,
-  threads,
   isExpanded,
   onToggle,
-  onThreadPress,
-  onThreadPin,
-  onThreadRemoveFromProject,
-  onThreadDelete,
   onNewChatInProject,
-  selectedThreadId,
+  threadCount,
 }: {
   project: ProjectSummary;
-  threads: ThreadSummary[];
   isExpanded: boolean;
   onToggle: () => void;
-  onThreadPress: (thread: ThreadSummary) => void;
-  onThreadPin: (thread: ThreadSummary) => void;
-  onThreadRemoveFromProject: (thread: ThreadSummary) => void;
-  onThreadDelete: (thread: ThreadSummary) => void;
   onNewChatInProject: () => void;
-  selectedThreadId: string | undefined;
+  threadCount: number;
 }) {
   return (
     <View className="mb-1">
@@ -162,24 +172,11 @@ function DrawerProjectSection({
           className="h-6 flex-row items-center gap-0.5 rounded-full px-1.5 active:bg-accent"
         >
           <Text className="text-[11px] tabular-nums text-muted-foreground">
-            {threads.length > 0 ? threads.length : project.threadCount}
+            {threadCount > 0 ? threadCount : project.threadCount}
           </Text>
           <Icon icon={Plus} className="w-3.5 h-3.5 text-muted-foreground" />
         </Pressable>
       </Pressable>
-      {isExpanded &&
-        threads.map((thread) => (
-          <DrawerThreadRow
-            key={thread.id}
-            thread={thread}
-            nested
-            active={selectedThreadId === thread.id}
-            onPress={() => onThreadPress(thread)}
-            onPin={() => onThreadPin(thread)}
-            onRemoveFromProject={() => onThreadRemoveFromProject(thread)}
-            onDelete={() => onThreadDelete(thread)}
-          />
-        ))}
     </View>
   );
 }
@@ -214,12 +211,10 @@ function DrawerFooter({
   viewerInitials,
   viewerName,
   onSettings,
-  onNewChat,
 }: {
   viewerInitials: string;
   viewerName: string;
   onSettings: () => void;
-  onNewChat: () => void;
 }) {
   return (
     <View
@@ -237,19 +232,6 @@ function DrawerFooter({
         </View>
         <Text className="text-sm text-foreground">{viewerName}</Text>
       </TouchableGlass>
-      <View className="flex-1" />
-      <Pressable
-        onPress={onNewChat}
-        accessibilityLabel="New chat"
-        accessibilityRole="button"
-        className="w-10 h-10 rounded-full bg-foreground active:opacity-80 items-center justify-center"
-      >
-        <Icon
-          icon={SquarePen}
-          className="w-5 h-5"
-          colorClassName="accent-background"
-        />
-      </Pressable>
     </View>
   );
 }
@@ -453,7 +435,22 @@ export function DrawerContent({
     const rows: DrawerListRow[] = [];
     if (hasProjects) {
       rows.push({ kind: "projectsHeader" });
-      rows.push(...projects.map((project) => ({ kind: "project", project }) satisfies DrawerListRow));
+      for (const project of projects) {
+        rows.push({ kind: "project", project });
+        if (expandedProjectIds[project.id] ?? true) {
+          const projectThreads = threadsByProject.get(project.id) ?? [];
+          rows.push(
+            ...projectThreads.map(
+              (thread) =>
+                ({
+                  kind: "projectThread",
+                  projectId: project.id,
+                  thread,
+                }) satisfies DrawerListRow,
+            ),
+          );
+        }
+      }
       if (isLoadingMoreProjects) {
         rows.push({ kind: "projectsLoading" });
       }
@@ -475,6 +472,8 @@ export function DrawerContent({
     isLoadingMoreProjects,
     isLoadingMoreThreads,
     projects,
+    expandedProjectIds,
+    threadsByProject,
     unfiledThreads,
   ]);
 
@@ -499,7 +498,10 @@ export function DrawerContent({
 
   return (
     <SafeAreaView className="flex-1" edges={["top", "bottom", "left"]}>
-      <DrawerHeader onCreateProject={showCreateProject} />
+      <DrawerHeader
+        onCreateProject={showCreateProject}
+        onNewChat={handleNewChat}
+      />
 
       <View className="px-4 pb-3">
         <DrawerSearchBar
@@ -526,6 +528,8 @@ export function DrawerContent({
               return "projectsHeader";
             case "project":
               return `project:${item.project.id}`;
+            case "projectThread":
+              return `projectThread:${item.projectId}:${item.thread.id}`;
             case "projectsLoading":
               return "projectsLoading";
             case "divider":
@@ -563,20 +567,31 @@ export function DrawerContent({
               const projectThreads = threadsByProject.get(item.project.id) ?? [];
               const isExpanded = expandedProjectIds[item.project.id] ?? true;
               return (
-                <DrawerProjectSection
+                <DrawerProjectRow
                   project={item.project}
-                  threads={projectThreads}
                   isExpanded={isExpanded}
                   onToggle={() => toggleProject(item.project.id)}
-                  onThreadPress={handleThreadPress}
-                  onThreadPin={handlePin}
-                  onThreadRemoveFromProject={handleRemoveFromProject}
-                  onThreadDelete={confirmDelete}
                   onNewChatInProject={() => handleNewChatInProject(item.project.id)}
-                  selectedThreadId={selectedThreadId}
+                  threadCount={
+                    projectThreads.length > 0
+                      ? projectThreads.length
+                      : item.project.threadCount
+                  }
                 />
               );
             }
+            case "projectThread":
+              return (
+                <DrawerThreadRow
+                  thread={item.thread}
+                  nested
+                  active={selectedThreadId === item.thread.id}
+                  onPress={() => handleThreadPress(item.thread)}
+                  onPin={() => handlePin(item.thread)}
+                  onRemoveFromProject={() => handleRemoveFromProject(item.thread)}
+                  onDelete={() => confirmDelete(item.thread)}
+                />
+              );
             case "projectsLoading":
               return (
                 <InfiniteScrollFooter
@@ -626,8 +641,7 @@ export function DrawerContent({
       <DrawerFooter
         viewerInitials={userInitials}
         viewerName={viewer?.name || "Loading..."}
-        onSettings={() => onOpenModal("/(settings)/settings" as Href)}
-        onNewChat={handleNewChat}
+        onSettings={() => onOpenModal(settingsPath)}
       />
 
     </SafeAreaView>

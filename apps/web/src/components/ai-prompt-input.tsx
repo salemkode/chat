@@ -647,14 +647,9 @@ export function AIPromptInput({
   }, [])
 
   return (
-    <div
-      className={cn(
-        'pointer-events-auto w-full',
-        mobile ? 'bg-transparent' : 'mb-1',
-      )}
-    >
+    <div className="pointer-events-auto w-full">
       {submitError ? (
-        <div className={cn('px-3 pb-2', mobile && 'px-2')}>
+        <div className="px-1 pb-2">
           <ChatInlineError variant="composer" message={submitError} />
         </div>
       ) : null}
@@ -682,9 +677,7 @@ export function AIPromptInput({
         }}
         className={cn(
           'pointer-events-auto relative flex w-full min-w-0 flex-col items-stretch text-secondary-foreground',
-          mobile
-            ? 'rounded-tl-xl rounded-tr-xl border border-border/90 bg-card p-3.5 shadow-[0_4px_24px_rgba(15,23,42,0.1)] dark:border-border/55 dark:bg-card/98 dark:shadow-[0_6px_28px_rgba(0,0,0,0.45)]'
-            : 'rounded-4xl border border-border bg-muted/80 p-3 backdrop-blur-2xl sm:max-w-3xl sm:p-4',
+          'rounded-[1.75rem] border border-border/80 bg-card/95 p-3 shadow-[0_12px_40px_rgba(15,23,42,0.10)] backdrop-blur-2xl sm:rounded-[2rem] sm:p-4 dark:border-border/60 dark:bg-card/95 dark:shadow-[0_16px_42px_rgba(0,0,0,0.32)]',
           isDragging && 'border-primary/60 bg-primary/5',
         )}
       >

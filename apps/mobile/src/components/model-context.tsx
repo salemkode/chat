@@ -7,13 +7,16 @@ import {
   resolveModelAttachmentMediaTypes,
   type ModelAttachmentValidationStatus,
 } from "@chat/shared";
+import type { IconType } from "@chat/shared/admin-types";
 
 const LAST_USED_MODEL_KEY = "last-used-model-id";
 
 export type Model = {
   id: Id<"models">;
   label: string;
-  subtitle?: string;
+  icon?: string;
+  iconType?: IconType;
+  iconUrl?: string;
   attachmentValidationStatus?: ModelAttachmentValidationStatus;
   capabilities?: string[];
   providerType?: string | null;
@@ -98,7 +101,9 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
       apiModels.map((m) => ({
         id: m._id,
         label: m.displayName,
-        subtitle: m.description,
+        icon: m.icon || m.provider?.icon,
+        iconType: m.iconType || m.provider?.iconType,
+        iconUrl: m.iconUrl || m.provider?.iconUrl,
         attachmentValidationStatus: m.attachmentValidationStatus,
         capabilities: m.capabilities,
         providerType: m.provider?.providerType ?? null,

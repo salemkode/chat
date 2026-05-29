@@ -4,7 +4,7 @@ import {
   isLiquidGlassAvailable,
 } from "expo-glass-effect";
 import { Image as XImage } from "expo-image";
-import { StyleSheet, type ViewStyle } from "react-native";
+import { Platform, StyleSheet, View, type ViewStyle } from "react-native";
 import { withUniwind } from "uniwind";
 
 import {
@@ -43,6 +43,20 @@ function FallbackAppleGlassView({
   className,
 }: FallbackAppleGlassViewProps) {
   const themeBlurTint = useGlassBlurFallbackTint();
+
+  if (Platform.OS === "android") {
+    return (
+      <View
+        className={className}
+        style={[
+          { overflow: "hidden" },
+          StyleSheet.flatten(style) as ViewStyle,
+        ]}
+      >
+        {children as React.ReactNode}
+      </View>
+    );
+  }
 
   return (
     <BlurView

@@ -7,8 +7,8 @@ const GLASS = isLiquidGlassAvailable();
 export default function SettingsLayout() {
   const router = useRouter();
 
-  const appForeground = useCSSVariable("--app-foreground") as string;
-  const appBackground = useCSSVariable("--app-background") as string;
+  const appForeground = useCSSVariable("--app-foreground");
+  const appBackground = useCSSVariable("--app-background");
 
   return (
     <Stack
@@ -16,10 +16,12 @@ export default function SettingsLayout() {
         headerTransparent: GLASS,
         headerLargeTitleShadowVisible: false,
         headerBackButtonDisplayMode: GLASS ? "minimal" : "default",
-        headerTintColor: appForeground,
+        headerTintColor:
+          typeof appForeground === "string" ? appForeground : undefined,
         headerShadowVisible: false,
         headerStyle: {
-          backgroundColor: appBackground,
+          backgroundColor:
+            typeof appBackground === "string" ? appBackground : undefined,
         },
       }}
     >

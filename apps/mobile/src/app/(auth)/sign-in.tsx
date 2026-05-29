@@ -1,5 +1,6 @@
+import { DemoLoginButton } from "@/components/auth/dev-email-sign-in-button";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
-import { ClientEnvList } from "@/components/client-env-list";
+import { SafeAreaView } from "@/components/tw";
 import { useAuth } from "@clerk/expo";
 import { Redirect } from "expo-router";
 import { ActivityIndicator, Text, View } from "react-native";
@@ -22,26 +23,22 @@ export default function SignInScreen() {
   }
 
   return (
-    <View
-      className="flex-1 bg-background px-6"
-      style={{
-        paddingTop: Math.max(insets.top, 60),
-        paddingBottom: Math.max(insets.bottom, 20),
-      }}
+    <SafeAreaView
+      className="flex-1 justify-between bg-background px-6"
+      edges={["bottom"]}
+      style={{ paddingTop: Math.max(insets.top, 60) }}
     >
-      <View className="mb-6 mt-8 flex-1">
-        <Text className="mb-1 text-2xl font-bold text-foreground">
-          Client environment
+      <View className="mt-8">
+        <Text className="text-3xl font-bold text-foreground">Welcome back</Text>
+        <Text className="mt-3 text-base leading-6 text-muted-foreground">
+          Sign in to continue to Chat.
         </Text>
-        <Text className="mb-4 text-sm text-muted-foreground">
-          EAS production env baked into this build at compile time
-        </Text>
-        <ClientEnvList />
       </View>
 
-      <View className="mb-8 w-full">
+      <View className="w-full gap-4 pb-5">
         <GoogleSignInButton />
+        {__DEV__ ? <DemoLoginButton /> : null}
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
