@@ -62,6 +62,8 @@ export const discoveredModelValidator = v.object({
   modelId: v.string(),
   displayName: v.string(),
   description: v.optional(v.string()),
+  icon: v.optional(v.string()),
+  iconType: v.optional(iconTypeValidator),
   ownedBy: v.optional(v.string()),
   contextWindow: v.optional(v.number()),
   maxOutputTokens: v.optional(v.number()),

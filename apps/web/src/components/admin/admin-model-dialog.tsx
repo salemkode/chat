@@ -1,10 +1,11 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return -- catalog model entries come from Convex-inferred ProviderCatalogResult */
-import { useMutation } from 'convex/react'
+import { useAction, useMutation } from 'convex/react'
 import type { Doc, Id } from '@convex/_generated/dataModel'
 import { Loader2, Plus, RefreshCcw, Sparkles } from '@/lib/icons'
-import { useCallback, useId, useMemo, useReducer } from 'react'
+import { useCallback, useId, useMemo, useReducer, useState } from 'react'
 import { toast } from 'sonner'
 import { api } from '@convex/_generated/api'
+import { parseConvexIdForTable } from '@chat/shared/logic/convex-ids'
 import { useAdminDiscovery } from '@/components/admin/admin-discovery-context'
 import { IconPickerField } from '@/components/admin/icon-picker-field'
 import type {
@@ -86,14 +87,27 @@ export type AdminModelDialogProps = {
     hasDiscoveryForSelectedProvider: boolean
     discoveredModelsForSelectedProvider: ProviderCatalogResult['models']
     discoveredModelCountForSelectedProvider: number
+    polishingModelId: string | null
   }
   actions: {
     onTriggerOpen: () => void
     onInspectSelectedProvider: () => void
-    onApplyDiscoveredModel: (model: ProviderCatalogResult['models'][number]) => void
+    onApplyDiscoveredModel: (model: ProviderCatalogResult['models'][number]) => Promise<void>
     onResetModelFormToCustom: () => void
     onSave: () => void
     onIconUpload: (file: File) => Promise<void>
+  }
+}
+
+function normalizeIconType(value: string | undefined): IconType {
+  switch (value) {
+    case 'emoji':
+    case 'lucide':
+    case 'phosphor':
+    case 'upload':
+      return value
+    default:
+      return undefined
   }
 }
 
@@ -112,6 +126,7 @@ export function AdminModelDialog({ state, actions }: AdminModelDialogProps) {
     hasDiscoveryForSelectedProvider,
     discoveredModelsForSelectedProvider,
     discoveredModelCountForSelectedProvider,
+    polishingModelId,
   } = state
   const suggestedTags = [
     'production',
@@ -271,11 +286,15 @@ export function AdminModelDialog({ state, actions }: AdminModelDialogProps) {
                               <CommandItem
                                 key={model.modelId}
                                 value={`${model.displayName} ${model.modelId} ${model.ownedBy ?? ''} ${formatModelModalities(model.modalities)}`}
-                                onSelect={() => actions.onApplyDiscoveredModel(model)}
+                                onSelect={() => void actions.onApplyDiscoveredModel(model)}
                                 className="items-start gap-3 py-3"
                               >
                                 <div className="flex size-9 items-center justify-center rounded-lg border border-border/50 bg-muted/70">
-                                  <Sparkles className="size-4" />
+                                  {polishingModelId === model.modelId ? (
+                                    <Loader2 className="size-4 animate-spin" />
+                                  ) : (
+                                    <Sparkles className="size-4" />
+                                  )}
                                 </div>
                                 <div className="min-w-0 flex-1 space-y-1">
                                   <div className="flex items-center gap-2">
@@ -612,6 +631,8 @@ export function useAdminModelDialog({
   const addModel = useMutation(api.admin.addModel)
   const updateModel = useMutation(api.admin.updateModel)
   const generateUploadUrl = useMutation(api.admin.generateUploadUrl)
+  const suggestModelDisplayMetadata = useAction(api.admin.suggestModelDisplayMetadata)
+  const [polishingModelId, setPolishingModelId] = useState<string | null>(null)
 
   const modelId = useId()
   const modelDisplayNameId = useId()
@@ -697,7 +718,7 @@ export function useAdminModelDialog({
   )
 
   const applyDiscoveredModelToForm = useCallback(
-    (discoveredModel: ProviderCatalogResult['models'][number]) => {
+    async (discoveredModel: ProviderCatalogResult['models'][number]) => {
       const providerId = modelForm.providerId || defaultProviderId
       const capabilitiesText = getCapabilitiesTextFromModalities(discoveredModel.modalities)
       setModelIconPreviewUrl(undefined)
@@ -726,8 +747,41 @@ export function useAdminModelDialog({
           ? 'medium'
           : 'off',
       }))
+
+      const providerDocId = parseConvexIdForTable('providers', providerId)
+      if (!providerDocId) {
+        return
+      }
+
+      setPolishingModelId(discoveredModel.modelId)
+      try {
+        const result = await suggestModelDisplayMetadata({
+          providerId: providerDocId,
+          models: [discoveredModel],
+        })
+        const polishedModel = result.models[0]
+        if (!polishedModel) {
+          return
+        }
+        setModelIconPreviewUrl(undefined)
+        setModelForm((current) => ({
+          ...current,
+          displayName: polishedModel.displayName,
+          icon: polishedModel.icon,
+          iconType: normalizeIconType(polishedModel.iconType),
+          iconId: undefined,
+        }))
+      } catch (error) {
+        toast.warning(
+          error instanceof Error
+            ? `Using provider name because AI polish failed: ${error.message}`
+            : 'Using provider name because AI polish failed.',
+        )
+      } finally {
+        setPolishingModelId(null)
+      }
     },
-    [defaultProviderId, modelForm.providerId, nextModelSortOrder],
+    [defaultProviderId, modelForm.providerId, nextModelSortOrder, suggestModelDisplayMetadata],
   )
 
   const resetModelFormToCustom = useCallback(() => {
@@ -861,6 +915,7 @@ export function useAdminModelDialog({
       hasDiscoveryForSelectedProvider,
       discoveredModelsForSelectedProvider,
       discoveredModelCountForSelectedProvider,
+      polishingModelId,
     },
     actions: {
       onTriggerOpen: () => openModelDialog(),

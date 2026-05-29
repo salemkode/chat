@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return -- Convex action results */
-import { useAction, useMutation } from 'convex/react'
+import { useAction } from 'convex/react'
 import type { Doc } from '@convex/_generated/dataModel'
 import { createContext, useCallback, useContext, useMemo, useReducer } from 'react'
 import { toast } from 'sonner'
@@ -51,7 +51,9 @@ export function AdminDiscoveryProvider({
 }) {
   const [state, update] = useReducer(mergeReducer<DiscoveryState>, initialDiscoveryState)
   const inspectProviderCatalog = useAction(api.admin.inspectProviderCatalog)
-  const importDiscoveredModels = useMutation(api.admin.importDiscoveredModels)
+  const importDiscoveredModelsWithAiMetadata = useAction(
+    api.admin.importDiscoveredModelsWithAiMetadata,
+  )
 
   const activeDiscoveryProviderId = state.activeProviderId
   const discoveryResult = state.result
@@ -62,8 +64,8 @@ export function AdminDiscoveryProvider({
   const setActiveDiscoveryProviderId = (activeProviderId: string | undefined) =>
     update({ activeProviderId })
   const setDiscoveryResult = (result: ProviderCatalogResult | null) => update({ result })
-  const setDiscoveringProviderId = (discoveringProviderId: string | undefined) =>
-    update({ discoveringProviderId })
+  const setDiscoveringProviderId = (nextDiscoveringProviderId: string | undefined) =>
+    update({ discoveringProviderId: nextDiscoveringProviderId })
   const setIsImportingDiscovery = (isImporting: boolean) => update({ isImporting })
   const setSelectedDiscoveryModelIds = (selectedModelIds: string[]) => update({ selectedModelIds })
 
@@ -161,39 +163,57 @@ export function AdminDiscoveryProvider({
     [runInspect],
   )
 
-  const importSelectedModels = useCallback(async (providerId?: Doc<'providers'>['_id']) => {
-    const targetProviderId =
-      providerId ?? parseConvexIdForTable('providers', activeDiscoveryProviderId)
+  const importSelectedModels = useCallback(
+    async (providerId?: Doc<'providers'>['_id']) => {
+      const targetProviderId =
+        providerId ?? parseConvexIdForTable('providers', activeDiscoveryProviderId)
 
-    if (!discoveryResult?.ok || !targetProviderId) {
-      toast.error('Save the provider first, then import discovered models.')
-      return
-    }
+      if (!discoveryResult?.ok || !targetProviderId) {
+        toast.error('Save the provider first, then import discovered models.')
+        return
+      }
 
-    if (selectedDiscoveredModels.length === 0) {
-      toast.error('Select at least one model to import.')
-      return
-    }
+      if (selectedDiscoveredModels.length === 0) {
+        toast.error('Select at least one model to import.')
+        return
+      }
 
-    setIsImportingDiscovery(true)
+      setIsImportingDiscovery(true)
 
-    return importDiscoveredModels({
-      providerId: targetProviderId,
-      models: selectedDiscoveredModels,
-      enableImportedModels: true,
-    })
-      .then((result) => {
-        toast.success(`Imported ${result.inserted} new models, updated ${result.updated}.`)
-        setActiveDiscoveryProviderId(targetProviderId)
-        setSelectedDiscoveryModelIds([])
+      return importDiscoveredModelsWithAiMetadata({
+        providerId: targetProviderId,
+        models: selectedDiscoveredModels,
+        enableImportedModels: true,
       })
-      .catch((error) => {
-        toast.error(error instanceof Error ? error.message : 'Failed to import models')
-      })
-      .finally(() => {
-        setIsImportingDiscovery(false)
-      })
-  }, [activeDiscoveryProviderId, discoveryResult, importDiscoveredModels, selectedDiscoveredModels])
+        .then((result) => {
+          const aiSuffix = result.modelUsed
+            ? ` AI polished names and icons with ${result.modelUsed}.`
+            : ''
+          toast.success(
+            `Imported ${result.inserted} new models, updated ${result.updated}.${aiSuffix}`,
+          )
+          if (result.polishError) {
+            toast.warning(
+              `Imported with provider names because AI polish failed: ${result.polishError}`,
+            )
+          }
+          setActiveDiscoveryProviderId(targetProviderId)
+          setSelectedDiscoveryModelIds([])
+        })
+        .catch((error) => {
+          toast.error(error instanceof Error ? error.message : 'Failed to import models')
+        })
+        .finally(() => {
+          setIsImportingDiscovery(false)
+        })
+    },
+    [
+      activeDiscoveryProviderId,
+      discoveryResult,
+      importDiscoveredModelsWithAiMetadata,
+      selectedDiscoveredModels,
+    ],
+  )
 
   const toggleDiscoveryModelSelection = useCallback(
     (modelId: string) => {

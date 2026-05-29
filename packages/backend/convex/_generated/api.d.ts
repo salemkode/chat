@@ -228,6 +228,8 @@ export declare const api: {
           contextWindow?: number;
           description?: string;
           displayName: string;
+          icon?: string;
+          iconType?: "emoji" | "lucide" | "phosphor" | "upload";
           maxOutputTokens?: number;
           modalities?: { input: Array<string>; output: Array<string> };
           modelId: string;
@@ -236,6 +238,32 @@ export declare const api: {
         providerId: Id<"providers">;
       },
       any
+    >;
+    importDiscoveredModelsWithAiMetadata: FunctionReference<
+      "action",
+      "public",
+      {
+        enableImportedModels?: boolean;
+        modelDocId?: Id<"models">;
+        models: Array<{
+          contextWindow?: number;
+          description?: string;
+          displayName: string;
+          icon?: string;
+          iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+          maxOutputTokens?: number;
+          modalities?: { input: Array<string>; output: Array<string> };
+          modelId: string;
+          ownedBy?: string;
+        }>;
+        providerId: Id<"providers">;
+      },
+      {
+        inserted: number;
+        modelUsed?: string;
+        polishError?: string;
+        updated: number;
+      }
     >;
     inspectProviderCatalog: FunctionReference<
       "action",
@@ -911,6 +939,39 @@ export declare const api: {
           sortOrder: number;
         }>;
         modelUsed: string;
+      }
+    >;
+    suggestModelDisplayMetadata: FunctionReference<
+      "action",
+      "public",
+      {
+        modelDocId?: Id<"models">;
+        models: Array<{
+          contextWindow?: number;
+          description?: string;
+          displayName: string;
+          icon?: string;
+          iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+          maxOutputTokens?: number;
+          modalities?: { input: Array<string>; output: Array<string> };
+          modelId: string;
+          ownedBy?: string;
+        }>;
+        providerId: Id<"providers">;
+      },
+      {
+        modelUsed: string;
+        models: Array<{
+          contextWindow?: number;
+          description?: string;
+          displayName: string;
+          icon?: string;
+          iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+          maxOutputTokens?: number;
+          modalities?: { input: Array<string>; output: Array<string> };
+          modelId: string;
+          ownedBy?: string;
+        }>;
       }
     >;
     syncModelMetadataFromArtificialAnalysis: FunctionReference<
@@ -2670,6 +2731,36 @@ export declare const internal: {
           supportedAttachmentMediaTypes?: Array<string>;
           supportsReasoning?: boolean;
         }>;
+      }
+    >;
+    getModelDisplayPolishProviderContext: FunctionReference<
+      "query",
+      "internal",
+      { providerId: Id<"providers"> },
+      {
+        providerId: Id<"providers">;
+        providerName: string;
+        providerType:
+          | "openrouter"
+          | "openai"
+          | "anthropic"
+          | "google"
+          | "azure"
+          | "groq"
+          | "deepseek"
+          | "xai"
+          | "cerebras"
+          | "openai-compatible"
+          | "opencode"
+          | "mistral"
+          | "cohere"
+          | "perplexity"
+          | "fireworks"
+          | "together"
+          | "replicate"
+          | "moonshot"
+          | "qwen"
+          | "stepfun";
       }
     >;
     recordModelUsage: FunctionReference<

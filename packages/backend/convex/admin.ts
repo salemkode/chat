@@ -21,7 +21,7 @@ import {
   providerTypeValidator,
   rateLimitPolicyValidator,
 } from './lib/validators'
-import type { Id } from './_generated/dataModel'
+import type { Doc, Id } from './_generated/dataModel'
 import { appPlanValidator, DEFAULT_APP_PLAN, isModelUsableForPlan } from './lib/appPlan'
 import { getModelOfferAccessFlags } from './lib/modelOffersAccess'
 import {
@@ -339,6 +339,20 @@ const collectionSuggestionSchema = z.object({
     .max(8),
 })
 
+const modelDisplayMetadataSuggestionSchema = z.object({
+  models: z
+    .array(
+      z.object({
+        modelId: z.string().min(1),
+        displayName: z.string().min(1).max(60),
+        iconType: z.enum(['emoji', 'phosphor']).optional(),
+        icon: z.string().min(1).max(40).optional(),
+      }),
+    )
+    .min(1)
+    .max(80),
+})
+
 function isCollectionAiIconOption(
   value: string | undefined,
 ): value is (typeof COLLECTION_AI_ICON_OPTIONS)[number] {
@@ -361,6 +375,28 @@ function normalizeSuggestedCollectionIcon(
     icon: normalizedIcon,
   }
 }
+
+function normalizeSuggestedModelDisplayName(rawName: string | undefined, fallback: string) {
+  const trimmed = rawName?.trim()
+  return trimmed || fallback
+}
+
+const discoveredModelSchemaForAi = z.object({
+  modelId: z.string(),
+  displayName: z.string(),
+  description: z.string().optional(),
+  ownedBy: z.string().optional(),
+  contextWindow: z.number().optional(),
+  maxOutputTokens: z.number().optional(),
+  modalities: z
+    .object({
+      input: z.array(z.string()),
+      output: z.array(z.string()),
+    })
+    .optional(),
+})
+
+type DiscoveredModelInput = z.infer<typeof discoveredModelSchemaForAi>
 
 async function hasAdminAccess(ctx: MutationCtx | QueryCtx, userId: Id<'users'>) {
   const [roleRecord, legacyAdmin] = await Promise.all([
@@ -1024,6 +1060,32 @@ export const resolveCollectionSuggestionModel = internalQuery({
       providerApiKey: auxiliary.apiKey,
       customUrl: auxiliary.customUrl,
       config: auxiliary.config,
+    }
+  },
+})
+
+export const getModelDisplayPolishProviderContext = internalQuery({
+  args: {
+    providerId: v.id('providers'),
+  },
+  returns: v.object({
+    providerId: v.id('providers'),
+    providerName: v.string(),
+    providerType: providerTypeValidator,
+  }),
+  handler: async (ctx, args) => {
+    const provider = await ctx.db.get(args.providerId)
+    if (!provider) {
+      throw new ConvexError({
+        code: 'NOT_FOUND',
+        message: 'Provider was not found.',
+      })
+    }
+
+    return {
+      providerId: provider._id,
+      providerName: provider.name,
+      providerType: provider.providerType,
     }
   },
 })
@@ -3071,6 +3133,220 @@ const suggestedCollectionDraftValidator = v.object({
   modelIds: v.array(v.id('models')),
 })
 
+async function suggestModelDisplayMetadataWithAi({
+  models,
+  providerName,
+  providerType,
+  suggestionModel,
+}: {
+  models: DiscoveredModelInput[]
+  providerName: string
+  providerType: string
+  suggestionModel: {
+    modelDocId: Id<'models'> | null
+    modelId: string
+    displayName: string
+    providerType: Doc<'providers'>['providerType']
+    providerDocId: Id<'providers'> | null
+    providerName: string | undefined
+    providerApiKey: string
+    customUrl: string | undefined
+    config:
+      | {
+          organization?: string
+          project?: string
+          headers?: Record<string, string>
+          queryParams?: Record<string, string>
+        }
+      | undefined
+  }
+}) {
+  const apiKey = resolveProviderApiKey(suggestionModel.providerType, suggestionModel.providerApiKey)
+  if (!apiKey) {
+    throw new ConvexError({
+      code: 'FAILED_PRECONDITION',
+      message: 'No AI model is configured for model naming and icon selection.',
+    })
+  }
+
+  const catalog = models.map((model) => ({
+    modelId: model.modelId,
+    currentDisplayName: model.displayName,
+    description: model.description,
+    ownedBy: model.ownedBy,
+    contextWindow: model.contextWindow,
+    maxOutputTokens: model.maxOutputTokens,
+    modalities: model.modalities,
+  }))
+
+  const system = [
+    'You are polishing AI chat model records for a user-facing model picker.',
+    'Create concise, recognizable display names and choose an icon for each model.',
+    'Keep vendor family names and important version markers, but remove provider slugs, route prefixes, and noisy punctuation.',
+    'Examples: "openai/gpt-4o-mini" becomes "GPT-4o Mini"; "anthropic/claude-3.7-sonnet" becomes "Claude 3.7 Sonnet".',
+    'Do not invent capabilities or rename a model into a different model family.',
+    'Only use model IDs from the catalog modelId field.',
+    'Return JSON only. Do not wrap the response in markdown or add commentary.',
+    'Choose an icon for each model. Use either iconType="phosphor" with one of these icons:',
+    COLLECTION_AI_ICON_OPTIONS.join(', '),
+    'or iconType="emoji" with a single emoji.',
+    `Provider: ${providerName} (${providerType}).`,
+  ].join('\n')
+
+  const object = await generateStructuredObject({
+    model: createLanguageModelFromAuxiliary({
+      modelDocId: suggestionModel.modelDocId,
+      modelId: suggestionModel.modelId,
+      displayName: suggestionModel.displayName,
+      providerType: suggestionModel.providerType,
+      providerDocId: suggestionModel.providerDocId,
+      apiKey,
+      customUrl: suggestionModel.customUrl,
+      config: suggestionModel.config,
+    }),
+    schema: modelDisplayMetadataSuggestionSchema,
+    schemaName: 'ModelDisplayMetadataSuggestions',
+    schemaDescription:
+      'Suggested user-facing display names and icons for provider-discovered AI models.',
+    system,
+    prompt: ['Catalog:', JSON.stringify(catalog)].join('\n'),
+    temperature: 0.2,
+    maxOutputTokens: 8192,
+  })
+
+  const suggestionByModelId = new Map(object.models.map((model) => [model.modelId, model]))
+
+  return models.map((model) => {
+    const suggestion = suggestionByModelId.get(model.modelId)
+    const iconSelection = normalizeSuggestedCollectionIcon(suggestion?.iconType, suggestion?.icon)
+
+    return {
+      ...model,
+      displayName: normalizeSuggestedModelDisplayName(suggestion?.displayName, model.displayName),
+      icon: iconSelection.icon,
+      iconType: iconSelection.iconType,
+    }
+  })
+}
+
+const modelDisplayMetadataResponseValidator = v.object({
+  modelUsed: v.string(),
+  models: v.array(discoveredModelValidator),
+})
+
+export const suggestModelDisplayMetadata = action({
+  args: {
+    providerId: v.id('providers'),
+    models: v.array(discoveredModelValidator),
+    modelDocId: v.optional(v.id('models')),
+  },
+  returns: modelDisplayMetadataResponseValidator,
+  handler: async (ctx, args) => {
+    const adminContext = await ctx.runQuery(internal.admin.getAdminContext, {})
+    if (!adminContext.userId) {
+      throw new ConvexError({
+        code: 'UNAUTHORIZED',
+        message: 'Not signed in.',
+      })
+    }
+
+    if (!adminContext.isAdmin) {
+      throw new ConvexError({
+        code: 'FORBIDDEN',
+        message: 'Not authorized to manage models.',
+      })
+    }
+
+    const [providerContext, suggestionModel] = await Promise.all([
+      ctx.runQuery(internal.admin.getModelDisplayPolishProviderContext, {
+        providerId: args.providerId,
+      }),
+      ctx.runQuery(internal.admin.resolveCollectionSuggestionModel, {
+        userId: adminContext.userId,
+        modelDocId: args.modelDocId,
+      }),
+    ])
+
+    const models = await suggestModelDisplayMetadataWithAi({
+      models: args.models,
+      providerName: providerContext.providerName,
+      providerType: providerContext.providerType,
+      suggestionModel,
+    })
+
+    return {
+      modelUsed: suggestionModel.displayName,
+      models,
+    }
+  },
+})
+
+export const importDiscoveredModelsWithAiMetadata = action({
+  args: {
+    providerId: v.id('providers'),
+    models: v.array(discoveredModelValidator),
+    enableImportedModels: v.optional(v.boolean()),
+    modelDocId: v.optional(v.id('models')),
+  },
+  returns: v.object({
+    inserted: v.number(),
+    updated: v.number(),
+    modelUsed: v.optional(v.string()),
+    polishError: v.optional(v.string()),
+  }),
+  handler: async (ctx, args) => {
+    const adminContext = await ctx.runQuery(internal.admin.getAdminContext, {})
+    if (!adminContext.userId) {
+      throw new ConvexError({
+        code: 'UNAUTHORIZED',
+        message: 'Not signed in.',
+      })
+    }
+
+    if (!adminContext.isAdmin) {
+      throw new ConvexError({
+        code: 'FORBIDDEN',
+        message: 'Not authorized to manage models.',
+      })
+    }
+
+    const [providerContext, suggestionModel] = await Promise.all([
+      ctx.runQuery(internal.admin.getModelDisplayPolishProviderContext, {
+        providerId: args.providerId,
+      }),
+      ctx.runQuery(internal.admin.resolveCollectionSuggestionModel, {
+        userId: adminContext.userId,
+        modelDocId: args.modelDocId,
+      }),
+    ])
+
+    let models = args.models
+    let polishError: string | undefined
+    try {
+      models = await suggestModelDisplayMetadataWithAi({
+        models: args.models,
+        providerName: providerContext.providerName,
+        providerType: providerContext.providerType,
+        suggestionModel,
+      })
+    } catch (error) {
+      polishError = error instanceof Error ? error.message : 'AI metadata polish failed.'
+    }
+
+    const result = await ctx.runMutation(api.admin.importDiscoveredModels, {
+      providerId: args.providerId,
+      models,
+      enableImportedModels: args.enableImportedModels,
+    })
+
+    return {
+      ...result,
+      modelUsed: polishError ? undefined : suggestionModel.displayName,
+      polishError,
+    }
+  },
+})
+
 export const suggestModelCollections = action({
   args: {
     prompt: v.optional(v.string()),
@@ -3295,6 +3571,8 @@ export const importDiscoveredModels = mutation({
       const existing = existingByModelId.get(discovered.modelId)
       const payload = {
         description: discovered.description,
+        icon: discovered.icon,
+        iconType: discovered.iconType,
         ownedBy: discovered.ownedBy,
         contextWindow: discovered.contextWindow,
         maxOutputTokens: discovered.maxOutputTokens,
@@ -3309,7 +3587,7 @@ export const importDiscoveredModels = mutation({
       if (existing) {
         await ctx.db.patch(existing._id, {
           ...payload,
-          displayName: existing.displayName || discovered.displayName,
+          displayName: discovered.displayName || existing.displayName,
         })
         updated += 1
         continue
@@ -3319,6 +3597,8 @@ export const importDiscoveredModels = mutation({
         modelId: discovered.modelId,
         displayName: discovered.displayName,
         description: discovered.description,
+        icon: discovered.icon,
+        iconType: discovered.iconType,
         isEnabled: enableImportedModels,
         isFree: normalizeIsFree(discovered.modelId),
         sortOrder: nextSortOrder + index,
