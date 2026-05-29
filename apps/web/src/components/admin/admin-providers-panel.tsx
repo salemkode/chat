@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, no-underscore-dangle -- Convex hooks */
 import { useMutation } from 'convex/react'
 import { Loader2, Plus, WandSparkles } from '@/lib/icons'
+import { useCallback, useState } from 'react'
 import { api } from '@convex/_generated/api'
 import { useAdminDiscovery } from '@/components/admin/admin-discovery-context'
 import type { AdminOutletContext } from '@/components/admin/admin-outlet-context'
@@ -35,7 +36,10 @@ import { Switch } from '@/components/ui/switch'
 import { InfiniteScrollTrigger } from '@/components/infinite-scroll-trigger'
 import { usePaginatedQuery } from '@/lib/convex-query-cache'
 
-type AdminProvidersPanelProps = Pick<AdminOutletContext, 'dashboard' | 'onOpenProviderDialog'>
+type AdminProvidersPanelProps = Pick<
+  AdminOutletContext,
+  'dashboard' | 'onOpenProviderDialog' | 'onSaveCurrentProvider'
+>
 
 function normalizeIconType(value: string | undefined): IconType {
   switch (value) {
@@ -49,12 +53,36 @@ function normalizeIconType(value: string | undefined): IconType {
   }
 }
 
-export function AdminProvidersPanel({ dashboard: _dashboard, onOpenProviderDialog }: AdminProvidersPanelProps) {
+export function AdminProvidersPanel({
+  dashboard: _dashboard,
+  onOpenProviderDialog,
+  onSaveCurrentProvider,
+}: AdminProvidersPanelProps) {
   const discovery = useAdminDiscovery()
+  const [isSavingProviderToImport, setIsSavingProviderToImport] = useState(false)
   const deleteProvider = useMutation(api.admin.deleteProvider)
   const toggleProviderEnabled = useMutation(api.admin.toggleProviderEnabled)
   const providersQuery = usePaginatedQuery(api.admin.listAdminProviders, {}, { initialNumItems: 50 })
   const providers = providersQuery.results ?? []
+  const isSavingOrImporting = discovery.isImportingDiscovery || isSavingProviderToImport
+  const canSaveAndImportDiscoveredModels =
+    discovery.discoveryResult?.ok === true && discovery.selectedDiscoveredCount > 0
+
+  const saveProviderAndImportModels = useCallback(async () => {
+    if (!canSaveAndImportDiscoveredModels || isSavingOrImporting) {
+      return
+    }
+
+    setIsSavingProviderToImport(true)
+    try {
+      const providerId = await onSaveCurrentProvider()
+      if (providerId) {
+        await discovery.importSelectedModels(providerId)
+      }
+    } finally {
+      setIsSavingProviderToImport(false)
+    }
+  }, [canSaveAndImportDiscoveredModels, discovery, isSavingOrImporting, onSaveCurrentProvider])
 
   return (
     <div className="grid gap-4">
@@ -216,7 +244,17 @@ export function AdminProvidersPanel({ dashboard: _dashboard, onOpenProviderDialo
                 Import {discovery.selectedDiscoveredCount} selected
               </Button>
             ) : (
-              <Badge variant="secondary">Save provider to import</Badge>
+              <Button
+                onClick={() => void saveProviderAndImportModels()}
+                disabled={!canSaveAndImportDiscoveredModels || isSavingOrImporting}
+              >
+                {isSavingOrImporting ? (
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                ) : (
+                  <Plus className="mr-2 size-4" />
+                )}
+                Save provider and import {discovery.selectedDiscoveredCount}
+              </Button>
             )
           }
         >
@@ -345,7 +383,17 @@ export function AdminProvidersPanel({ dashboard: _dashboard, onOpenProviderDialo
                     Save selected models ({discovery.selectedDiscoveredCount})
                   </Button>
                 ) : (
-                  <Badge variant="secondary">Save provider to import</Badge>
+                  <Button
+                    onClick={() => void saveProviderAndImportModels()}
+                    disabled={!canSaveAndImportDiscoveredModels || isSavingOrImporting}
+                  >
+                    {isSavingOrImporting ? (
+                      <Loader2 className="mr-2 size-4 animate-spin" />
+                    ) : (
+                      <Plus className="mr-2 size-4" />
+                    )}
+                    Save provider and models ({discovery.selectedDiscoveredCount})
+                  </Button>
                 )}
               </div>
             </div>

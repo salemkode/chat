@@ -542,17 +542,19 @@ export function useAdminProviderDialog({ providers }: { providers: AdminProvider
       ? updateProvider({ id: editingProvider._id, ...payload })
       : addProvider(payload)
     return request
-      .then(() => {
+      .then((savedProviderId) => {
         toast.success(editingProvider ? 'Provider updated' : 'Provider created')
         setProviderDialogOpen(false)
         setEditingProvider(null)
         setProviderForm(createProviderForm(nextProviderSortOrder))
         setProviderIconPreviewUrl(undefined)
+        return editingProvider?._id ?? savedProviderId
       })
       .catch((error) => {
         toast.error(formatAdminMutationError(error, 'Failed to save provider'), {
           duration: ADMIN_MUTATION_ERROR_TOAST_DURATION_MS,
         })
+        return undefined
       })
   }, [addProvider, editingProvider, nextProviderSortOrder, providerForm, updateProvider])
 
@@ -580,5 +582,5 @@ export function useAdminProviderDialog({ providers }: { providers: AdminProvider
     },
   }
 
-  return { dialogProps, openProviderDialog }
+  return { dialogProps, openProviderDialog, saveCurrentProvider: handleSaveProvider }
 }

@@ -8,6 +8,7 @@ export default function AdminProvidersRoute() {
     <AdminProvidersPanel
       dashboard={ctx.dashboard}
       onOpenProviderDialog={ctx.onOpenProviderDialog}
+      onSaveCurrentProvider={ctx.onSaveCurrentProvider}
     />
   )
 }

@@ -4,6 +4,7 @@ import type { Doc } from '@convex/_generated/dataModel'
 import { createContext, useCallback, useContext, useMemo, useReducer } from 'react'
 import { toast } from 'sonner'
 import { api } from '@convex/_generated/api'
+import { parseConvexIdForTable } from '@chat/shared/logic/convex-ids'
 import {
   initialDiscoveryState,
   mergeReducer,
@@ -33,7 +34,7 @@ type AdminDiscoveryContextValue = {
   selectedDiscoveredCount: number
   inspectSavedProvider: (provider: AdminProvider) => Promise<void>
   inspectDraftProvider: (form: ProviderFormData) => Promise<void>
-  importSelectedModels: () => Promise<void>
+  importSelectedModels: (providerId?: Doc<'providers'>['_id']) => Promise<void>
   toggleDiscoveryModelSelection: (modelId: string) => void
   selectAllDiscoveredModels: () => void
   clearDiscoveredModelSelection: () => void
@@ -160,8 +161,11 @@ export function AdminDiscoveryProvider({
     [runInspect],
   )
 
-  const importSelectedModels = useCallback(async () => {
-    if (!discoveryResult?.ok || !activeDiscoveryProviderId) {
+  const importSelectedModels = useCallback(async (providerId?: Doc<'providers'>['_id']) => {
+    const targetProviderId =
+      providerId ?? parseConvexIdForTable('providers', activeDiscoveryProviderId)
+
+    if (!discoveryResult?.ok || !targetProviderId) {
       toast.error('Save the provider first, then import discovered models.')
       return
     }
@@ -174,12 +178,13 @@ export function AdminDiscoveryProvider({
     setIsImportingDiscovery(true)
 
     return importDiscoveredModels({
-      providerId: activeDiscoveryProviderId as Doc<'providers'>['_id'],
+      providerId: targetProviderId,
       models: selectedDiscoveredModels,
       enableImportedModels: true,
     })
       .then((result) => {
         toast.success(`Imported ${result.inserted} new models, updated ${result.updated}.`)
+        setActiveDiscoveryProviderId(targetProviderId)
         setSelectedDiscoveryModelIds([])
       })
       .catch((error) => {

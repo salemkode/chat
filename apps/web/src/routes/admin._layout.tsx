@@ -91,6 +91,7 @@ function AdminLayoutShell({
     return {
       dashboard,
       onOpenProviderDialog: providerDialog.openProviderDialog,
+      onSaveCurrentProvider: providerDialog.saveCurrentProvider,
       onOpenModelDialog: modelDialog.openModelDialog,
       onOpenCollectionDialog: collectionDialog.openCollectionDialog,
       onOpenCollectionDraft: collectionDialog.openCollectionDraft,
@@ -98,6 +99,7 @@ function AdminLayoutShell({
   }, [
     dashboard,
     providerDialog.openProviderDialog,
+    providerDialog.saveCurrentProvider,
     modelDialog.openModelDialog,
     collectionDialog.openCollectionDialog,
     collectionDialog.openCollectionDraft,

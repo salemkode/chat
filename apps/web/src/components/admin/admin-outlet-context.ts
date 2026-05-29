@@ -9,6 +9,7 @@ import type {
 export type AdminOutletContext = {
   dashboard: DashboardData
   onOpenProviderDialog: (provider?: AdminProvider) => void
+  onSaveCurrentProvider: () => Promise<AdminProvider['_id'] | undefined> | undefined
   onOpenModelDialog: (model?: AdminModel) => void
   onOpenCollectionDialog: (collection?: AdminModelCollection) => void
   onOpenCollectionDraft: (draft: AdminCollectionDraft) => void

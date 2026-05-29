@@ -294,6 +294,7 @@ Generation path:
 7. post-processing may store search embeddings, trigger memory extraction, or run related bookkeeping
 
 This design lets admin configuration change model availability without redeploying clients.
+Admin provider inspection can also run before a provider is saved: once an admin selects discovered models, the import action first creates the provider from the current form and then imports the selected model records against the new provider.
 
 Provider credentials are resolved per request in this order:
 
