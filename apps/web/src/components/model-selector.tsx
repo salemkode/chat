@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { Id } from '@convex/_generated/dataModel'
 import {
   AUTO_MODEL_ID,
   encodeAutoModelCollectionSelection,
@@ -44,7 +45,7 @@ export function ModelSelector({
   onModelChange?: (modelId: string) => void
   className?: string
 }) {
-  const { models, collections } = useModels()
+  const { models, collections } = useModels({ prefetchAll: true })
   const [open, setOpen] = useState(false)
   const autoSelected = isAutoModelSelection(selectedModel)
   const currentModel = models.find((model: OfflineModelRecord) => model.modelId === selectedModel)
@@ -74,14 +75,11 @@ export function ModelSelector({
             {!autoSelected && currentModel ? (
               <EntityIcon
                 icon={currentModel.icon || currentModel.provider?.icon}
-                iconType={
-                  (currentModel.iconType || currentModel.provider?.iconType) as
-                    | 'emoji'
-                    | 'phosphor'
-                    | 'upload'
-                    | undefined
-                }
+                iconType={currentModel.iconType || currentModel.provider?.iconType}
                 iconUrl={currentModel.iconUrl || currentModel.provider?.iconUrl}
+                providerType={currentModel.provider?.providerType}
+                modelId={currentModel.modelId}
+                name={currentModel.displayName}
                 className="size-4 shrink-0"
               />
             ) : null}
@@ -120,12 +118,23 @@ export function ModelSelectorPanel({
   onSelectModel,
   className,
 }: ModelSelectorPanelProps) {
-  const { models, collections, setFavorite, autoModelAvailable, hasMore, isLoadingMore, loadMore } =
-    useModels()
   const modelsScrollRef = useRef<HTMLDivElement>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const selectedCollectionId = parseAutoModelCollectionSelection(selectedModel)
   const [activeCategory, setActiveCategory] = useState<string>(selectedCollectionId ?? 'all')
+
+  const collectionId =
+    activeCategory !== 'all' && activeCategory !== 'favorites'
+      ? (activeCategory as Id<'modelCollections'>)
+      : undefined
+
+  const { models, collections, setFavorite, autoModelAvailable, hasMore, isLoadingMore, loadMore } =
+    useModels({
+      collectionId,
+      favoritesOnly: activeCategory === 'favorites',
+      searchQuery,
+      prefetchAll: true,
+    })
   const sortedCollections = useMemo(
     () =>
       [...collections].sort(
@@ -147,39 +156,12 @@ export function ModelSelectorPanel({
     }
   }, [selectedCollectionId])
 
-  const baseVisibleModels = useMemo(() => {
-    if (activeCategory === 'favorites') {
-      return models.filter((model) => model.isFavorite)
-    }
-    if (!activeCollection) {
-      return models
-    }
-
-    const allowedModelIds = new Set(activeCollection.modelIds)
-    return models.filter((model) => allowedModelIds.has(model.id))
-  }, [activeCategory, activeCollection, models])
-
-  const filteredModels = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return baseVisibleModels
-    }
-    const query = searchQuery.toLowerCase()
-    return baseVisibleModels.filter(
-      (model: OfflineModelRecord) =>
-        model.displayName.toLowerCase().includes(query) ||
-        model.modelId.toLowerCase().includes(query) ||
-        model.description?.toLowerCase().includes(query) ||
-        model.provider?.name?.toLowerCase().includes(query) ||
-        model.capabilities?.some((capability) => capability.toLowerCase().includes(query)),
-    )
-  }, [baseVisibleModels, searchQuery])
-
   const orderedModels = useMemo(() => {
     const collectionOrder = activeCollection
       ? new Map(activeCollection.modelIds.map((modelId, index) => [modelId, index]))
       : null
 
-    return [...filteredModels].sort((left, right) => {
+    return [...models].sort((left, right) => {
       const leftCollectionOrder = collectionOrder?.get(left.id)
       const rightCollectionOrder = collectionOrder?.get(right.id)
       if (leftCollectionOrder !== undefined && rightCollectionOrder !== undefined) {
@@ -193,7 +175,7 @@ export function ModelSelectorPanel({
       }
       return left.displayName.localeCompare(right.displayName)
     })
-  }, [activeCollection, filteredModels])
+  }, [activeCollection, models])
 
   const empty = orderedModels.length === 0
   const autoAllSelected = selectedModel === AUTO_MODEL_ID
@@ -372,6 +354,9 @@ export function ModelSelectorPanel({
                           icon={model.icon || model.provider?.icon}
                           iconType={model.iconType || model.provider?.iconType}
                           iconUrl={model.iconUrl || model.provider?.iconUrl}
+                          providerType={model.provider?.providerType}
+                          modelId={model.modelId}
+                          name={model.displayName}
                           className="size-4"
                         />
                       </div>
@@ -405,7 +390,7 @@ export function ModelSelectorPanel({
           <InfiniteScrollTrigger
             hasMore={hasMore}
             isLoadingMore={isLoadingMore}
-            onLoadMore={() => loadMore(40)}
+            onLoadMore={() => loadMore()}
             rootRef={modelsScrollRef}
             loadingLabel="Loading more models..."
             loadingClassName="text-white/45"

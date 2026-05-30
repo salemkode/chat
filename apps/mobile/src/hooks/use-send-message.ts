@@ -89,6 +89,7 @@ export function useSendMessage() {
       text,
       threadId,
       modelDocId,
+      autoModelAllowedModelDocIds,
       searchEnabled,
       searchMode,
       reasoning,
@@ -97,6 +98,7 @@ export function useSendMessage() {
       text: string;
       threadId?: string;
       modelDocId?: Id<"models">;
+      autoModelAllowedModelDocIds?: Id<"models">[];
       searchEnabled?: boolean;
       searchMode?: "auto" | "required";
       reasoning?: { enabled: boolean; level?: "low" | "medium" | "high" };
@@ -132,6 +134,9 @@ export function useSendMessage() {
           reasoningEnabled: reasoning?.enabled === true,
           requiresImageInput: (attachmentSummary?.imageCount ?? 0) > 0,
           attachmentSummary,
+          ...(autoModelAllowedModelDocIds && autoModelAllowedModelDocIds.length > 0
+            ? { allowedModelDocIds: autoModelAllowedModelDocIds }
+            : {}),
         });
         resolvedModelDocId = routed.selectedModelDocId;
       }
@@ -191,12 +196,14 @@ export function useSendMessage() {
       threadId,
       promptMessageId,
       modelDocId,
+      autoModelAllowedModelDocIds,
       searchEnabled,
       reasoning,
     }: {
       threadId: string;
       promptMessageId: string;
       modelDocId?: Id<"models">;
+      autoModelAllowedModelDocIds?: Id<"models">[];
       searchEnabled?: boolean;
       reasoning?: { enabled: boolean; level?: "low" | "medium" | "high" };
     }) => {
@@ -207,6 +214,9 @@ export function useSendMessage() {
           promptMessageId,
           searchEnabled: searchEnabled ?? false,
           reasoningEnabled: reasoning?.enabled === true,
+          ...(autoModelAllowedModelDocIds && autoModelAllowedModelDocIds.length > 0
+            ? { allowedModelDocIds: autoModelAllowedModelDocIds }
+            : {}),
         });
         resolvedModelDocId = routed.selectedModelDocId;
       }

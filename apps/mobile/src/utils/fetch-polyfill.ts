@@ -52,7 +52,11 @@ function wrapFetchWithWindowLocation(fetch: FetchWithMarker) {
   return _fetch
 }
 
-const extra = manifest?.extra as ExpoExtraRouterConfig | null
+function getExpoExtraConfig(value: unknown): ExpoExtraRouterConfig | null {
+  return typeof value === "object" && value !== null ? (value as ExpoExtraRouterConfig) : null;
+}
+
+const extra = getExpoExtraConfig(manifest?.extra);
 
 function getOrigin() {
   assertOrigin()

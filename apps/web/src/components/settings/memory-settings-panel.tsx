@@ -52,11 +52,7 @@ export function MemorySettingsPanel() {
     settings?.auxiliaryModelId &&
     auxiliaryModelOptions.some((option) => option.value === settings.auxiliaryModelId)
       ? settings.auxiliaryModelId
-      : auxiliaryModelOptions.find((option) =>
-          auxiliaryCandidates?.some(
-            (candidate) => candidate.modelDocId === option.value && candidate.isRecommended,
-          ),
-        )?.value
+      : undefined
 
   const userMemories = usePaginatedQuery(
     api.functions.memory.listUserMemories,
@@ -149,13 +145,17 @@ export function MemorySettingsPanel() {
         <div className="space-y-1">
           <p className="text-sm font-medium text-foreground">Background memory model</p>
           <p className="text-sm text-muted-foreground">
-            Used for saving and searching memory when your chat model does not support tools. Pick a
-            small, fast model to save cost.
+            Optional. Used for background memory extraction and memory commands when your chat
+            model does not support tools. Leave off to disable these tasks.
           </p>
         </div>
         <ResponsiveSelectField
-          value={selectedAuxiliaryModelId ?? ''}
+          value={selectedAuxiliaryModelId ?? '__off__'}
           onValueChange={(value) => {
+            if (value === '__off__') {
+              void updateSettings({ clearAuxiliaryModelId: true })
+              return
+            }
             void updateSettings({ auxiliaryModelId: value as Id<'models'> })
           }}
           title="Background memory model"
@@ -166,10 +166,13 @@ export function MemorySettingsPanel() {
               ? 'No tool-capable models available'
               : 'Choose background memory model'
           }
-          options={auxiliaryModelOptions.map((option) => ({
-            value: option.value,
-            label: option.description ? `${option.label} (${option.description})` : option.label,
-          }))}
+          options={[
+            { value: '__off__', label: 'Off' },
+            ...auxiliaryModelOptions.map((option) => ({
+              value: option.value,
+              label: option.description ? `${option.label} (${option.description})` : option.label,
+            })),
+          ]}
         />
       </div>
 

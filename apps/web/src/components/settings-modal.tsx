@@ -133,7 +133,7 @@ export function SettingsDialog({
   const user = useViewer()
   const { settings, updateSettings } = useSettings()
   const { defaultModelId, setDefaultModelId, setSelectedModelId } = useChatModel()
-  const { models, collections, autoModelAvailable } = useModels()
+  const { models, collections, autoModelAvailable } = useModels({ prefetchAll: true })
   const { isAdminLike } = useRoleContext()
   const { isOnline } = useOnlineStatus()
   const { theme, setTheme, primaryColor, setPrimaryColor } = useTheme()

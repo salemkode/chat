@@ -1,5 +1,5 @@
 import { useUIMessages } from "@convex-dev/agent/react";
-import type { UsePaginatedQueryResult } from "convex/react";
+import type { FunctionReturnType } from "convex/server";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DeviceEventEmitter } from "react-native";
 import { api } from "@convex/_generated/api";
@@ -14,64 +14,76 @@ import {
 import { CHAT_STREAM_RESUME_EVENT } from "@/lib/chat-events";
 import { readMessagesCache } from "@/offline/local-cache";
 
+type ListMessage = FunctionReturnType<typeof api.chat.listMessages>["page"][number];
+
+function toCachedChatMessage(message: LocalCachedMessageRow): ChatMessage {
+  return {
+    id: message.id,
+    role: message.role,
+    text: message.text,
+    parts: message.parts,
+    createdAt: message.createdAt,
+    failureKind: message.failureKind,
+    failureMode: message.failureMode,
+    failureNote: message.failureNote,
+    status:
+      message.status === "streaming"
+        ? "streaming"
+        : message.status === "failed"
+          ? "failed"
+          : "success",
+  };
+}
+
+function toLiveChatMessage(message: ListMessage): ChatMessage {
+  return {
+    id: message.id,
+    role: message.role === "assistant" ? "assistant" : "user",
+    text: message.text ?? "",
+    parts: message.parts ?? [],
+    status:
+      message.status === "pending" ||
+      message.status === "streaming" ||
+      message.status === "failed"
+        ? message.status
+        : "success",
+    order: message.order,
+    stepOrder: message.stepOrder,
+    createdAt: message.order,
+    failureKind: message.failureKind,
+    failureMode: message.failureMode,
+    failureNote: message.failureNote,
+  };
+}
+
 export function useMessages(threadId?: string) {
   const cacheUserId = useConvexUserIdForCache();
   const cacheVersion = useOfflineCacheVersion();
   const [streamEnabled, setStreamEnabled] = useState(Boolean(threadId));
   const stableSignatureRef = useRef("");
   const stableSnapshotCountRef = useRef(0);
-  const queryArgs = threadId ? { threadId } : "skip";
+  const queryArgs = { threadId: threadId ?? "" };
   const paginatedMessages = useUIMessages(api.chat.listMessages, queryArgs, {
     initialNumItems: 30,
-    stream: streamEnabled,
-  }) as unknown as UsePaginatedQueryResult<ChatMessage>;
+    stream: Boolean(threadId) && streamEnabled,
+  });
 
   const cachedMessages = useMemo(() => {
     if (!threadId || !cacheUserId) {
-      return [] as ChatMessage[];
+      return [];
     }
     const raw = readMessagesCache<LocalCachedMessageRow[]>(cacheUserId, threadId);
     if (!Array.isArray(raw)) {
-      return [] as ChatMessage[];
+      return [];
     }
-    return raw.map(
-      (message) =>
-        ({
-          id: message.id,
-          role: message.role,
-          text: message.text,
-          parts: message.parts,
-          createdAt: message.createdAt,
-          failureKind: message.failureKind,
-          failureMode: message.failureMode,
-          failureNote: message.failureNote,
-          status:
-            message.status === "streaming"
-              ? "streaming"
-              : message.status === "failed"
-                ? "failed"
-                : "success",
-        }) as ChatMessage,
-    );
+    return raw.map(toCachedChatMessage);
   }, [threadId, cacheUserId, cacheVersion]);
 
   const liveResults = useMemo(() => {
     if (!threadId || paginatedMessages.results === undefined) {
       return undefined;
     }
-    return paginatedMessages.results.map((msg) => ({
-      id: msg.id ?? (msg as { _id?: string })._id ?? "",
-      role: msg.role as "user" | "assistant",
-      text: msg.text ?? "",
-      parts: msg.parts ?? [],
-      status: (msg.status ?? "success") as ChatMessage["status"],
-      order: msg.order,
-      stepOrder: msg.stepOrder,
-      createdAt: msg.order,
-      failureKind: msg.failureKind,
-      failureMode: msg.failureMode,
-      failureNote: msg.failureNote,
-    })) as ChatMessage[];
+    return paginatedMessages.results.map(toLiveChatMessage);
   }, [paginatedMessages.results, threadId]);
 
   const { messages, hasMore, isLoadingMore, loadOlderMessages, hasRenderableMessages } =
@@ -86,7 +98,7 @@ export function useMessages(threadId?: string) {
 
   const liveMessages = useMemo(() => {
     if (!threadId || !paginatedMessages.results?.length) {
-      return [] as ChatMessage[];
+      return [];
     }
     return liveResults ?? [];
   }, [liveResults, paginatedMessages.results?.length, threadId]);

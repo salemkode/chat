@@ -23,6 +23,7 @@ import { useChatComposerOptions } from "@/components/chat/composer-options-conte
 import { Icon } from "@/components/icon";
 import { MainHeader } from "@/components/main-header";
 import { useModel } from "@/components/model-context";
+import { isAutoModelSelection } from "@chat/shared";
 import { validateAttachmentsForSend } from "@/lib/attachment-capability-messages";
 import {
   CHAT_PROJECT_ASSIGN_FAILED_MESSAGE,
@@ -33,8 +34,10 @@ import {
 import { selectThread, threadSelection$ } from "@/state/thread-selection";
 import { useMessages, useSendMessage } from "@/hooks/use-chat-data";
 import { useSettings } from "@/hooks/use-settings";
+import { api } from "@convex/_generated/api";
 import { useSelector } from "@legendapp/state/react";
 import { useChatCoreContext, useGenerationState } from "@chat/chat-core";
+import { useQuery } from "convex/react";
 import * as Haptics from "expo-haptics";
 import { Link, useLocalSearchParams } from "expo-router";
 import { Plus } from "lucide-react-native";
@@ -51,12 +54,19 @@ export default function ChatScreen() {
   const selectedThreadId = useSelector(() =>
     threadSelection$.selectedThreadId.get(),
   );
-  const threadId = selectedThreadId || routeThreadId || undefined;
+  const selectedThread = useQuery(
+    api.chat.getThread,
+    selectedThreadId ? { threadId: selectedThreadId } : "skip",
+  );
+  const threadId =
+    routeThreadId || (selectedThread === null ? undefined : selectedThreadId) || undefined;
   const [input, setInput] = useState("");
   const [error, setError] = useState<Error | null>(null);
   const {
-    selectedModelId,
+    selectedModelKey,
     selectedModel,
+    selectedModelDocId,
+    autoModelAllowedModelDocIds,
     attachmentMediaTypes,
     attachmentsSupported,
     imageAttachmentsSupported,
@@ -73,6 +83,12 @@ export default function ChatScreen() {
     useChatCoreContext();
   const streamingStore = useMemo(() => createStreamingStore(), []);
   const prevStreamTextRef = useRef("");
+
+  useEffect(() => {
+    if (selectedThreadId && selectedThread === null) {
+      selectThread(undefined);
+    }
+  }, [selectedThread, selectedThreadId]);
 
   useEffect(() => {
     if (!hasActiveStreaming) {
@@ -170,7 +186,10 @@ export default function ChatScreen() {
       const result = await send({
         text,
         threadId,
-        modelDocId: selectedModelId,
+        modelDocId: isAutoModelSelection(selectedModelKey)
+          ? undefined
+          : selectedModelDocId,
+        autoModelAllowedModelDocIds,
         attachments,
         searchEnabled,
         searchMode: searchEnabled ? "required" : undefined,
@@ -207,8 +226,10 @@ export default function ChatScreen() {
     isGenerating,
     pendingProjectId,
     searchEnabled,
+    autoModelAllowedModelDocIds,
     selectedModel,
-    selectedModelId,
+    selectedModelDocId,
+    selectedModelKey,
     send,
     settings?.reasoningLevel,
     setPendingProjectId,

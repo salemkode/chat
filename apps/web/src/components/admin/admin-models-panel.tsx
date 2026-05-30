@@ -106,6 +106,7 @@ const preferenceOptions: Array<{
 
 function normalizeIconType(value: string | undefined): IconType {
   switch (value) {
+    case 'brand':
     case 'emoji':
     case 'lucide':
     case 'phosphor':
@@ -191,6 +192,9 @@ function StudioModelRecord({
           icon={model.icon}
           iconType={normalizeIconType(model.iconType)}
           iconUrl={model.iconUrl || model.providerIconUrl}
+          providerType={model.providerType}
+          modelId={model.modelId}
+          name={model.displayName}
         />
       }
       title={
@@ -288,15 +292,7 @@ export function AdminModelsPanel({ dashboard, onOpenModelDialog }: AdminModelsPa
   const syncModelMetadataFromArtificialAnalysis = useAction(
     api.admin.syncModelMetadataFromArtificialAnalysis,
   )
-  const getAutoModelStudioSnapshot = useAction(
-    (
-      api as unknown as {
-        admin: {
-          getAutoModelStudioSnapshot: unknown
-        }
-      }
-    ).admin.getAutoModelStudioSnapshot as never,
-  )
+  const getAutoModelStudioSnapshot = useAction(api.admin.getAutoModelStudioSnapshot)
   const providers = dashboard.providers
   const modelsQuery = usePaginatedQuery(api.admin.listAdminModels, {}, { initialNumItems: 50 })
   const models = modelsQuery.results ?? dashboard.models

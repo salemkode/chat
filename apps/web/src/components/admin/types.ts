@@ -8,4 +8,4 @@ export type AdminModel = DashboardData['models'][number]
 export type AdminModelCollection = DashboardData['collections'][number]
 export type AdminAccount = FunctionReturnType<typeof api.admin.listAdminAccounts>['page'][number]
 
-export type IconType = 'emoji' | 'lucide' | 'phosphor' | 'upload' | undefined
+export type IconType = 'brand' | 'emoji' | 'lucide' | 'phosphor' | 'upload' | undefined

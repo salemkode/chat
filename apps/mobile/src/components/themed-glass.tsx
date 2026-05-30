@@ -70,7 +70,7 @@ export function ThemedGlassContainer({
     return (
       <View
         style={style}
-        className="overflow-hidden rounded-[28px] border border-border/80 bg-background shadow-composer"
+        className="overflow-hidden rounded-[28px] bg-background shadow-composer"
       >
         {children}
       </View>

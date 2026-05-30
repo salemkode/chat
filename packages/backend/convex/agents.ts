@@ -34,7 +34,7 @@ import { threadMetadataTools } from './lib/threadMetadataTools'
 import { quranDocsTool } from './lib/quranDocsTool'
 import { quranSourceTool } from './lib/quranSourceTool'
 import { extractMessageText } from './functions/memoryShared'
-import { threadMetadataValidator } from './lib/validators'
+import { providerConfigValidator, threadMetadataValidator } from './lib/validators'
 import { isModelUsableForPlan } from './lib/appPlan'
 import { resolveEffectiveAppPlan } from './lib/billing'
 import { getModelOfferAccessFlags } from './lib/modelOffersAccess'
@@ -55,7 +55,7 @@ import {
   resolveModelAttachmentMediaTypes,
   type ModelAttachmentValidationStatus,
 } from './lib/modelAttachmentPolicy'
-import { resolveProviderApiKey } from './lib/providerApiKeys'
+import { requireProviderApiKey } from './lib/providerApiKeys'
 
 // Random emoji picker for new chats
 const CHAT_EMOJIS = [
@@ -271,6 +271,10 @@ function formatGenerationError(error: unknown) {
     return `Your provider account does not have access to ${accessDeniedModel}. Choose a different model or upgrade that provider plan.`
   }
 
+  if (message.includes('Missing Authentication header')) {
+    return 'OpenRouter rejected the provider API key. In Admin → Providers, set a valid sk-or-v1-... key from openrouter.ai/keys.'
+  }
+
   return message
 }
 
@@ -314,6 +318,36 @@ async function markPendingGenerationFailed(
   } catch (error) {
     console.error('markPendingGenerationFailed failed:', error)
     return { order: undefined, stopped: false }
+  }
+}
+
+async function saveFailedAssistantPlaceholder(
+  ctx: Pick<ActionCtx, 'runQuery' | 'runMutation'>,
+  args: {
+    threadId: string
+    userId: Id<'users'>
+    error: string
+  },
+) {
+  try {
+    const saved = await saveMessage(ctx, components.agent, {
+      threadId: args.threadId,
+      userId: args.userId,
+      message: {
+        role: 'assistant',
+        content: [{ type: 'text', text: '' }],
+      },
+    })
+
+    await patchPendingAssistantFailed(ctx, {
+      messageId: saved.messageId,
+      error: args.error,
+    })
+
+    return true
+  } catch (error) {
+    console.error('saveFailedAssistantPlaceholder failed:', error)
+    return false
   }
 }
 
@@ -622,6 +656,36 @@ const threadLastMessageItemValidator = v.object({
   role: v.union(v.literal('user'), v.literal('assistant')),
   text: v.string(),
   createdAt: v.number(),
+})
+
+export const getProviderStreamCredentials = internalQuery({
+  args: {
+    providerId: v.id('providers'),
+  },
+  returns: v.union(
+    v.null(),
+    v.object({
+      providerType: v.string(),
+      apiKey: v.string(),
+      baseURL: v.optional(v.string()),
+      name: v.string(),
+      config: v.optional(providerConfigValidator),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    const provider = await ctx.db.get(args.providerId)
+    if (!provider || !provider.isEnabled) {
+      return null
+    }
+
+    return {
+      providerType: provider.providerType,
+      apiKey: provider.apiKey,
+      baseURL: provider.baseURL,
+      name: provider.name,
+      config: provider.config,
+    }
+  },
 })
 
 export const getModelToolSupport = internalQuery({
@@ -1390,22 +1454,12 @@ export const streamMessage = internalAction({
     searchEnabled: v.optional(v.boolean()),
     searchMode: v.optional(searchModeValidator),
     reasoning: v.optional(reasoningConfigValidator),
-    customUrl: v.optional(v.string()),
-    apiKey: v.optional(v.string()),
     userId: v.id('users'),
     modelDocId: v.id('models'),
     providerDocId: v.id('providers'),
     providerName: v.string(),
     modelName: v.string(),
     routerDecisionId: v.optional(v.string()),
-    config: v.optional(
-      v.object({
-        organization: v.optional(v.string()),
-        project: v.optional(v.string()),
-        headers: v.optional(v.record(v.string(), v.string())),
-        queryParams: v.optional(v.record(v.string(), v.string())),
-      }),
-    ),
   },
   handler: async (ctx, args) => {
     let toolPolicyEventId: Id<'toolPolicyEvents'> | null = null
@@ -1426,8 +1480,23 @@ export const streamMessage = internalAction({
         resolvedPrompt = promptMessage?.text?.trim() || ''
       }
 
-      const resolvedApiKey = resolveProviderApiKey(args.agent, args.apiKey)
-      const resolvedBaseURL = args.customUrl?.trim() || undefined
+      const providerCredentials = await ctx.runQuery(
+        internal.agents.getProviderStreamCredentials,
+        {
+          providerId: args.providerDocId,
+        },
+      )
+      if (!providerCredentials) {
+        throw new Error('Provider not found or disabled.')
+      }
+
+      const resolvedApiKey = requireProviderApiKey(
+        args.agent,
+        providerCredentials.apiKey,
+        `Cannot call ${args.modelName} through ${providerCredentials.name}`,
+      )
+      const resolvedBaseURL = providerCredentials.baseURL?.trim() || undefined
+      const providerConfig = providerCredentials.config
 
       const provider = match(args.agent)
         .with('openrouter', () => {
@@ -1440,51 +1509,51 @@ export const streamMessage = internalAction({
           return createOpenAI({
             apiKey: resolvedApiKey,
             baseURL: resolvedBaseURL,
-            organization: args.config?.organization,
-            project: args.config?.project,
-            headers: args.config?.headers,
+            organization: providerConfig?.organization,
+            project: providerConfig?.project,
+            headers: providerConfig?.headers,
           }).chat(args.modelId)
         })
         .with('anthropic', () => {
           return createAnthropic({
             apiKey: resolvedApiKey,
             baseURL: resolvedBaseURL,
-            headers: args.config?.headers,
+            headers: providerConfig?.headers,
           }).languageModel(args.modelId)
         })
         .with('google', () => {
           return createGoogleGenerativeAI({
             apiKey: resolvedApiKey,
             baseURL: resolvedBaseURL,
-            headers: args.config?.headers,
+            headers: providerConfig?.headers,
           }).chat(args.modelId)
         })
         .with('azure', () => {
           return createAzure({
             apiKey: resolvedApiKey,
             baseURL: resolvedBaseURL,
-            headers: args.config?.headers,
+            headers: providerConfig?.headers,
           }).chat(args.modelId)
         })
         .with('groq', () => {
           return createGroq({
             apiKey: resolvedApiKey,
             baseURL: resolvedBaseURL,
-            headers: args.config?.headers,
+            headers: providerConfig?.headers,
           }).languageModel(args.modelId)
         })
         .with('deepseek', () => {
           return createDeepSeek({
             apiKey: resolvedApiKey,
             baseURL: resolvedBaseURL,
-            headers: args.config?.headers,
+            headers: providerConfig?.headers,
           }).chat(args.modelId)
         })
         .with('xai', () => {
           return createXai({
             apiKey: resolvedApiKey,
             baseURL: resolvedBaseURL,
-            headers: args.config?.headers,
+            headers: providerConfig?.headers,
           }).chat(args.modelId)
         })
         .with('cerebras', () => {
@@ -1509,8 +1578,8 @@ export const streamMessage = internalAction({
             apiKey: resolvedApiKey,
             baseURL: resolvedBaseURL,
             includeUsage: true,
-            headers: args.config?.headers,
-            queryParams: args.config?.queryParams,
+            headers: providerConfig?.headers,
+            queryParams: providerConfig?.queryParams,
           })
           return customProvider(args.modelId)
         })
@@ -1526,7 +1595,7 @@ export const streamMessage = internalAction({
             baseURL: resolvedBaseURL || 'https://api.opencode.ai/v1',
             includeUsage: true,
             headers: {
-              ...args.config?.headers,
+              ...providerConfig?.headers,
             },
           })
           // The provider returns a function that takes modelId
@@ -1653,15 +1722,32 @@ export const streamMessage = internalAction({
       )) as LinkedProject[]
       const linkedProject = linkedProjects[0] ?? null
       const resolvedProjectId = args.projectId ?? linkedProject?._id
-      const automaticMemoryContext = await ctx.runAction(
-        internal.functions.memoryContext.buildPromptMemoryContext,
-        {
-          userId: args.userId,
-          threadId: args.threadId,
-          prompt: resolvedPrompt,
-          projectId: resolvedProjectId,
-        },
-      )
+      let automaticMemoryContext
+      try {
+        automaticMemoryContext = await ctx.runAction(
+          internal.functions.memoryContext.buildPromptMemoryContext,
+          {
+            userId: args.userId,
+            threadId: args.threadId,
+            prompt: resolvedPrompt,
+            projectId: resolvedProjectId,
+          },
+        )
+      } catch (error) {
+        console.error('buildPromptMemoryContext failed; continuing without memory context:', error)
+        automaticMemoryContext = {
+          project: linkedProject
+            ? {
+                id: linkedProject._id.toString(),
+                name: linkedProject.name,
+              }
+            : null,
+          projectHits: [],
+          threadHits: [],
+          userHits: [],
+          text: '',
+        }
+      }
       const projectArtifactContext = await ctx.runAction(
         internal.functions.projectRetrieval.buildPromptProjectContext,
         {
@@ -1966,11 +2052,18 @@ export const streamMessage = internalAction({
           console.error('Failed to mark tool policy event as failed:', policyEventError)
         }
       }
-      await markPendingGenerationFailed(ctx, {
+      const failureResult = await markPendingGenerationFailed(ctx, {
         threadId: args.threadId,
         promptMessageId: args.promptMessageId,
         error: formattedError || GENERATION_FAILED_FALLBACK_MESSAGE,
       })
+      if (!failureResult.stopped && args.promptMessageId) {
+        await saveFailedAssistantPlaceholder(ctx, {
+          threadId: args.threadId,
+          userId: args.userId,
+          error: formattedError || GENERATION_FAILED_FALLBACK_MESSAGE,
+        })
+      }
       return { success: false, error: formattedError }
     }
   },
@@ -2127,15 +2220,12 @@ export const generateMessage = mutation({
         : {
             enabled: false,
           },
-      apiKey: provider.apiKey,
-      customUrl: provider.baseURL,
       userId,
       modelDocId: model._id,
       providerDocId: provider._id,
       providerName: provider.name,
       modelName: model.displayName,
       routerDecisionId: args.routerDecisionId,
-      config: provider.config,
     })
     await recordClientMutationReceipt(ctx, {
       userId,
@@ -2241,15 +2331,12 @@ export const regenerateMessage = mutation({
         : {
             enabled: false,
           },
-      apiKey: provider.apiKey,
-      customUrl: provider.baseURL,
       userId,
       modelDocId: model._id,
       providerDocId: provider._id,
       providerName: provider.name,
       modelName: model.displayName,
       routerDecisionId: args.routerDecisionId,
-      config: provider.config,
     })
     await recordMessageArtifactContextLinks(ctx, {
       userId,

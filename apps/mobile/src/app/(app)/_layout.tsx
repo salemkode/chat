@@ -62,7 +62,7 @@ export default function AppLayout() {
 
 function RootDrawer() {
   const router = useRouter();
-  const { isOpen, openDrawer, closeDrawer } = useDrawer();
+  const { isOpen, canOpenDrawer, openDrawer, closeDrawer } = useDrawer();
 
   useSystemBackgroundColor();
 
@@ -71,6 +71,7 @@ function RootDrawer() {
       open={isOpen}
       onOpen={openDrawer}
       onClose={closeDrawer}
+      swipeEnabled={canOpenDrawer}
       drawerContent={
         <DrawerContent
           onNavigate={(path) => {
@@ -153,10 +154,6 @@ function StackLayout() {
       <Stack.Screen
         name="(settings)"
         options={{
-          presentation: "formSheet",
-          sheetAllowedDetents: [0.92],
-          sheetCornerRadius: IS_ANDROID ? 32 : undefined,
-          sheetGrabberVisible: true,
           headerShown: false,
         }}
       />

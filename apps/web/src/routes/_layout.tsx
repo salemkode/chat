@@ -108,7 +108,7 @@ function ChatComposer({ threadId, mobile = false }: { threadId?: string; mobile?
       }
     ).projects.suggestProjectFromContext as never,
   )
-  const { models, collections } = useModels()
+  const { models, collections } = useModels({ prefetchAll: true })
   const { settings } = useSettings()
   const viewer = useViewer()
   const { projects, createProject, assignThreadToProject } = useProjects()

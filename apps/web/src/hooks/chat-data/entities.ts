@@ -3,6 +3,14 @@ import type { Id } from '@convex/_generated/dataModel'
 import { useMutation } from 'convex/react'
 import { api } from '@convex/_generated/api'
 import type { FunctionReturnType } from 'convex/server'
+import {
+  buildModelBrowserQueryArgs,
+  hasModelBrowserQueryFilters,
+  MODEL_BROWSER_INITIAL_NUM_ITEMS,
+  MODEL_BROWSER_LOAD_MORE_NUM_ITEMS,
+  MODEL_BROWSER_PREFETCH_NUM_ITEMS,
+  type ModelBrowserQueryOptions,
+} from '@chat/shared'
 import { useOnlineStatus } from '@/hooks/use-online-status'
 import { resolveChatSnapshot } from '@chat/chat-core'
 import { usePaginatedQuery, useQuery } from '@/lib/convex-query-cache'
@@ -23,15 +31,30 @@ import {
 
 type ModelRecord = FunctionReturnType<typeof api.admin.listModelsForBrowser>['page'][number]
 
-export function useModels() {
+export type UseModelsOptions = ModelBrowserQueryOptions & {
+  collectionId?: Id<'modelCollections'>
+  prefetchAll?: boolean
+}
+
+export function useModels(options: UseModelsOptions = {}) {
   const cacheUserId = useConvexUserIdForCache()
   const { isOnline } = useOnlineStatus()
   const cacheVersion = useOfflineCacheVersion()
+  const queryArgs = useMemo(
+    () =>
+      buildModelBrowserQueryArgs({
+        collectionId: options.collectionId,
+        favoritesOnly: options.favoritesOnly,
+        searchQuery: options.searchQuery,
+      }),
+    [options.collectionId, options.favoritesOnly, options.searchQuery],
+  )
+  const hasActiveFilters = hasModelBrowserQueryFilters(options)
   const metadata = useQuery(api.admin.getModelBrowserMetadata, {})
   const paginatedModels = usePaginatedQuery(
     api.admin.listModelsForBrowser,
-    {},
-    { initialNumItems: 40 },
+    queryArgs,
+    { initialNumItems: MODEL_BROWSER_INITIAL_NUM_ITEMS },
   )
   const setFavoriteModel = useMutation(api.admin.setFavoriteModel)
 
@@ -53,27 +76,60 @@ export function useModels() {
   }, [cacheUserId, cacheVersion])
 
   useEffect(() => {
-    if (cacheUserId && (Array.isArray(paginatedModels.results) || Array.isArray(metadata?.collections))) {
+    if (
+      !hasActiveFilters &&
+      cacheUserId &&
+      (Array.isArray(paginatedModels.results) || Array.isArray(metadata?.collections))
+    ) {
       cacheModelsToLocal(cacheUserId, {
         models: paginatedModels.results ?? [],
         collections: metadata?.collections ?? [],
       })
     }
-  }, [cacheUserId, metadata?.collections, paginatedModels.results])
+  }, [
+    cacheUserId,
+    hasActiveFilters,
+    metadata?.collections,
+    paginatedModels.results,
+  ])
+
+  useEffect(() => {
+    if (!options.prefetchAll) {
+      return
+    }
+    if (paginatedModels.status === 'CanLoadMore') {
+      void paginatedModels.loadMore(MODEL_BROWSER_PREFETCH_NUM_ITEMS)
+    }
+  }, [
+    options.prefetchAll,
+    paginatedModels.loadMore,
+    paginatedModels.results?.length,
+    paginatedModels.status,
+  ])
 
   const models = useMemo(
-    () =>
-      Array.isArray(paginatedModels.results)
-        ? (paginatedModels.results as ModelRecord[]).map(normalizeModel)
-        : cachedModelPicker.models || [],
-    [cachedModelPicker.models, paginatedModels.results],
+    () => {
+      if (Array.isArray(paginatedModels.results)) {
+        return (paginatedModels.results as ModelRecord[]).map(normalizeModel)
+      }
+      if (hasActiveFilters || isOnline) {
+        return []
+      }
+      return cachedModelPicker.models || []
+    },
+    [cachedModelPicker.models, hasActiveFilters, isOnline, paginatedModels.results],
   )
   const collections = useMemo(
-    () =>
-      Array.isArray(metadata?.collections)
-        ? metadata.collections.map(normalizeModelCollection)
-        : cachedModelPicker.collections || [],
-    [cachedModelPicker.collections, metadata?.collections],
+    () => {
+      if (Array.isArray(metadata?.collections)) {
+        return metadata.collections.map(normalizeModelCollection)
+      }
+      if (isOnline) {
+        return []
+      }
+      return cachedModelPicker.collections || []
+    },
+    [cachedModelPicker.collections, isOnline, metadata?.collections],
   )
 
   const setFavorite = useCallback(
@@ -93,7 +149,7 @@ export function useModels() {
     autoModelAvailable: metadata?.autoModelAvailable ?? false,
     hasMore: paginatedModels.status === 'CanLoadMore' || paginatedModels.status === 'LoadingMore',
     isLoadingMore: paginatedModels.status === 'LoadingMore',
-    loadMore: (numItems = 40) => paginatedModels.loadMore(numItems),
+    loadMore: (numItems = MODEL_BROWSER_LOAD_MORE_NUM_ITEMS) => paginatedModels.loadMore(numItems),
   }
 }
 
@@ -233,6 +289,7 @@ export function useSettings() {
       reasoningLevel?: 'low' | 'medium' | 'high'
       routingPreference?: 'balanced' | 'cost' | 'speed' | 'quality'
       auxiliaryModelId?: Id<'models'>
+      clearAuxiliaryModelId?: boolean
     }) => {
       if (!isOnline) {
         return

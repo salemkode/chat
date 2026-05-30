@@ -101,6 +101,7 @@ export type AdminModelDialogProps = {
 
 function normalizeIconType(value: string | undefined): IconType {
   switch (value) {
+    case 'brand':
     case 'emoji':
     case 'lucide':
     case 'phosphor':

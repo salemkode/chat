@@ -1,12 +1,14 @@
 import { useModel } from "@/components/model-context";
+import { Icon } from "@/components/icon";
 import { useChatHeaderLabels } from "@/hooks/use-chat-header";
-import { Host, Picker } from "@expo/ui";
-import { Text, View } from "react-native";
+import { useRouter } from "expo-router";
+import { ChevronDown } from "lucide-react-native";
+import { Pressable, Text, View } from "react-native";
 
 export function HeaderTitlePicker() {
-  const { models, selectedModelId, selectedModel, setSelectedModel } = useModel();
+  const { selectedModel } = useModel();
   const { threadTitle } = useChatHeaderLabels();
-  const activeModelId = selectedModelId ?? models[0]?.id;
+  const router = useRouter();
 
   return (
     <View className="max-w-[280px] items-center self-center px-2 py-1">
@@ -16,28 +18,20 @@ export function HeaderTitlePicker() {
       >
         {threadTitle}
       </Text>
-      {activeModelId ? (
-        <Host
-          matchContents={{ vertical: true }}
-          style={{
-            minWidth: 140,
-            marginTop: 2,
-          }}
-        >
-          <Picker selectedValue={activeModelId} onValueChange={setSelectedModel}>
-            {models.map((model) => (
-              <Picker.Item key={model.id} label={model.label} value={model.id} />
-            ))}
-          </Picker>
-        </Host>
-      ) : (
+      <Pressable
+        onPress={() => router.navigate("/model-picker")}
+        className="mt-0.5 flex-row items-center gap-0.5 rounded-full px-1 active:opacity-70"
+        accessibilityRole="button"
+        accessibilityLabel={`Selected model: ${selectedModel}. Tap to change.`}
+      >
         <Text
           numberOfLines={1}
-          className="mt-0.5 text-center text-[12px] text-muted-foreground"
+          className="max-w-[220px] text-center text-[12px] text-muted-foreground"
         >
           {selectedModel}
         </Text>
-      )}
+        <Icon icon={ChevronDown} className="size-3 text-muted-foreground" />
+      </Pressable>
     </View>
   );
 }

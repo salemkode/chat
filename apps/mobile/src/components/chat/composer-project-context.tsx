@@ -2,7 +2,6 @@ import { useChatContext } from "@/components/chat/chat-context";
 import { useModel } from "@/components/model-context";
 import { useComposerToast } from "@/components/composer-toast";
 import { api } from "@convex/_generated/api";
-import type { Id } from "@convex/_generated/dataModel";
 import { useChatCoreContext, useChatProjects } from "@chat/chat-core";
 import {
   buildMentionProjectOptions,
@@ -64,7 +63,7 @@ export function ComposerProjectProvider({
   children: ReactNode;
 }) {
   const { input, setInput } = useChatContext();
-  const { selectedModelId } = useModel();
+  const { selectedModelDocId } = useModel();
   const { showComposerToast } = useComposerToast();
   const { projects } = useChatProjects();
   const {
@@ -242,7 +241,7 @@ export function ComposerProjectProvider({
           const suggestion = (await suggestProjectFromContext({
             threadId,
             draft: nextValue,
-            modelId: selectedModelId as Id<"models"> | undefined,
+            modelId: selectedModelDocId,
             mentionQuery: projectMention.query,
           })) as ProjectSuggestion | undefined;
 
@@ -269,7 +268,7 @@ export function ComposerProjectProvider({
       input,
       mentionOptions,
       projectMention,
-      selectedModelId,
+      selectedModelDocId,
       setInput,
       setPendingProjectId,
       suggestProjectFromContext,

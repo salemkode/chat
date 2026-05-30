@@ -37,11 +37,12 @@ import {
 import { resolveStudioRawPrice } from './lib/modelStudioCost'
 import { createLanguageModelFromAuxiliary } from './lib/createLanguageModel'
 import { generateStructuredObject } from './lib/generateStructuredObject'
-import { resolveAuxiliaryModelForUser } from './lib/auxiliaryModel'
+import { resolveAuxiliaryModelForUser, hasConfiguredAuxiliaryModel } from './lib/auxiliaryModel'
 import {
   describeCollectionSuggestionAuthError,
   describeProviderApiKeySources,
   hasResolvableProviderApiKey,
+  isPlausibleOpenRouterApiKey,
   resolveProviderApiKey,
 } from './lib/providerApiKeys'
 import {
@@ -1036,13 +1037,14 @@ export const resolveCollectionSuggestionModel = internalQuery({
     }
 
     const auxiliary = await resolveAuxiliaryModelForUser(ctx, args.userId)
-    if (!hasResolvableProviderApiKey(auxiliary.providerType, auxiliary.apiKey)) {
+    if (
+      !hasConfiguredAuxiliaryModel(auxiliary) ||
+      !hasResolvableProviderApiKey(auxiliary.providerType, auxiliary.apiKey)
+    ) {
       throw new ConvexError({
         code: 'FAILED_PRECONDITION',
         message:
-          auxiliary.providerType === 'openrouter'
-            ? `No OpenRouter model is ready for collection generation. Configure ${describeProviderApiKeySources('openrouter')} or select an OpenRouter model below.`
-            : 'No model is configured for collection generation. Select an OpenRouter model below, set a default auxiliary model in Admin settings, or configure the provider API key.',
+          'No background memory model is selected. Choose one in Settings → Memory, set a default auxiliary model in Admin settings, and configure the provider API key in Admin → Providers.',
       })
     }
 
@@ -2649,6 +2651,12 @@ export const addProvider = mutation({
         message: 'API key is required.',
       })
     }
+    if (args.providerType === 'openrouter' && !isPlausibleOpenRouterApiKey(apiKey)) {
+      throw new ConvexError({
+        code: 'VALIDATION_ERROR',
+        message: 'OpenRouter API keys must start with sk-or-v1-. Create one at openrouter.ai/keys.',
+      })
+    }
 
     return await ctx.db.insert('providers', {
       ...args,
@@ -2717,8 +2725,58 @@ export const updateProvider = mutation({
       updates.apiKey = trimmed
     }
 
+    const existing = await ctx.db.get(id)
+    if (!existing) {
+      throw new ConvexError({
+        code: 'NOT_FOUND',
+        message: 'Provider not found.',
+      })
+    }
+
+    const nextProviderType = updates.providerType ?? existing.providerType
+    const nextApiKey = updates.apiKey ?? existing.apiKey
+    if (nextProviderType === 'openrouter' && !isPlausibleOpenRouterApiKey(nextApiKey)) {
+      throw new ConvexError({
+        code: 'VALIDATION_ERROR',
+        message: 'OpenRouter API keys must start with sk-or-v1-. Create one at openrouter.ai/keys.',
+      })
+    }
+
     await ctx.db.patch(id, cleanUpdates(updates))
     return
+  },
+})
+
+export const repairOpenRouterProviderApiKeyFromEnv = internalMutation({
+  args: {},
+  returns: v.object({
+    updated: v.boolean(),
+    providerId: v.optional(v.id('providers')),
+  }),
+  handler: async (ctx) => {
+    const envKey = process.env.OPENROUTER_API_KEY?.trim()
+    if (!envKey || !isPlausibleOpenRouterApiKey(envKey)) {
+      return { updated: false }
+    }
+
+    const providers = await ctx.db
+      .query('providers')
+      .withIndex('by_enabled', (q) => q.eq('isEnabled', true))
+      .collect()
+
+    for (const provider of providers) {
+      if (provider.providerType !== 'openrouter') {
+        continue
+      }
+      if (isPlausibleOpenRouterApiKey(provider.apiKey)) {
+        continue
+      }
+
+      await ctx.db.patch(provider._id, { apiKey: envKey })
+      return { updated: true, providerId: provider._id }
+    }
+
+    return { updated: false }
   },
 })
 

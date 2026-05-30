@@ -110,7 +110,7 @@ function TouchableGlassFallback({
         ]}
       >
         {Platform.OS === "android" ? (
-          <View className="flex-1 border border-border/70 bg-card/95">
+          <View className="border border-border/70 bg-card/95">
             {children as React.ReactNode}
           </View>
         ) : (

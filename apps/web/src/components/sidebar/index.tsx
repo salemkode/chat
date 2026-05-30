@@ -36,6 +36,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { SettingsDialog } from '@/components/settings-modal'
 import { useOnlineStatus } from '@/hooks/use-online-status'
 import { useProjects, useThreads, useViewer } from '@/hooks/use-chat-data'
+import type { ThreadSummary } from '@/hooks/chat-data/shared'
 import { writePendingNewChatProjectId } from '@/lib/project-selection'
 import { SidebarSearchDialog } from '@/components/sidebar/sidebar-search-dialog'
 import { AnimatedThreadList, ThreadRow } from '@/components/sidebar/thread-list'
@@ -57,6 +58,11 @@ interface AppSidebarProps {
   className?: string
 }
 
+type ProjectSummary = {
+  id: string
+  name: string
+}
+
 export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
   const navigate = useNavigate()
   const [settingsOpen, setSettingsOpen] = React.useState(false)
@@ -69,8 +75,22 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
   const { containerRef: sidebarScrollRef, runPreservingScroll, syncScrollAfterListChange } =
     useSidebarScrollPreservation()
 
-  const { threads, setPinned, deleteThread } = useThreads()
-  const { projects, createProject, removeThreadFromProject, hasMore: hasMoreProjects, isLoadingMore: isLoadingMoreProjects, loadMore: loadMoreProjects } = useProjects()
+  const {
+    threads,
+    setPinned,
+    deleteThread,
+    hasMore: hasMoreThreads,
+    isLoadingMore: isLoadingMoreThreads,
+    loadMore: loadMoreThreads,
+  } = useThreads()
+  const {
+    projects,
+    createProject,
+    removeThreadFromProject,
+    hasMore: hasMoreProjects,
+    isLoadingMore: isLoadingMoreProjects,
+    loadMore: loadMoreProjects,
+  } = useProjects()
   const viewer = useViewer()
   const { user: clerkUser } = useUser()
   const clerkProfileName = formatProfileName({
@@ -95,14 +115,14 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
     [threads],
   )
 
-  React.useLayoutEffect(() => {
-    syncScrollAfterListChange(threads.length, projects.length)
-  }, [threads.length, projects.length, syncScrollAfterListChange])
-
   const orderedThreadIds = React.useMemo(
     () => threads.filter((thread) => !thread.isOptimistic).map((thread) => thread.id),
     [threads],
   )
+
+  React.useLayoutEffect(() => {
+    syncScrollAfterListChange(threads.length, projects.length)
+  }, [threads.length, projects.length, syncScrollAfterListChange])
 
   const handleNewChat = React.useCallback(() => {
     writePendingNewChatProjectId(undefined)
@@ -208,6 +228,49 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
     }
   }
 
+  const renderThreadRow = React.useCallback(
+    (thread: ThreadSummary, project?: ProjectSummary) => (
+      <div className={cn(project && 'ml-7')} data-sidebar-scroll-anchor={thread.id}>
+        <ThreadRow
+          thread={thread}
+          isActive={selectedThreadId === thread.id}
+          onOpen={() => {
+            if (thread.isOptimistic) {
+              return
+            }
+            navigate(generatePath('/:chatId', { chatId: thread.id }))
+          }}
+          onTogglePinned={() => {
+            if (thread.isOptimistic) {
+              return
+            }
+            void handlePinThread(thread.id, !thread.pinned)
+          }}
+          onRemoveFromProject={
+            project && thread.serverId && !thread.isOptimistic
+              ? () =>
+                  setRemoveFromProjectDialog({
+                    projectName: project.name,
+                    threadId: thread.serverId!,
+                    threadTitle: thread.title || 'Untitled chat',
+                  })
+              : undefined
+          }
+          onDelete={
+            thread.serverId && !thread.isOptimistic
+              ? () =>
+                  setDeleteThreadDialog({
+                    threadId: thread.serverId!,
+                    threadTitle: thread.title || 'Untitled chat',
+                  })
+              : undefined
+          }
+        />
+      </div>
+    ),
+    [handlePinThread, navigate, selectedThreadId],
+  )
+
   useHotkeyAction('newChat', handleNewChat)
   useHotkeyAction('openSettings', () => {
     setSettingsTab('general')
@@ -309,7 +372,9 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
                               onClick={() => handleNewChatInProject(project.id)}
                               icon={
                                 <>
-                                  <span className="text-xs tabular-nums">{projectThreads.length}</span>
+                                  <span className="text-xs tabular-nums">
+                                    {projectThreads.length}
+                                  </span>
                                   <Plus className="size-3.5 shrink-0" />
                                 </>
                               }
@@ -323,43 +388,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
                         <AnimatedThreadList
                           className="ml-7"
                           threads={projectThreads}
-                          renderThread={(thread) => (
-                            <ThreadRow
-                              thread={thread}
-                              isActive={selectedThreadId === thread.id}
-                              onOpen={() => {
-                                if (thread.isOptimistic) {
-                                  return
-                                }
-                                navigate(generatePath('/:chatId', { chatId: thread.id }))
-                              }}
-                              onTogglePinned={() => {
-                                if (thread.isOptimistic) {
-                                  return
-                                }
-                                void handlePinThread(thread.id, !thread.pinned)
-                              }}
-                              onRemoveFromProject={
-                                thread.serverId && !thread.isOptimistic
-                                  ? () =>
-                                      setRemoveFromProjectDialog({
-                                        projectName: project.name,
-                                        threadId: thread.serverId!,
-                                        threadTitle: thread.title || 'Untitled chat',
-                                      })
-                                  : undefined
-                              }
-                              onDelete={
-                                thread.serverId && !thread.isOptimistic
-                                  ? () =>
-                                      setDeleteThreadDialog({
-                                        threadId: thread.serverId!,
-                                        threadTitle: thread.title || 'Untitled chat',
-                                      })
-                                  : undefined
-                              }
-                            />
-                          )}
+                          renderThread={(thread) => renderThreadRow(thread, project)}
                         />
                       ) : null}
                     </React.Fragment>
@@ -383,39 +412,20 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
             <SidebarMenu className="gap-1">
               <AnimatedThreadList
                 threads={unfiledThreads}
-                renderThread={(thread) => (
-                  <ThreadRow
-                    thread={thread}
-                    isActive={selectedThreadId === thread.id}
-                    onOpen={() => {
-                      if (thread.isOptimistic) {
-                        return
-                      }
-                      navigate(generatePath('/:chatId', { chatId: thread.id }))
-                    }}
-                    onTogglePinned={() => {
-                      if (thread.isOptimistic) {
-                        return
-                      }
-                      void handlePinThread(thread.id, !thread.pinned)
-                    }}
-                    onDelete={
-                      thread.serverId && !thread.isOptimistic
-                        ? () =>
-                            setDeleteThreadDialog({
-                              threadId: thread.serverId!,
-                              threadTitle: thread.title || 'Untitled chat',
-                            })
-                        : undefined
-                    }
-                  />
-                )}
+                renderThread={(thread) => renderThreadRow(thread)}
               />
               {unfiledThreads.length === 0 ? (
                 <div className="rounded-md border border-dashed px-3 py-4 text-sm text-muted-foreground">
                   No unfiled chats.
                 </div>
               ) : null}
+              <InfiniteScrollTrigger
+                hasMore={hasMoreThreads}
+                isLoadingMore={isLoadingMoreThreads}
+                onLoadMore={() => runPreservingScroll(() => loadMoreThreads(30))}
+                rootRef={sidebarScrollRef}
+                loadingLabel="Loading more chats..."
+              />
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

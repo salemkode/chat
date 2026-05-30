@@ -7,6 +7,7 @@ import {
 } from './optimistic-threads'
 
 type ThreadsWithMetadata = Parameters<typeof filterPersistableThreads>[0]
+type MockOptimisticLocalStore = Pick<OptimisticLocalStore, 'getQuery' | 'setQuery'>
 
 function createMockLocalStore(args?: {
   threads?: ThreadsWithMetadata
@@ -17,8 +18,8 @@ function createMockLocalStore(args?: {
   let setCalled = false
   let getQueryCalls = 0
 
-  const localStore = {
-    getQuery(_query: unknown) {
+  const localStore: MockOptimisticLocalStore = {
+    getQuery(..._args) {
       getQueryCalls += 1
       if (getQueryCalls === 1) {
         return threads
@@ -28,7 +29,7 @@ function createMockLocalStore(args?: {
       }
       return undefined
     },
-    setQuery(_query: unknown, _queryArgs: unknown, value: unknown) {
+    setQuery(_query, _queryArgs, value) {
       if (!Array.isArray(value)) {
         threads = undefined
         return
@@ -36,10 +37,10 @@ function createMockLocalStore(args?: {
       threads = value as ThreadsWithMetadata
       setCalled = true
     },
-  } as unknown as OptimisticLocalStore
+  }
 
   return {
-    localStore,
+    localStore: localStore as OptimisticLocalStore,
     getThreads: () => threads,
     wasSetCalled: () => setCalled,
   }

@@ -1,34 +1,20 @@
 import { ModelPickerContent } from "@/components/dialog/model-picker-content";
 import { useModel } from "@/components/model-context";
-import type { Id } from "@convex/_generated/dataModel";
 import { useRouter } from "expo-router";
 
 export default function ModelPickerSheet() {
-  const {
-    models,
-    collections,
-    selectedModelId,
-    setSelectedModel,
-    hasMoreModels,
-    isLoadingMoreModels,
-    loadMoreModels,
-  } = useModel();
+  const { selectedModelKey, setSelectedModelKey } = useModel();
   const router = useRouter();
 
-  const selectModelAndClose = (modelId: Id<"models">) => {
-    setSelectedModel(modelId);
+  const selectModelAndClose = (modelKey: string) => {
+    setSelectedModelKey(modelKey);
     router.back();
   };
 
   return (
     <ModelPickerContent
-      models={models}
-      collections={collections}
-      selectedModelId={selectedModelId}
-      onSelectModel={selectModelAndClose}
-      hasMore={hasMoreModels}
-      isLoadingMore={isLoadingMoreModels}
-      onLoadMore={() => loadMoreModels(40)}
+      selectedModelKey={selectedModelKey}
+      onSelectModelKey={selectModelAndClose}
     />
   );
 }

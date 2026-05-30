@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./admin-types": "./src/admin-types.ts",
+    "./brand-icons": "./src/brand-icons.ts",
     "./hooks/use-mobile": "./src/hooks/use-mobile.ts",
     "./hooks/use-online-status": "./src/hooks/use-online-status.ts",
     "./logic/client-keys": "./src/logic/client-keys.ts",
@@ -39,5 +40,8 @@
   "peerDependencies": {
     "convex": "^1.39.1",
     "react": "^19.0.0"
+  },
+  "dependencies": {
+    "simple-icons": "^16.21.0"
   }
 }

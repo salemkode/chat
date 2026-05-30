@@ -18,7 +18,7 @@ import { LegendList } from "@legendapp/list/react-native";
 import { useSelector } from "@legendapp/state/react";
 import { useChatProjects, useChatThreads, useChatCoreContext } from "@chat/chat-core";
 import type { ProjectSummary, ThreadSummary } from "@chat/chat-core/types";
-import type { Href } from "expo-router";
+import { type Href, useSegments } from "expo-router";
 import {
   FolderOpen,
   Folder,
@@ -35,6 +35,7 @@ import React, {
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -55,6 +56,7 @@ type DrawerListRow =
 
 type DrawerContextValue = {
   isOpen: boolean;
+  canOpenDrawer: boolean;
   openDrawer: () => void;
   closeDrawer: () => void;
 };
@@ -62,12 +64,25 @@ type DrawerContextValue = {
 const DrawerContext = createContext<DrawerContextValue | null>(null);
 
 export function DrawerProvider({ children }: { children: React.ReactNode }) {
+  const segments = useSegments();
   const [isOpen, setIsOpen] = useState(false);
-  const openDrawer = useCallback(() => setIsOpen(true), []);
+  const canOpenDrawer = !segments.includes("(settings)");
+  const openDrawer = useCallback(() => {
+    if (!canOpenDrawer) {
+      return;
+    }
+    setIsOpen(true);
+  }, [canOpenDrawer]);
   const closeDrawer = useCallback(() => setIsOpen(false), []);
 
+  React.useEffect(() => {
+    if (!canOpenDrawer) {
+      setIsOpen(false);
+    }
+  }, [canOpenDrawer]);
+
   return (
-    <DrawerContext value={{ isOpen, openDrawer, closeDrawer }}>
+    <DrawerContext value={{ isOpen, canOpenDrawer, openDrawer, closeDrawer }}>
       {children}
     </DrawerContext>
   );
@@ -221,17 +236,51 @@ function DrawerFooter({
       className="flex-row items-center px-4 py-3 border-t border-border"
       style={{ borderTopWidth: StyleSheet.hairlineWidth }}
     >
-      <TouchableGlass
-        onPress={onSettings}
-        className="rounded-full p-2 flex-row items-center gap-2.5 active:opacity-60"
+      {Platform.OS === "ios" ? (
+        <TouchableGlass
+          onPress={onSettings}
+          className="self-start rounded-full active:opacity-60"
+        >
+          <DrawerFooterPill
+            viewerInitials={viewerInitials}
+            viewerName={viewerName}
+          />
+        </TouchableGlass>
+      ) : (
+        <Pressable
+          onPress={onSettings}
+          className="self-start rounded-full active:opacity-60"
+        >
+          <DrawerFooterPill
+            viewerInitials={viewerInitials}
+            viewerName={viewerName}
+          />
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
+function DrawerFooterPill({
+  viewerInitials,
+  viewerName,
+}: {
+  viewerInitials: string;
+  viewerName: string;
+}) {
+  return (
+    <View className="flex-row items-center gap-2 rounded-full border border-border/50 bg-card px-3 py-1.5">
+      <View className="h-7 w-7 items-center justify-center rounded-full bg-background">
+        <Text className="text-xs font-semibold text-foreground">
+          {viewerInitials}
+        </Text>
+      </View>
+      <Text
+        numberOfLines={1}
+        className="max-w-[132px] pr-0.5 text-[15px] text-foreground"
       >
-        <View className="w-8 h-8 rounded-full bg-card items-center justify-center">
-          <Text className="text-[13px] font-semibold text-foreground">
-            {viewerInitials}
-          </Text>
-        </View>
-        <Text className="text-sm text-foreground">{viewerName}</Text>
-      </TouchableGlass>
+        {viewerName}
+      </Text>
     </View>
   );
 }

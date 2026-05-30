@@ -17,7 +17,7 @@ type ChatModelContextValue = {
 const ChatModelContext = createContext<ChatModelContextValue | null>(null)
 
 export function ChatModelProvider({ children }: { children: ReactNode }) {
-  const { models, autoModelAvailable } = useModels()
+  const { models, autoModelAvailable } = useModels({ prefetchAll: true })
   const [selectedModelId, setSelectedModelIdState] = useState<string | undefined>(undefined)
   const [defaultModelId, setDefaultModelIdState] = useState<string | undefined>(undefined)
   const [isStorageHydrated, setIsStorageHydrated] = useState(false)

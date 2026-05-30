@@ -25,11 +25,13 @@ export function MainHeader() {
         {useNativeToolbarMenu ? (
           <>
             <Stack.Toolbar.Button icon="list.bullet" onPress={openDrawer} />
-            <ChatHeaderNewChatButton
-              variant="native"
-              visible={menu.canNewChat}
-              onPress={menu.onNewChat}
-            />
+            {menu.canNewChat ? (
+              <Stack.Toolbar.Button
+                icon="square.and.pencil"
+                onPress={menu.onNewChat}
+                accessibilityLabel="New chat"
+              />
+            ) : null}
           </>
         ) : (
           <View className="flex-row items-center">
@@ -51,18 +53,30 @@ export function MainHeader() {
       </Stack.Toolbar>
       <Stack.Toolbar placement="right" asChild={!useNativeToolbarMenu}>
         {useNativeToolbarMenu ? (
-          <ChatHeaderOverflowButton
-            variant="native"
-            canRename={menu.canRename}
-            canShare={menu.canShare}
-            onRename={menu.onRename}
-            onShare={menu.onShare}
-          />
+          menu.canRename || menu.canShare ? (
+            <Stack.Toolbar.Menu icon="ellipsis">
+              {menu.canRename ? (
+                <Stack.Toolbar.MenuAction icon="pencil" onPress={menu.onRename}>
+                  <Stack.Toolbar.Label>Rename</Stack.Toolbar.Label>
+                </Stack.Toolbar.MenuAction>
+              ) : null}
+              {menu.canShare ? (
+                <Stack.Toolbar.MenuAction
+                  icon="square.and.arrow.up"
+                  onPress={menu.onShare}
+                >
+                  <Stack.Toolbar.Label>Share</Stack.Toolbar.Label>
+                </Stack.Toolbar.MenuAction>
+              ) : null}
+            </Stack.Toolbar.Menu>
+          ) : null
         ) : (
           <ChatHeaderOverflowButton
             variant="fallback"
             canRename={menu.canRename}
             canShare={menu.canShare}
+            open={menu.overflowOpen}
+            onOpenChange={menu.setOverflowOpen}
             onRename={menu.onRename}
             onShare={menu.onShare}
           />

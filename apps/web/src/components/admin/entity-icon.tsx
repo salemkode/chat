@@ -1,6 +1,8 @@
+import { inferBrandIconName } from '@chat/shared/brand-icons'
 import { cn } from '@/lib/utils'
 import { getIcon } from '@/lib/icons'
 import type { IconType } from '@chat/shared/admin-types'
+import { BrandIcon } from '@/components/admin/brand-icon'
 
 export type { IconType }
 
@@ -8,12 +10,18 @@ export function EntityIcon({
   icon,
   iconType,
   iconUrl,
+  providerType,
+  modelId,
+  name,
   fallback = 'Sparkles',
   className,
 }: {
   icon?: string
   iconType?: IconType
   iconUrl?: string
+  providerType?: string
+  modelId?: string
+  name?: string
   fallback?: string
   className?: string
 }) {
@@ -27,6 +35,18 @@ export function EntityIcon({
         {icon}
       </span>
     )
+  }
+
+  const brandIconName = inferBrandIconName({
+    icon,
+    iconType,
+    providerType,
+    modelId,
+    displayName: name,
+    name,
+  })
+  if (brandIconName) {
+    return <BrandIcon name={brandIconName} className={className} />
   }
 
   const iconName = iconType === 'phosphor' && icon ? icon : fallback

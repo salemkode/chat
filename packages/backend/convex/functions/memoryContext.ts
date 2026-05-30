@@ -2,7 +2,7 @@ import { internalAction, type ActionCtx } from '../_generated/server'
 import { v } from 'convex/values'
 import type { Id } from '../_generated/dataModel'
 import { internal } from '../_generated/api'
-import { ensureOpenRouterConfigured, memoryRag } from './memoryRag'
+import { resolveMemoryRag, type MemoryRagClient } from './memoryRag'
 import { buildRagFilterValues, formatMemory } from './memoryShared'
 import { dedupeMemoryHitsByPriority } from './memoryContextHelpers'
 
@@ -28,6 +28,27 @@ async function searchScopeHits(
     scope: SearchScope
     maxResults: number
   },
+  memoryRag: MemoryRagClient,
+): Promise<ScopeHit[]> {
+  try {
+    return await searchScopeHitsInner(ctx, args, memoryRag)
+  } catch (error) {
+    console.error(`Memory search failed for ${args.scope} scope:`, error)
+    return []
+  }
+}
+
+async function searchScopeHitsInner(
+  ctx: ActionCtx,
+  args: {
+    userId: Id<'users'>
+    threadId: string
+    projectId?: Id<'projects'>
+    query: string
+    scope: SearchScope
+    maxResults: number
+  },
+  memoryRag: MemoryRagClient,
 ): Promise<ScopeHit[]> {
   const filters =
     args.scope === 'project' && args.projectId
@@ -269,8 +290,6 @@ export const buildPromptMemoryContext = internalAction({
     text: v.string(),
   }),
   handler: async (ctx, args) => {
-    ensureOpenRouterConfigured()
-
     const prompt = args.prompt.trim()
     if (!prompt) {
       return {
@@ -288,31 +307,70 @@ export const buildPromptMemoryContext = internalAction({
         })
       : null
 
+    const memoryRag = await resolveMemoryRag(ctx)
+    if (!memoryRag) {
+      const text = [
+        'Retrieved memory context',
+        projectDoc
+          ? `Project context\n- ${projectDoc.name}${projectDoc.description ? `: ${projectDoc.description}` : ''}`
+          : 'Project context\n- No project linked to this chat.',
+        formatSection('Relevant project memories', []),
+        formatSection('Relevant thread memories', []),
+        formatSection('Relevant user memories', []),
+      ].join('\n\n')
+
+      return {
+        project: projectDoc
+          ? {
+              id: projectDoc._id.toString(),
+              name: projectDoc.name,
+              description: projectDoc.description,
+            }
+          : null,
+        projectHits: [],
+        threadHits: [],
+        userHits: [],
+        text,
+      }
+    }
+
     const [projectHitsRaw, threadHitsRaw, userHitsRaw] = await Promise.all([
       args.projectId
-        ? searchScopeHits(ctx, {
-            userId: args.userId,
-            threadId: args.threadId,
-            projectId: args.projectId,
-            query: prompt,
-            scope: 'project',
-            maxResults: PROJECT_LIMIT,
-          })
+        ? searchScopeHits(
+            ctx,
+            {
+              userId: args.userId,
+              threadId: args.threadId,
+              projectId: args.projectId,
+              query: prompt,
+              scope: 'project',
+              maxResults: PROJECT_LIMIT,
+            },
+            memoryRag,
+          )
         : Promise.resolve([]),
-      searchScopeHits(ctx, {
-        userId: args.userId,
-        threadId: args.threadId,
-        query: prompt,
-        scope: 'thread',
-        maxResults: THREAD_LIMIT,
-      }),
-      searchScopeHits(ctx, {
-        userId: args.userId,
-        threadId: args.threadId,
-        query: prompt,
-        scope: 'user',
-        maxResults: USER_LIMIT,
-      }),
+      searchScopeHits(
+        ctx,
+        {
+          userId: args.userId,
+          threadId: args.threadId,
+          query: prompt,
+          scope: 'thread',
+          maxResults: THREAD_LIMIT,
+        },
+        memoryRag,
+      ),
+      searchScopeHits(
+        ctx,
+        {
+          userId: args.userId,
+          threadId: args.threadId,
+          query: prompt,
+          scope: 'user',
+          maxResults: USER_LIMIT,
+        },
+        memoryRag,
+      ),
     ])
 
     const [projectHits, threadHits, userHits] = dedupeMemoryHitsByPriority([
@@ -378,39 +436,54 @@ export const searchMemoriesForPrompt = internalAction({
     hits: v.array(memoryHitValidator),
   }),
   handler: async (ctx, args) => {
-    ensureOpenRouterConfigured()
-
     const queryText = args.query.trim()
     const maxResults = Math.max(1, Math.min(args.maxResults ?? 5, 10))
     if (!queryText) {
       return { hits: [] }
     }
 
+    const memoryRag = await resolveMemoryRag(ctx)
+    if (!memoryRag) {
+      return { hits: [] }
+    }
+
     const [projectHitsRaw, threadHitsRaw, userHitsRaw] = await Promise.all([
       args.projectId
-        ? searchScopeHits(ctx, {
-            userId: args.userId,
-            threadId: args.threadId,
-            projectId: args.projectId,
-            query: queryText,
-            scope: 'project',
-            maxResults,
-          })
+        ? searchScopeHits(
+            ctx,
+            {
+              userId: args.userId,
+              threadId: args.threadId,
+              projectId: args.projectId,
+              query: queryText,
+              scope: 'project',
+              maxResults,
+            },
+            memoryRag,
+          )
         : Promise.resolve([]),
-      searchScopeHits(ctx, {
-        userId: args.userId,
-        threadId: args.threadId,
-        query: queryText,
-        scope: 'thread',
-        maxResults,
-      }),
-      searchScopeHits(ctx, {
-        userId: args.userId,
-        threadId: args.threadId,
-        query: queryText,
-        scope: 'user',
-        maxResults,
-      }),
+      searchScopeHits(
+        ctx,
+        {
+          userId: args.userId,
+          threadId: args.threadId,
+          query: queryText,
+          scope: 'thread',
+          maxResults,
+        },
+        memoryRag,
+      ),
+      searchScopeHits(
+        ctx,
+        {
+          userId: args.userId,
+          threadId: args.threadId,
+          query: queryText,
+          scope: 'user',
+          maxResults,
+        },
+        memoryRag,
+      ),
     ])
 
     const [projectHits, threadHits, userHits] = dedupeMemoryHitsByPriority([

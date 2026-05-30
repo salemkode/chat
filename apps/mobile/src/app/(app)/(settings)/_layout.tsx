@@ -1,12 +1,10 @@
 import { isLiquidGlassAvailable } from "expo-glass-effect";
-import { Stack, useRouter } from "expo-router";
+import { Stack } from "expo-router";
 import { useCSSVariable } from "uniwind";
 
 const GLASS = isLiquidGlassAvailable();
 
 export default function SettingsLayout() {
-  const router = useRouter();
-
   const appForeground = useCSSVariable("--app-foreground");
   const appBackground = useCSSVariable("--app-background");
 
@@ -29,13 +27,8 @@ export default function SettingsLayout() {
         name="settings"
         options={{
           title: "Settings",
-          headerLeft: () => null,
         }}
-      >
-        <Stack.Toolbar placement="left">
-          <Stack.Toolbar.Button icon="xmark" onPress={() => router.back()} />
-        </Stack.Toolbar>
-      </Stack.Screen>
+      />
       <Stack.Screen
         name="profile"
         options={{

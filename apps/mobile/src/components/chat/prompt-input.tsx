@@ -211,10 +211,11 @@ export function PromptInputTextarea({
     <TextInput
       ref={inputRef}
       nativeID="composer"
-      cursorColorClassName="tint-foreground"
-      selectionColorClassName="tint-foreground"
+      cursorColorClassName="accent-foreground"
+      selectionColorClassName="accent-foreground"
+      underlineColorAndroid="transparent"
       style={{ fontSize: 16 }}
-      className="flex-1 pl-4 pr-2 py-3 text-foreground dark:text-foreground max-h-25"
+      className="flex-1 bg-transparent pl-4 pr-2 py-3 text-foreground dark:text-foreground max-h-25"
       value={input}
       onChangeText={(text) => {
         setInput(text);
@@ -292,7 +293,11 @@ export function PromptInputSubmit() {
     >
       {isGenerating && !showStop ? (
         <Animated.View entering={FadeIn} exiting={FadeOut}>
-          <ActivityIndicator size="small" colorClassName="tint-foreground" className="text-foreground" />
+          <ActivityIndicator
+            size="small"
+            colorClassName="accent-background"
+            className="text-background"
+          />
         </Animated.View>
       ) : showStop ? (
         <Animated.View entering={FadeIn} exiting={FadeOut}>
@@ -303,18 +308,18 @@ export function PromptInputSubmit() {
           />
         </Animated.View>
       ) : (
-          <SymbolImage
-            name="arrow.up"
-            size={16}
-            sfEffect="scale/up"
-            className={cn(
-              "font-semibold",
-              sendDisabled
-                ? "text-muted-foreground"
-                : "text-background dark:text-background",
-            )}
-          />
-        )}
+        <SymbolImage
+          name="arrow.up"
+          size={16}
+          sfEffect="scale/up"
+          className={cn(
+            "font-semibold",
+            sendDisabled
+              ? "text-muted-foreground"
+              : "text-background dark:text-background",
+          )}
+        />
+      )}
     </Pressable>
   );
 }

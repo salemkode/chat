@@ -6,6 +6,9 @@ import { fileURLToPath, URL } from 'node:url'
 import tailwindcss from '@tailwindcss/vite'
 
 const config = defineConfig({
+  optimizeDeps: {
+    exclude: ['simple-icons'],
+  },
   server: {
     forwardConsole: false,
   },
@@ -28,7 +31,10 @@ const config = defineConfig({
     tailwindcss(),
     reactRouter(),
     babel({
-      filter: /\.[jt]sx?$/,
+      filter: (id) =>
+        /\.[jt]sx?$/.test(id) &&
+        !id.includes('/node_modules/') &&
+        (id.includes('/apps/web/') || id.includes('/packages/')),
       babelConfig: {
         presets: ['@babel/preset-typescript'],
         plugins: [

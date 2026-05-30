@@ -27,10 +27,12 @@ type QueryStub = {
   }
 }
 
-function createLocalStore(queries: QueryStub[]): OptimisticLocalStore {
+type MockOptimisticLocalStore = Pick<OptimisticLocalStore, 'getAllQueries' | 'setQuery'>
+
+function createLocalStore(queries: QueryStub[]) {
   const queryValues = new Map(queries.map((query) => [JSON.stringify(query.args), query.value]))
 
-  return {
+  const localStore: MockOptimisticLocalStore = {
     getAllQueries: () =>
       queries.map((query) => ({
         ...query,
@@ -39,7 +41,16 @@ function createLocalStore(queries: QueryStub[]): OptimisticLocalStore {
     setQuery: (_query: unknown, args: QueryStub['args'], value: QueryStub['value']) => {
       queryValues.set(JSON.stringify(args), value)
     },
-  } as unknown as OptimisticLocalStore
+  }
+
+  return {
+    localStore: localStore as OptimisticLocalStore,
+    getQueries: () =>
+      queries.map((query) => ({
+        ...query,
+        value: queryValues.get(JSON.stringify(query.args)),
+      })),
+  }
 }
 
 describe('applyOptimisticGenerateMessage', () => {
@@ -52,7 +63,7 @@ describe('applyOptimisticGenerateMessage', () => {
   })
 
   it('inserts only a user row with client-first id', () => {
-    const localStore = createLocalStore([
+    const store = createLocalStore([
       {
         args: { threadId: 'thread-1' },
         value: { page: [{ id: 'm1', order: 3 }] },
@@ -60,7 +71,7 @@ describe('applyOptimisticGenerateMessage', () => {
     ])
 
     applyOptimisticGenerateMessage(
-      localStore,
+      store.localStore,
       'thread-1',
       'Hello world',
       [{ filename: 'readme.txt', mediaType: 'text/plain' }],
@@ -87,9 +98,9 @@ describe('applyOptimisticGenerateMessage', () => {
 
   it('starts from order 0 when no hydrated rows exist', () => {
     vi.spyOn(Date, 'now').mockReturnValue(1234)
-    const localStore = createLocalStore([])
+    const store = createLocalStore([])
 
-    applyOptimisticGenerateMessage(localStore, 'thread-1', 'Hi')
+    applyOptimisticGenerateMessage(store.localStore, 'thread-1', 'Hi')
 
     const calls = vi.mocked(insertAtPosition).mock.calls
     expect(calls).toHaveLength(1)
@@ -112,7 +123,7 @@ describe('applyOptimisticRegenerateMessage', () => {
 
   it('removes downstream messages and inserts the pending assistant after the prompt', () => {
     vi.spyOn(Date, 'now').mockReturnValue(5000)
-    const localStore = createLocalStore([
+    const store = createLocalStore([
       {
         args: { threadId: 'thread-1', paginationOpts: { cursor: null } },
         value: {
@@ -127,9 +138,9 @@ describe('applyOptimisticRegenerateMessage', () => {
       },
     ])
 
-    applyOptimisticRegenerateMessage(localStore, 'thread-1', 'u1')
+    applyOptimisticRegenerateMessage(store.localStore, 'thread-1', 'u1')
 
-    const queries = localStore.getAllQueries(null as never) as QueryStub[]
+    const queries = store.getQueries()
     expect(queries[0]?.value?.page?.map((message) => message.id)).toEqual(['u1'])
 
     const calls = vi.mocked(insertAtPosition).mock.calls

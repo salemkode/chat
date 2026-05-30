@@ -4,7 +4,7 @@ import { paginationOptsValidator } from 'convex/server'
 import { type AuthCtx, getAuthUserId } from '../lib/auth'
 import type { Doc, Id } from '../_generated/dataModel'
 import { api, components, internal } from '../_generated/api'
-import { memoryRag, ensureOpenRouterConfigured } from './memoryRag'
+import { resolveMemoryRag } from './memoryRag'
 import {
   buildRagFilterValues,
   formatMemory,
@@ -183,7 +183,6 @@ export const createUserMemory = action({
   },
   returns: memoryListItemValidator,
   handler: async (ctx, args) => {
-    ensureOpenRouterConfigured()
     const userId = await requireUserId(ctx)
 
     return await ctx.runAction(internal.functions.memoryInternal.createMemoryInScope, {
@@ -208,7 +207,6 @@ export const createThreadMemory = action({
   },
   returns: memoryListItemValidator,
   handler: async (ctx, args) => {
-    ensureOpenRouterConfigured()
     const userId = await requireUserId(ctx)
     await assertThreadOwnership(ctx, { threadId: args.threadId, userId })
 
@@ -235,7 +233,6 @@ export const createProjectMemory = action({
   },
   returns: memoryListItemValidator,
   handler: async (ctx, args) => {
-    ensureOpenRouterConfigured()
     const userId = await requireUserId(ctx)
     await assertProjectOwnership(ctx, { projectId: args.projectId, userId })
 
@@ -380,7 +377,6 @@ export const updateMemory = action({
   },
   returns: memoryListItemValidator,
   handler: async (ctx, args) => {
-    ensureOpenRouterConfigured()
     const userId = await requireUserId(ctx)
 
     return await ctx.runAction(internal.functions.memoryInternal.updateMemoryInScope, {
@@ -578,12 +574,19 @@ export const searchMemory = action({
     ),
   }),
   handler: async (ctx, args) => {
-    ensureOpenRouterConfigured()
     const userId = await requireUserId(ctx)
     const scope = args.scope ?? 'all'
     const maxResults = Math.max(1, Math.min(args.maxResults ?? 10, 50))
 
     if (!args.query.trim()) {
+      return {
+        text: '',
+        hits: [],
+      }
+    }
+
+    const memoryRag = await resolveMemoryRag(ctx)
+    if (!memoryRag) {
       return {
         text: '',
         hits: [],

@@ -76,7 +76,7 @@ export function RepeatButton({
   disabled: boolean
   forceStopFirst?: boolean
 }) {
-  const { models, collections } = useModels()
+  const { models, collections } = useModels({ prefetchAll: true })
   const { regenerate, stop, disabledReason } = useSendMessage()
   const viewer = useViewer()
   const { selectedModelId, setSelectedModelId } = useChatModel()

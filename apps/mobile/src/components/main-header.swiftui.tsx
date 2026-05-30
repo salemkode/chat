@@ -1,7 +1,5 @@
 import {
   ChatHeaderMenuModals,
-  ChatHeaderNewChatButton,
-  ChatHeaderOverflowButton,
   useChatHeaderMenu,
 } from "@/components/chat/chat-header-overflow-menu";
 import { HeaderTitlePicker } from "@/components/header-title-picker";
@@ -19,20 +17,32 @@ export function MainHeader() {
       </Stack.Screen.Title>
       <Stack.Toolbar placement="left">
         <Stack.Toolbar.Button icon="list.bullet" onPress={openDrawer} />
-        <ChatHeaderNewChatButton
-          variant="native"
-          visible={menu.canNewChat}
-          onPress={menu.onNewChat}
-        />
+        {menu.canNewChat ? (
+          <Stack.Toolbar.Button
+            icon="square.and.pencil"
+            onPress={menu.onNewChat}
+            accessibilityLabel="New chat"
+          />
+        ) : null}
       </Stack.Toolbar>
       <Stack.Toolbar placement="right">
-        <ChatHeaderOverflowButton
-          variant="native"
-          canRename={menu.canRename}
-          canShare={menu.canShare}
-          onRename={menu.onRename}
-          onShare={menu.onShare}
-        />
+        {menu.canRename || menu.canShare ? (
+          <Stack.Toolbar.Menu icon="ellipsis">
+            {menu.canRename ? (
+              <Stack.Toolbar.MenuAction icon="pencil" onPress={menu.onRename}>
+                <Stack.Toolbar.Label>Rename</Stack.Toolbar.Label>
+              </Stack.Toolbar.MenuAction>
+            ) : null}
+            {menu.canShare ? (
+              <Stack.Toolbar.MenuAction
+                icon="square.and.arrow.up"
+                onPress={menu.onShare}
+              >
+                <Stack.Toolbar.Label>Share</Stack.Toolbar.Label>
+              </Stack.Toolbar.MenuAction>
+            ) : null}
+          </Stack.Toolbar.Menu>
+        ) : null}
       </Stack.Toolbar>
       <ChatHeaderMenuModals {...menu} />
     </>

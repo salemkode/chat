@@ -90,6 +90,7 @@ Current chat composition:
 - legacy routes such as `apps/mobile/app/(app)/(chatTab)/chat/[id].tsx` now map deep links into the shared current-chat store and redirect into the chat shell route
 - top-level legacy routes under `apps/mobile/app/(tabs)` and `apps/mobile/app/sidebar` are redirect-only shims into the authenticated chat/projects/profile routes
 - the authenticated chat shell now uses a gesture drawer instead of swipe tabs: the sidebar slides from the left, while the main chat remains the default landing surface
+- mobile settings now open as a regular pushed stack flow rather than a bottom-sheet presentation, so profile, appearance, models, and memory stay within one full-page settings navigation path
 - `ChatPage` composes `ChatHeader`, `MessageList` or `NewChatEmptyState`, floating `ChatComposer`, `OfflineBanner`, and `ModelPickerDialog`
 - mobile chat input uses a Liquid Glass-aware floating `ChatComposer` dock with `react-native-keyboard-controller` positioning, multiline draft input, attachments, search, model access, and send/stop controls while `ModelPickerDialog` stays in `components/dialog` with a grouped, searchable list (Auto, Favorites, all models) on top of the same prop-driven boundaries as before
 - `MobileSidebarPage` composes the real mobile sidebar from reusable project, thread-list, and footer sections; the mobile list follows a ChatGPT-style structure with top shortcuts, pinned chats, compact expandable projects, relative-date chat sections, and long-press / overflow row actions
@@ -140,6 +141,7 @@ The web app is currently the richer admin surface:
 - dedicated accounts table management at `/admin/accounts` with inline plan controls
 - memory and share routes
 - compact operational admin records and shared layout primitives centered in `apps/web/src/components/admin/admin-surface.tsx`, so providers, models, usage, offers, and collections read consistently instead of behaving like marketing cards
+- provider/model icon selection now supports shared AI brand marks alongside Phosphor glyphs, emoji, and uploads, and both web and mobile can infer common provider/model brands (for example Gemini, OpenAI, Anthropic, xAI, DeepSeek, and Qwen) when no custom icon is saved yet
 - collection management now treats membership as exclusive: each model can belong to at most one collection, the manual editor highlights already-assigned models, and AI-generated collection drafts require an explicit approval step before they are saved
 - broader desktop-oriented UI primitives under `apps/web/src/components/ui`
 

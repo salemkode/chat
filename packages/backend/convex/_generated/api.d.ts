@@ -32,7 +32,7 @@ export declare const api: {
         displayName: string;
         icon?: string;
         iconId?: Id<"_storage">;
-        iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+        iconType?: "brand" | "emoji" | "lucide" | "phosphor" | "upload";
         isEnabled: boolean;
         isFree: boolean;
         maxOutputTokens?: number;
@@ -63,7 +63,7 @@ export declare const api: {
         description?: string;
         icon?: string;
         iconId?: Id<"_storage">;
-        iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+        iconType?: "brand" | "emoji" | "lucide" | "phosphor" | "upload";
         modelIds: Array<Id<"models">>;
         name: string;
         sortOrder: number;
@@ -85,7 +85,7 @@ export declare const api: {
         description?: string;
         icon?: string;
         iconId?: Id<"_storage">;
-        iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+        iconType?: "brand" | "emoji" | "lucide" | "phosphor" | "upload";
         isEnabled: boolean;
         name: string;
         providerType:
@@ -204,7 +204,7 @@ export declare const api: {
           description?: string;
           icon?: string;
           iconId?: Id<"_storage">;
-          iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+          iconType?: "brand" | "emoji" | "lucide" | "phosphor" | "upload";
           iconUrl?: string;
           modelCount: number;
           modelIds: Array<Id<"models">>;
@@ -229,7 +229,7 @@ export declare const api: {
           description?: string;
           displayName: string;
           icon?: string;
-          iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+          iconType?: "brand" | "emoji" | "lucide" | "phosphor" | "upload";
           maxOutputTokens?: number;
           modalities?: { input: Array<string>; output: Array<string> };
           modelId: string;
@@ -250,7 +250,7 @@ export declare const api: {
           description?: string;
           displayName: string;
           icon?: string;
-          iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+          iconType?: "brand" | "emoji" | "lucide" | "phosphor" | "upload";
           maxOutputTokens?: number;
           modalities?: { input: Array<string>; output: Array<string> };
           modelId: string;
@@ -354,7 +354,7 @@ export declare const api: {
           description?: string;
           icon?: string;
           iconId?: Id<"_storage">;
-          iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+          iconType?: "brand" | "emoji" | "lucide" | "phosphor" | "upload";
           iconUrl?: string;
           modelCount: number;
           modelIds: Array<Id<"models">>;
@@ -362,7 +362,7 @@ export declare const api: {
             _id: Id<"models">;
             displayName: string;
             icon?: string;
-            iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+            iconType?: "brand" | "emoji" | "lucide" | "phosphor" | "upload";
             iconUrl?: string;
             isEnabled: boolean;
             modelId: string;
@@ -407,7 +407,7 @@ export declare const api: {
           hasResolvableProviderApiKey: boolean;
           icon?: string;
           iconId?: Id<"_storage">;
-          iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+          iconType?: "brand" | "emoji" | "lucide" | "phosphor" | "upload";
           iconUrl?: string;
           isEnabled: boolean;
           isFree: boolean;
@@ -493,7 +493,7 @@ export declare const api: {
           enabledModelCount: number;
           icon?: string;
           iconId?: Id<"_storage">;
-          iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+          iconType?: "brand" | "emoji" | "lucide" | "phosphor" | "upload";
           iconUrl?: string;
           isEnabled: boolean;
           lastDiscoveredAt?: number;
@@ -561,7 +561,7 @@ export declare const api: {
         displayName: string;
         icon?: string;
         iconId?: Id<"_storage">;
-        iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+        iconType?: "brand" | "emoji" | "lucide" | "phosphor" | "upload";
         isEnabled: boolean;
         isFree: boolean;
         lastSyncedAt?: number;
@@ -648,7 +648,7 @@ export declare const api: {
           displayName: string;
           icon?: string;
           iconId?: Id<"_storage">;
-          iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+          iconType?: "brand" | "emoji" | "lucide" | "phosphor" | "upload";
           iconUrl?: string;
           isEnabled: boolean;
           isFavorite: boolean;
@@ -662,7 +662,7 @@ export declare const api: {
             _id: Id<"providers">;
             icon?: string;
             iconId?: Id<"_storage">;
-            iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+            iconType?: "brand" | "emoji" | "lucide" | "phosphor" | "upload";
             iconUrl?: string;
             name: string;
             providerType:
@@ -716,7 +716,7 @@ export declare const api: {
           description?: string;
           icon?: string;
           iconId?: Id<"_storage">;
-          iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+          iconType?: "brand" | "emoji" | "lucide" | "phosphor" | "upload";
           iconUrl?: string;
           modelCount: number;
           modelIds: Array<Id<"models">>;
@@ -737,7 +737,7 @@ export declare const api: {
           displayName: string;
           icon?: string;
           iconId?: Id<"_storage">;
-          iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+          iconType?: "brand" | "emoji" | "lucide" | "phosphor" | "upload";
           iconUrl?: string;
           isEnabled: boolean;
           isFavorite: boolean;
@@ -751,7 +751,7 @@ export declare const api: {
             _id: Id<"providers">;
             icon?: string;
             iconId?: Id<"_storage">;
-            iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+            iconType?: "brand" | "emoji" | "lucide" | "phosphor" | "upload";
             iconUrl?: string;
             name: string;
             providerType:
@@ -805,7 +805,7 @@ export declare const api: {
           displayName: string;
           icon?: string;
           iconId?: Id<"_storage">;
-          iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+          iconType?: "brand" | "emoji" | "lucide" | "phosphor" | "upload";
           iconUrl?: string;
           isEnabled: boolean;
           isFavorite: boolean;
@@ -819,7 +819,7 @@ export declare const api: {
             _id: Id<"providers">;
             icon?: string;
             iconId?: Id<"_storage">;
-            iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+            iconType?: "brand" | "emoji" | "lucide" | "phosphor" | "upload";
             iconUrl?: string;
             name: string;
             providerType:
@@ -863,7 +863,7 @@ export declare const api: {
           _id: Id<"providers">;
           icon?: string;
           iconId?: Id<"_storage">;
-          iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+          iconType?: "brand" | "emoji" | "lucide" | "phosphor" | "upload";
           iconUrl?: string;
           name: string;
           providerType:
@@ -933,7 +933,7 @@ export declare const api: {
         collections: Array<{
           description?: string;
           icon?: string;
-          iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+          iconType?: "brand" | "emoji" | "lucide" | "phosphor" | "upload";
           modelIds: Array<Id<"models">>;
           name: string;
           sortOrder: number;
@@ -951,7 +951,7 @@ export declare const api: {
           description?: string;
           displayName: string;
           icon?: string;
-          iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+          iconType?: "brand" | "emoji" | "lucide" | "phosphor" | "upload";
           maxOutputTokens?: number;
           modalities?: { input: Array<string>; output: Array<string> };
           modelId: string;
@@ -966,7 +966,7 @@ export declare const api: {
           description?: string;
           displayName: string;
           icon?: string;
-          iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+          iconType?: "brand" | "emoji" | "lucide" | "phosphor" | "upload";
           maxOutputTokens?: number;
           modalities?: { input: Array<string>; output: Array<string> };
           modelId: string;
@@ -1040,7 +1040,7 @@ export declare const api: {
         displayName?: string;
         icon?: string;
         iconId?: Id<"_storage">;
-        iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+        iconType?: "brand" | "emoji" | "lucide" | "phosphor" | "upload";
         id: Id<"models">;
         isEnabled?: boolean;
         isFree?: boolean;
@@ -1072,7 +1072,7 @@ export declare const api: {
         description?: string;
         icon?: string;
         iconId?: Id<"_storage">;
-        iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+        iconType?: "brand" | "emoji" | "lucide" | "phosphor" | "upload";
         id: Id<"modelCollections">;
         modelIds?: Array<Id<"models">>;
         name?: string;
@@ -1109,7 +1109,7 @@ export declare const api: {
         description?: string;
         icon?: string;
         iconId?: Id<"_storage">;
-        iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+        iconType?: "brand" | "emoji" | "lucide" | "phosphor" | "upload";
         id: Id<"providers">;
         isEnabled?: boolean;
         name?: string;
@@ -2591,6 +2591,7 @@ export declare const api: {
       {
         auxiliaryModelId?: Id<"models">;
         bio?: string;
+        clearAuxiliaryModelId?: boolean;
         displayName?: string;
         image?: string;
         reasoningEnabled?: boolean;
@@ -2782,6 +2783,12 @@ export declare const internal: {
       },
       any
     >;
+    repairOpenRouterProviderApiKeyFromEnv: FunctionReference<
+      "mutation",
+      "internal",
+      {},
+      { providerId?: Id<"providers">; updated: boolean }
+    >;
     resolveCollectionSuggestionModel: FunctionReference<
       "query",
       "internal",
@@ -2843,6 +2850,23 @@ export declare const internal: {
       { modelDocId: Id<"models"> },
       { supportsTools: boolean }
     >;
+    getProviderStreamCredentials: FunctionReference<
+      "query",
+      "internal",
+      { providerId: Id<"providers"> },
+      null | {
+        apiKey: string;
+        baseURL?: string;
+        config?: {
+          headers?: Record<string, string>;
+          organization?: string;
+          project?: string;
+          queryParams?: Record<string, string>;
+        };
+        name: string;
+        providerType: string;
+      }
+    >;
     getThreadPresentation: FunctionReference<
       "query",
       "internal",
@@ -2880,15 +2904,7 @@ export declare const internal: {
           | "moonshot"
           | "qwen"
           | "stepfun";
-        apiKey?: string;
-        config?: {
-          headers?: Record<string, string>;
-          organization?: string;
-          project?: string;
-          queryParams?: Record<string, string>;
-        };
         contextArtifactIds?: Array<Id<"projectArtifacts">>;
-        customUrl?: string;
         modelDocId: Id<"models">;
         modelId: string;
         modelName: string;
@@ -3369,6 +3385,14 @@ export declare const internal: {
           userId: Id<"users">;
         },
         any
+      >;
+    };
+    memoryRag: {
+      resolveOpenRouterProviderForMemory: FunctionReference<
+        "query",
+        "internal",
+        {},
+        null | { apiKey: string }
       >;
     };
     projectRetrieval: {

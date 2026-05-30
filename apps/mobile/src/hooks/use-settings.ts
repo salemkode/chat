@@ -16,6 +16,7 @@ export function useSettings() {
       reasoningLevel?: "low" | "medium" | "high";
       routingPreference?: "balanced" | "cost" | "speed" | "quality";
       auxiliaryModelId?: Id<"models">;
+      clearAuxiliaryModelId?: boolean;
     }) => {
       await updateSettingsMutation(values);
     },

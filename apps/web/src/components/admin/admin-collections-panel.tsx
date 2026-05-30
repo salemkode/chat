@@ -18,7 +18,7 @@ import { InfiniteScrollTrigger } from '@/components/infinite-scroll-trigger'
 import { usePaginatedQuery } from '@/lib/convex-query-cache'
 
 function normalizeIconType(value: string | undefined): IconType {
-  if (value === 'emoji' || value === 'phosphor' || value === 'upload') {
+  if (value === 'brand' || value === 'emoji' || value === 'phosphor' || value === 'upload') {
     return value
   }
   return undefined

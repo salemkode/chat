@@ -15,6 +15,10 @@ function ensureEnvironmentVariable(name: string): string {
 
 const webhookSecret = ensureEnvironmentVariable('CLERK_WEBHOOK_SIGNING_SECRET')
 
+function isWebhookEvent(value: unknown): value is WebhookEvent {
+  return typeof value === 'object' && value !== null && 'type' in value && 'data' in value
+}
+
 function verifySelectionApiKey(request: Request) {
   const expected = process.env.MODEL_SELECTION_API_KEY
   if (!expected) {
@@ -251,15 +255,19 @@ async function validateRequest(req: Request): Promise<WebhookEvent | undefined> 
     'svix-signature': req.headers.get('svix-signature')!,
   }
   const wh = new Webhook(webhookSecret)
-  let evt: Event | null = null
+  let evt: unknown
   try {
-    evt = wh.verify(payloadString, svixHeaders) as Event
+    evt = wh.verify(payloadString, svixHeaders)
   } catch {
     console.log('error verifying')
     return
   }
 
-  return evt as unknown as WebhookEvent
+  if (!isWebhookEvent(evt)) {
+    return
+  }
+
+  return evt
 }
 
 export default http

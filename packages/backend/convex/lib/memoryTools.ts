@@ -8,7 +8,7 @@ import {
   type MemoryListItem,
   type PublicMemoryScope,
 } from '../functions/memoryShared'
-import { ensureOpenRouterConfigured, memoryRag } from '../functions/memoryRag'
+import { resolveMemoryRag, type MemoryRagClient } from '../functions/memoryRag'
 
 type MemoryHit = MemoryListItem & {
   score?: number
@@ -139,8 +139,25 @@ async function searchMemoryHits(
     categories?: string[]
   },
 ): Promise<MemoryHit[]> {
-  ensureOpenRouterConfigured()
+  const memoryRag = await resolveMemoryRag(ctx)
+  if (!memoryRag) {
+    return []
+  }
 
+  return searchMemoryHitsWithRag(ctx, args, memoryRag)
+}
+
+async function searchMemoryHitsWithRag(
+  ctx: ToolCtx,
+  args: {
+    query: string
+    scope?: PublicMemoryScope
+    projectId?: string
+    maxResults?: number
+    categories?: string[]
+  },
+  memoryRag: MemoryRagClient,
+): Promise<MemoryHit[]> {
   const userId = getUserId(ctx)
   const threadId = getThreadId(ctx)
   const scope = args.scope ?? 'all'
@@ -294,8 +311,6 @@ export const memoryTools = {
     inputSchema: memoryAddInputSchema,
     execute: async (ctx, input) => {
       try {
-        ensureOpenRouterConfigured()
-
         const userId = getUserId(ctx)
         const threadId = getThreadId(ctx)
         const projectId =
@@ -334,8 +349,6 @@ export const memoryTools = {
     inputSchema: memoryUpdateInputSchema,
     execute: async (ctx, input) => {
       try {
-        ensureOpenRouterConfigured()
-
         const userId = getUserId(ctx)
 
         const updated = await ctx.runAction(internal.functions.memoryInternal.updateMemoryInScope, {

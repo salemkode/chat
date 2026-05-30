@@ -43,6 +43,7 @@ type AdminProvidersPanelProps = Pick<
 
 function normalizeIconType(value: string | undefined): IconType {
   switch (value) {
+    case 'brand':
     case 'emoji':
     case 'lucide':
     case 'phosphor':
@@ -105,6 +106,8 @@ export function AdminProvidersPanel({
                     icon={provider.icon}
                     iconType={normalizeIconType(provider.iconType)}
                     iconUrl={provider.iconUrl}
+                    providerType={provider.providerType}
+                    name={provider.name}
                     fallback="Boxes"
                   />
                 }

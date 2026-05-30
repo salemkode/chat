@@ -125,6 +125,7 @@ export const updateSettings = mutation({
     voiceTranscriptionMode: v.optional(voiceTranscriptionModeValidator),
     auxiliaryModelId: v.optional(v.id('models')),
     routingPreference: v.optional(routingPreferenceValidator),
+    clearAuxiliaryModelId: v.optional(v.boolean()),
   },
   returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
@@ -154,6 +155,17 @@ export const updateSettings = mutation({
       if (args.voiceTranscriptionMode !== undefined) {
         patch.voiceTranscriptionMode = args.voiceTranscriptionMode
       }
+      if (args.clearAuxiliaryModelId) {
+        if (existing) {
+          const { auxiliaryModelId: _removed, _id, _creationTime, ...rest } = existing
+          await ctx.db.replace(existing._id, {
+            ...rest,
+            updatedAt: now,
+          })
+        }
+        return { success: true }
+      }
+
       if (args.auxiliaryModelId !== undefined) {
         patch.auxiliaryModelId = args.auxiliaryModelId
       }

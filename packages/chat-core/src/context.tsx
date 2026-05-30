@@ -4,18 +4,21 @@ import { resolveChatSnapshot } from './cache/resolve-snapshot'
 import type { ProjectSummary, ThreadSummary } from './types'
 import { compareThreadsForSidebar } from './sidebar'
 
+type PaginatedQueryRef = Parameters<typeof usePaginatedQuery>[0]
+type MutationRef = Parameters<typeof useMutation>[0]
+
 export type ChatCoreApiRefs = {
   projects: {
-    listProjects: unknown
-    createProject: unknown
-    assignThreadToProject: unknown
+    listProjects: PaginatedQueryRef
+    createProject: MutationRef
+    assignThreadToProject: MutationRef
   }
   agents: {
-    listThreadsWithMetadata: unknown
-    setThreadPinned: unknown
+    listThreadsWithMetadata: PaginatedQueryRef
+    setThreadPinned: MutationRef
   }
   chat: {
-    deleteThread: unknown
+    deleteThread: MutationRef
   }
 }
 
@@ -41,38 +44,50 @@ export type ChatCoreContextValue = {
 
 const ChatCoreContext = createContext<ChatCoreContextValue | null>(null)
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : null
+}
+
+function getString(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined
+}
+
+function getNumber(value: unknown): number | undefined {
+  return typeof value === 'number' ? value : undefined
+}
+
+function getRecordArray(value: unknown): Record<string, unknown>[] {
+  return Array.isArray(value) ? value.filter((item): item is Record<string, unknown> => asRecord(item) !== null) : []
+}
+
 function normalizeProject(raw: Record<string, unknown>): ProjectSummary {
   return {
-    id: raw.id as string,
-    name: raw.name as string,
-    description: raw.description as string | undefined,
-    visibility: raw.visibility as string | undefined,
-    role: raw.role as string | undefined,
-    threadCount: (raw.threadCount as number) ?? 0,
-    createdAt: raw.createdAt as number,
-    updatedAt: raw.updatedAt as number,
+    id: getString(raw.id) ?? '',
+    name: getString(raw.name) ?? '',
+    description: getString(raw.description),
+    visibility: getString(raw.visibility),
+    role: getString(raw.role),
+    threadCount: getNumber(raw.threadCount) ?? 0,
+    createdAt: getNumber(raw.createdAt) ?? 0,
+    updatedAt: getNumber(raw.updatedAt) ?? 0,
   }
 }
 
 function normalizeThread(raw: Record<string, unknown>): ThreadSummary {
-  const metadata = raw.metadata as Record<string, unknown> | undefined
-  const project = raw.project as
-    | { id: string; name: string; description?: string }
-    | null
-    | undefined
-  const sortOrder = (metadata?.sortOrder as number) ?? 0
+  const metadata = asRecord(raw.metadata)
+  const project = asRecord(raw.project)
+  const sortOrder = getNumber(metadata?.sortOrder) ?? 0
   return {
-    id: raw._id as string,
-    title: raw.title as string | undefined,
-    emoji: (metadata?.emoji as string) || '💬',
-    icon: metadata?.icon as string | undefined,
-    projectId: project?.id,
-    projectName: project?.name,
+    id: getString(raw._id) ?? '',
+    title: getString(raw.title),
+    emoji: getString(metadata?.emoji) || '💬',
+    icon: getString(metadata?.icon),
+    projectId: getString(project?.id),
+    projectName: getString(project?.name),
     sortOrder,
     pinned: sortOrder > 0,
-    lastMessageAt:
-      (raw.lastMessageAt as number) ?? (raw._creationTime as number),
-    createdAt: raw._creationTime as number,
+    lastMessageAt: getNumber(raw.lastMessageAt) ?? getNumber(raw._creationTime) ?? 0,
+    createdAt: getNumber(raw._creationTime),
   }
 }
 
@@ -98,19 +113,16 @@ export function ChatCoreProvider({
   cacheRevision?: number
   children: React.ReactNode
 }) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const refs = apiRefs as any
-
-  const liveProjectsQuery = usePaginatedQuery(refs.projects.listProjects, {}, { initialNumItems: 30 })
+  const liveProjectsQuery = usePaginatedQuery(apiRefs.projects.listProjects, {}, { initialNumItems: 30 })
   const liveThreadsQuery = usePaginatedQuery(
-    refs.agents.listThreadsWithMetadata,
+    apiRefs.agents.listThreadsWithMetadata,
     {},
     { initialNumItems: 30 },
   )
-  const createProjectMutation = useMutation(refs.projects.createProject)
-  const assignThreadToProjectMutation = useMutation(refs.projects.assignThreadToProject)
-  const setThreadPinnedMutation = useMutation(refs.agents.setThreadPinned)
-  const deleteThreadMutation = useMutation(refs.chat.deleteThread)
+  const createProjectMutation = useMutation(apiRefs.projects.createProject)
+  const assignThreadToProjectMutation = useMutation(apiRefs.projects.assignThreadToProject)
+  const setThreadPinnedMutation = useMutation(apiRefs.agents.setThreadPinned)
+  const deleteThreadMutation = useMutation(apiRefs.chat.deleteThread)
 
   const [pendingProjectId, setPendingProjectId] = useState<string | null>(null)
 
@@ -127,7 +139,7 @@ export function ChatCoreProvider({
     const normalized =
       liveProjectsQuery.results === undefined
         ? undefined
-        : (liveProjectsQuery.results as Record<string, unknown>[]).map(normalizeProject)
+        : getRecordArray(liveProjectsQuery.results).map(normalizeProject)
     return resolveChatSnapshot({
       live: normalized,
       persisted: cachedProjects ?? [],
@@ -138,7 +150,7 @@ export function ChatCoreProvider({
     const normalized =
       liveThreadsQuery.results === undefined
         ? undefined
-        : [...(liveThreadsQuery.results as Record<string, unknown>[])]
+        : [...getRecordArray(liveThreadsQuery.results)]
             .map(normalizeThread)
             .sort(compareThreadsForSidebar)
     return resolveChatSnapshot({
@@ -152,7 +164,7 @@ export function ChatCoreProvider({
       return
     }
     cacheAccessors.writeCachedProjects(
-      (liveProjectsQuery.results as Record<string, unknown>[]).map(normalizeProject),
+      getRecordArray(liveProjectsQuery.results).map(normalizeProject),
     )
   }, [cacheAccessors, liveProjectsQuery.results])
 
@@ -161,7 +173,7 @@ export function ChatCoreProvider({
       return
     }
     cacheAccessors.writeCachedThreads(
-      [...(liveThreadsQuery.results as Record<string, unknown>[])]
+      [...getRecordArray(liveThreadsQuery.results)]
         .map(normalizeThread)
         .sort(compareThreadsForSidebar),
     )

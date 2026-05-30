@@ -1,5 +1,5 @@
 import React, { createContext, use, useCallback, useEffect, useMemo, useState } from "react";
-import { useModels } from "@/hooks/use-models";
+import { useModels, type ModelRecord } from "@/hooks/use-models";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { Id } from "@convex/_generated/dataModel";
 import {
@@ -7,13 +7,21 @@ import {
   resolveModelAttachmentMediaTypes,
   type ModelAttachmentValidationStatus,
 } from "@chat/shared";
+import {
+  AUTO_MODEL_ID,
+  encodeAutoModelCollectionSelection,
+  isAutoModelSelection,
+  parseAutoModelCollectionSelection,
+} from "@chat/shared";
 import type { IconType } from "@chat/shared/admin-types";
 
 const LAST_USED_MODEL_KEY = "last-used-model-id";
 
 export type Model = {
   id: Id<"models">;
+  modelId: string;
   label: string;
+  description?: string;
   icon?: string;
   iconType?: IconType;
   iconUrl?: string;
@@ -21,109 +29,192 @@ export type Model = {
   capabilities?: string[];
   providerType?: string | null;
   supportedAttachmentMediaTypes?: string[];
+  sortOrder: number;
+  isFavorite: boolean;
 };
 
 export type ModelCollection = {
-  id: string;
+  id: Id<"modelCollections">;
   name: string;
+  description?: string;
+  icon?: string;
+  iconType?: IconType;
+  iconUrl?: string;
+  sortOrder: number;
   modelIds: Id<"models">[];
 };
 
 type ModelContextValue = {
   models: Model[];
+  catalogModels: ModelRecord[];
   collections: ModelCollection[];
+  selectedModelKey: string | undefined;
   selectedModel: string;
-  selectedModelId: Id<"models"> | undefined;
+  selectedModelDocId: Id<"models"> | undefined;
+  autoModelAllowedModelDocIds: Id<"models">[] | undefined;
   attachmentMediaTypes: string[];
   attachmentsSupported: boolean;
   imageAttachmentsSupported: boolean;
-  setSelectedModel: (modelId: Id<"models">) => void;
-  hasMoreModels: boolean;
-  isLoadingMoreModels: boolean;
-  loadMoreModels: (numItems?: number) => void;
+  setSelectedModelKey: (modelKey: string) => void;
+  autoModelAvailable: boolean;
+  setFavorite: (modelId: Id<"models">, isFavorite: boolean) => Promise<void>;
+  catalogHasMore: boolean;
+  catalogIsLoadingMore: boolean;
+  catalogLoadMore: (numItems?: number) => void;
 };
 
 const ModelContext = createContext<ModelContextValue | null>(null);
+
+function resolveStoredModelKey(
+  stored: string | null,
+  models: Array<{ _id: Id<"models">; modelId: string }>,
+) {
+  if (!stored) {
+    return undefined;
+  }
+
+  if (isAutoModelSelection(stored)) {
+    return stored;
+  }
+
+  const byDocId = models.find((model) => model._id === stored);
+  if (byDocId) {
+    return byDocId.modelId;
+  }
+
+  const byModelId = models.find((model) => model.modelId === stored);
+  if (byModelId) {
+    return byModelId.modelId;
+  }
+
+  return undefined;
+}
 
 export function ModelProvider({ children }: { children: React.ReactNode }) {
   const {
     models: apiModels,
     collections: apiCollections,
-    hasMore: hasMoreModels,
-    isLoadingMore: isLoadingMoreModels,
-    loadMore: loadMoreModels,
-  } = useModels();
-  const [selectedModelId, setSelectedModelIdState] = useState<Id<"models"> | undefined>(
+    setFavorite,
+    autoModelAvailable,
+    hasMore: catalogHasMore,
+    isLoadingMore: catalogIsLoadingMore,
+    loadMore: catalogLoadMore,
+  } = useModels({ prefetchAll: true });
+  const [selectedModelKey, setSelectedModelKeyState] = useState<string | undefined>(
     undefined,
   );
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     AsyncStorage.getItem(LAST_USED_MODEL_KEY).then((stored) => {
-      if (!stored) {
-        setHydrated(true);
-        return;
-      }
-      const existing = apiModels.find((model) => model._id === stored);
-      if (existing) {
-        setSelectedModelIdState(existing._id);
-      } else {
-        const legacyModel = apiModels.find((model) => model.modelId === stored);
-        if (legacyModel) {
-          setSelectedModelIdState(legacyModel._id);
-          AsyncStorage.setItem(LAST_USED_MODEL_KEY, legacyModel._id);
-        }
+      const resolved = resolveStoredModelKey(stored, apiModels);
+      if (resolved) {
+        setSelectedModelKeyState(resolved);
       }
       setHydrated(true);
     });
   }, [apiModels]);
 
   useEffect(() => {
-    if (!hydrated || apiModels.length === 0) return;
-    if (selectedModelId) {
-      const exists = apiModels.some((m) => m._id === selectedModelId);
-      if (exists) return;
+    if (!hydrated || apiModels.length === 0) {
+      return;
     }
-    const fallback = apiModels[0]?._id;
-    if (fallback) {
-      setSelectedModelIdState(fallback);
-      AsyncStorage.setItem(LAST_USED_MODEL_KEY, fallback);
-    }
-  }, [hydrated, apiModels, selectedModelId]);
 
-  const setSelectedModel = useCallback((modelId: Id<"models">) => {
-    setSelectedModelIdState(modelId);
-    AsyncStorage.setItem(LAST_USED_MODEL_KEY, modelId);
+    const hasSelectedModel =
+      apiModels.some((model) => model.modelId === selectedModelKey) ||
+      (autoModelAvailable && isAutoModelSelection(selectedModelKey));
+
+    if (hasSelectedModel) {
+      return;
+    }
+
+    const fallback =
+      (autoModelAvailable ? AUTO_MODEL_ID : undefined) ?? apiModels[0]?.modelId;
+
+    if (!fallback) {
+      return;
+    }
+
+    setSelectedModelKeyState(fallback);
+    void AsyncStorage.setItem(LAST_USED_MODEL_KEY, fallback);
+  }, [apiModels, autoModelAvailable, hydrated, selectedModelKey]);
+
+  const setSelectedModelKey = useCallback((modelKey: string) => {
+    setSelectedModelKeyState(modelKey);
+    void AsyncStorage.setItem(LAST_USED_MODEL_KEY, modelKey);
   }, []);
 
   const models = useMemo<Model[]>(
     () =>
-      apiModels.map((m) => ({
-        id: m._id,
-        label: m.displayName,
-        icon: m.icon || m.provider?.icon,
-        iconType: m.iconType || m.provider?.iconType,
-        iconUrl: m.iconUrl || m.provider?.iconUrl,
-        attachmentValidationStatus: m.attachmentValidationStatus,
-        capabilities: m.capabilities,
-        providerType: m.provider?.providerType ?? null,
-        supportedAttachmentMediaTypes: m.supportedAttachmentMediaTypes,
+      apiModels.map((model) => ({
+        id: model._id,
+        modelId: model.modelId,
+        label: model.displayName,
+        description: model.description,
+        icon: model.icon || model.provider?.icon,
+        iconType: model.iconType || model.provider?.iconType,
+        iconUrl: model.iconUrl || model.provider?.iconUrl,
+        attachmentValidationStatus: model.attachmentValidationStatus,
+        capabilities: model.capabilities,
+        providerType: model.provider?.providerType ?? null,
+        supportedAttachmentMediaTypes: model.supportedAttachmentMediaTypes,
+        sortOrder: model.sortOrder,
+        isFavorite: model.isFavorite,
       })),
     [apiModels],
   );
+
   const collections = useMemo<ModelCollection[]>(
     () =>
       apiCollections.map((collection) => ({
         id: collection._id,
         name: collection.name,
+        description: collection.description,
+        icon: collection.icon,
+        iconType: collection.iconType,
+        iconUrl: collection.iconUrl,
+        sortOrder: collection.sortOrder,
         modelIds: collection.modelIds,
       })),
     [apiCollections],
   );
 
-  const selectedModel =
-    apiModels.find((m) => m._id === selectedModelId)?.displayName ?? "Auto";
-  const selectedModelInfo = apiModels.find((model) => model._id === selectedModelId);
+  const selectedModelDocId = useMemo(() => {
+    if (isAutoModelSelection(selectedModelKey)) {
+      return undefined;
+    }
+    return apiModels.find((model) => model.modelId === selectedModelKey)?._id;
+  }, [apiModels, selectedModelKey]);
+
+  const autoModelAllowedModelDocIds = useMemo(() => {
+    const collectionId = parseAutoModelCollectionSelection(selectedModelKey);
+    if (!collectionId) {
+      return undefined;
+    }
+    const collection = collections.find((candidate) => candidate.id === collectionId);
+    if (!collection || collection.modelIds.length === 0) {
+      return undefined;
+    }
+    return collection.modelIds;
+  }, [collections, selectedModelKey]);
+
+  const selectedModel = useMemo(() => {
+    if (selectedModelKey === AUTO_MODEL_ID) {
+      return "Auto";
+    }
+    const collectionId = parseAutoModelCollectionSelection(selectedModelKey);
+    if (collectionId) {
+      const collection = collections.find((candidate) => candidate.id === collectionId);
+      return collection ? `Auto (${collection.name})` : "Auto";
+    }
+    return apiModels.find((model) => model.modelId === selectedModelKey)?.displayName ?? "Model";
+  }, [apiModels, collections, selectedModelKey]);
+
+  const selectedModelInfo = useMemo(
+    () => apiModels.find((model) => model.modelId === selectedModelKey),
+    [apiModels, selectedModelKey],
+  );
+
   const attachmentMediaTypes = useMemo(
     () =>
       selectedModelInfo
@@ -138,6 +229,7 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
         : [],
     [selectedModelInfo],
   );
+
   const attachmentsSupported = attachmentMediaTypes.length > 0;
   const imageAttachmentsSupported = attachmentMediaTypes.some((pattern) =>
     mediaTypeMatchesPattern("image/jpeg", pattern),
@@ -147,16 +239,21 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
     <ModelContext
       value={{
         models,
+        catalogModels: apiModels,
         collections,
+        selectedModelKey,
         selectedModel,
-        selectedModelId,
+        selectedModelDocId,
+        autoModelAllowedModelDocIds,
         attachmentMediaTypes,
         attachmentsSupported,
         imageAttachmentsSupported,
-        setSelectedModel,
-        hasMoreModels,
-        isLoadingMoreModels,
-        loadMoreModels,
+        setSelectedModelKey,
+        autoModelAvailable,
+        setFavorite,
+        catalogHasMore,
+        catalogIsLoadingMore,
+        catalogLoadMore,
       }}
     >
       {children}
@@ -171,3 +268,5 @@ export function useModel() {
   }
   return context;
 }
+
+export { AUTO_MODEL_ID, encodeAutoModelCollectionSelection, isAutoModelSelection };

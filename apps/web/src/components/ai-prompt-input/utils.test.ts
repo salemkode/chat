@@ -6,6 +6,14 @@ import {
   shouldConvertToTextAttachment,
 } from './utils'
 
+function createTransfer(files: File[]) {
+  const transfer = new DataTransfer()
+  for (const file of files) {
+    transfer.items.add(file)
+  }
+  return transfer
+}
+
 describe('extractClipboardImageFiles', () => {
   it('prefers clipboard items and assigns a fallback name to unnamed pasted images', () => {
     const imageFile = new File(['image'], '', {
@@ -17,20 +25,11 @@ describe('extractClipboardImageFiles', () => {
       lastModified: 456,
     })
 
+    const transfer = createTransfer([imageFile, pdfFile])
+
     const files = extractClipboardImageFiles({
-      items: [
-        {
-          kind: 'file',
-          type: 'image/png',
-          getAsFile: () => imageFile,
-        },
-        {
-          kind: 'file',
-          type: 'application/pdf',
-          getAsFile: () => pdfFile,
-        },
-      ] as unknown as DataTransferItemList,
-      files: [pdfFile] as unknown as FileList,
+      items: transfer.items,
+      files: transfer.files,
     })
 
     expect(files).toHaveLength(1)
@@ -46,9 +45,11 @@ describe('extractClipboardImageFiles', () => {
       type: 'application/pdf',
     })
 
+    const transfer = createTransfer([imageFile, pdfFile])
+
     const files = extractClipboardImageFiles({
-      items: [] as unknown as DataTransferItemList,
-      files: [imageFile, pdfFile] as unknown as FileList,
+      items: new DataTransfer().items,
+      files: transfer.files,
     })
 
     expect(files).toHaveLength(1)

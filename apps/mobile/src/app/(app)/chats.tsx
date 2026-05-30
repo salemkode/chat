@@ -195,14 +195,14 @@ function RightToolbar({
             isOn={filter === "all"}
             onPress={() => setFilter("all")}
           >
-            All chats
+            <Stack.Toolbar.Label>All chats</Stack.Toolbar.Label>
           </Stack.Toolbar.MenuAction>
           <Stack.Toolbar.MenuAction
             icon="star"
             isOn={filter === "starred"}
             onPress={() => setFilter("starred")}
           >
-            Starred
+            <Stack.Toolbar.Label>Starred</Stack.Toolbar.Label>
           </Stack.Toolbar.MenuAction>
         </Stack.Toolbar.Menu>
       </Stack.Toolbar.Menu>

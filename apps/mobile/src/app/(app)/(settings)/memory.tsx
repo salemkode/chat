@@ -59,7 +59,7 @@ export default function MemorySettingsScreen() {
     ) {
       return settings.auxiliaryModelId
     }
-    return candidates.find((candidate) => candidate.isRecommended)?.modelDocId
+    return undefined
   }, [auxiliaryCandidates, settings?.auxiliaryModelId])
 
   const userMemories = usePaginatedQuery(
@@ -191,8 +191,22 @@ export default function MemorySettingsScreen() {
           <>
             <SettingsSection
               title="Background memory model"
-              description="Used when your chat model does not support tools. A smaller fast model keeps memory extraction responsive and inexpensive."
+              description="Optional. Choose a model to enable background memory extraction and tool-free memory commands. Leave off to skip these tasks."
             >
+              <Pressable
+                onPress={() => void updateSettings({ clearAuxiliaryModelId: true })}
+                className="flex-row items-center gap-3 px-4 py-4 active:bg-muted/60"
+              >
+                <View className="w-5 items-center">
+                  {!selectedAuxiliaryModelId ? (
+                    <Icon icon={Check} className="w-5 h-5 text-foreground" />
+                  ) : null}
+                </View>
+                <Text className="flex-1 text-[16px] font-medium text-foreground">Off</Text>
+              </Pressable>
+              {(auxiliaryCandidates ?? []).length > 0 ? (
+                <View className="mx-4 h-px bg-border/80" />
+              ) : null}
               {(auxiliaryCandidates ?? []).map((candidate, index, array) => {
                 const selected = selectedAuxiliaryModelId === candidate.modelDocId
                 const costHint =

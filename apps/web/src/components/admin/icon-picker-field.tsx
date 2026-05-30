@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { BRAND_ICON_NAMES, getBrandIcon } from '@chat/shared/brand-icons'
 import { Upload } from '@/lib/icons'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -29,6 +30,16 @@ const ICON_PRESETS = [
 ] as const
 
 const ICON_NAMES = appIconNames
+const BRAND_ICON_PRESETS = [
+  'googlegemini',
+  'google',
+  'openai',
+  'anthropic',
+  'x',
+  'deepseek',
+  'openrouter',
+  'mistralai',
+] satisfies Array<(typeof BRAND_ICON_NAMES)[number]>
 
 export function IconPickerField({
   label,
@@ -48,7 +59,14 @@ export function IconPickerField({
   onUpload: (file: File) => Promise<void>
 }) {
   const [search, setSearch] = useState('')
-  const currentTab = iconType === 'upload' ? 'upload' : iconType === 'emoji' ? 'emoji' : 'phosphor'
+  const currentTab =
+    iconType === 'upload'
+      ? 'upload'
+      : iconType === 'emoji'
+        ? 'emoji'
+        : iconType === 'brand'
+          ? 'brand'
+          : 'phosphor'
 
   const filteredIcons = useMemo(() => {
     if (!search.trim()) {
@@ -59,13 +77,24 @@ export function IconPickerField({
     return ICON_NAMES.filter((iconName) => iconName.toLowerCase().includes(query))
   }, [search])
 
+  const filteredBrandIcons = useMemo(() => {
+    if (!search.trim()) {
+      return BRAND_ICON_NAMES
+    }
+
+    const query = search.toLowerCase()
+    return BRAND_ICON_NAMES.filter((iconName) =>
+      getBrandIcon(iconName).title.toLowerCase().includes(query),
+    )
+  }, [search])
+
   return (
     <div className="grid gap-3 rounded-xl border border-border/60 bg-muted/20 p-4">
       <div className="flex items-center justify-between gap-3">
         <div className="grid gap-1">
           <Label>{label}</Label>
           <p className="text-xs text-muted-foreground">
-            Use a Phosphor icon, emoji, or uploaded image.
+            Use a brand icon, Phosphor icon, emoji, or uploaded image.
           </p>
         </div>
         <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2">
@@ -91,17 +120,67 @@ export function IconPickerField({
             onChange({ icon: iconType === 'emoji' ? icon : '✨', iconType: 'emoji' })
             return
           }
+          if (value === 'brand') {
+            onChange({
+              icon: iconType === 'brand' ? icon || 'googlegemini' : 'googlegemini',
+              iconType: 'brand',
+            })
+            return
+          }
           onChange({
             icon: iconType === 'phosphor' ? icon || 'Sparkles' : 'Sparkles',
             iconType: 'phosphor',
           })
         }}
       >
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="brand">Brand</TabsTrigger>
           <TabsTrigger value="phosphor">Phosphor</TabsTrigger>
           <TabsTrigger value="emoji">Emoji</TabsTrigger>
           <TabsTrigger value="upload">Upload</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="brand" className="grid gap-3">
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search brands"
+          />
+          <div className="flex flex-wrap gap-2">
+            {BRAND_ICON_PRESETS.map((iconName) => (
+              <Button
+                key={iconName}
+                type="button"
+                variant={icon === iconName && iconType === 'brand' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => onChange({ icon: iconName, iconType: 'brand' })}
+              >
+                {getBrandIcon(iconName).title}
+              </Button>
+            ))}
+          </div>
+          <ScrollArea className="h-56 rounded-lg border border-border bg-background p-2">
+            <div className="grid grid-cols-3 gap-2 pr-3">
+              {filteredBrandIcons.map((iconName) => (
+                <button
+                  key={iconName}
+                  type="button"
+                  title={getBrandIcon(iconName).title}
+                  onClick={() => onChange({ icon: iconName, iconType: 'brand' })}
+                  className={cn(
+                    'flex min-h-16 flex-col items-center justify-center gap-1 rounded-lg border p-2 text-[10px] transition-colors',
+                    icon === iconName && iconType === 'brand'
+                      ? 'border-primary bg-primary/10 text-foreground'
+                      : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted',
+                  )}
+                >
+                  <EntityIcon icon={iconName} iconType="brand" className="size-4" />
+                  <span className="line-clamp-2">{getBrandIcon(iconName).title}</span>
+                </button>
+              ))}
+            </div>
+          </ScrollArea>
+        </TabsContent>
 
         <TabsContent value="phosphor" className="grid gap-3">
           <Input

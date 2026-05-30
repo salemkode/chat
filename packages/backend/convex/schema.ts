@@ -3,6 +3,7 @@ import { v } from 'convex/values'
 import { appPlanValidator } from './lib/appPlan'
 
 const iconTypeValidator = v.union(
+  v.literal('brand'),
   v.literal('emoji'),
   v.literal('lucide'),
   v.literal('phosphor'),

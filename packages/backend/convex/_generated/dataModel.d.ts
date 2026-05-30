@@ -537,7 +537,7 @@ export type DataModel = {
       description?: string;
       icon?: string;
       iconId?: Id<"_storage">;
-      iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+      iconType?: "brand" | "emoji" | "lucide" | "phosphor" | "upload";
       modelIds: Array<Id<"models">>;
       name: string;
       sortOrder: number;
@@ -655,7 +655,7 @@ export type DataModel = {
       displayName: string;
       icon?: string;
       iconId?: Id<"_storage">;
-      iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+      iconType?: "brand" | "emoji" | "lucide" | "phosphor" | "upload";
       isEnabled: boolean;
       isFree: boolean;
       lastSyncedAt?: number;
@@ -1226,7 +1226,7 @@ export type DataModel = {
       description?: string;
       icon?: string;
       iconId?: Id<"_storage">;
-      iconType?: "emoji" | "lucide" | "phosphor" | "upload";
+      iconType?: "brand" | "emoji" | "lucide" | "phosphor" | "upload";
       isEnabled: boolean;
       lastDiscoveredAt?: number;
       lastDiscoveredModelCount?: number;

@@ -1,28 +1,83 @@
-import { ConvexError } from 'convex/values'
 import { RAG } from '@convex-dev/rag'
 import { createOpenRouter } from '@openrouter/ai-sdk-provider'
-import { components } from '../_generated/api'
+import { internalQuery } from '../_generated/server'
+import { v } from 'convex/values'
+import { components, internal } from '../_generated/api'
+import type { ActionCtx } from '../_generated/server'
+import {
+  isPlausibleOpenRouterApiKey,
+  resolveProviderApiKey,
+} from '../lib/providerApiKeys'
 
-const apiKey = process.env.OPENROUTER_API_KEY
+export const MEMORY_EMBEDDING_MODEL = 'openai/text-embedding-3-small'
+const MEMORY_EMBEDDING_DIMENSION = 1536
 
-export const openRouter = createOpenRouter({
-  apiKey,
-})
+export type MemoryRagClient = ReturnType<typeof createMemoryRag>
 
-export const memoryRag = new RAG(components.rag, {
-  textEmbeddingModel: openRouter.textEmbeddingModel('openai/text-embedding-3-small'),
-  embeddingDimension: 1536,
-  filterNames: ['userId', 'threadId', 'projectId'],
-})
+export function createMemoryRag(apiKey: string) {
+  const openRouter = createOpenRouter({
+    apiKey: apiKey.trim(),
+  })
 
-/** Legacy constant; runtime uses resolved auxiliary model (default anthropic/claude-3-haiku). */
-export const MEMORY_EXTRACTION_MODEL = 'anthropic/claude-3-haiku'
-
-export function ensureOpenRouterConfigured() {
-  if (!apiKey) {
-    throw new ConvexError({
-      code: 'CONFIGURATION_ERROR',
-      message: 'OPENROUTER_API_KEY is not configured',
-    })
-  }
+  return new RAG(components.rag, {
+    textEmbeddingModel: openRouter.textEmbeddingModel(MEMORY_EMBEDDING_MODEL),
+    embeddingDimension: MEMORY_EMBEDDING_DIMENSION,
+    filterNames: ['userId', 'threadId', 'projectId'],
+  })
 }
+
+export const resolveOpenRouterProviderForMemory = internalQuery({
+  args: {},
+  returns: v.union(
+    v.null(),
+    v.object({
+      apiKey: v.string(),
+    }),
+  ),
+  handler: async (ctx) => {
+    const providers = await ctx.db
+      .query('providers')
+      .withIndex('by_enabled', (q) => q.eq('isEnabled', true))
+      .collect()
+
+    for (const provider of providers) {
+      if (provider.providerType !== 'openrouter') {
+        continue
+      }
+
+      const apiKey = resolveProviderApiKey(provider.providerType, provider.apiKey)
+      if (apiKey && isPlausibleOpenRouterApiKey(apiKey)) {
+        return { apiKey }
+      }
+    }
+
+    return null
+  },
+})
+
+export async function resolveMemoryRag(ctx: Pick<ActionCtx, 'runQuery'>) {
+  const provider = await ctx.runQuery(
+    internal.functions.memoryRag.resolveOpenRouterProviderForMemory,
+    {},
+  )
+
+  if (!provider) {
+    return null
+  }
+
+  return createMemoryRag(provider.apiKey)
+}
+
+export async function requireMemoryRag(ctx: Pick<ActionCtx, 'runQuery'>) {
+  const rag = await resolveMemoryRag(ctx)
+  if (!rag) {
+    throw new Error(
+      'Memory search requires an enabled OpenRouter provider with an API key in Admin → Providers.',
+    )
+  }
+
+  return rag
+}
+
+/** Legacy constant; runtime uses admin-configured OpenRouter embeddings. */
+export const MEMORY_EXTRACTION_MODEL = MEMORY_EMBEDDING_MODEL

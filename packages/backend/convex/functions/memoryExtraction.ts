@@ -1,13 +1,15 @@
-import { generateObject } from 'ai'
 import { internalAction } from '../_generated/server'
 import type { FunctionReturnType } from 'convex/server'
 import { v } from 'convex/values'
 import type { Id } from '../_generated/dataModel'
 import { z } from 'zod'
 import { components, internal } from '../_generated/api'
-import { ensureOpenRouterConfigured } from './memoryRag'
 import { extractMessageText, shouldSkipExtractedMemory } from './memoryShared'
 import { createLanguageModelFromAuxiliary } from '../lib/createLanguageModel'
+import { generateStructuredObject } from '../lib/generateStructuredObject'
+import { hasConfiguredAuxiliaryModel } from '../lib/auxiliaryModel'
+
+const MAX_TRANSCRIPT_CHARS = 12_000
 
 const extractionSchema = z.object({
   memories: z.array(
@@ -20,6 +22,38 @@ const extractionSchema = z.object({
     }),
   ),
 })
+
+function buildExtractionTranscript(
+  messages: Array<{
+    message?: {
+      role?: string
+      content?: unknown
+    }
+    text?: string
+  }>,
+) {
+  const lines = messages
+    .map((message) => {
+      const role = message.message?.role ?? 'unknown'
+      const text = extractMessageText(message)
+      if (!text) return null
+      return `${role}: ${text}`
+    })
+    .filter((line): line is string => line !== null)
+
+  let transcript = lines.join('\n')
+  if (transcript.length <= MAX_TRANSCRIPT_CHARS) {
+    return transcript
+  }
+
+  transcript = transcript.slice(-MAX_TRANSCRIPT_CHARS)
+  const firstNewline = transcript.indexOf('\n')
+  if (firstNewline !== -1) {
+    transcript = transcript.slice(firstNewline + 1)
+  }
+
+  return transcript
+}
 
 type ThreadMessageBatch = FunctionReturnType<
   typeof components.agent.messages.listMessagesByThreadId
@@ -54,17 +88,30 @@ function isRetryableUpstreamRateLimit(error: unknown) {
   return hasRateLimitHint
 }
 
+function isStructuredOutputFailure(error: unknown) {
+  const message = getExtractionErrorMessage(error).toLowerCase()
+  return (
+    message.includes('no object generated') ||
+    message.includes('could not parse the response') ||
+    message.includes('not valid json') ||
+    message.includes('did not match the expected structure') ||
+    message.includes('returned an empty response')
+  )
+}
+
 export const extractMemoriesFromThread = internalAction({
   args: {
     threadId: v.string(),
     userId: v.id('users'),
   },
   handler: async (ctx, args) => {
-    ensureOpenRouterConfigured()
-
     const auxiliary = await ctx.runQuery(internal.auxiliaryModels.resolveAuxiliaryModel, {
       userId: args.userId,
     })
+
+    if (!hasConfiguredAuxiliaryModel(auxiliary)) {
+      return { created: 0, skipped: 0, processedMessages: 0 }
+    }
 
     const thread = await ctx.runQuery(components.agent.threads.getThread, {
       threadId: args.threadId,
@@ -92,19 +139,19 @@ export const extractMemoriesFromThread = internalAction({
       error: undefined,
     })
 
-    try {
-      let cursor: string | null = null
-      const messages: Array<{
-        _id: string
-        order: number
+    let cursor: string | null = null
+    const messages: Array<{
+      _id: string
+      order: number
+      role?: string
+      text?: string
+      message?: {
         role?: string
-        text?: string
-        message?: {
-          role?: string
-          content?: unknown
-        }
-      }> = []
+        content?: unknown
+      }
+    }> = []
 
+    try {
       while (true) {
         const batch: ThreadMessageBatch = await ctx.runQuery(
           components.agent.messages.listMessagesByThreadId,
@@ -138,15 +185,7 @@ export const extractMemoriesFromThread = internalAction({
         return { created: 0, skipped: 0, processedMessages: 0 }
       }
 
-      const transcript = messages
-        .map((message) => {
-          const role = message.message?.role ?? 'unknown'
-          const text = extractMessageText(message)
-          if (!text) return null
-          return `${role}: ${text}`
-        })
-        .filter((line): line is string => line !== null)
-        .join('\n')
+      const transcript = buildExtractionTranscript(messages)
 
       if (!transcript.trim()) {
         const lastOrder = messages[messages.length - 1]?.order ?? lastProcessedOrder
@@ -171,21 +210,24 @@ export const extractMemoriesFromThread = internalAction({
         ? `Project linked to this thread: ${project.name} (${project._id})`
         : 'No project is currently linked to this thread.'
 
-      const { object } = await generateObject({
+      const object = await generateStructuredObject({
         model: createLanguageModelFromAuxiliary(auxiliary),
         schema: extractionSchema,
-        prompt: [
+        schemaName: 'MemoryExtraction',
+        schemaDescription:
+          'Stable long-term memories extracted from a chat transcript, or an empty list when none qualify.',
+        system: [
           'Extract only stable, long-term memories that should be remembered for future chats.',
           'Do not include transient status updates, one-off requests, or short-lived facts.',
           'Prefer user scope for durable user preferences and profile facts.',
           'Use thread scope for details that matter mainly to this conversation.',
           'Use project scope only for facts that apply to the project attached to this thread.',
-          'Return an empty array when nothing qualifies.',
-          projectContext,
-          '',
-          'Transcript:',
-          transcript,
+          'Return {"memories": []} when nothing qualifies.',
+          'Respond with JSON only. Do not wrap the response in markdown or add commentary.',
         ].join('\n'),
+        prompt: [projectContext, '', 'Transcript:', transcript].join('\n'),
+        temperature: 0.2,
+        maxOutputTokens: 4096,
       })
 
       let created = 0
@@ -247,21 +289,30 @@ export const extractMemoriesFromThread = internalAction({
 
       return { created, skipped, processedMessages: messages.length }
     } catch (error) {
+      const processedMessages = messages.length
+      const lastOrder =
+        processedMessages > 0
+          ? (messages[processedMessages - 1]?.order ?? lastProcessedOrder)
+          : lastProcessedOrder
       const message = isRetryableUpstreamRateLimit(error)
         ? 'Memory extraction is temporarily rate-limited upstream. It will succeed on a later retry.'
-        : getExtractionErrorMessage(error)
+        : isStructuredOutputFailure(error)
+          ? 'Memory extraction could not parse the auxiliary model response. The transcript was skipped for now.'
+          : getExtractionErrorMessage(error)
+      const shouldAdvanceCursor =
+        isStructuredOutputFailure(error) && processedMessages > 0
 
       await ctx.runMutation(internal.functions.memoryInternal.upsertExtractionState, {
         threadId: args.threadId,
         userId,
-        lastProcessedOrder,
+        lastProcessedOrder: shouldAdvanceCursor ? lastOrder : lastProcessedOrder,
         updatedAt: Date.now(),
         status: 'error',
         error: message,
       })
 
-      if (isRetryableUpstreamRateLimit(error)) {
-        return { created: 0, skipped: 0, processedMessages: 0 }
+      if (isRetryableUpstreamRateLimit(error) || isStructuredOutputFailure(error)) {
+        return { created: 0, skipped: 0, processedMessages }
       }
 
       throw error

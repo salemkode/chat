@@ -1,8 +1,7 @@
 import { threadSelection$ } from "@/state/thread-selection";
-import { useThread } from "@/hooks/use-threads";
 import { useSelector } from "@legendapp/state/react";
 import { api } from "@convex/_generated/api";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { useCallback } from "react";
 import { Alert, Platform } from "react-native";
 import { useCSSVariable, useUniwind } from "uniwind";
@@ -27,17 +26,22 @@ export function useChatHeaderLabels() {
   const selectedThreadId = useSelector(() =>
     threadSelection$.selectedThreadId.get(),
   );
-  const thread = useThread(selectedThreadId);
+  const thread = useQuery(
+    api.chat.getThread,
+    selectedThreadId ? { threadId: selectedThreadId } : "skip",
+  );
+  const resolvedThreadId =
+    selectedThreadId && thread !== null ? selectedThreadId : undefined;
 
-  const threadTitle = selectedThreadId
+  const threadTitle = resolvedThreadId
     ? thread?.title?.trim() || "Untitled"
     : "New Chat";
 
   return {
     threadTitle,
-    threadId: selectedThreadId,
-    canRename: Boolean(selectedThreadId),
-    canShare: Boolean(selectedThreadId),
+    threadId: resolvedThreadId,
+    canRename: Boolean(resolvedThreadId),
+    canShare: Boolean(resolvedThreadId),
   };
 }
 

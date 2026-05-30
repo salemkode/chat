@@ -29,7 +29,7 @@ function isRoutingPreference(value: string): value is RoutingPreference {
 }
 
 export default function ModelsSettingsScreen() {
-  const { models, autoModelAvailable } = useModels()
+  const { models, autoModelAvailable } = useModels({ prefetchAll: true })
   const { settings, updateSettings } = useSettings()
   const [defaultModelId, setDefaultModelId] = useState<string | undefined>()
   const [hydrated, setHydrated] = useState(false)

@@ -6,10 +6,6 @@ import { getModelOfferAccessFlags } from './modelOffersAccess'
 import { isModelUsableForPlan } from './appPlan'
 import { resolveEffectiveAppPlan } from './billing'
 
-/** OpenRouter-style id; override via AUXILIARY_MODEL_FALLBACK env. */
-export const AUXILIARY_MODEL_FALLBACK =
-  process.env.AUXILIARY_MODEL_FALLBACK?.trim() || 'anthropic/claude-3-haiku'
-
 const EXTRACTION_INPUT_TOKENS = 2000
 const EXTRACTION_OUTPUT_TOKENS = 500
 
@@ -31,6 +27,20 @@ export type ResolvedAuxiliaryModel = {
   apiKey?: string
   customUrl?: string
   config?: Doc<'providers'>['config']
+}
+
+export function hasConfiguredAuxiliaryModel(resolved: ResolvedAuxiliaryModel) {
+  return resolved.modelDocId !== null && resolved.providerDocId !== null
+}
+
+function unconfiguredAuxiliaryModel(): ResolvedAuxiliaryModel {
+  return {
+    modelDocId: null,
+    modelId: '',
+    displayName: '',
+    providerType: 'openrouter',
+    providerDocId: null,
+  }
 }
 
 type RankableModel = {
@@ -214,25 +224,5 @@ export async function resolveAuxiliaryModelForUser(
     }
   }
 
-  const recommended = rankables[0]
-  if (recommended) {
-    return {
-      modelDocId: recommended.model._id,
-      modelId: recommended.model.modelId,
-      displayName: recommended.model.displayName,
-      providerType: recommended.provider.providerType,
-      providerDocId: recommended.provider._id,
-      apiKey: recommended.provider.apiKey,
-      customUrl: recommended.provider.baseURL,
-      config: recommended.provider.config,
-    }
-  }
-
-  return {
-    modelDocId: null,
-    modelId: AUXILIARY_MODEL_FALLBACK,
-    displayName: 'Claude 3 Haiku',
-    providerType: 'openrouter',
-    providerDocId: null,
-  }
+  return unconfiguredAuxiliaryModel()
 }

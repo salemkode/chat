@@ -362,7 +362,7 @@ function isPresent<T>(value: T | null | undefined): value is T {
 }
 
 function normalizeIconType(value: string | undefined): IconType {
-  if (value === 'emoji' || value === 'phosphor' || value === 'upload') {
+  if (value === 'brand' || value === 'emoji' || value === 'phosphor' || value === 'upload') {
     return value
   }
   return undefined

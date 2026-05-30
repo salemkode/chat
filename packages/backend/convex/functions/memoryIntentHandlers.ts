@@ -5,9 +5,9 @@ import type { Id } from '../_generated/dataModel'
 import { z } from 'zod'
 import { internal } from '../_generated/api'
 import { createLanguageModelFromAuxiliary } from '../lib/createLanguageModel'
-import { ensureOpenRouterConfigured } from './memoryRag'
 import type { ToolPolicyAutomaticAction } from '../lib/toolPolicy'
 import type { ResolvedAuxiliaryModel } from '../lib/auxiliaryModel'
+import { hasConfiguredAuxiliaryModel } from '../lib/auxiliaryModel'
 
 const memoryAddSchema = z.object({
   scope: z.enum(['user', 'thread', 'project']),
@@ -216,11 +216,21 @@ export const handleMemoryIntentWithoutTools = internalAction({
     projectId: v.optional(v.id('projects')),
   },
   handler: async (ctx, args): Promise<MemoryIntentResult> => {
-    ensureOpenRouterConfigured()
-
     const auxiliary = await ctx.runQuery(internal.auxiliaryModels.resolveAuxiliaryModel, {
       userId: args.userId,
     })
+
+    if (
+      args.detectedIntent !== 'memory_search' &&
+      !hasConfiguredAuxiliaryModel(auxiliary)
+    ) {
+      return {
+        automaticActions: ['memory_intent_failed'],
+        systemAddendum: '',
+        error:
+          'Choose a background memory model in Settings → Memory to use memory commands without tool support.',
+      }
+    }
 
     const linkedProjects = await ctx.runQuery(
       internal.functions.memoryInternal.listProjectsForThread,

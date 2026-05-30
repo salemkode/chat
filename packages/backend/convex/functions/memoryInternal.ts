@@ -2,7 +2,7 @@ import { internalAction, internalMutation, internalQuery } from '../_generated/s
 import { v, ConvexError } from 'convex/values'
 import type { Doc, Id } from '../_generated/dataModel'
 import { components, internal } from '../_generated/api'
-import { memoryRag } from './memoryRag'
+import { resolveMemoryRag } from './memoryRag'
 import {
   buildRagFilterValues,
   buildRagKey,
@@ -506,6 +506,7 @@ export const createMemoryInScope = internalAction({
   },
   handler: async (ctx, args) => {
     assertScopeTarget(args)
+    const ragClient = await resolveMemoryRag(ctx)
 
     const title = normalizeOptionalString(args.title) ?? 'Untitled memory'
     const content = normalizeMemoryContent(args.content)
@@ -586,7 +587,8 @@ export const createMemoryInScope = internalAction({
         })
       }
 
-      await memoryRag.add(ctx, {
+      if (ragClient) {
+        await ragClient.add(ctx, {
         namespace: args.userId,
         key: ragKey,
         title,
@@ -607,6 +609,7 @@ export const createMemoryInScope = internalAction({
         }),
         contentHash,
       })
+      }
 
       const memory = await ctx.runQuery(internal.functions.memoryInternal.getUserMemoryById, {
         id: memoryId as Id<'userMemories'>,
@@ -675,7 +678,8 @@ export const createMemoryInScope = internalAction({
         updatedAt: now,
       })
 
-      await memoryRag.add(ctx, {
+      if (ragClient) {
+        await ragClient.add(ctx, {
         namespace: args.userId,
         key: ragKey,
         title,
@@ -696,6 +700,7 @@ export const createMemoryInScope = internalAction({
         }),
         contentHash,
       })
+      }
 
       const memory = await ctx.runQuery(internal.functions.memoryInternal.getThreadMemoryById, {
         id: memoryId as Id<'threadMemories'>,
@@ -763,7 +768,8 @@ export const createMemoryInScope = internalAction({
       updatedAt: now,
     })
 
-    await memoryRag.add(ctx, {
+    if (ragClient) {
+      await ragClient.add(ctx, {
       namespace: args.userId,
       key: ragKey,
       title,
@@ -784,6 +790,7 @@ export const createMemoryInScope = internalAction({
       }),
       contentHash,
     })
+    }
 
     const memory = await ctx.runQuery(internal.functions.memoryInternal.getProjectMemoryById, {
       id: memoryId as Id<'projectMemories'>,
@@ -813,6 +820,7 @@ export const updateMemoryInScope = internalAction({
     tags: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
+    const ragClient = await resolveMemoryRag(ctx)
     const nextTitle = normalizeOptionalString(args.title)
     const nextCategory = normalizeOptionalString(args.category)
     const nextTags = normalizeTags(args.tags)
@@ -869,7 +877,8 @@ export const updateMemoryInScope = internalAction({
         updatedAt: now,
       })
 
-      await memoryRag.add(ctx, {
+      if (ragClient) {
+        await ragClient.add(ctx, {
         namespace: args.userId,
         key: memory.ragKey,
         title,
@@ -887,6 +896,7 @@ export const updateMemoryInScope = internalAction({
         }),
         contentHash,
       })
+      }
 
       const updated = await ctx.runQuery(internal.functions.memoryInternal.getUserMemoryById, {
         id: memoryId,
@@ -937,7 +947,8 @@ export const updateMemoryInScope = internalAction({
         updatedAt: now,
       })
 
-      await memoryRag.add(ctx, {
+      if (ragClient) {
+        await ragClient.add(ctx, {
         namespace: args.userId,
         key: memory.ragKey,
         title,
@@ -955,6 +966,7 @@ export const updateMemoryInScope = internalAction({
         }),
         contentHash,
       })
+      }
 
       const updated = await ctx.runQuery(internal.functions.memoryInternal.getThreadMemoryById, {
         id: memoryId,
@@ -1004,7 +1016,8 @@ export const updateMemoryInScope = internalAction({
       updatedAt: now,
     })
 
-    await memoryRag.add(ctx, {
+    if (ragClient) {
+      await ragClient.add(ctx, {
       namespace: args.userId,
       key: memory.ragKey,
       title,
@@ -1022,6 +1035,7 @@ export const updateMemoryInScope = internalAction({
       }),
       contentHash,
     })
+    }
 
     const updated = await ctx.runQuery(internal.functions.memoryInternal.getProjectMemoryById, {
       id: memoryId,
