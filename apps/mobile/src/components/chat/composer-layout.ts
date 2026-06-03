@@ -1,3 +1,15 @@
+import { Platform } from "react-native";
+
+/** Minimum bottom inset on Android when the OS reports 0 (gesture nav). */
+export const COMPOSER_ANDROID_MIN_SAFE_BOTTOM = 16;
+
+/** Bottom safe inset used for composer padding and list scroll clearance. */
+export function composerBottomSafeInset(insetsBottom: number): number {
+  return Platform.OS === "android"
+    ? Math.max(insetsBottom, COMPOSER_ANDROID_MIN_SAFE_BOTTOM)
+    : insetsBottom;
+}
+
 /** Horizontal padding on the composer stack (`px-3`). */
 export const COMPOSER_OUTER_HORIZONTAL_PADDING = 12;
 
@@ -9,6 +21,9 @@ export const COMPOSER_ACTION_SIZE = 44;
 
 /** Gap between + button and text field row — keep in sync with prompt-input.tsx. */
 export const COMPOSER_ROW_GAP = 10;
+
+/** Space between the last message and the composer in the message list. */
+export const COMPOSER_LIST_BOTTOM_GAP = 12;
 
 /**
  * Left gutter for floating composer UI (relative to the `px-3` stack): attachment

@@ -242,7 +242,11 @@ export const CodeBlock = memo(function CodeBlock({ code, language }: CodeBlockPr
           accessibilityLabel={copied ? 'Copied code' : 'Copy code'}
           style={copyButtonStyle}
         >
-          <Icon icon={copied ? Check : Copy} className="size-3.5 text-muted-foreground" />
+          <Icon
+            icon={copied ? Check : Copy}
+            className="size-3.5"
+            colorClassName="accent-muted-foreground"
+          />
         </Pressable>
       </View>
       <SyntaxHighlighter

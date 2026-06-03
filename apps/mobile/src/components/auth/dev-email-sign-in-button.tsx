@@ -25,17 +25,18 @@ export function DemoLoginButton() {
 
     try {
       const { ticket } = await createMobileDevSignInTicket({ email: DEMO_EMAIL });
-      const { error } = await signIn.ticket({ ticket });
+      const result = await signIn.ticket({
+        ticket,
+      });
 
-      if (error) {
-        Alert.alert("Login Failed", error.message ?? "Unable to sign in.");
-        return;
+      if (result.error) {
+        throw result.error;
       }
 
       if (signIn.status !== "complete" || !signIn.createdSessionId) {
         Alert.alert(
           "Demo Sign-In Failed",
-          `Sign-in did not complete. Status: ${signIn.status}`,
+          `Sign-in did not complete. Status: ${signIn.status ?? "unknown"}`,
         );
         return;
       }

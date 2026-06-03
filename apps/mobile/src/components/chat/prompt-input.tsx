@@ -1,16 +1,15 @@
 import { SymbolImage } from "@/components/symbol-image";
 import { TouchableGlass } from "@/components/touchable-glass";
 import { AttachmentChipList } from "./attachment-chip-list";
-import {
-  AnimatedThemedGlassContainer,
-  ThemedGlassView,
-} from "@/components/themed-glass";
-import { SafeAreaView } from "@/components/tw";
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, Platform, Pressable, TextInput, View } from "react-native";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
+import { useStableSafeAreaInsets } from "@/utils/use-stable-safe-area-insets";
 
-import { cn } from "@/utils/tailwind";
+import {
+  useNativeThemeColors,
+  type NativeThemeColors,
+} from "@/hooks/use-native-theme-colors";
 import { useChatContext } from "./chat-context";
 import { useComposerProject } from "./composer-project-context";
 import { useConversationContext } from "./conversation";
@@ -21,15 +20,30 @@ import {
   COMPOSER_ACTION_SIZE,
   COMPOSER_GLASS_PADDING,
   COMPOSER_ROW_GAP,
+  composerBottomSafeInset,
 } from "./composer-layout";
 
 const IS_ANDROID = Platform.OS === "android";
+const TEXTAREA_MIN_HEIGHT = 44;
+const TEXTAREA_MAX_HEIGHT = 100;
+
+/** Android needs raw color strings; dark accent is too close to the card background. */
+function composerTextSelectionColor(
+  theme: string,
+  colors: NativeThemeColors,
+): string | undefined {
+  if (theme === "dark") {
+    return colors.border ?? colors.accent;
+  }
+  return colors.accent ?? colors.border;
+}
 
 /**
  * Root container for the message composer. It renders as the bottom footer in
- * `<Conversation />` so the message list cannot scroll underneath it.
+ * `<Conversation />`. The list reserves space for this height plus the bottom safe area.
  */
 export function PromptInput({ children }: { children: ReactNode }) {
+  const insets = useStableSafeAreaInsets();
   const { promptInputStyle, onPromptInputLayout } = useConversationContext();
   const { error } = useChatContext();
   const {
@@ -49,8 +63,13 @@ export function PromptInput({ children }: { children: ReactNode }) {
   } = useComposerProject();
 
   return (
-    <SafeAreaView edges={["bottom"]} mode="padding">
-      <Animated.View onLayout={onPromptInputLayout} style={promptInputStyle}>
+    <Animated.View
+      style={[
+        { paddingBottom: composerBottomSafeInset(insets.bottom) },
+        promptInputStyle,
+      ]}
+    >
+      <View onLayout={onPromptInputLayout}>
         {error ? (
           <Animated.View entering={FadeIn.duration(200)} className="px-3 pb-2">
             <ChatInlineError variant="composer" message={error.message} />
@@ -66,13 +85,12 @@ export function PromptInput({ children }: { children: ReactNode }) {
               onDismiss={dismissProjectMention}
             />
           ) : null}
-          <AnimatedThemedGlassContainer
+          <View
             style={{
               flex: 1,
               padding: COMPOSER_GLASS_PADDING,
               gap: 10,
             }}
-            spacing={8}
           >
             {pendingProjectDraft ? (
               <PendingProjectDraftCard
@@ -97,10 +115,10 @@ export function PromptInput({ children }: { children: ReactNode }) {
             >
               {children}
             </View>
-          </AnimatedThemedGlassContainer>
+          </View>
         </View>
-      </Animated.View>
-    </SafeAreaView>
+      </View>
+    </Animated.View>
   );
 }
 
@@ -150,32 +168,17 @@ export function PromptInputAction(props: {
  * Glass-wrapped container for the textarea and submit button.
  */
 export function PromptInputBody({ children }: { children: ReactNode }) {
-  if (IS_ANDROID) {
-    return (
-      <View
-        className="flex-1 flex-row rounded-[22px] border border-border/70 bg-card shadow-card"
-        style={{
-          borderRadius: 22,
-          borderCurve: "continuous",
-        }}
-      >
-        {children}
-      </View>
-    );
-  }
-
   return (
-    <ThemedGlassView
-      isInteractive
+    <View
+      className="flex-1 flex-row rounded-[22px] border border-border/70 bg-card/95 shadow-card"
       style={{
-        flex: 1,
-        flexDirection: "row",
+        minHeight: 44,
         borderRadius: 22,
         borderCurve: "continuous",
       }}
     >
       {children}
-    </ThemedGlassView>
+    </View>
   );
 }
 
@@ -199,26 +202,59 @@ export function PromptInputTextarea({
     dismissProjectMention,
   } = useComposerProject();
   const inputRef = useRef<TextInput>(null);
+  const [contentHeight, setContentHeight] = useState(TEXTAREA_MIN_HEIGHT);
+  const themeColors = useNativeThemeColors();
+
+  const resolvedHeight = Math.max(
+    TEXTAREA_MIN_HEIGHT,
+    Math.min(TEXTAREA_MAX_HEIGHT, contentHeight),
+  );
+  const textareaShouldScroll = contentHeight > TEXTAREA_MAX_HEIGHT;
 
   useEffect(() => {
     if (input === "") {
+      setContentHeight(TEXTAREA_MIN_HEIGHT);
       inputRef.current?.clear();
     }
   }, [input]);
+
+  const textColorProps = IS_ANDROID
+    ? {
+        cursorColor: themeColors.foreground,
+        selectionColor: composerTextSelectionColor(
+          themeColors.theme,
+          themeColors,
+        ),
+        placeholderTextColor: themeColors.mutedForeground,
+      }
+    : {
+        cursorColorClassName: "accent-foreground",
+        selectionColorClassName: "accent-accent dark:accent-border",
+        selectionHandleColorClassName: "accent-foreground",
+        placeholderTextColorClassName: "accent-muted-foreground",
+      };
 
   return (
     <TextInput
       ref={inputRef}
       nativeID="composer"
-      cursorColorClassName="accent-foreground"
-      selectionColorClassName="accent-foreground"
+      {...textColorProps}
       underlineColorAndroid="transparent"
-      style={{ fontSize: 16 }}
-      className="flex-1 bg-transparent pl-4 pr-2 py-3 text-foreground dark:text-foreground max-h-25"
+      style={{
+        fontSize: 16,
+        minHeight: TEXTAREA_MIN_HEIGHT,
+        height: resolvedHeight,
+        maxHeight: TEXTAREA_MAX_HEIGHT,
+        textAlignVertical: "top",
+      }}
+      className="flex-1 self-stretch bg-transparent pl-4 pr-2 py-3 text-foreground dark:text-foreground"
       value={input}
       onChangeText={(text) => {
         setInput(text);
         syncProjectMention(text, text.length);
+      }}
+      onContentSizeChange={(event) => {
+        setContentHeight(event.nativeEvent.contentSize.height);
       }}
       onSelectionChange={(event) => {
         syncProjectMention(input, event.nativeEvent.selection.start);
@@ -252,8 +288,8 @@ export function PromptInputTextarea({
         }
       }}
       placeholder={placeholder}
-      placeholderTextColor={IS_ANDROID ? "rgba(120,120,128,0.88)" : undefined}
       multiline
+      scrollEnabled={textareaShouldScroll}
       maxLength={maxLength}
       blurOnSubmit={false}
     />
@@ -303,7 +339,7 @@ export function PromptInputSubmit() {
           <SymbolImage
             name="stop.fill"
             size={14}
-            className="font-semibold text-background"
+            tintColorClassName="accent-background"
           />
         </Animated.View>
       ) : (
@@ -311,12 +347,9 @@ export function PromptInputSubmit() {
           name="arrow.up"
           size={16}
           sfEffect="scale/up"
-          className={cn(
-            "font-semibold",
-            sendDisabled
-              ? "text-muted-foreground"
-              : "text-background dark:text-background",
-          )}
+          tintColorClassName={
+            sendDisabled ? "accent-muted-foreground" : "accent-background"
+          }
         />
       )}
     </Pressable>

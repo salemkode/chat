@@ -11,7 +11,7 @@ import {
   RNHostView,
 } from "@expo/ui/jetpack-compose";
 import { useCallback, useState } from "react";
-import { View } from "react-native";
+import { Text, View } from "react-native";
 
 function DrawerThreadRowNativeMenu({
   props,
@@ -59,16 +59,20 @@ function DrawerThreadRowNativeMenu({
         <DropdownMenu.Items>
           <DropdownMenuItem onClick={() => runAction(onPin)}>
             <DropdownMenuItem.Text>
-              {thread.pinned ? "Unpin" : "Pin"}
+              <Text>{thread.pinned ? "Unpin" : "Pin"}</Text>
             </DropdownMenuItem.Text>
           </DropdownMenuItem>
           {onRemoveFromProject ? (
             <DropdownMenuItem onClick={() => runAction(onRemoveFromProject)}>
-              <DropdownMenuItem.Text>Remove from project</DropdownMenuItem.Text>
+              <DropdownMenuItem.Text>
+                <Text>Remove from project</Text>
+              </DropdownMenuItem.Text>
             </DropdownMenuItem>
           ) : null}
           <DropdownMenuItem onClick={() => runAction(onDelete)}>
-            <DropdownMenuItem.Text>Delete</DropdownMenuItem.Text>
+            <DropdownMenuItem.Text>
+              <Text>Delete</Text>
+            </DropdownMenuItem.Text>
           </DropdownMenuItem>
         </DropdownMenu.Items>
       </DropdownMenu>

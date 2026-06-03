@@ -8,6 +8,7 @@ import {
   createContext,
   use,
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -17,6 +18,7 @@ import {
 import {
   LayoutChangeEvent,
   Platform,
+  Pressable,
   Text,
   View,
   type StyleProp,
@@ -33,12 +35,17 @@ import Animated, {
 import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { useStableSafeAreaInsets } from "@/utils/use-stable-safe-area-insets";
 import { TouchableGlass } from "../touchable-glass";
-import { KeyboardGestureArea } from "../tw";
 import { useChatContext } from "./chat-context";
+import {
+  COMPOSER_LIST_BOTTOM_GAP,
+  composerBottomSafeInset,
+} from "./composer-layout";
 import type { ChatMessage } from "./types";
 
+const IS_ANDROID = Platform.OS === "android";
 const IS_GLASS = isLiquidGlassAvailable();
 const IS_IOS = Platform.OS === "ios";
+const SCROLL_TO_BOTTOM_BUTTON_SIZE = 40;
 const IOS_NATIVE_HEADER_HEIGHT = 44;
 const IOS_TRANSPARENT_HEADER_GAP = 24;
 const IOS_TRANSPARENT_HEADER_MIN_TOP_PADDING = 112;
@@ -90,12 +97,32 @@ export function Conversation({
 
   // -- Layout bookkeeping --------------------------------------------------
 
-  const [composerOffsetHeight, setComposerOffsetHeight] = useState(68);
   const composerHeight = useSharedValue(68);
   const scrollViewHeight = useSharedValue(0);
   const totalContentHeight = useSharedValue(0);
-  const currentFooterHeight = useSharedValue(0);
-  const messagesOnlyHeight = useSharedValue(0);
+  const listBottomInsetShared = useSharedValue(
+    68 + composerBottomSafeInset(insets.bottom) + COMPOSER_LIST_BOTTOM_GAP,
+  );
+  const [listBottomInset, setListBottomInset] = useState(
+    68 + composerBottomSafeInset(insets.bottom) + COMPOSER_LIST_BOTTOM_GAP,
+  );
+
+  const syncListBottomInset = useCallback(
+    (composerContentHeight: number) => {
+      const nextInset =
+        composerContentHeight +
+        composerBottomSafeInset(insets.bottom) +
+        COMPOSER_LIST_BOTTOM_GAP;
+      composerHeight.value = composerContentHeight;
+      listBottomInsetShared.value = nextInset;
+      setListBottomInset(nextInset);
+    },
+    [composerHeight, insets.bottom, listBottomInsetShared],
+  );
+
+  useEffect(() => {
+    syncListBottomInset(composerHeight.value);
+  }, [insets.bottom, syncListBottomInset]);
 
   // -- Auto-scroll ---------------------------------------------------------
 
@@ -132,10 +159,6 @@ export function Conversation({
 
       totalContentHeight.value = height;
       lastContentHeight.value = height;
-      // Derive message-only height by subtracting the last known footer height.
-      // This is stable: when the footer resizes, totalContent changes but
-      // messagesOnly stays the same, breaking the feedback loop.
-      messagesOnlyHeight.value = height - currentFooterHeight.value;
 
       if (wasAtBottom && heightIncreased && listRef.current) {
         requestAnimationFrame(() => {
@@ -145,13 +168,7 @@ export function Conversation({
         });
       }
     },
-    [
-      currentFooterHeight,
-      isAtBottom,
-      lastContentHeight,
-      messagesOnlyHeight,
-      totalContentHeight,
-    ],
+    [isAtBottom, lastContentHeight, totalContentHeight],
   );
 
   const scrollToBottom = useCallback(() => {
@@ -171,23 +188,18 @@ export function Conversation({
         ? 128
         : 16;
 
-  const footerSpacerStyle = useAnimatedStyle(() => {
-    const scrollHeight = scrollViewHeight.value;
-    if (scrollHeight <= 0) return { height: 0 };
-
-    const blankSpace = scrollHeight - messagesOnlyHeight.value;
-    const footerHeight = Math.max(0, blankSpace - topPadding);
-
-    currentFooterHeight.value = footerHeight;
-    return { height: footerHeight };
-  });
-
-  const promptInputStyle = useAnimatedStyle(() => ({}));
+  const promptInputStyle = useAnimatedStyle(() => ({
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+  }));
 
   const scrollButtonStyle = useAnimatedStyle(() => {
-    const maxScrollY = totalContentHeight.value - scrollViewHeight.value;
+    const maxMessageScrollY = totalContentHeight.value - scrollViewHeight.value;
     const shouldShowScrollButton =
-      maxScrollY > 50 && maxScrollY - scrollY.value > SCROLL_THRESHOLD;
+      maxMessageScrollY > SCROLL_THRESHOLD &&
+      maxMessageScrollY - scrollY.value > SCROLL_THRESHOLD;
 
     return {
       opacity: withTiming(shouldShowScrollButton ? 1 : 0, {
@@ -200,17 +212,24 @@ export function Conversation({
           }),
         },
       ],
-      bottom: composerHeight.value + 12,
+      bottom: listBottomInsetShared.value + 12,
     };
   });
 
   const onPromptInputLayout = useCallback(
     (e: LayoutChangeEvent) => {
-      const h = e.nativeEvent.layout.height;
-      composerHeight.value = h;
-      setComposerOffsetHeight(h);
+      syncListBottomInset(e.nativeEvent.layout.height);
     },
-    [composerHeight],
+    [syncListBottomInset],
+  );
+
+  const listContentContainerStyle = useMemo(
+    () => ({
+      paddingHorizontal: 16,
+      paddingTop: 16,
+      paddingBottom: listBottomInset,
+    }),
+    [listBottomInset],
   );
 
   // -- Context value -------------------------------------------------------
@@ -238,113 +257,52 @@ export function Conversation({
         automaticOffset
         style={{ flex: 1 }}
       >
-        <View className="flex-1 bg-background">
-          {IS_IOS ? (
-            <KeyboardGestureArea
-              interpolator="ios"
-              showOnSwipeUp
-              offset={composerOffsetHeight}
+        <View className="relative flex-1 bg-background">
+          <View className="flex-1">
+            <AnimatedLegendList
+              ref={listRef}
               className="flex-1"
-            >
-              <AnimatedLegendList
-                ref={listRef}
-                className="flex-1"
-                data={messages}
-                dataVersion={dataVersion}
-                renderItem={renderMessage}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={{
-                  padding: 16,
-                  paddingBottom: 8,
-                }}
-                keyboardDismissMode="interactive"
-                automaticallyAdjustsScrollIndicatorInsets={false}
-                maintainVisibleContentPosition={{ data: true, size: true }}
-                estimatedItemSize={80}
-                getEstimatedItemSize={(message) =>
-                  message.role === "assistant" ? 220 : 108
-                }
-                drawDistance={600}
-                onStartReached={
-                  onLoadOlder && hasOlderMessages && !isLoadingOlder
-                    ? () => onLoadOlder(30)
-                    : undefined
-                }
-                onStartReachedThreshold={0.15}
-                onLayout={onScrollViewLayout}
-                onScroll={onScroll}
-                scrollEventThrottle={16}
-                onContentSizeChange={onContentSizeChange}
-                contentInset={{ top: topPadding, left: 0, right: 0, bottom: 0 }}
-                scrollIndicatorInsets={{ top: 0, left: 0, right: 0, bottom: 0 }}
-                ListEmptyComponent={emptyState}
-                ListHeaderComponent={
-                  hasOlderMessages ? (
-                    <View className="items-center pb-3">
-                      <View className="rounded-full border border-border/70 bg-background/90 px-3 py-1">
-                        <Text className="text-xs text-muted-foreground">
-                          {isLoadingOlder
-                            ? "Loading older messages..."
-                            : "Scroll up to load older messages"}
-                        </Text>
-                      </View>
+              data={messages}
+              dataVersion={dataVersion}
+              renderItem={renderMessage}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={listContentContainerStyle}
+              keyboardDismissMode="interactive"
+              automaticallyAdjustsScrollIndicatorInsets={false}
+              maintainVisibleContentPosition={{ data: true, size: true }}
+              estimatedItemSize={80}
+              getEstimatedItemSize={(message) =>
+                message.role === "assistant" ? 220 : 108
+              }
+              drawDistance={600}
+              onStartReached={
+                onLoadOlder && hasOlderMessages && !isLoadingOlder
+                  ? () => onLoadOlder(30)
+                  : undefined
+              }
+              onStartReachedThreshold={0.15}
+              onLayout={onScrollViewLayout}
+              onScroll={onScroll}
+              scrollEventThrottle={16}
+              onContentSizeChange={onContentSizeChange}
+              contentInset={{ top: topPadding, left: 0, right: 0, bottom: 0 }}
+              scrollIndicatorInsets={{ top: 0, left: 0, right: 0, bottom: 0 }}
+              ListEmptyComponent={emptyState}
+              ListHeaderComponent={
+                hasOlderMessages ? (
+                  <View className="items-center pb-3">
+                    <View className="rounded-full border border-border/70 bg-background/90 px-3 py-1">
+                      <Text className="text-xs text-muted-foreground">
+                        {isLoadingOlder
+                          ? "Loading older messages..."
+                          : "Scroll up to load older messages"}
+                      </Text>
                     </View>
-                  ) : null
-                }
-                ListFooterComponent={<Animated.View style={footerSpacerStyle} />}
-              />
-            </KeyboardGestureArea>
-          ) : (
-            <View className="flex-1">
-              <AnimatedLegendList
-                ref={listRef}
-                className="flex-1"
-                data={messages}
-                dataVersion={dataVersion}
-                renderItem={renderMessage}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={{
-                  padding: 16,
-                  paddingBottom: 8,
-                }}
-                keyboardDismissMode="interactive"
-                automaticallyAdjustsScrollIndicatorInsets={false}
-                maintainVisibleContentPosition={{ data: true, size: true }}
-                estimatedItemSize={80}
-                getEstimatedItemSize={(message) =>
-                  message.role === "assistant" ? 220 : 108
-                }
-                drawDistance={600}
-                onStartReached={
-                  onLoadOlder && hasOlderMessages && !isLoadingOlder
-                    ? () => onLoadOlder(30)
-                    : undefined
-                }
-                onStartReachedThreshold={0.15}
-                onLayout={onScrollViewLayout}
-                onScroll={onScroll}
-                scrollEventThrottle={16}
-                onContentSizeChange={onContentSizeChange}
-                contentInset={{ top: topPadding, left: 0, right: 0, bottom: 0 }}
-                scrollIndicatorInsets={{ top: 0, left: 0, right: 0, bottom: 0 }}
-                ListEmptyComponent={emptyState}
-                ListHeaderComponent={
-                  hasOlderMessages ? (
-                    <View className="items-center pb-3">
-                      <View className="rounded-full border border-border/70 bg-background/90 px-3 py-1">
-                        <Text className="text-xs text-muted-foreground">
-                          {isLoadingOlder
-                            ? "Loading older messages..."
-                            : "Scroll up to load older messages"}
-                        </Text>
-                      </View>
-                    </View>
-                  ) : null
-                }
-                ListFooterComponent={<Animated.View style={footerSpacerStyle} />}
-              />
-            </View>
-          )}
+                  </View>
+                ) : null
+              }
+            />
+          </View>
 
           {children}
         </View>
@@ -355,24 +313,56 @@ export function Conversation({
 
 
 export function ConversationScrollButton() {
+  const { messages } = useChatContext();
   const { scrollToBottom, scrollButtonStyle } = useConversationContext();
+
+  if (messages.length < 3) {
+    return null;
+  }
+
+  const scrollButton = IS_ANDROID ? (
+    <Pressable
+      onPress={scrollToBottom}
+      hitSlop={8}
+      accessibilityLabel="Scroll to bottom"
+      style={{
+        width: SCROLL_TO_BOTTOM_BUTTON_SIZE,
+        height: SCROLL_TO_BOTTOM_BUTTON_SIZE,
+        borderRadius: SCROLL_TO_BOTTOM_BUTTON_SIZE / 2,
+        borderCurve: "continuous",
+        justifyContent: "center",
+        alignItems: "center",
+      }}
+      className="border border-border/70 bg-card shadow-card"
+    >
+      <SymbolImage
+        name="chevron.down"
+        size={18}
+        tintColorClassName="accent-muted-foreground"
+      />
+    </Pressable>
+  ) : (
+    <TouchableGlass
+      onPress={scrollToBottom}
+      hitSlop={8}
+      accessibilityLabel="Scroll to bottom"
+      className="w-10 h-10 rounded-full justify-center items-center"
+    >
+      <SymbolImage
+        name="chevron.down"
+        sfEffect={{ effect: "wiggle", repeat: -1 }}
+        tintColorClassName="accent-muted-foreground"
+        className="mt-1"
+      />
+    </TouchableGlass>
+  );
 
   return (
     <Animated.View
       pointerEvents="box-none"
       style={[{ position: "absolute", right: 16 }, scrollButtonStyle]}
     >
-      <TouchableGlass
-        onPress={scrollToBottom}
-        hitSlop={8}
-        className="w-10 h-10 rounded-full justify-center items-center"
-      >
-        <SymbolImage
-          name="chevron.down"
-          sfEffect={{effect: "wiggle", repeat: -1, }}
-          className="text-muted-foreground dark:text-muted-foreground text-xs mt-1"
-        />
-      </TouchableGlass>
+      {scrollButton}
     </Animated.View>
   );
 }
