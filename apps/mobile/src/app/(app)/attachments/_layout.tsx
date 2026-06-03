@@ -13,10 +13,10 @@ export default function AttachmentsLayout() {
     <Stack
       screenOptions={{
         headerTintColor: appForeground,
-        headerTransparent: GLASS,
-        headerBackButtonDisplayMode: GLASS ? "minimal" : "default",
+        headerBackButtonDisplayMode: "default",
         headerShadowVisible: IS_ANDROID ? false : undefined,
-        headerStyle: IS_ANDROID
+        headerStyle:
+          IS_ANDROID || !GLASS
           ? {
               backgroundColor: appBackground,
             }

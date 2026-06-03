@@ -28,6 +28,7 @@
     "@openrouter/ai-sdk-provider": "^2.9.0",
     "ai": "^6.0.39",
     "convex": "^1.35.1",
+    "convex-helpers": "^0.1.118",
     "svix": "^1.94.0",
     "ts-pattern": "^5.9.0",
     "zod": "^4.4.3"

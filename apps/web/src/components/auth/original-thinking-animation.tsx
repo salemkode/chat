@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useSyncExternalStore } from 'react'
 import { cn } from '@/lib/utils'
 
 const ANIMATION_CONFIG = {
@@ -34,25 +34,10 @@ export function OriginalThinkingAnimation({
   const groupRef = useRef<SVGGElement | null>(null)
   const pathRef = useRef<SVGPathElement | null>(null)
   const particleRefs = useRef<Array<SVGCircleElement | null>>([])
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(Boolean(reducedMotion))
+  const prefersReducedMotion = useReducedMotionPreference()
   const glowId = useId().replace(/:/g, '')
   const resolvedReducedMotion = reducedMotion ?? prefersReducedMotion
   const isMinimal = variant === 'minimal'
-
-  useEffect(() => {
-    if (typeof reducedMotion === 'boolean' || typeof window === 'undefined') {
-      return
-    }
-
-    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
-    const updatePreference = () => {
-      setPrefersReducedMotion(mediaQuery.matches)
-    }
-
-    updatePreference()
-    mediaQuery.addEventListener('change', updatePreference)
-    return () => mediaQuery.removeEventListener('change', updatePreference)
-  }, [reducedMotion])
 
   useEffect(() => {
     const group = groupRef.current
@@ -187,6 +172,36 @@ export function OriginalThinkingAnimation({
       </svg>
     </div>
   )
+}
+
+function useReducedMotionPreference() {
+  return useSyncExternalStore(
+    subscribeToReducedMotionPreference,
+    getReducedMotionPreference,
+    getServerReducedMotionPreference,
+  )
+}
+
+function subscribeToReducedMotionPreference(callback: () => void) {
+  if (typeof window === 'undefined') {
+    return () => {}
+  }
+
+  const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+  mediaQuery.addEventListener('change', callback)
+  return () => mediaQuery.removeEventListener('change', callback)
+}
+
+function getReducedMotionPreference() {
+  if (typeof window === 'undefined') {
+    return false
+  }
+
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
+function getServerReducedMotionPreference() {
+  return false
 }
 
 function getPoint(progress: number, detailScale: number): CurvePoint {

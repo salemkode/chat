@@ -68,7 +68,11 @@ type AdminOffersPanelProps = Pick<AdminOutletContext, 'dashboard'>
 
 export function AdminOffersPanel({ dashboard }: AdminOffersPanelProps) {
   const models = dashboard.models
-  const offersQuery = usePaginatedQuery(api.admin.listModelOffers, {}, { initialNumItems: 50 })
+  const offersQuery = usePaginatedQuery(
+    api.admin.listModelOffers,
+    {},
+    { initialNumItems: 50, customPagination: true },
+  )
   const offers = offersQuery.results ?? []
 
   const createOffer = useMutation(api.admin.createModelOffer)

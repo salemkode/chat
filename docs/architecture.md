@@ -147,9 +147,9 @@ The web app is currently the richer admin surface:
 
 Streaming markdown rendering on web:
 
-- chat markdown is rendered with `streamdown` in `apps/web/src/components/chat-markdown.tsx`
-- code and mermaid support are enabled through `@streamdown/code` and `@streamdown/mermaid`
-- assistant replies and live reasoning use the same hybrid streaming path: committed markdown blocks render append-only through `Streamdown`, while the current unfinished block stays in a lightweight plain-text tail until it closes
+- chat markdown is rendered with `react-markdown` in `apps/web/src/components/chat-markdown.tsx`
+- fenced code is highlighted with Shiki, includes per-block copy controls, and mermaid fences render through the chat mermaid viewer once streaming finishes
+- assistant replies and live reasoning use the same hybrid streaming path: committed markdown blocks render append-only, while the current unfinished block stays in a lightweight plain-text tail until it closes
 - web block commits are token-aware: paragraphs commit when a blank line or a new block starts after them, fenced code commits when the closing fence arrives, and active lists / tables / blockquotes stay in the tail until they are clearly closed
 - `ChatMessageList` keeps `dataVersion` structural so per-token stream text does not force full-list remeasurement
 
@@ -208,7 +208,8 @@ Mobile:
 Web:
 
 - `@clerk/react-router`
-- custom auth token wiring inside `convex-client-provider.tsx`
+- custom `/login` and `/signup` pages built with Clerk hooks
+- `ConvexProviderWithClerk` inside `convex-client-provider.tsx`
 
 Backend:
 
@@ -260,10 +261,10 @@ This gives the mobile client:
 
 Mobile streaming markdown:
 
-- assistant responses render through the native message text component while streaming
+- assistant responses render through the custom mobile Markdown AST renderer while streaming
+- fenced code blocks use the shared mobile code-block renderer with syntax highlighting, language labels, horizontal scrolling, and per-block copy controls
 - Expo source config keeps New Architecture enabled in `apps/mobile/app.json`, matching the generated native mobile projects used by Reanimated 4
 - Reanimated uses the default `babel-preset-expo` setup in `apps/mobile/babel.config.js`
-- streaming markdown repair runs on the RN JS thread before native text rendering; it does not call `remend` from a worklet/runtime thread
 
 ### Web
 
@@ -294,10 +295,13 @@ Generation path:
 4. backend creates the language model client for the provider and calls AI SDK `streamText`
 5. UI-message chunks are stored in `chatStreamDeltas`, then the assistant row is finalized atomically when the stream completes
 6. a backend watchdog checks stream heartbeats and marks stalled generations failed after the no-progress window, which lets clients expose Stop/Resend recovery instead of leaving an infinite pending state
-7. post-processing may store search embeddings, trigger memory extraction, or run related bookkeeping
+7. if the request used Auto routing, the stream reports success/failure, latency, and token usage back to the router event
+8. post-processing may store search embeddings, trigger memory extraction, or run related bookkeeping
 
 This design lets admin configuration change model availability without redeploying clients.
 Admin provider inspection can also run before a provider is saved: once an admin selects discovered models, the import action first creates the provider from the current form and then imports the selected model records against the new provider.
+
+Web Auto routing uses the Python `router-agent` when admin settings provide a router URL and API key. Successful Python decisions are mirrored into `routerEvents` with the same decision id used by generation, so the normal outcome reporter can update routing history and model success-rate signals after the stream finishes.
 
 Provider credentials are resolved per request in this order:
 

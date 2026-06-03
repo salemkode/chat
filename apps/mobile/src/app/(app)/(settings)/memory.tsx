@@ -1,6 +1,6 @@
 import { useChatProjects, useChatThreads } from '@chat/chat-core'
 import { api } from '@convex/_generated/api'
-import { TextInput, useNativeState } from '@expo/ui'
+import { Host, TextInput, useNativeState } from '@expo/ui'
 import { usePaginatedQuery, useQuery } from 'convex/react'
 import { useMemo, useState } from 'react'
 import { SettingsPage, SettingsSection } from '@/components/settings/settings-shell'
@@ -273,14 +273,9 @@ export default function MemorySettingsScreen() {
               </View>
 
               <View className="mt-4">
-                <TextInput
-                  value={searchText}
-                  onChangeText={setSearchValue}
-                  placeholder="Search memories..."
-                  placeholderTextColor={mutedForeground}
-                  cursorColor={foreground}
-                  selectionColor={foreground}
+                <Host
                   style={{
+                    width: '100%',
                     borderRadius: 20,
                     borderWidth: 1,
                     borderColor: border,
@@ -288,11 +283,20 @@ export default function MemorySettingsScreen() {
                     paddingHorizontal: 16,
                     paddingVertical: 12,
                   }}
-                  textStyle={{
-                    color: foreground,
-                    fontSize: 15,
-                  }}
-                />
+                >
+                  <TextInput
+                    value={searchText}
+                    onChangeText={setSearchValue}
+                    placeholder="Search memories..."
+                    placeholderTextColor={mutedForeground}
+                    cursorColor={foreground}
+                    selectionColor={foreground}
+                    textStyle={{
+                      color: foreground,
+                      fontSize: 15,
+                    }}
+                  />
+                </Host>
               </View>
             </View>
           </>

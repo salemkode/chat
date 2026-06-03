@@ -86,7 +86,7 @@ flowchart LR
     F --> G
 ```
 
-This feedback loop is still modest, but it matters. It means the router is built to observe and adapt rather than remain a write-only heuristic block.
+This feedback loop is still modest, but it matters. Web generation now reports Auto-routed stream outcomes after completion or failure, including latency and token counts when the provider reports usage. Python `router-agent` decisions are mirrored into `routerEvents` with the same decision id stored on the generation request, so the same `reportOutcome` path can update routing history and `historicalSuccessRate` for Python Auto as well as Convex-native routing. This means the router is built to observe and adapt rather than remain a write-only heuristic block.
 
 ## Model Studio
 
@@ -122,7 +122,7 @@ That last point is especially relevant for research framing. A routing system is
 - The current router is heuristic and admin-informed, not a fully learned policy.
 - Good routing depends on maintaining accurate profiles, latency data, and pricing metadata. Model Studio can sync **Cost to Run Artificial Analysis Intelligence Index** from [Artificial Analysis](https://artificialanalysis.ai/) into `modelSelectionProfiles`, which Convex then normalizes into the Python router `price` signal.
 - Automatic task inference can misread ambiguous prompts.
-- The standalone `services/router-agent` exists in the repo, but the primary routing story for this research set is the Convex-native selection path.
+- The standalone `services/router-agent` is supported by the web Auto path, but the persisted feedback loop still lives in Convex. Python decisions are normalized into Convex router events before generation outcomes are reported.
 
 ## Implementation Anchors
 

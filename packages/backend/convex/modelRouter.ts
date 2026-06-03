@@ -16,6 +16,24 @@ const autoModelRouterPreferenceValidator = v.union(
   v.literal('quality'),
 )
 
+const autoModelTaskTypeValidator = v.union(
+  v.literal('chat'),
+  v.literal('coding'),
+  v.literal('analysis'),
+  v.literal('rewrite'),
+  v.literal('qa'),
+)
+
+const autoModelScoreBreakdownValidator = v.object({
+  qualityFit: v.number(),
+  costFit: v.number(),
+  speedFit: v.number(),
+  toolFit: v.number(),
+  contextFit: v.number(),
+  riskPenalty: v.number(),
+  totalScore: v.number(),
+})
+
 function clamp01(value: number) {
   return Math.min(1, Math.max(0, value))
 }
@@ -67,6 +85,23 @@ function normalizeTaskScores(
 function normalizeRequestPreview(prompt: string) {
   const normalized = prompt.replace(/\s+/g, ' ').trim()
   return normalized.slice(0, 280)
+}
+
+function normalizeAutoTaskType(prompt: string): 'chat' | 'coding' | 'analysis' | 'rewrite' | 'qa' {
+  const normalized = prompt.toLowerCase()
+  if (/\b(code|debug|refactor|typescript|python|sql)\b/.test(normalized)) {
+    return 'coding'
+  }
+  if (/\b(analy[sz]e|compare|tradeoff|design|architecture)\b/.test(normalized)) {
+    return 'analysis'
+  }
+  if (/\b(rewrite|paraphrase|edit|proofread)\b/.test(normalized)) {
+    return 'rewrite'
+  }
+  if (/\b(question|q:|answer)\b/.test(normalized)) {
+    return 'qa'
+  }
+  return 'chat'
 }
 
 function normalizeAttachmentValidationStatus(
@@ -309,11 +344,66 @@ export const recordAutoModelDecision = internalMutation({
     status: v.union(v.literal('success'), v.literal('failed')),
     error: v.optional(v.string()),
     latencyMs: v.optional(v.number()),
+    candidateModelIds: v.optional(v.array(v.id('models'))),
+    taskType: v.optional(autoModelTaskTypeValidator),
+    estimatedInputTokens: v.optional(v.number()),
+    estimatedOutputTokens: v.optional(v.number()),
+    scoreBreakdown: v.optional(autoModelScoreBreakdownValidator),
     createdAt: v.number(),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.insert('autoModelDecisions', args)
+    await ctx.db.insert('autoModelDecisions', {
+      decisionId: args.decisionId,
+      userId: args.userId,
+      threadId: args.threadId,
+      selectedModelId: args.selectedModelId,
+      selectedModelKey: args.selectedModelKey,
+      selectedModelName: args.selectedModelName,
+      selectedProviderId: args.selectedProviderId,
+      selectedProviderName: args.selectedProviderName,
+      routerUrl: args.routerUrl,
+      routerPreference: args.routerPreference,
+      requestPreview: args.requestPreview,
+      requestChars: args.requestChars,
+      searchEnabled: args.searchEnabled,
+      reasoningEnabled: args.reasoningEnabled,
+      status: args.status,
+      error: args.error,
+      latencyMs: args.latencyMs,
+      createdAt: args.createdAt,
+    })
+    if (
+      args.status === 'success' &&
+      args.selectedModelId &&
+      args.selectedProviderId &&
+      args.candidateModelIds &&
+      args.taskType &&
+      args.estimatedInputTokens !== undefined &&
+      args.estimatedOutputTokens !== undefined &&
+      args.scoreBreakdown
+    ) {
+      const user = args.userId ? await ctx.db.get(args.userId) : null
+      await ctx.db.insert('routerEvents', {
+        decisionId: args.decisionId,
+        userId: args.userId,
+        threadId: args.threadId,
+        tier: user?.appPlan ?? 'free',
+        taskType: args.taskType,
+        complexityScore: clamp01(args.estimatedInputTokens / 8000),
+        requiresTools: args.searchEnabled,
+        requiresReasoning: args.reasoningEnabled,
+        selectedModelId: args.selectedModelId,
+        selectedProviderId: args.selectedProviderId,
+        candidateModelIds: args.candidateModelIds,
+        fallbackModelIds: [],
+        estimatedInputTokens: args.estimatedInputTokens,
+        estimatedOutputTokens: args.estimatedOutputTokens,
+        scoreBreakdown: args.scoreBreakdown,
+        createdAt: args.createdAt,
+        updatedAt: args.createdAt,
+      })
+    }
     return null
   },
 })
@@ -466,6 +556,27 @@ export const selectAutoModel = action({
         throw new Error('Python router returned a model that is not in the active catalog')
       }
 
+      const estimatedInputTokens = Math.max(64, Math.ceil(args.prompt.length / 4))
+      const estimatedOutputTokens = 500
+      const contextFit = selectedModel.contextWindow
+        ? clamp01(selectedModel.contextWindow / Math.max(estimatedInputTokens, 1))
+        : 0.7
+      const scoreBreakdown = {
+        qualityFit: selectedModel.intelligence,
+        costFit: clamp01(1 - selectedModel.price),
+        speedFit: selectedModel.speed,
+        toolFit: args.searchEnabled === true ? (selectedModel.supportsTools ? 1 : 0) : 1,
+        contextFit,
+        riskPenalty: 0.1,
+        totalScore: clamp01(
+          selectedModel.intelligence * 0.4 +
+            clamp01(1 - selectedModel.price) * 0.2 +
+            selectedModel.speed * 0.2 +
+            contextFit * 0.1 -
+            0.1 * 0.1,
+        ),
+      }
+
       await ctx.runMutation(internal.modelRouter.recordAutoModelDecision, {
         decisionId,
         userId: userId ?? undefined,
@@ -483,6 +594,11 @@ export const selectAutoModel = action({
         reasoningEnabled: args.reasoningEnabled === true,
         status: 'success',
         latencyMs: Date.now() - startedAt,
+        candidateModelIds: eligibleModels.map((model) => model.id),
+        taskType: normalizeAutoTaskType(args.prompt),
+        estimatedInputTokens,
+        estimatedOutputTokens,
+        scoreBreakdown,
         createdAt,
       })
 

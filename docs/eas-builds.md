@@ -20,6 +20,7 @@ This app is now on Expo SDK 56, which means native iOS builds require Xcode `26.
 - `apps/mobile/eas.json` maps `development`, `preview`, and `production` to matching EAS environments
 - `.easignore` trims unrelated web/docs/server workspaces from the mobile upload so EAS does not install their deploy-only dependencies
 - The `monorepo` profile pins pnpm `10.6.5` with Corepack for cloud builds
+- Android release APKs now default to R8 minification, resource shrinking, PNG crunching, and compressed native library packaging to keep internal distribution artifacts smaller
 - Do not keep a nested `.git` directory under `apps/mobile`; EAS treats that as the repo root, misses `pnpm-lock.yaml`, and falls back to Yarn (the `yarn@pnpm@…` install error)
 
 ## Environment variables

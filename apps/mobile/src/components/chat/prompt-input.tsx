@@ -5,6 +5,7 @@ import {
   AnimatedThemedGlassContainer,
   ThemedGlassView,
 } from "@/components/themed-glass";
+import { SafeAreaView } from "@/components/tw";
 import { useEffect, useRef, type ReactNode } from "react";
 import { ActivityIndicator, Platform, Pressable, TextInput, View } from "react-native";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
@@ -25,9 +26,8 @@ import {
 const IS_ANDROID = Platform.OS === "android";
 
 /**
- * Root container for the message composer. Positions itself at the bottom of
- * the `<Conversation />` using the shared conversation context. Children are
- * laid out in a horizontal row inside a glass container.
+ * Root container for the message composer. It renders as the bottom footer in
+ * `<Conversation />` so the message list cannot scroll underneath it.
  */
 export function PromptInput({ children }: { children: ReactNode }) {
   const { promptInputStyle, onPromptInputLayout } = useConversationContext();
@@ -49,59 +49,58 @@ export function PromptInput({ children }: { children: ReactNode }) {
   } = useComposerProject();
 
   return (
-    <Animated.View
-      onLayout={onPromptInputLayout}
-      style={[{ position: "absolute", left: 0, right: 0 }, promptInputStyle]}
-    >
-      {error ? (
-        <Animated.View entering={FadeIn.duration(200)} className="px-3 pb-2">
-          <ChatInlineError variant="composer" message={error.message} />
-        </Animated.View>
-      ) : null}
-      <View className="relative px-3">
-        <AttachmentChipList />
-        {projectMention ? (
-          <ProjectMentionPopup
-            mentionOptions={mentionOptions}
-            highlightedIndex={highlightedMentionIndex}
-            onSelect={handleMentionSelect}
-            onDismiss={dismissProjectMention}
-          />
+    <SafeAreaView edges={["bottom"]} mode="padding">
+      <Animated.View onLayout={onPromptInputLayout} style={promptInputStyle}>
+        {error ? (
+          <Animated.View entering={FadeIn.duration(200)} className="px-3 pb-2">
+            <ChatInlineError variant="composer" message={error.message} />
+          </Animated.View>
         ) : null}
-        <AnimatedThemedGlassContainer
-          style={{
-            flex: 1,
-            padding: COMPOSER_GLASS_PADDING,
-            gap: 10,
-          }}
-          spacing={8}
-        >
-          {pendingProjectDraft ? (
-            <PendingProjectDraftCard
-              draft={pendingProjectDraft}
-              name={pendingProjectName}
-              description={pendingProjectDescription}
-              creatingProject={creatingProject}
-              onNameChange={setPendingProjectName}
-              onDescriptionChange={setPendingProjectDescription}
-              onConfirm={() => {
-                void handleConfirmCreateProject();
-              }}
-              onCancel={handleCancelCreateProject}
+        <View className="relative px-3">
+          <AttachmentChipList />
+          {projectMention ? (
+            <ProjectMentionPopup
+              mentionOptions={mentionOptions}
+              highlightedIndex={highlightedMentionIndex}
+              onSelect={handleMentionSelect}
+              onDismiss={dismissProjectMention}
             />
           ) : null}
-          <View
+          <AnimatedThemedGlassContainer
             style={{
-              flexDirection: "row",
-              alignItems: "flex-end",
-              gap: COMPOSER_ROW_GAP,
+              flex: 1,
+              padding: COMPOSER_GLASS_PADDING,
+              gap: 10,
             }}
+            spacing={8}
           >
-            {children}
-          </View>
-        </AnimatedThemedGlassContainer>
-      </View>
-    </Animated.View>
+            {pendingProjectDraft ? (
+              <PendingProjectDraftCard
+                draft={pendingProjectDraft}
+                name={pendingProjectName}
+                description={pendingProjectDescription}
+                creatingProject={creatingProject}
+                onNameChange={setPendingProjectName}
+                onDescriptionChange={setPendingProjectDescription}
+                onConfirm={() => {
+                  void handleConfirmCreateProject();
+                }}
+                onCancel={handleCancelCreateProject}
+              />
+            ) : null}
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "flex-end",
+                gap: COMPOSER_ROW_GAP,
+              }}
+            >
+              {children}
+            </View>
+          </AnimatedThemedGlassContainer>
+        </View>
+      </Animated.View>
+    </SafeAreaView>
   );
 }
 

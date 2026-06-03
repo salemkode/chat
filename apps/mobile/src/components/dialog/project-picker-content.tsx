@@ -4,7 +4,6 @@ import { Icon } from "@/components/icon";
 import type { ProjectSummary } from "@chat/chat-core/types";
 import { LegendList } from "@legendapp/list/react-native";
 import { Check } from "lucide-react-native";
-import { useMemo } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -39,7 +38,7 @@ function ProjectRow({
     >
       <View className="w-5 items-center">
         {selected ? (
-          <Icon icon={Check} className="h-5 w-5 text-foreground" />
+          <Icon icon={Check} className="size-5 text-foreground" />
         ) : null}
       </View>
       <View className="min-w-0 flex-1">
@@ -56,6 +55,45 @@ function ProjectRow({
   );
 }
 
+function ProjectPickerListItem({
+  item,
+  selectedProjectId,
+  onSelectProject,
+}: {
+  item: ProjectPickerRow;
+  selectedProjectId: string | null;
+  onSelectProject: (projectId: string | null) => void;
+}) {
+  function selectNoProject() {
+    onSelectProject(null);
+  }
+
+  function selectProject() {
+    if (item.kind === "project") {
+      onSelectProject(item.project.id);
+    }
+  }
+
+  if (item.kind === "none") {
+    return (
+      <ProjectRow
+        label="None"
+        selected={selectedProjectId === null}
+        onPress={selectNoProject}
+      />
+    );
+  }
+
+  return (
+    <ProjectRow
+      label={item.project.name}
+      subtitle={item.project.description}
+      selected={selectedProjectId === item.project.id}
+      onPress={selectProject}
+    />
+  );
+}
+
 export function ProjectPickerContent({
   projects,
   selectedProjectId,
@@ -65,10 +103,20 @@ export function ProjectPickerContent({
   onLoadMore,
 }: ProjectPickerContentProps) {
   const insets = useSafeAreaInsets();
-  const rows = useMemo<ProjectPickerRow[]>(
-    () => [{ kind: "none" }, ...projects.map((project) => ({ kind: "project", project }) satisfies ProjectPickerRow)],
-    [projects],
-  );
+  const rows: ProjectPickerRow[] = [
+    { kind: "none" },
+    ...projects.map((project) => ({ kind: "project", project }) satisfies ProjectPickerRow),
+  ];
+
+  function renderProjectItem({ item }: { item: ProjectPickerRow }) {
+    return (
+      <ProjectPickerListItem
+        item={item}
+        selectedProjectId={selectedProjectId}
+        onSelectProject={onSelectProject}
+      />
+    );
+  }
 
   return (
     <LegendList
@@ -82,22 +130,7 @@ export function ProjectPickerContent({
       }}
       onEndReached={hasMore && !isLoadingMore ? onLoadMore : undefined}
       onEndReachedThreshold={0.35}
-      renderItem={({ item }) =>
-        item.kind === "none" ? (
-          <ProjectRow
-            label="None"
-            selected={selectedProjectId === null}
-            onPress={() => onSelectProject(null)}
-          />
-        ) : (
-          <ProjectRow
-            label={item.project.name}
-            subtitle={item.project.description}
-            selected={selectedProjectId === item.project.id}
-            onPress={() => onSelectProject(item.project.id)}
-          />
-        )
-      }
+      renderItem={renderProjectItem}
       ListHeaderComponent={<AndroidGrabber />}
       ListFooterComponent={
         <>

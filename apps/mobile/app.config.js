@@ -32,6 +32,17 @@ const expo = {
   plugins: [
     "expo-router",
     "expo-dev-client",
+    [
+      "expo-build-properties",
+      {
+        android: {
+          enableMinifyInReleaseBuilds: true,
+          enableShrinkResourcesInReleaseBuilds: true,
+          enablePngCrunchInReleaseBuilds: true,
+          useLegacyPackaging: true,
+        },
+      },
+    ],
     "@clerk/expo",
     [
       "expo-splash-screen",
@@ -39,7 +50,7 @@ const expo = {
         image: "./assets/images/splash-icon.png",
         imageWidth: 200,
         resizeMode: "contain",
-        backgroundColor: "#ffffff",
+        backgroundColor: "#160C2B",
       },
     ],
     "expo-asset",
@@ -57,7 +68,6 @@ const expo = {
     "expo-secure-store",
     "expo-web-browser",
     "expo-system-ui",
-    "expo-secure-store",
   ],
   experiments: {
     typedRoutes: true,

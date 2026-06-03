@@ -1,0 +1,3 @@
+display_name: Convex Query Streams
+short_description: Build paginated Convex stream queries
+default_prompt: Use Convex QueryStreams to build or refactor a paginated Convex query.

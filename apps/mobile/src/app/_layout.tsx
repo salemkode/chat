@@ -6,6 +6,10 @@ import { ThemedStatusBar } from "@/components/themed-status-bar";
 import { ThemePreferenceBootstrap } from "@/components/theme-preference-bootstrap";
 import { Stack } from "expo-router";
 import { KeyboardProvider } from "react-native-keyboard-controller";
+import {
+  initialWindowMetrics,
+  SafeAreaProvider,
+} from "react-native-safe-area-context";
 
 const CLERK_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
@@ -22,13 +26,15 @@ export default function RootLayout() {
     >
       <ConvexClientProvider>
         <ThemePreferenceBootstrap />
-        <KeyboardProvider>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(auth)" />
-            <Stack.Screen name="(app)" />
-          </Stack>
-          <ThemedStatusBar />
-        </KeyboardProvider>
+        <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+          <KeyboardProvider>
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="(auth)" />
+              <Stack.Screen name="(app)" />
+            </Stack>
+            <ThemedStatusBar />
+          </KeyboardProvider>
+        </SafeAreaProvider>
       </ConvexClientProvider>
     </ClerkProvider>
   );

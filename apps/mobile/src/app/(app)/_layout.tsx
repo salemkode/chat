@@ -18,6 +18,7 @@ import {
   ThemeProvider as RouterThemeProvider,
 } from "expo-router/react-navigation";
 import { useEffect } from "react";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useCSSVariable } from "uniwind";
 import { OfflineSessionSync } from "@/components/offline-session-sync";
 import { MobileChatCoreProvider } from "@/components/mobile-chat-core-provider";
@@ -47,9 +48,11 @@ export default function AppLayout() {
             <ChatComposerOptionsProvider>
               <ChatAttachmentsProvider>
                 <ComposerToastProvider>
-                  <DrawerProvider>
-                    <RootDrawer />
-                  </DrawerProvider>
+                  <SafeAreaProvider>
+                    <DrawerProvider>
+                      <RootDrawer />
+                    </DrawerProvider>
+                  </SafeAreaProvider>
                 </ComposerToastProvider>
               </ChatAttachmentsProvider>
             </ChatComposerOptionsProvider>
@@ -96,11 +99,14 @@ function StackLayout() {
   return (
     <Stack
       screenOptions={{
-        headerTransparent: GLASS,
-        headerBackButtonDisplayMode: GLASS ? "minimal" : "default",
+        headerBackButtonDisplayMode: "default",
         headerTintColor: appForeground,
         headerShadowVisible: IS_ANDROID ? false : undefined,
-        headerStyle: IS_ANDROID
+        contentStyle: {
+          backgroundColor: appBackground,
+        },
+        headerStyle:
+          IS_ANDROID || !GLASS
           ? {
               backgroundColor: appBackground,
             }
@@ -114,6 +120,8 @@ function StackLayout() {
           title: "Chat",
           animation: "none",
           gestureEnabled: false,
+          headerTransparent: GLASS,
+          headerBackButtonDisplayMode: GLASS ? "minimal" : "default",
         }}
       />
 
@@ -146,7 +154,6 @@ function StackLayout() {
           sheetAllowedDetents: "fitToContents",
           sheetCornerRadius: IS_ANDROID ? 28 : undefined,
           sheetGrabberVisible: true,
-          headerTransparent: GLASS,
           headerLargeTitleShadowVisible: false,
         }}
       />

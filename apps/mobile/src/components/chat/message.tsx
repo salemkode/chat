@@ -1,15 +1,12 @@
-import { StreamdownText } from "@0xbanky/react-native-streamdown";
-import * as WebBrowser from "expo-web-browser";
 import type { ReactNode } from "react";
 import { useCallback, useState } from "react";
-import { Linking, Platform, Pressable, Text, View } from "react-native";
+import { Platform, Pressable, Text, View } from "react-native";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
-import { isArabic } from "@/lib/is-arabic";
 import * as Clipboard from "expo-clipboard";
 import { Copy, Check, File } from "lucide-react-native";
 import { Icon } from "@/components/icon";
 import { Image } from "@/components/tw";
-import { useAssistantMarkdownStyle } from "@/hooks/use-assistant-markdown-style";
+import { ChatMarkdown } from "@/components/markdown";
 import { formatAttachmentKind } from "@/components/chat/attachment-types";
 import {
   getMessageFileParts,
@@ -77,7 +74,6 @@ export function Message({
 }
 
 export function MessageResponse({ children }: { children: string }) {
-  const { style: markdownStyle, themeKey } = useAssistantMarkdownStyle();
   const [copied, setCopied] = useState(false);
 
   const message = children || "...";
@@ -90,26 +86,7 @@ export function MessageResponse({ children }: { children: string }) {
 
   return (
     <View>
-      <StreamdownText
-        key={themeKey}
-        markdown={message}
-        flavor="github"
-        streamingAnimation={false}
-        containerStyle={{
-          writingDirection: isArabic(message) ? "rtl" : "ltr",
-        }}
-        markdownStyle={markdownStyle}
-        onLinkPress={({ url }) => {
-          if (Platform.OS === "web") {
-            Linking.openURL(url);
-          } else {
-            WebBrowser.openBrowserAsync(url, {
-              presentationStyle:
-                WebBrowser.WebBrowserPresentationStyle.AUTOMATIC,
-            });
-          }
-        }}
-      />
+      <ChatMarkdown>{message}</ChatMarkdown>
       <Pressable
         onPress={handleCopy}
         hitSlop={8}
@@ -143,7 +120,7 @@ function formatMessageFileMeta(part: MessageFilePart) {
 export function MessageAttachments({
   parts,
 }: {
-  parts?: Array<Record<string, unknown>>;
+  parts?: Record<string, unknown>[];
 }) {
   const fileParts = getMessageFileParts(parts ?? []);
 

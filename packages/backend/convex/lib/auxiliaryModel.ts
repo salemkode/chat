@@ -80,6 +80,7 @@ export async function listAccessibleAuxiliaryRankables(
   ctx: QueryCtx,
   userId: Id<'users'>,
 ): Promise<RankableModel[]> {
+  const nowMs = Date.now()
   const [models, providers, profiles, adminSettings, user, modelOffers] = await Promise.all([
     ctx.db
       .query('models')
@@ -95,7 +96,10 @@ export async function listAccessibleAuxiliaryRankables(
       .withIndex('by_key', (q) => q.eq('key', 'global'))
       .first(),
     ctx.db.get(userId),
-    ctx.db.query('modelOffers').collect(),
+    ctx.db
+      .query('modelOffers')
+      .withIndex('by_endsAt', (q) => q.gte('endsAt', nowMs))
+      .collect(),
   ])
 
   const effectiveAppPlan = await resolveEffectiveAppPlan(
@@ -106,8 +110,6 @@ export async function listAccessibleAuxiliaryRankables(
 
   const providerById = new Map(providers.map((provider) => [provider._id, provider]))
   const profileByModelId = new Map(profiles.map((profile) => [profile.modelId, profile]))
-  const nowMs = Date.now()
-
   const toolCapable = models.filter((model) => {
     const provider = providerById.get(model.providerId)
     if (!provider) {

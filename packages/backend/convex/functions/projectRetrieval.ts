@@ -246,6 +246,23 @@ export const searchProjectArtifactsForMention = query({
 
     const needle = args.query.trim().toLowerCase()
     const maxResults = Math.max(1, Math.min(args.maxResults ?? 8, 20))
+    if (!needle) {
+      const items = await ctx.db
+        .query('projectArtifacts')
+        .withIndex('by_project_updated', (q) => q.eq('projectId', args.projectId))
+        .order('desc')
+        .take(maxResults)
+
+      return items.map((item) => ({
+        id: item._id.toString(),
+        title: item.title,
+        kind: item.kind,
+        provider: item.provider,
+        subtitle: item.subtitle,
+        url: item.url,
+      }))
+    }
+
     const items = await ctx.db
       .query('projectArtifacts')
       .withIndex('by_project', (q) => q.eq('projectId', args.projectId))

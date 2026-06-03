@@ -6,7 +6,6 @@ import type { Model } from "@/components/model-context";
 import {
   AUTO_MODEL_ID,
   encodeAutoModelCollectionSelection,
-  isAutoModelSelection,
   useModel,
 } from "@/components/model-context";
 import { useModels } from "@/hooks/use-models";
@@ -14,24 +13,44 @@ import type { Id } from "@convex/_generated/dataModel";
 import { hasModelBrowserQueryFilters } from "@chat/shared";
 import { inferBrandIconName } from "@chat/shared/brand-icons";
 import { LegendList } from "@legendapp/list/react-native";
+import { Image } from "expo-image";
 import { Search, Sparkles, Star } from "lucide-react-native";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
-  Image,
   Pressable,
-  ScrollView,
   Text,
   TextInput,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useStableSafeAreaInsets } from "@/utils/use-stable-safe-area-insets";
 
 type ModelCategory = "all" | "favorites" | Id<"modelCollections">;
+
+type ModelCategoryRow = {
+  id: string;
+  label: string;
+  value: ModelCategory;
+};
+
+type OrderedModel = {
+  id: Id<"models">;
+  modelId: string;
+  label: string;
+  description?: string | null;
+  icon?: string;
+  iconType?: Model["iconType"];
+  iconUrl?: string;
+  providerType?: string | null;
+  sortOrder: number;
+  isFavorite: boolean;
+};
 
 type ModelPickerContentProps = {
   selectedModelKey: string | undefined;
   onSelectModelKey: (modelKey: string) => void;
 };
+
+const MODEL_PICKER_BOTTOM_SPACER = 44;
 
 function ModelRow({
   label,
@@ -90,11 +109,57 @@ function ModelRow({
   );
 }
 
+function ModelListItem({
+  item,
+  selectedModelKey,
+  onSelectModelKey,
+  setFavorite,
+}: {
+  item: OrderedModel;
+  selectedModelKey: string | undefined;
+  onSelectModelKey: (modelKey: string) => void;
+  setFavorite: (modelId: Id<"models">, isFavorite: boolean) => Promise<void>;
+}) {
+  function selectModel() {
+    onSelectModelKey(item.modelId);
+  }
+
+  function toggleFavorite() {
+    void setFavorite(item.id, !item.isFavorite);
+  }
+
+  return (
+    <ModelRow
+      label={item.label}
+      icon={item.icon}
+      iconType={item.iconType}
+      iconUrl={item.iconUrl}
+      providerType={item.providerType}
+      modelId={item.modelId}
+      selected={item.modelId === selectedModelKey}
+      onPress={selectModel}
+      trailing={
+        <Pressable
+          onPress={toggleFavorite}
+          hitSlop={8}
+          accessibilityLabel={item.isFavorite ? "Remove favorite" : "Favorite model"}
+        >
+          <Star
+            size={16}
+            color={item.isFavorite ? "#fbbf24" : "#888"}
+            fill={item.isFavorite ? "#fbbf24" : "transparent"}
+          />
+        </Pressable>
+      }
+    />
+  );
+}
+
 export function ModelPickerContent({
   selectedModelKey,
   onSelectModelKey,
 }: ModelPickerContentProps) {
-  const insets = useSafeAreaInsets();
+  const insets = useStableSafeAreaInsets();
   const [activeCategory, setActiveCategory] = useState<ModelCategory>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -133,63 +198,52 @@ export function ModelPickerContent({
     : catalogIsLoadingMore;
   const loadMore = hasFilters ? filteredCatalog.loadMore : catalogLoadMore;
 
-  const sortedCollections = useMemo(
-    () =>
-      [...collections].sort(
-        (left, right) =>
-          left.sortOrder - right.sortOrder || left.name.localeCompare(right.name),
-      ),
-    [collections],
+  const sortedCollections = [...collections].sort(
+    (left, right) =>
+      left.sortOrder - right.sortOrder || left.name.localeCompare(right.name),
   );
 
-  const activeCollection = useMemo(
-    () =>
-      typeof activeCategory === "string" &&
-      activeCategory !== "all" &&
-      activeCategory !== "favorites"
-        ? sortedCollections.find((collection) => collection.id === activeCategory)
-        : undefined,
-    [activeCategory, sortedCollections],
-  );
+  const activeCollection =
+    typeof activeCategory === "string" &&
+    activeCategory !== "all" &&
+    activeCategory !== "favorites"
+      ? sortedCollections.find((collection) => collection.id === activeCategory)
+      : undefined;
 
-  const orderedModels = useMemo(() => {
-    const collectionOrder = activeCollection
-      ? new Map(
-          activeCollection.modelIds.map((modelId, index) => [modelId, index]),
-        )
-      : null;
+  const collectionOrder = activeCollection
+    ? new Map(activeCollection.modelIds.map((modelId, index) => [modelId, index]))
+    : null;
 
-    return [...models]
-      .map((model) => ({
-        id: model._id,
-        modelId: model.modelId,
-        label: model.displayName,
-        description: model.description,
-        icon: model.icon || model.provider?.icon,
-        iconType: model.iconType || model.provider?.iconType,
-        iconUrl: model.iconUrl || model.provider?.iconUrl,
-        providerType: model.provider?.providerType ?? null,
-        sortOrder: model.sortOrder,
-        isFavorite: model.isFavorite,
-      }))
-      .sort((left, right) => {
-        const leftCollectionOrder = collectionOrder?.get(left.id);
-        const rightCollectionOrder = collectionOrder?.get(right.id);
-        if (
-          leftCollectionOrder !== undefined &&
-          rightCollectionOrder !== undefined
-        ) {
-          return leftCollectionOrder - rightCollectionOrder;
-        }
-        if (left.isFavorite !== right.isFavorite) {
-          return left.isFavorite ? -1 : 1;
-        }
-        if (left.sortOrder !== right.sortOrder) {
-          return left.sortOrder - right.sortOrder;
-        }
-        return left.label.localeCompare(right.label);
-      });
-  }, [activeCollection, models]);
+  const orderedModels: OrderedModel[] = [...models]
+    .map((model) => ({
+      id: model._id,
+      modelId: model.modelId,
+      label: model.displayName,
+      description: model.description,
+      icon: model.icon || model.provider?.icon,
+      iconType: model.iconType || model.provider?.iconType,
+      iconUrl: model.iconUrl || model.provider?.iconUrl,
+      providerType: model.provider?.providerType ?? null,
+      sortOrder: model.sortOrder,
+      isFavorite: model.isFavorite,
+    }))
+    .sort((left, right) => {
+      const leftCollectionOrder = collectionOrder?.get(left.id);
+      const rightCollectionOrder = collectionOrder?.get(right.id);
+      if (
+        leftCollectionOrder !== undefined &&
+        rightCollectionOrder !== undefined
+      ) {
+        return leftCollectionOrder - rightCollectionOrder;
+      }
+      if (left.isFavorite !== right.isFavorite) {
+        return left.isFavorite ? -1 : 1;
+      }
+      if (left.sortOrder !== right.sortOrder) {
+        return left.sortOrder - right.sortOrder;
+      }
+      return left.label.localeCompare(right.label);
+    });
 
   const autoAllSelected = selectedModelKey === AUTO_MODEL_ID;
   const autoCollectionSelected = activeCollection
@@ -200,6 +254,37 @@ export function ModelPickerContent({
     activeCategory === "favorites"
       ? "Favorites"
       : activeCollection?.name ?? "All models";
+
+  const categoryRows: ModelCategoryRow[] = [
+    { id: "all", label: "All", value: "all" },
+    { id: "favorites", label: "Favorites", value: "favorites" },
+    ...sortedCollections.map((collection) => ({
+      id: collection.id,
+      label: collection.name,
+      value: collection.id,
+    })),
+  ];
+
+  function renderModelItem({ item }: { item: OrderedModel }) {
+    return (
+      <ModelListItem
+        item={item}
+        selectedModelKey={selectedModelKey}
+        onSelectModelKey={onSelectModelKey}
+        setFavorite={setFavorite}
+      />
+    );
+  }
+
+  function renderCategoryItem({ item }: { item: ModelCategoryRow }) {
+    return (
+      <CategoryPill
+        label={item.label}
+        active={activeCategory === item.value}
+        onPress={() => setActiveCategory(item.value)}
+      />
+    );
+  }
 
   return (
     <LegendList
@@ -214,33 +299,7 @@ export function ModelPickerContent({
       }}
       onEndReached={hasMore && !isLoadingMore ? () => loadMore(60) : undefined}
       onEndReachedThreshold={0.35}
-      renderItem={({ item }) => (
-        <ModelRow
-          label={item.label}
-          icon={item.icon}
-          iconType={item.iconType}
-          iconUrl={item.iconUrl}
-          providerType={item.providerType}
-          modelId={item.modelId}
-          selected={item.modelId === selectedModelKey}
-          onPress={() => onSelectModelKey(item.modelId)}
-          trailing={
-            <Pressable
-              onPress={() => void setFavorite(item.id, !item.isFavorite)}
-              hitSlop={8}
-              accessibilityLabel={
-                item.isFavorite ? "Remove favorite" : "Favorite model"
-              }
-            >
-              <Star
-                size={16}
-                color={item.isFavorite ? "#fbbf24" : "#888"}
-                fill={item.isFavorite ? "#fbbf24" : "transparent"}
-              />
-            </Pressable>
-          }
-        />
-      )}
+      renderItem={renderModelItem}
       ListHeaderComponent={
         <>
           <AndroidGrabber />
@@ -270,35 +329,21 @@ export function ModelPickerContent({
             </Text>
           </View>
 
-          <ScrollView
+          <LegendList
             horizontal
             showsHorizontalScrollIndicator={false}
+            data={categoryRows}
+            keyExtractor={(item) => item.id}
+            estimatedItemSize={96}
+            renderItem={renderCategoryItem}
+            style={{ height: 44 }}
             contentContainerStyle={{
               paddingHorizontal: 16,
               paddingTop: 12,
               paddingBottom: 4,
               gap: 8,
             }}
-          >
-            <CategoryPill
-              label="All"
-              active={activeCategory === "all"}
-              onPress={() => setActiveCategory("all")}
-            />
-            <CategoryPill
-              label="Favorites"
-              active={activeCategory === "favorites"}
-              onPress={() => setActiveCategory("favorites")}
-            />
-            {sortedCollections.map((collection) => (
-              <CategoryPill
-                key={collection.id}
-                label={collection.name}
-                active={activeCategory === collection.id}
-                onPress={() => setActiveCategory(collection.id)}
-              />
-            ))}
-          </ScrollView>
+          />
 
           {autoModelAvailable ? (
             <View className="px-1 pt-2">
@@ -336,10 +381,18 @@ export function ModelPickerContent({
         </Text>
       }
       ListFooterComponent={
-        <InfiniteScrollFooter
-          isLoadingMore={isLoadingMore}
-          label="Loading more models..."
-        />
+        <>
+          <InfiniteScrollFooter
+            isLoadingMore={isLoadingMore}
+            label="Loading more models..."
+          />
+          <View
+            pointerEvents="none"
+            style={{
+              height: Math.max(insets.bottom, MODEL_PICKER_BOTTOM_SPACER),
+            }}
+          />
+        </>
       }
     />
   );

@@ -1,4 +1,4 @@
-import { components, internal } from './_generated/api'
+import { api, components, internal } from './_generated/api'
 import { Agent, saveMessage, getFile } from '@convex-dev/agent'
 import type { FilePart, ImagePart, TextPart } from 'ai'
 import { createOpenRouter } from '@openrouter/ai-sdk-provider'
@@ -39,7 +39,6 @@ import { isModelUsableForPlan } from './lib/appPlan'
 import { resolveEffectiveAppPlan } from './lib/billing'
 import { getModelOfferAccessFlags } from './lib/modelOffersAccess'
 import { canViewProject, getProjectRole, requireProjectRole } from './lib/projectAccess'
-import { paginateResults } from './lib/pagination'
 import {
   evaluateToolPolicy,
   finalizeToolPolicyEvaluation,
@@ -89,6 +88,40 @@ const THREAD_TITLE_MAX_LENGTH = 60
 export const GENERATION_STOPPED_BY_USER = 'GENERATION_STOPPED_BY_USER'
 const GENERATION_FAILED_FALLBACK_MESSAGE = 'The model could not complete this response.'
 const GENERATION_REPLACED_BY_RESEND = 'Regenerating response.'
+
+async function reportRouterOutcome(
+  ctx: ActionCtx,
+  args: {
+    decisionId?: string
+    finalModelId: Id<'models'>
+    finalSuccess: boolean
+    validationPassed?: boolean
+    latencyMs?: number
+    promptTokens?: number
+    completionTokens?: number
+    totalTokens?: number
+  },
+) {
+  if (!args.decisionId) {
+    return
+  }
+
+  try {
+    await ctx.runMutation(api.modelSelection.reportOutcome, {
+      decisionId: args.decisionId,
+      finalModelId: args.finalModelId,
+      fallbackUsed: false,
+      finalSuccess: args.finalSuccess,
+      validationPassed: args.validationPassed,
+      latencyMs: args.latencyMs,
+      promptTokens: args.promptTokens,
+      completionTokens: args.completionTokens,
+      totalTokens: args.totalTokens,
+    })
+  } catch (error) {
+    console.error('Failed to report router outcome:', error)
+  }
+}
 const reasoningLevelValidator = v.union(v.literal('low'), v.literal('medium'), v.literal('high'))
 const reasoningConfigValidator = v.object({
   enabled: v.boolean(),
@@ -1066,7 +1099,10 @@ async function resolveGenerationDependencies(
   }
 
   const nowMs = Date.now()
-  const modelOffers = await ctx.db.query('modelOffers').collect()
+  const modelOffers = await ctx.db
+    .query('modelOffers')
+    .withIndex('by_modelId', (q) => q.eq('modelId', model._id))
+    .collect()
   const offerFlags = getModelOfferAccessFlags(model._id, modelOffers, nowMs)
   if (offerFlags.blocksAllAccess) {
     throw new ConvexError({
@@ -1462,6 +1498,10 @@ export const streamMessage = internalAction({
     routerDecisionId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const generationStartedAt = Date.now()
+    let promptTokens: number | undefined
+    let completionTokens: number | undefined
+    let totalTokens: number | undefined
     let toolPolicyEventId: Id<'toolPolicyEvents'> | null = null
     let policyAutomaticActions: ToolPolicyAutomaticAction[] = []
     let policyError: string | undefined
@@ -1989,6 +2029,9 @@ export const streamMessage = internalAction({
         {
           saveStreamDeltas: true,
           usageHandler: async (usageCtx, usageArgs) => {
+            promptTokens = usageArgs.usage.inputTokens ?? 0
+            completionTokens = usageArgs.usage.outputTokens ?? 0
+            totalTokens = usageArgs.usage.totalTokens ?? 0
             await usageCtx.runMutation(internal.admin.recordModelUsage, {
               userId: args.userId,
               threadId: args.threadId,
@@ -1998,9 +2041,9 @@ export const streamMessage = internalAction({
               providerName: args.providerName,
               modelName: args.modelName,
               routerDecisionId: args.routerDecisionId,
-              promptTokens: usageArgs.usage.inputTokens ?? 0,
-              completionTokens: usageArgs.usage.outputTokens ?? 0,
-              totalTokens: usageArgs.usage.totalTokens ?? 0,
+              promptTokens,
+              completionTokens,
+              totalTokens,
               createdAt: Date.now(),
             })
           },
@@ -2033,6 +2076,17 @@ export const streamMessage = internalAction({
         }
       }
 
+      await reportRouterOutcome(ctx, {
+        decisionId: args.routerDecisionId,
+        finalModelId: args.modelDocId,
+        finalSuccess: true,
+        validationPassed: finalizedPolicy.status !== 'failed',
+        latencyMs: Date.now() - generationStartedAt,
+        promptTokens,
+        completionTokens,
+        totalTokens,
+      })
+
       await ctx.scheduler.runAfter(0, internal.functions.memoryExtraction.extractMemoriesFromThread, {
         threadId: args.threadId,
         userId: args.userId,
@@ -2064,6 +2118,16 @@ export const streamMessage = internalAction({
           error: formattedError || GENERATION_FAILED_FALLBACK_MESSAGE,
         })
       }
+      await reportRouterOutcome(ctx, {
+        decisionId: args.routerDecisionId,
+        finalModelId: args.modelDocId,
+        finalSuccess: false,
+        validationPassed: false,
+        latencyMs: Date.now() - generationStartedAt,
+        promptTokens,
+        completionTokens,
+        totalTokens,
+      })
       return { success: false, error: formattedError }
     }
   },
@@ -2724,6 +2788,13 @@ async function listAllThreadsByUserId(ctx: Pick<QueryCtx, 'runQuery'>, userId: I
   return threads
 }
 
+function getPaginationWindow(args: { cursor?: string | null; numItems?: number }) {
+  const limit = Math.max(1, Math.min(args.numItems ?? 50, 200))
+  const offset = Number(args.cursor ?? '0')
+  const safeOffset = Number.isFinite(offset) && offset >= 0 ? offset : 0
+  return { limit, offset: safeOffset }
+}
+
 // List threads with metadata (grouped by section)
 export const listThreadsWithMetadata = query({
   args: {
@@ -2740,20 +2811,18 @@ export const listThreadsWithMetadata = query({
       return { page: [], isDone: true, continueCursor: '' }
     }
 
-    const [threads, metadata] = await Promise.all([
-      listAllThreadsByUserId(ctx, userId),
-      ctx.db
-        .query('threadMetadata')
-        .withIndex('by_userId_sortOrder_lastMessageAt', (q) => q.eq('userId', userId))
-        .order('desc')
-        .collect(),
-    ])
-
-    const threadsById = new Map(threads.map((thread) => [thread._id, thread]))
+    const { limit, offset } = getPaginationWindow(args.paginationOpts)
+    const metadata = await ctx.db
+      .query('threadMetadata')
+      .withIndex('by_userId_sortOrder_lastMessageAt', (q) => q.eq('userId', userId))
+      .order('desc')
+      .collect()
     const metadataByThreadId = new Map(metadata.map((item) => [item.threadId, item]))
+
+    const metadataPage = metadata.slice(offset, offset + limit)
     const projectIds = Array.from(
       new Set(
-        metadata
+        metadataPage
           .map((item) => item.projectId)
           .filter((projectId): projectId is Id<'projects'> => projectId !== undefined),
       ),
@@ -2767,58 +2836,98 @@ export const listThreadsWithMetadata = query({
 
     const orderedResults: Array<Infer<typeof threadListItemValidator>> = []
 
-    for (const itemMetadata of metadata) {
-      const thread = threadsById.get(itemMetadata.threadId)
-      if (!thread) {
-        continue
-      }
+    const metadataRows = await Promise.all(
+      metadataPage.map(async (itemMetadata) => {
+        const thread = await ctx.runQuery(components.agent.threads.getThread, {
+          threadId: itemMetadata.threadId,
+        })
+        if (!thread || thread.userId !== userId) {
+          return null
+        }
 
-      const project = itemMetadata.projectId
-        ? projectMap.get(itemMetadata.projectId.toString())
-        : null
-      const projectRole =
-        project && itemMetadata.projectId
-          ? await getProjectRole(ctx, itemMetadata.projectId, userId)
+        const project = itemMetadata.projectId
+          ? projectMap.get(itemMetadata.projectId.toString())
           : null
+        const projectRole =
+          project && itemMetadata.projectId
+            ? await getProjectRole(ctx, itemMetadata.projectId, userId)
+            : null
 
-      orderedResults.push({
-        _id: thread._id,
-        _creationTime: thread._creationTime,
-        lastMessageAt: itemMetadata.lastMessageAt ?? thread._creationTime,
-        title: thread.title,
-        userId: thread.userId,
-        metadata: itemMetadata,
-        project:
-          project && canViewProject(projectRole)
-            ? {
-                id: project._id.toString(),
-                name: project.name,
-                description: project.description,
-              }
-            : null,
-      })
+        const row: Infer<typeof threadListItemValidator> = {
+          _id: thread._id,
+          _creationTime: thread._creationTime,
+          lastMessageAt: itemMetadata.lastMessageAt ?? thread._creationTime,
+          metadata: itemMetadata,
+          project:
+            project && canViewProject(projectRole)
+              ? {
+                  id: project._id.toString(),
+                  name: project.name,
+                  description: project.description,
+                }
+              : null,
+        }
+        if (thread.title !== undefined) {
+          row.title = thread.title
+        }
+        if (thread.userId !== undefined) {
+          row.userId = thread.userId
+        }
+        return row
+      }),
+    )
+
+    for (const row of metadataRows) {
+      if (row !== null) {
+        orderedResults.push(row)
+      }
     }
 
-    for (const thread of threads) {
+    const nextOffset = offset + metadataPage.length
+    if (nextOffset < metadata.length) {
+      return {
+        page: orderedResults,
+        isDone: false,
+        continueCursor: String(nextOffset),
+      }
+    }
+
+    const threads = await listAllThreadsByUserId(ctx, userId)
+    const legacyOffset = Math.max(0, offset - metadata.length)
+    const legacyThreads = threads
+      .filter((thread) => !metadataByThreadId.has(thread._id))
+      .slice(legacyOffset, legacyOffset + (limit - orderedResults.length))
+
+    for (const thread of legacyThreads) {
       if (metadataByThreadId.has(thread._id)) {
         continue
       }
 
-      orderedResults.push({
+      const row: Infer<typeof threadListItemValidator> = {
         _id: thread._id,
         _creationTime: thread._creationTime,
         lastMessageAt: thread._creationTime,
-        title: thread.title,
-        userId: thread.userId,
         metadata: null,
         project: null,
-      })
+      }
+      if (thread.title !== undefined) {
+        row.title = thread.title
+      }
+      if (thread.userId !== undefined) {
+        row.userId = thread.userId
+      }
+      orderedResults.push(row)
     }
 
-    return paginateResults(orderedResults, {
-      cursor: args.paginationOpts.cursor,
-      numItems: args.paginationOpts.numItems,
-    })
+    const totalRows =
+      metadata.length + threads.filter((thread) => !metadataByThreadId.has(thread._id)).length
+    const finalOffset = offset + orderedResults.length
+
+    return {
+      page: orderedResults,
+      isDone: finalOffset >= totalRows,
+      continueCursor: finalOffset >= totalRows ? '' : String(finalOffset),
+    }
   },
 })
 

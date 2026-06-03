@@ -28,7 +28,6 @@ Set these in Pages project settings:
 
 - `VITE_CONVEX_URL`
 - `VITE_CLERK_PUBLISHABLE_KEY`
-- `VITE_AUTH_FRONTEND_URL` (optional)
 
 Do **not** put provider secrets (`OPENROUTER_API_KEY`, `EXA_API_KEY`, etc.) in Pages if they are used by Convex backend functions; keep them in Convex environment config.
 
@@ -73,7 +72,6 @@ Required GitHub repository secrets:
 - `CF_PAGES_PROJECT_NAME`
 - `VITE_CONVEX_URL`
 - `VITE_CLERK_PUBLISHABLE_KEY`
-- `VITE_AUTH_FRONTEND_URL` (optional)
 
 ## API note
 

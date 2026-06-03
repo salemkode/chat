@@ -8,8 +8,10 @@ import {
   type QueryCtx,
 } from './_generated/server'
 import { paginationOptsValidator } from 'convex/server'
+import { stream } from 'convex-helpers/server/stream'
 import { api, internal } from './_generated/api'
 import { ConvexError, v } from 'convex/values'
+import schema from './schema'
 import { getAuthUserId } from './lib/auth'
 import { fetchProviderCatalog } from './lib/providerCatalog'
 import {
@@ -729,7 +731,10 @@ async function listBrowserModelsInternal(ctx: QueryCtx, userId: Id<'users'>) {
   ])
   const effectiveAppPlan = await resolveEffectiveAppPlan(ctx, settings, user ?? undefined)
   const nowMs = Date.now()
-  const modelOffers = await ctx.db.query('modelOffers').collect()
+  const modelOffers = await ctx.db
+    .query('modelOffers')
+    .withIndex('by_endsAt', (q) => q.gte('endsAt', nowMs))
+    .collect()
   const favoriteModelIds = new Set(favorites.map((favorite) => favorite.modelId))
   const providerMap = new Map(providers.map((provider) => [provider._id, provider]))
 
@@ -2257,7 +2262,10 @@ export const listEnabledModels = query({
     const enabledProviderIds = new Set(providers.map((provider) => provider._id))
 
     const nowMs = Date.now()
-    const modelOffers = await ctx.db.query('modelOffers').collect()
+    const modelOffers = await ctx.db
+      .query('modelOffers')
+      .withIndex('by_endsAt', (q) => q.gte('endsAt', nowMs))
+      .collect()
 
     return models
       .filter((model) => {
@@ -2319,7 +2327,10 @@ export const listModelsWithProviders = query({
     const effectiveAppPlan = await resolveEffectiveAppPlan(ctx, settings, user ?? undefined)
 
     const nowMs = Date.now()
-    const modelOffers = await ctx.db.query('modelOffers').collect()
+    const modelOffers = await ctx.db
+      .query('modelOffers')
+      .withIndex('by_endsAt', (q) => q.gte('endsAt', nowMs))
+      .collect()
 
     const favoriteModelIds = new Set(favorites.map((favorite) => favorite.modelId))
     const providerMap = new Map(providers.map((provider) => [provider._id, provider]))
@@ -2761,11 +2772,11 @@ export const repairOpenRouterProviderApiKeyFromEnv = internalMutation({
 
     const providers = await ctx.db
       .query('providers')
-      .withIndex('by_enabled', (q) => q.eq('isEnabled', true))
+      .withIndex('by_providerType', (q) => q.eq('providerType', 'openrouter'))
       .collect()
 
     for (const provider of providers) {
-      if (provider.providerType !== 'openrouter') {
+      if (!provider.isEnabled) {
         continue
       }
       if (isPlausibleOpenRouterApiKey(provider.apiKey)) {
@@ -2806,12 +2817,12 @@ export const deleteProvider = mutation({
 
     if (!isAdminLike) return
 
-    const models = await ctx.db
+    const existingModel = await ctx.db
       .query('models')
       .withIndex('by_providerId', (q) => q.eq('providerId', args.id))
-      .collect()
+      .first()
 
-    if (models.length > 0) {
+    if (existingModel) {
       return
     }
 
@@ -4310,12 +4321,11 @@ export const listModelOffers = query({
     if (!userId || !(await hasAdminAccess(ctx, userId))) {
       return { page: [], isDone: true, continueCursor: '' }
     }
-    const offers = await ctx.db.query('modelOffers').collect()
-    const rows = offers.sort((a, b) => b.endsAt - a.endsAt)
-    return paginateResults(rows, {
-      cursor: args.paginationOpts.cursor,
-      numItems: args.paginationOpts.numItems,
-    })
+    return await stream(ctx.db, schema)
+      .query('modelOffers')
+      .withIndex('by_endsAt')
+      .order('desc')
+      .paginate(args.paginationOpts)
   },
 })
 

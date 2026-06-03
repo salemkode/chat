@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/immutability -- Reanimated shared values are intentionally mutable in layout and scroll callbacks. */
 import { SymbolImage } from "@/components/symbol-image";
 import {
   AnimatedLegendList,
@@ -13,32 +14,40 @@ import {
   type ReactElement,
   type ReactNode,
 } from "react";
-import { LayoutChangeEvent, Text, View } from "react-native";
-import { useKeyboardHandler } from "react-native-keyboard-controller";
+import {
+  LayoutChangeEvent,
+  Platform,
+  Text,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import Animated, {
-  runOnJS,
-  useAnimatedProps,
   useAnimatedStyle,
-  useDerivedValue,
   useSharedValue,
   withTiming,
+  type AnimatedStyle as ReanimatedStyle,
 } from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { isLiquidGlassAvailable } from "expo-glass-effect";
+import { useStableSafeAreaInsets } from "@/utils/use-stable-safe-area-insets";
 import { TouchableGlass } from "../touchable-glass";
 import { KeyboardGestureArea } from "../tw";
 import { useChatContext } from "./chat-context";
 import type { ChatMessage } from "./types";
 
 const IS_GLASS = isLiquidGlassAvailable();
+const IS_IOS = Platform.OS === "ios";
+const IOS_NATIVE_HEADER_HEIGHT = 44;
+const IOS_TRANSPARENT_HEADER_GAP = 24;
+const IOS_TRANSPARENT_HEADER_MIN_TOP_PADDING = 112;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Reanimated animated styles are opaque worklet objects
-type AnimatedStyle = any;
+type AnimatedStyle = ReanimatedStyle<StyleProp<ViewStyle>>;
 
 type ConversationContextValue = {
   scrollToBottom: () => void;
-  /** Animated style that positions the prompt input above the keyboard. */
+  /** Animated style applied to the prompt input container. */
   promptInputStyle: AnimatedStyle;
   /** Prompt input reports its measured height through this callback. */
   onPromptInputLayout: (e: LayoutChangeEvent) => void;
@@ -77,57 +86,7 @@ export function Conversation({
 }) {
   const { messages } = useChatContext();
   const listRef = useRef<LegendListRef>(null);
-  const insets = useSafeAreaInsets();
-
-  // -- Keyboard tracking --------------------------------------------------
-
-  const scrollToBottomRef = useRef<() => void>(() => {});
-  const scrollToBottomStable = useCallback(
-    () => scrollToBottomRef.current(),
-    [],
-  );
-  const keyboardHeight = useSharedValue(0);
-  // Separate value for contentInset that freezes during interactive dismiss
-  // to prevent the scroll view from snapping when the user is overscrolled.
-  const keyboardHeightForInset = useSharedValue(0);
-  // Tracks whether the current keyboard transition originated from an
-  // interactive dismiss gesture (vs a programmatic tap-to-open).
-  const wasInteractive = useSharedValue(false);
-  useKeyboardHandler(
-    {
-      onStart: (e) => {
-        "worklet";
-        // Track if keyboard is opening from a tap (not from interactive dismiss)
-        if (e.height > 0 && !wasInteractive.value) {
-          wasInteractive.value = false;
-        }
-      },
-      onMove: (e) => {
-        "worklet";
-        keyboardHeight.value = e.height;
-        keyboardHeightForInset.value = e.height;
-      },
-      onInteractive: (e) => {
-        "worklet";
-        // Only update prompt input position, not contentInset.
-        // Changing contentInset during an active gesture causes a jump
-        // when the user has overscrolled past the bottom.
-        keyboardHeight.value = e.height;
-        wasInteractive.value = true;
-      },
-      onEnd: (e) => {
-        "worklet";
-        const shouldScroll = e.height > 0 && !wasInteractive.value;
-        keyboardHeight.value = e.height;
-        keyboardHeightForInset.value = withTiming(e.height, { duration: 250 });
-        wasInteractive.value = false;
-          if (shouldScroll) {
-            runOnJS(scrollToBottomStable)();
-          }
-      },
-    },
-    [],
-  );
+  const insets = useStableSafeAreaInsets();
 
   // -- Layout bookkeeping --------------------------------------------------
 
@@ -144,118 +103,115 @@ export function Conversation({
   const lastContentHeight = useSharedValue(0);
   const SCROLL_THRESHOLD = 50;
 
-  const bottomInset = useDerivedValue(() => {
-    const keyboard = Math.abs(keyboardHeight.value);
-    return composerHeight.value + Math.max(insets.bottom, keyboard);
-  });
-
-  const isAtBottom = useDerivedValue(() => {
-    const maxScrollY =
-      totalContentHeight.value - scrollViewHeight.value + bottomInset.value;
+  const isAtBottom = useCallback(() => {
+    const maxScrollY = totalContentHeight.value - scrollViewHeight.value;
     if (maxScrollY <= 0) return true;
     return maxScrollY - scrollY.value <= SCROLL_THRESHOLD;
-  });
-
-  const shouldShowScrollButton = useDerivedValue(() => {
-    const maxScrollY =
-      totalContentHeight.value - scrollViewHeight.value + bottomInset.value;
-    if (maxScrollY <= 50) return false;
-    return !isAtBottom.value;
-  });
+  }, [scrollViewHeight, scrollY, totalContentHeight]);
 
   // -- Callbacks -----------------------------------------------------------
 
-  const onScrollViewLayout = useCallback((e: LayoutChangeEvent) => {
-    scrollViewHeight.value = e.nativeEvent.layout.height;
-  }, []);
+  const onScrollViewLayout = useCallback(
+    (e: LayoutChangeEvent) => {
+      scrollViewHeight.value = e.nativeEvent.layout.height;
+    },
+    [scrollViewHeight],
+  );
 
   const onScroll = useCallback(
     (event: { nativeEvent: { contentOffset: { y: number } } }) => {
       scrollY.value = event.nativeEvent.contentOffset.y;
     },
-    [],
+    [scrollY],
   );
 
-  const onContentSizeChange = useCallback((_width: number, height: number) => {
-    const wasAtBottom = isAtBottom.value;
-    const heightIncreased = height > lastContentHeight.value;
+  const onContentSizeChange = useCallback(
+    (_width: number, height: number) => {
+      const wasAtBottom = isAtBottom();
+      const heightIncreased = height > lastContentHeight.value;
 
-    totalContentHeight.value = height;
-    lastContentHeight.value = height;
-    // Derive message-only height by subtracting the last known footer height.
-    // This is stable: when the footer resizes, totalContent changes but
-    // messagesOnly stays the same, breaking the feedback loop.
-    messagesOnlyHeight.value = height - currentFooterHeight.value;
+      totalContentHeight.value = height;
+      lastContentHeight.value = height;
+      // Derive message-only height by subtracting the last known footer height.
+      // This is stable: when the footer resizes, totalContent changes but
+      // messagesOnly stays the same, breaking the feedback loop.
+      messagesOnlyHeight.value = height - currentFooterHeight.value;
 
-    if (wasAtBottom && heightIncreased && listRef.current) {
-      requestAnimationFrame(() => {
-        listRef.current?.scrollToEnd({
-          animated: true,
-          viewOffset: -bottomInset.value,
+      if (wasAtBottom && heightIncreased && listRef.current) {
+        requestAnimationFrame(() => {
+          listRef.current?.scrollToEnd({
+            animated: true,
+          });
         });
-      });
-    }
-  }, []);
+      }
+    },
+    [
+      currentFooterHeight,
+      isAtBottom,
+      lastContentHeight,
+      messagesOnlyHeight,
+      totalContentHeight,
+    ],
+  );
 
   const scrollToBottom = useCallback(() => {
     listRef.current?.scrollToEnd({
       animated: true,
-      viewOffset: -bottomInset.value,
     });
   }, []);
-  scrollToBottomRef.current = scrollToBottom;
 
   // -- Animated styles -----------------------------------------------------
-  const topPadding = IS_GLASS ? 128 : 16;
+  const topPadding =
+    IS_IOS
+      ? Math.max(
+          IS_GLASS ? IOS_TRANSPARENT_HEADER_MIN_TOP_PADDING : 16,
+          insets.top + IOS_NATIVE_HEADER_HEIGHT + IOS_TRANSPARENT_HEADER_GAP,
+        )
+      : IS_GLASS
+        ? 128
+        : 16;
 
   const footerSpacerStyle = useAnimatedStyle(() => {
     const scrollHeight = scrollViewHeight.value;
     if (scrollHeight <= 0) return { height: 0 };
 
-    const keyboard = Math.abs(keyboardHeight.value);
-    const bottom = composerHeight.value + Math.max(insets.bottom, keyboard);
-    const blankSpace = scrollHeight - messagesOnlyHeight.value - bottom;
+    const blankSpace = scrollHeight - messagesOnlyHeight.value;
     const footerHeight = Math.max(0, blankSpace - topPadding);
 
     currentFooterHeight.value = footerHeight;
     return { height: footerHeight };
   });
 
-  const promptInputStyle = useAnimatedStyle(() => ({
-    bottom: Math.max(insets.bottom, Math.abs(keyboardHeight.value)),
-  }));
+  const promptInputStyle = useAnimatedStyle(() => ({}));
 
-  const scrollButtonStyle = useAnimatedStyle(() => ({
-    opacity: withTiming(shouldShowScrollButton.value ? 1 : 0, {
-      duration: 200,
-    }),
-    transform: [
-      {
-        scale: withTiming(shouldShowScrollButton.value ? 1 : 0.8, {
-          duration: 200,
-        }),
-      },
-    ],
-    bottom:
-      composerHeight.value +
-      Math.max(insets.bottom, Math.abs(keyboardHeight.value)) +
-      12,
-  }));
+  const scrollButtonStyle = useAnimatedStyle(() => {
+    const maxScrollY = totalContentHeight.value - scrollViewHeight.value;
+    const shouldShowScrollButton =
+      maxScrollY > 50 && maxScrollY - scrollY.value > SCROLL_THRESHOLD;
 
-  const listAnimatedProps = useAnimatedProps(() => {
-    const keyboard = Math.abs(keyboardHeightForInset.value);
-    const bottom = composerHeight.value + Math.max(insets.bottom, keyboard);
     return {
-      contentInset: { top: topPadding, left: 0, right: 0, bottom },
-      scrollIndicatorInsets: { top: 0, left: 0, right: 0, bottom },
+      opacity: withTiming(shouldShowScrollButton ? 1 : 0, {
+        duration: 200,
+      }),
+      transform: [
+        {
+          scale: withTiming(shouldShowScrollButton ? 1 : 0.8, {
+            duration: 200,
+          }),
+        },
+      ],
+      bottom: composerHeight.value + 12,
     };
   });
 
-  const onPromptInputLayout = useCallback((e: LayoutChangeEvent) => {
-    const h = e.nativeEvent.layout.height;
-    composerHeight.value = h;
-    setComposerOffsetHeight(h);
-  }, []);
+  const onPromptInputLayout = useCallback(
+    (e: LayoutChangeEvent) => {
+      const h = e.nativeEvent.layout.height;
+      composerHeight.value = h;
+      setComposerOffsetHeight(h);
+    },
+    [composerHeight],
+  );
 
   // -- Context value -------------------------------------------------------
 
@@ -277,66 +233,122 @@ export function Conversation({
 
   return (
     <ConversationCtx value={contextValue}>
-      <View className="flex-1 bg-background">
-        <KeyboardGestureArea
-          interpolator="ios"
-          showOnSwipeUp
-          offset={composerOffsetHeight}
-          className="flex-1"
-        >
-          <AnimatedLegendList
-            ref={listRef}
-            className="flex-1"
-            data={messages}
-            dataVersion={dataVersion}
-            renderItem={renderMessage}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={{
-              padding: 16,
-              // transparent header spacing.
-              paddingBottom: 8,
-            }}
-            keyboardDismissMode="interactive"
-            automaticallyAdjustsScrollIndicatorInsets={false}
-            maintainVisibleContentPosition={{ data: true, size: true }}
-            estimatedItemSize={80}
-            getEstimatedItemSize={(message) =>
-              message.role === "assistant" ? 220 : 108
-            }
-            drawDistance={600}
-            onStartReached={
-              onLoadOlder && hasOlderMessages && !isLoadingOlder
-                ? () => onLoadOlder(30)
-                : undefined
-            }
-            onStartReachedThreshold={0.15}
-            animatedProps={listAnimatedProps}
-            onLayout={onScrollViewLayout}
-            onScroll={onScroll}
-            scrollEventThrottle={16}
-            onContentSizeChange={onContentSizeChange}
-            ListEmptyComponent={emptyState}
-            ListHeaderComponent={
-              hasOlderMessages ? (
-                <View className="items-center pb-3">
-                  <View className="rounded-full border border-border/70 bg-background/90 px-3 py-1">
-                    <Text className="text-xs text-muted-foreground">
-                      {isLoadingOlder
-                        ? "Loading older messages..."
-                        : "Scroll up to load older messages"}
-                    </Text>
-                  </View>
-                </View>
-              ) : null
-            }
-            ListFooterComponent={
-              <Animated.View style={footerSpacerStyle} />
-            }
-          />
-        </KeyboardGestureArea>
+      <KeyboardAvoidingView
+        behavior="padding"
+        automaticOffset
+        style={{ flex: 1 }}
+      >
+        <View className="flex-1 bg-background">
+          {IS_IOS ? (
+            <KeyboardGestureArea
+              interpolator="ios"
+              showOnSwipeUp
+              offset={composerOffsetHeight}
+              className="flex-1"
+            >
+              <AnimatedLegendList
+                ref={listRef}
+                className="flex-1"
+                data={messages}
+                dataVersion={dataVersion}
+                renderItem={renderMessage}
+                keyExtractor={(item) => item.id}
+                contentContainerStyle={{
+                  padding: 16,
+                  paddingBottom: 8,
+                }}
+                keyboardDismissMode="interactive"
+                automaticallyAdjustsScrollIndicatorInsets={false}
+                maintainVisibleContentPosition={{ data: true, size: true }}
+                estimatedItemSize={80}
+                getEstimatedItemSize={(message) =>
+                  message.role === "assistant" ? 220 : 108
+                }
+                drawDistance={600}
+                onStartReached={
+                  onLoadOlder && hasOlderMessages && !isLoadingOlder
+                    ? () => onLoadOlder(30)
+                    : undefined
+                }
+                onStartReachedThreshold={0.15}
+                onLayout={onScrollViewLayout}
+                onScroll={onScroll}
+                scrollEventThrottle={16}
+                onContentSizeChange={onContentSizeChange}
+                contentInset={{ top: topPadding, left: 0, right: 0, bottom: 0 }}
+                scrollIndicatorInsets={{ top: 0, left: 0, right: 0, bottom: 0 }}
+                ListEmptyComponent={emptyState}
+                ListHeaderComponent={
+                  hasOlderMessages ? (
+                    <View className="items-center pb-3">
+                      <View className="rounded-full border border-border/70 bg-background/90 px-3 py-1">
+                        <Text className="text-xs text-muted-foreground">
+                          {isLoadingOlder
+                            ? "Loading older messages..."
+                            : "Scroll up to load older messages"}
+                        </Text>
+                      </View>
+                    </View>
+                  ) : null
+                }
+                ListFooterComponent={<Animated.View style={footerSpacerStyle} />}
+              />
+            </KeyboardGestureArea>
+          ) : (
+            <View className="flex-1">
+              <AnimatedLegendList
+                ref={listRef}
+                className="flex-1"
+                data={messages}
+                dataVersion={dataVersion}
+                renderItem={renderMessage}
+                keyExtractor={(item) => item.id}
+                contentContainerStyle={{
+                  padding: 16,
+                  paddingBottom: 8,
+                }}
+                keyboardDismissMode="interactive"
+                automaticallyAdjustsScrollIndicatorInsets={false}
+                maintainVisibleContentPosition={{ data: true, size: true }}
+                estimatedItemSize={80}
+                getEstimatedItemSize={(message) =>
+                  message.role === "assistant" ? 220 : 108
+                }
+                drawDistance={600}
+                onStartReached={
+                  onLoadOlder && hasOlderMessages && !isLoadingOlder
+                    ? () => onLoadOlder(30)
+                    : undefined
+                }
+                onStartReachedThreshold={0.15}
+                onLayout={onScrollViewLayout}
+                onScroll={onScroll}
+                scrollEventThrottle={16}
+                onContentSizeChange={onContentSizeChange}
+                contentInset={{ top: topPadding, left: 0, right: 0, bottom: 0 }}
+                scrollIndicatorInsets={{ top: 0, left: 0, right: 0, bottom: 0 }}
+                ListEmptyComponent={emptyState}
+                ListHeaderComponent={
+                  hasOlderMessages ? (
+                    <View className="items-center pb-3">
+                      <View className="rounded-full border border-border/70 bg-background/90 px-3 py-1">
+                        <Text className="text-xs text-muted-foreground">
+                          {isLoadingOlder
+                            ? "Loading older messages..."
+                            : "Scroll up to load older messages"}
+                        </Text>
+                      </View>
+                    </View>
+                  ) : null
+                }
+                ListFooterComponent={<Animated.View style={footerSpacerStyle} />}
+              />
+            </View>
+          )}
 
-        {children}
-      </View>
+          {children}
+        </View>
+      </KeyboardAvoidingView>
     </ConversationCtx>
   );
 }

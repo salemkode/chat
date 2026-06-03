@@ -9,7 +9,6 @@ import { ThemeProvider } from '@/components/theme-provider'
 import { getRequiredEnv } from '@/lib/parsers'
 import { attemptDeployRecovery, hasAttemptedDeployRecovery } from '@/lib/deploy-recovery'
 import appCss from '@/styles.css?url'
-import { useConvex } from 'convex/react'
 export const links = () => [{ rel: 'stylesheet', href: appCss }]
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -88,13 +87,6 @@ export function HydrateFallback() {
   )
 }
 
-function TestConvex() {
-  const convex = useConvex()
-  useEffect(() => {
-    console.log('Convex client in TestConvex:', convex)
-  }, [convex])
-  return null
-}
 export default function App() {
   const [showDevtools, setShowDevtools] = useState(false)
 
@@ -103,12 +95,15 @@ export default function App() {
   }, [])
 
   return (
-    <ClerkProvider publishableKey={getRequiredEnv(import.meta.env, 'VITE_CLERK_PUBLISHABLE_KEY')}>
+    <ClerkProvider
+      publishableKey={getRequiredEnv(import.meta.env, 'VITE_CLERK_PUBLISHABLE_KEY')}
+      signInUrl="/login"
+      signUpUrl="/signup"
+    >
       <ThemeProvider>
         <HotkeysProvider>
           <ConvexClientProvider>
             <DeployRecovery />
-            <TestConvex />
             <Outlet />
             {showDevtools ? (
               <TanStackDevtools

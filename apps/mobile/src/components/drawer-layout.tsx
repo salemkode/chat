@@ -40,6 +40,8 @@ const SWIPE_MIN_OFFSET = 5;
 const SWIPE_MIN_DISTANCE = 60;
 const SWIPE_MIN_VELOCITY = 500;
 const PROGRESS_EPSILON = 0.05;
+const IS_IOS = process.env.EXPO_OS === "ios";
+const IOS_CONTENT_CORNER_RADIUS = 53;
 
 function getDrawerWidth(layoutWidth: number, drawerWidth?: number): number {
   if (drawerWidth != null) return drawerWidth;
@@ -238,10 +240,17 @@ export function DrawerLayout({
     minmax(translationX.value, -drawerWidth, 0),
   );
 
-  const CORNERS = process.env.EXPO_OS === "ios" ? 53 : undefined;
   const contentAnimatedStyle = useAnimatedStyle(
     () => ({
       zIndex: translateX.value === -drawerWidth ? 0 : 2,
+      borderRadius:
+        IS_IOS
+          ? interpolate(
+              translateX.value,
+              [-drawerWidth, 0],
+              [0, IOS_CONTENT_CORNER_RADIUS],
+            )
+          : 0,
       transform: [
         {
           translateX: translateX.value + drawerWidth,
@@ -285,7 +294,6 @@ export function DrawerLayout({
             style={[
               {
                 borderCurve: "continuous" as const,
-                borderRadius: CORNERS,
                 boxShadow: "0px 0px 16px rgba(0, 0, 0, 0.15)",
               },
               contentAnimatedStyle,

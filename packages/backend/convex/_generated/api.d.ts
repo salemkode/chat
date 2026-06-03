@@ -3597,15 +3597,27 @@ export declare const internal: {
       "mutation",
       "internal",
       {
+        candidateModelIds?: Array<Id<"models">>;
         createdAt: number;
         decisionId: string;
         error?: string;
+        estimatedInputTokens?: number;
+        estimatedOutputTokens?: number;
         latencyMs?: number;
         reasoningEnabled: boolean;
         requestChars: number;
         requestPreview?: string;
         routerPreference?: "balanced" | "cost" | "speed" | "quality";
         routerUrl?: string;
+        scoreBreakdown?: {
+          contextFit: number;
+          costFit: number;
+          qualityFit: number;
+          riskPenalty: number;
+          speedFit: number;
+          toolFit: number;
+          totalScore: number;
+        };
         searchEnabled: boolean;
         selectedModelId?: Id<"models">;
         selectedModelKey?: string;
@@ -3613,6 +3625,7 @@ export declare const internal: {
         selectedProviderId?: Id<"providers">;
         selectedProviderName?: string;
         status: "success" | "failed";
+        taskType?: "chat" | "coding" | "analysis" | "rewrite" | "qa";
         threadId?: string;
         userId?: Id<"users">;
       },

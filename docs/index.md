@@ -6,6 +6,7 @@ Project docs are Markdown files in the repository (`docs/`). This site is genera
 
 - [Agent notes (AI)](/agent) — when and how to keep docs in sync with code
 - [Architecture](/architecture) — monorepo layout and systems
+- [Data model](/data-model) — Convex tables, component-owned data, and relationships
 - [Mobile EAS builds](/eas-builds) — standard local and cloud build path for the Expo app
 - [Cloudflare Pages](/cloudflare-pages) — web deploy on Cloudflare
 - [Netlify](/netlify) — web deploy routing on Netlify

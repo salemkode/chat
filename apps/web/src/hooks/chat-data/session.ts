@@ -1,21 +1,19 @@
 import { resolveViewerDisplayName } from '@chat/shared/logic/display-name'
-import { useAuth } from '@clerk/react-router'
 import { useEffect, useMemo } from 'react'
 import { api } from '@convex/_generated/api'
 import { useOnlineStatus } from '@/hooks/use-online-status'
-import { useQuery } from 'convex/react'
+import { useConvexAuth, useQuery } from 'convex/react'
 import { readSession, readSettings } from '@/offline/local-cache'
 import { cacheViewerToLocal, useOfflineCacheVersion } from '@/hooks/chat-data/shared'
 
 export function useCachedSessionStatus() {
-  const { isLoaded, isSignedIn } = useAuth()
-  const isAuthenticated = isSignedIn ?? false
+  const { isLoading: isConvexAuthLoading, isAuthenticated } = useConvexAuth()
   const { isOnline } = useOnlineStatus()
   const cacheVersion = useOfflineCacheVersion()
   const session = useMemo(() => readSession(), [cacheVersion])
   const isOfflineSessionLoaded = session !== null
   const hasTrustedOfflineSession = Boolean(session?.trusted)
-  const isLoading = !isLoaded || (!isOnline && !isOfflineSessionLoaded)
+  const isLoading = isConvexAuthLoading || (!isOnline && !isOfflineSessionLoaded)
 
   return {
     isOnline,
@@ -94,4 +92,3 @@ export function useRoleContext() {
     }
   )
 }
-
