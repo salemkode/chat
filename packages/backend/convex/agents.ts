@@ -2820,60 +2820,56 @@ export const listThreadsWithMetadata = query({
     const metadataByThreadId = new Map(metadata.map((item) => [item.threadId, item]))
 
     const metadataPage = metadata.slice(offset, offset + limit)
-    const projectIds = Array.from(
-      new Set(
-        metadataPage
-          .map((item) => item.projectId)
-          .filter((projectId): projectId is Id<'projects'> => projectId !== undefined),
-      ),
-    )
-    const projects = await Promise.all(projectIds.map((projectId) => ctx.db.get(projectId)))
-    const projectMap = new Map(
-      projects
-        .filter((project): project is NonNullable<typeof project> => project !== null)
-        .map((project) => [project._id.toString(), project]),
-    )
-
     const orderedResults: Array<Infer<typeof threadListItemValidator>> = []
 
     const metadataRows = await Promise.all(
       metadataPage.map(async (itemMetadata) => {
-        const thread = await ctx.runQuery(components.agent.threads.getThread, {
-          threadId: itemMetadata.threadId,
-        })
-        if (!thread || thread.userId !== userId) {
+        try {
+          const thread = await ctx.runQuery(components.agent.threads.getThread, {
+            threadId: itemMetadata.threadId,
+          })
+          if (!thread || thread.userId !== userId) {
+            return null
+          }
+
+          const project = itemMetadata.projectId ? await ctx.db.get(itemMetadata.projectId) : null
+          const projectRole =
+            project && itemMetadata.projectId
+              ? await getProjectRole(ctx, itemMetadata.projectId, userId)
+              : null
+
+          const row: Infer<typeof threadListItemValidator> = {
+            _id: thread._id,
+            _creationTime: thread._creationTime,
+            lastMessageAt: itemMetadata.lastMessageAt ?? thread._creationTime,
+            metadata: itemMetadata,
+            project:
+              project && canViewProject(projectRole)
+                ? {
+                    id: project._id.toString(),
+                    name: project.name,
+                    description: project.description,
+                  }
+                : null,
+          }
+          if (thread.title !== undefined) {
+            row.title = thread.title
+          }
+          if (thread.userId !== undefined) {
+            row.userId = thread.userId
+          }
+          return row
+        } catch (error) {
+          if (!isInvalidThreadIdError(error)) {
+            console.error('Failed to load thread metadata row for sidebar', {
+              metadataId: itemMetadata._id,
+              threadId: itemMetadata.threadId,
+              projectId: itemMetadata.projectId,
+              error,
+            })
+          }
           return null
         }
-
-        const project = itemMetadata.projectId
-          ? projectMap.get(itemMetadata.projectId.toString())
-          : null
-        const projectRole =
-          project && itemMetadata.projectId
-            ? await getProjectRole(ctx, itemMetadata.projectId, userId)
-            : null
-
-        const row: Infer<typeof threadListItemValidator> = {
-          _id: thread._id,
-          _creationTime: thread._creationTime,
-          lastMessageAt: itemMetadata.lastMessageAt ?? thread._creationTime,
-          metadata: itemMetadata,
-          project:
-            project && canViewProject(projectRole)
-              ? {
-                  id: project._id.toString(),
-                  name: project.name,
-                  description: project.description,
-                }
-              : null,
-        }
-        if (thread.title !== undefined) {
-          row.title = thread.title
-        }
-        if (thread.userId !== undefined) {
-          row.userId = thread.userId
-        }
-        return row
       }),
     )
 
