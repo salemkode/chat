@@ -24,7 +24,7 @@ Salemkode Chat is a pnpm + Turbo monorepo for a Convex-powered AI chat product w
 - `@convex-dev/agent`
 - Clerk
 - Tailwind CSS 4
-- Vite + `vite-plugin-pwa` (Workbox precache, offline shell)
+- Vite
 
 ## Project Structure
 

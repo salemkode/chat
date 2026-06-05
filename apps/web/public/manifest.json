@@ -35,7 +35,7 @@
       "name": "Login",
       "short_name": "Login",
       "description": "Login to your account",
-      "url": "/login",
+      "url": "/auth",
       "icons": [{ "src": "/logo192.png", "sizes": "192x192" }]
     }
   ]

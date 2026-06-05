@@ -1,11 +1,11 @@
-import { useSearchParams } from 'react-router'
-import { CustomAuthPage } from '@/components/auth/custom-auth-page'
-import { getPostLoginRedirectTarget } from '@/lib/auth-redirect'
+import { Navigate, useSearchParams } from 'react-router'
+import { buildAuthUrl, getPostLoginRedirectTarget } from '@/lib/auth-redirect'
 
 export default function LoginPage() {
   const [searchParams] = useSearchParams()
   const redirect = searchParams.get('redirect') ?? undefined
-  const targetAfterLogin = getPostLoginRedirectTarget(redirect)
+  const redirectUrl = searchParams.get('redirect_url') ?? undefined
+  const redirectTarget = getPostLoginRedirectTarget(redirect)
 
-  return <CustomAuthPage mode="login" redirectTarget={targetAfterLogin} />
+  return <Navigate to={buildAuthUrl({ redirectTarget, redirectUrl })} replace />
 }

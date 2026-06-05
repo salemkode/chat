@@ -43,9 +43,6 @@ Do **not** put provider secrets (`OPENROUTER_API_KEY`, `EXA_API_KEY`, etc.) in P
 The first rule keeps asset requests in the asset namespace. The second rule ensures deep links
 like `/chat/123` resolve to the React Router app shell.
 
-Workbox also excludes `/assets/*` and file-extension URLs from its navigation fallback so the
-service worker does not respond to missing module files with `index.html`.
-
 ## 4. CLI deploy
 
 From repository root:
@@ -79,17 +76,14 @@ Cloudflare Pages hosts your web app. Your chat/model API remains in Convex (`con
 
 That is the expected architecture for this repo and avoids re-implementing Convex server logic inside Pages Functions.
 
-## PWA updates
+## Client cache behavior
 
-The web app registers a Workbox service worker for offline shell caching. After each deploy, browsers may briefly keep an old cached bundle until the new service worker activates.
+The web app does not register a service worker. That avoids stale JS or CSS bundles being served
+from a PWA precache after deploys.
 
-The client handles this automatically:
-
-- reloads once when a new service worker is ready
-- reloads once when a stale JS chunk fails to load
-- shows a visible loading/fallback message instead of a blank black screen if hydration stalls
-
-If a user still sees a stuck screen after one automatic reload, a hard refresh or clearing site data for the production origin resets the service worker and Clerk session cookies.
+On startup, the client also unregisters any older service workers that may still be stored from a
+previous deployment and clears their caches once, so existing users migrate back to normal network
+loading without needing a manual site-data reset.
 
 ## React Router Workers guide note
 

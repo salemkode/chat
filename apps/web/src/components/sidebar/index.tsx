@@ -498,7 +498,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
           <Button
             variant="ghost"
             className="w-full justify-start gap-3"
-            onClick={() => navigate('/login')}
+            onClick={() => navigate('/auth')}
           >
             <LogIn className="h-4 w-4" />
             Login

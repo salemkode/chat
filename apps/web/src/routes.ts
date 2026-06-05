@@ -18,6 +18,8 @@ export default [
       route('settings', './routes/admin.settings.tsx'),
     ]),
   ]),
+  route('auth', './routes/auth.tsx'),
+  route('auth/sso-callback', './routes/auth.sso-callback.tsx'),
   route('login', './routes/login.tsx'),
   route('login/sso-callback', './routes/login/sso-callback.tsx'),
   route('memory', './routes/memory.tsx'),

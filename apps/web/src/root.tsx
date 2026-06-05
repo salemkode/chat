@@ -2,10 +2,12 @@ import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration }
 import { useEffect, useState } from 'react'
 import { ClerkProvider } from '@clerk/react-router'
 import { TanStackDevtools } from '@tanstack/react-devtools'
+import { AuthLoadingScreen } from '@/components/auth/auth-loading-screen'
 import { ConvexClientProvider } from '@/components/convex-client-provider'
 import { DeployRecovery } from '@/components/deploy-recovery'
 import { HotkeysProvider } from '@/components/hotkeys-provider'
 import { ThemeProvider } from '@/components/theme-provider'
+import { AUTH_ROUTE_PATH, AUTH_SIGN_UP_URL } from '@/lib/auth-redirect'
 import { getRequiredEnv } from '@/lib/parsers'
 import { attemptDeployRecovery, hasAttemptedDeployRecovery } from '@/lib/deploy-recovery'
 import appCss from '@/styles.css?url'
@@ -59,29 +61,27 @@ export function HydrateFallback() {
   }, [])
 
   return (
-    <div className="flex min-h-screen w-full flex-col items-center justify-center gap-3 bg-[#050505] p-6 text-center">
-      <div
-        className="size-8 animate-spin rounded-full border-2 border-[#2447ff] border-t-transparent"
-        aria-hidden="true"
-      />
+    <div className="min-h-screen w-full">
       {stuck ? (
-        <div className="max-w-sm space-y-2 text-sm text-white/70">
-          <p>A new version of the app is available.</p>
-          <p>
-            {hasAttemptedDeployRecovery()
-              ? 'Please hard-refresh the page or clear this site’s cache, then sign in again.'
-              : 'Reloading to fetch the latest version…'}
-          </p>
-          <button
-            type="button"
-            className="rounded-md border border-white/20 px-3 py-1.5 text-white/90"
-            onClick={() => window.location.reload()}
-          >
-            Reload
-          </button>
+        <div className="flex min-h-screen w-full items-center justify-center bg-[#050505] p-6 text-center">
+          <div className="max-w-sm space-y-2 text-sm text-white/70">
+            <p>A new version of the app is available.</p>
+            <p>
+              {hasAttemptedDeployRecovery()
+                ? 'Please hard-refresh the page or clear this site’s cache, then sign in again.'
+                : 'Reloading to fetch the latest version…'}
+            </p>
+            <button
+              type="button"
+              className="rounded-md border border-white/20 px-3 py-1.5 text-white/90"
+              onClick={() => window.location.reload()}
+            >
+              Reload
+            </button>
+          </div>
         </div>
       ) : (
-        <p className="text-sm text-white/60">Loading…</p>
+        <AuthLoadingScreen />
       )}
     </div>
   )
@@ -97,8 +97,8 @@ export default function App() {
   return (
     <ClerkProvider
       publishableKey={getRequiredEnv(import.meta.env, 'VITE_CLERK_PUBLISHABLE_KEY')}
-      signInUrl="/login"
-      signUpUrl="/signup"
+      signInUrl={AUTH_ROUTE_PATH}
+      signUpUrl={AUTH_SIGN_UP_URL}
     >
       <ThemeProvider>
         <HotkeysProvider>

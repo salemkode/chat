@@ -125,7 +125,7 @@ Entry and shell:
 
 Web feature areas:
 
-- `apps/web/src/routes/*`: route handlers for chat, auth, admin, share, signup, memory demo
+- `apps/web/src/routes/*`: route handlers for chat, auth, admin, share, memory demo, plus legacy auth redirects
 - `apps/web/src/components/*`: chat UI, sidebar, prompt input, auth redirect, settings, markdown, model UI
 - the authenticated web chat now keeps one shared responsive shell across phones and desktops: the thread header, transcript column, and composer all align to the same centered width, while smaller screens only diverge for touch sizing and overlay behavior
 - long-running web lists now use paginated Convex queries in the client hooks for sidebar chats, memory views, model browsing, and admin catalogs instead of relying on unbounded list queries
@@ -208,7 +208,7 @@ Mobile:
 Web:
 
 - `@clerk/react-router`
-- custom `/login` and `/signup` pages built with Clerk hooks
+- custom `/auth` page built with Clerk hooks, with legacy `/login` and `/signup` routes redirecting into it
 - `ConvexProviderWithClerk` inside `convex-client-provider.tsx`
 
 Backend:

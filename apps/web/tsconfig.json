@@ -3,7 +3,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "ignoreDeprecations": "6.0",
-    "types": ["vite/client", "vite-plugin-pwa/client"],
+    "types": ["vite/client"],
     "paths": {
       "@/*": ["./src/*"],
       "@convex/*": ["../../packages/backend/convex/*"],
