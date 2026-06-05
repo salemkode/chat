@@ -49,6 +49,7 @@ import {
 } from './lib/toolPolicy'
 import { projectContextTools } from './lib/projectContextTools'
 import { modelSupportsTools } from './lib/modelCapabilities'
+import { appendThreadsWithoutUsableMetadata } from './lib/threadList'
 import {
   isMediaTypeAllowed,
   resolveModelAttachmentMediaTypes,
@@ -2788,6 +2789,35 @@ async function listAllThreadsByUserId(ctx: Pick<QueryCtx, 'runQuery'>, userId: I
   return threads
 }
 
+function buildThreadListRow(args: {
+  thread: UserThreadListItem
+  metadata: Infer<typeof threadMetadataValidator> | null
+  project: { _id: Id<'projects'>; name: string; description?: string } | null
+  includeProject: boolean
+}) {
+  const row: Infer<typeof threadListItemValidator> = {
+    _id: args.thread._id,
+    _creationTime: args.thread._creationTime,
+    lastMessageAt: args.metadata?.lastMessageAt ?? args.thread._creationTime,
+    metadata: args.metadata,
+    project:
+      args.project && args.includeProject
+        ? {
+            id: args.project._id.toString(),
+            name: args.project.name,
+            description: args.project.description,
+          }
+        : null,
+  }
+  if (args.thread.title !== undefined) {
+    row.title = args.thread.title
+  }
+  if (args.thread.userId !== undefined) {
+    row.userId = args.thread.userId
+  }
+  return row
+}
+
 function getPaginationWindow(args: { cursor?: string | null; numItems?: number }) {
   const limit = Math.max(1, Math.min(args.numItems ?? 50, 200))
   const offset = Number(args.cursor ?? '0')
@@ -2812,18 +2842,18 @@ export const listThreadsWithMetadata = query({
     }
 
     const { limit, offset } = getPaginationWindow(args.paginationOpts)
-    const metadata = await ctx.db
-      .query('threadMetadata')
-      .withIndex('by_userId_sortOrder_lastMessageAt', (q) => q.eq('userId', userId))
-      .order('desc')
-      .collect()
+    const [metadata, threads] = await Promise.all([
+      ctx.db
+        .query('threadMetadata')
+        .withIndex('by_userId_sortOrder_lastMessageAt', (q) => q.eq('userId', userId))
+        .order('desc')
+        .collect(),
+      listAllThreadsByUserId(ctx, userId),
+    ])
     const metadataByThreadId = new Map(metadata.map((item) => [item.threadId, item]))
 
-    const metadataPage = metadata.slice(offset, offset + limit)
-    const orderedResults: Array<Infer<typeof threadListItemValidator>> = []
-
     const metadataRows = await Promise.all(
-      metadataPage.map(async (itemMetadata) => {
+      metadata.map(async (itemMetadata) => {
         try {
           const thread = await ctx.runQuery(components.agent.threads.getThread, {
             threadId: itemMetadata.threadId,
@@ -2838,27 +2868,12 @@ export const listThreadsWithMetadata = query({
               ? await getProjectRole(ctx, itemMetadata.projectId, userId)
               : null
 
-          const row: Infer<typeof threadListItemValidator> = {
-            _id: thread._id,
-            _creationTime: thread._creationTime,
-            lastMessageAt: itemMetadata.lastMessageAt ?? thread._creationTime,
+          return buildThreadListRow({
+            thread,
             metadata: itemMetadata,
-            project:
-              project && canViewProject(projectRole)
-                ? {
-                    id: project._id.toString(),
-                    name: project.name,
-                    description: project.description,
-                  }
-                : null,
-          }
-          if (thread.title !== undefined) {
-            row.title = thread.title
-          }
-          if (thread.userId !== undefined) {
-            row.userId = thread.userId
-          }
-          return row
+            project,
+            includeProject: canViewProject(projectRole),
+          })
         } catch (error) {
           if (!isInvalidThreadIdError(error)) {
             console.error('Failed to load thread metadata row for sidebar', {
@@ -2873,54 +2888,21 @@ export const listThreadsWithMetadata = query({
       }),
     )
 
-    for (const row of metadataRows) {
-      if (row !== null) {
-        orderedResults.push(row)
-      }
-    }
+    const rowsWithMetadata = metadataRows.filter(
+      (row): row is Infer<typeof threadListItemValidator> => row !== null,
+    )
+    const orderedResults = appendThreadsWithoutUsableMetadata({
+      metadataRows: rowsWithMetadata,
+      metadataThreadIds: metadataByThreadId.keys(),
+      threads,
+    })
 
-    const nextOffset = offset + metadataPage.length
-    if (nextOffset < metadata.length) {
-      return {
-        page: orderedResults,
-        isDone: false,
-        continueCursor: String(nextOffset),
-      }
-    }
-
-    const threads = await listAllThreadsByUserId(ctx, userId)
-    const legacyOffset = Math.max(0, offset - metadata.length)
-    const legacyThreads = threads
-      .filter((thread) => !metadataByThreadId.has(thread._id))
-      .slice(legacyOffset, legacyOffset + (limit - orderedResults.length))
-
-    for (const thread of legacyThreads) {
-      if (metadataByThreadId.has(thread._id)) {
-        continue
-      }
-
-      const row: Infer<typeof threadListItemValidator> = {
-        _id: thread._id,
-        _creationTime: thread._creationTime,
-        lastMessageAt: thread._creationTime,
-        metadata: null,
-        project: null,
-      }
-      if (thread.title !== undefined) {
-        row.title = thread.title
-      }
-      if (thread.userId !== undefined) {
-        row.userId = thread.userId
-      }
-      orderedResults.push(row)
-    }
-
-    const totalRows =
-      metadata.length + threads.filter((thread) => !metadataByThreadId.has(thread._id)).length
-    const finalOffset = offset + orderedResults.length
+    const totalRows = orderedResults.length
+    const page = orderedResults.slice(offset, offset + limit)
+    const finalOffset = offset + page.length
 
     return {
-      page: orderedResults,
+      page,
       isDone: finalOffset >= totalRows,
       continueCursor: finalOffset >= totalRows ? '' : String(finalOffset),
     }

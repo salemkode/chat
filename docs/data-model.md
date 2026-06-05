@@ -65,7 +65,9 @@ Frontend/backend path:
 - Sidebar/thread reads:
   `apps/web/src/hooks/chat-data/threads.ts`,
   `apps/mobile/src/hooks/use-threads.ts`, and `packages/chat-core/src/context.tsx`
-  call `api.agents.listThreadsWithMetadata`.
+  call `api.agents.listThreadsWithMetadata`, which joins `threadMetadata` onto
+  the component thread list and falls back to plain thread rows when metadata
+  is stale or invalid.
 
 ### RAG Component
 
