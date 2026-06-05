@@ -208,7 +208,7 @@ Mobile:
 Web:
 
 - `@clerk/react-router`
-- custom `/auth` page built with Clerk hooks, with legacy `/login` and `/signup` routes redirecting into it
+- unified `/auth` page built with Clerk hooks (single Google sign-in flow), with legacy `/login` and `/signup` routes redirecting into it
 - `ConvexProviderWithClerk` inside `convex-client-provider.tsx`
 
 Backend:

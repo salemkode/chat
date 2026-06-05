@@ -1,28 +1,21 @@
-import { useAuth, useSignIn, useSignUp } from '@clerk/react-router'
-import { Link, Navigate } from 'react-router'
+import { useAuth, useSignIn } from '@clerk/react-router'
+import { Navigate } from 'react-router'
 import { useState } from 'react'
+import { AuthAtmosphere } from '@/components/auth/auth-atmosphere'
 import { AuthLoadingScreen } from '@/components/auth/auth-loading-screen'
 import { Button } from '@/components/ui/button'
-import { buildAuthUrl, type AuthMode } from '@/lib/auth-redirect'
 import { ArrowRight } from '@/lib/icons'
 
 type CustomAuthPageProps = {
-  mode: AuthMode
   redirectTarget: string
 }
 
-export function CustomAuthPage({ mode, redirectTarget }: CustomAuthPageProps) {
+export function CustomAuthPage({ redirectTarget }: CustomAuthPageProps) {
   const { isLoaded, isSignedIn } = useAuth()
   const { signIn, fetchStatus: signInFetchStatus } = useSignIn()
-  const { signUp, fetchStatus: signUpFetchStatus } = useSignUp()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const isSignup = mode === 'signup'
-  const isBusy = isSubmitting || signInFetchStatus === 'fetching' || signUpFetchStatus === 'fetching'
-  const switchHref = buildAuthUrl({
-    mode: isSignup ? 'login' : 'signup',
-    redirectTarget,
-  })
+  const isBusy = isSubmitting || signInFetchStatus === 'fetching'
 
   if (!isLoaded) {
     return <AuthLoadingScreen />
@@ -35,20 +28,13 @@ export function CustomAuthPage({ mode, redirectTarget }: CustomAuthPageProps) {
   async function handleGoogle() {
     setError(null)
     setIsSubmitting(true)
-    const callbackUrl = isSignup ? '/auth/sso-callback?mode=signup' : '/auth/sso-callback'
 
     try {
-      const result = isSignup
-        ? await signUp.sso({
-            strategy: 'oauth_google',
-            redirectUrl: redirectTarget,
-            redirectCallbackUrl: callbackUrl,
-          })
-        : await signIn.sso({
-            strategy: 'oauth_google',
-            redirectUrl: redirectTarget,
-            redirectCallbackUrl: callbackUrl,
-          })
+      const result = await signIn.sso({
+        strategy: 'oauth_google',
+        redirectUrl: redirectTarget,
+        redirectCallbackUrl: '/auth/sso-callback',
+      })
 
       if (result.error) {
         setError(formatClerkError(result.error))
@@ -61,18 +47,16 @@ export function CustomAuthPage({ mode, redirectTarget }: CustomAuthPageProps) {
   }
 
   return (
-    <main className="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-black text-white selection:bg-white selection:text-black">
+    <main className="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-background text-foreground selection:bg-foreground selection:text-background">
       <AuthAtmosphere />
 
       <div className="animate-in fade-in zoom-in-95 relative z-10 w-full max-w-[24rem] p-6 duration-1000">
-        <div className="relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-white/[0.02] p-8 backdrop-blur-3xl sm:p-12">
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-white/[0.02] to-transparent" />
+        <div className="relative overflow-hidden rounded-[2.5rem] border border-border bg-card/80 p-8 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-3xl dark:border-white/10 dark:bg-white/[0.02] dark:shadow-none sm:p-12">
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-foreground/[0.02] to-transparent dark:from-white/[0.02]" />
 
           <div className="relative z-10 space-y-10">
             <header className="space-y-3 text-center">
-              <h1 className="text-4xl font-light tracking-[-0.06em]">
-                {isSignup ? 'Begin.' : 'Continue.'}
-              </h1>
+              <h1 className="text-4xl font-light tracking-[-0.06em]">Continue.</h1>
             </header>
 
             <div className="space-y-6">
@@ -80,7 +64,7 @@ export function CustomAuthPage({ mode, redirectTarget }: CustomAuthPageProps) {
                 type="button"
                 variant="plain"
                 size="none"
-                className="group relative flex h-14 w-full items-center justify-center gap-3 overflow-hidden rounded-2xl bg-white text-black transition-all hover:bg-neutral-200"
+                className="group relative flex h-14 w-full items-center justify-center gap-3 overflow-hidden rounded-2xl bg-foreground text-background transition-all hover:bg-foreground/90 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
                 disabled={isBusy}
                 onClick={() => void handleGoogle()}
               >
@@ -92,39 +76,15 @@ export function CustomAuthPage({ mode, redirectTarget }: CustomAuthPageProps) {
               </Button>
 
               {error ? (
-                <div className="animate-in fade-in zoom-in-95 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 font-mono text-[11px] leading-relaxed text-red-400">
+                <div className="animate-in fade-in zoom-in-95 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 font-mono text-[11px] leading-relaxed text-destructive dark:border-white/10 dark:bg-white/[0.03] dark:text-red-400">
                   {error}
                 </div>
               ) : null}
             </div>
-
-            <footer className="pt-2 text-center">
-              <Link
-                className="font-mono text-[10px] tracking-widest text-white/20 transition-colors hover:text-white/60"
-                to={switchHref}
-              >
-                {isSignup ? 'SIGN IN' : 'CREATE ONE'}
-              </Link>
-            </footer>
           </div>
         </div>
       </div>
     </main>
-  )
-}
-
-function AuthAtmosphere() {
-  return (
-    <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0">
-      <div className="absolute inset-0 bg-black" />
-      <div className="bg-noise absolute inset-0 opacity-[0.03] contrast-150 brightness-150" />
-      <div className="absolute left-[-10%] top-[-10%] h-[120%] w-[120%] -rotate-12 transform">
-        <div className="h-full w-full bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.03)_0%,transparent_50%)]" />
-        <div className="absolute left-1/2 top-0 h-full w-px bg-gradient-to-b from-transparent via-white/10 to-transparent" />
-      </div>
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)]" />
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:100px_100px] [mask-image:radial-gradient(ellipse_at_center,black,transparent_80%)]" />
-    </div>
   )
 }
 

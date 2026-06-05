@@ -7,5 +7,5 @@ export default function SignupPage() {
   const redirectUrl = searchParams.get('redirect_url') ?? undefined
   const redirectTarget = getPostLoginRedirectTarget(redirect)
 
-  return <Navigate to={buildAuthUrl({ mode: 'signup', redirectTarget, redirectUrl })} replace />
+  return <Navigate to={buildAuthUrl({ redirectTarget, redirectUrl })} replace />
 }

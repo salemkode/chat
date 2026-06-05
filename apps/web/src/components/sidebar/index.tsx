@@ -230,7 +230,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
 
   const renderThreadRow = React.useCallback(
     (thread: ThreadSummary, project?: ProjectSummary) => (
-      <div className={cn(project && 'ml-7')} data-sidebar-scroll-anchor={thread.id}>
+      <div data-sidebar-scroll-anchor={thread.id}>
         <ThreadRow
           thread={thread}
           isActive={selectedThreadId === thread.id}
@@ -386,7 +386,7 @@ export function AppSidebar({ selectedThreadId, className }: AppSidebarProps) {
 
                       {expanded && projectThreads.length > 0 ? (
                         <AnimatedThreadList
-                          className="ml-7"
+                          className="ml-4"
                           threads={projectThreads}
                           renderThread={(thread) => renderThreadRow(thread, project)}
                         />
