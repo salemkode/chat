@@ -11,7 +11,7 @@ import { formatAttachmentKind } from "@/components/chat/attachment-types";
 import {
   getMessageFileParts,
   type MessageFilePart,
-} from "@chat/shared/logic/message-file-parts";
+} from "@chat/core/logic/message-file-parts";
 
 /** User bubble width when the row includes file/image attachments. */
 const USER_ATTACHMENT_BUBBLE_CLASS = "w-[88%] max-w-[92%]";

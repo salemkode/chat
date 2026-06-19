@@ -1,4 +1,4 @@
-import type { QuranAyahCardData } from '@chat/shared/quran-ayah'
+import type { QuranAyahCardData } from '@chat/core/quran-ayah'
 import { ExternalLink, Volume2 } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 

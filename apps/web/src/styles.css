@@ -535,27 +535,7 @@
   }
 
   .mobile-sidebar-sheet {
-    border: 1px solid color-mix(in srgb, var(--sidebar-border) 74%, transparent);
-    border-radius: 1.9rem;
     background: var(--sidebar);
-    box-shadow:
-      0 26px 68px rgba(15, 23, 42, 0.18),
-      0 1px 0 rgba(255, 255, 255, 0.56) inset;
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
-  }
-
-  .mobile-sidebar-sheet [data-sidebar='header'] {
-    padding: 1rem 0.875rem 0.75rem;
-  }
-
-  .mobile-sidebar-sheet [data-sidebar='content'] {
-    gap: 0.5rem;
-    padding-bottom: calc(env(safe-area-inset-bottom) + 0.5rem);
-  }
-
-  .mobile-sidebar-sheet [data-sidebar='group'] {
-    padding-inline: 0.75rem;
   }
 }
 

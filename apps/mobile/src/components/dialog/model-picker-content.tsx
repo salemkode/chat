@@ -10,8 +10,8 @@ import {
 } from "@/components/model-context";
 import { useModels } from "@/hooks/use-models";
 import type { Id } from "@convex/_generated/dataModel";
-import { hasModelBrowserQueryFilters } from "@chat/shared";
-import { inferBrandIconName } from "@chat/shared/brand-icons";
+import { hasModelBrowserQueryFilters } from "@chat/core";
+import { inferBrandIconName } from "@chat/core/brand-icons";
 import { LegendList } from "@legendapp/list/react-native";
 import { Image } from "expo-image";
 import { Search, Sparkles, Star } from "lucide-react-native";

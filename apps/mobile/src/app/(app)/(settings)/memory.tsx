@@ -1,4 +1,4 @@
-import { useChatProjects, useChatThreads } from '@chat/chat-core'
+import { useChatProjects, useChatThreads } from '@chat/core'
 import { api } from '@convex/_generated/api'
 import { Host, TextInput, useNativeState } from '@expo/ui'
 import { usePaginatedQuery, useQuery } from 'convex/react'

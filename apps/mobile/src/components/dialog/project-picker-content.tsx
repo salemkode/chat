@@ -1,7 +1,7 @@
 import { AndroidGrabber } from "@/components/grabber";
 import { InfiniteScrollFooter } from "@/components/infinite-scroll-footer";
 import { Icon } from "@/components/icon";
-import type { ProjectSummary } from "@chat/chat-core/types";
+import type { ProjectSummary } from "@chat/core/types";
 import { LegendList } from "@legendapp/list/react-native";
 import { Check } from "lucide-react-native";
 import { Pressable, Text, View } from "react-native";

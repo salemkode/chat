@@ -10,7 +10,7 @@ import {
   SendRegistryProvider,
   useSendRegistry,
   createPendingPreviews,
-} from '@chat/chat-core'
+} from '@chat/core'
 import { createWebAttachmentAdapter } from '@/lib/chat-core-adapters'
 import type { ChatMessage } from '@/hooks/chat-data/shared'
 

@@ -1,4 +1,5 @@
 import { ConvexError, v } from 'convex/values'
+import { voiceTranscriptionResponseSchema } from './lib/external-schemas'
 import { api } from './_generated/api'
 import { action, mutation } from './_generated/server'
 import { getAuthUserId } from './lib/auth'
@@ -136,10 +137,7 @@ export const transcribeAudio = action({
         throw voiceError('transcription_failed', 'Voice transcription failed. Try again.')
       }
 
-      const payload = (await response.json()) as {
-        text?: string
-        language?: string
-      }
+      const payload = voiceTranscriptionResponseSchema.parse(await response.json())
       console.log('[voice-transcription] provider status', response.status)
 
       const text = payload.text?.trim()

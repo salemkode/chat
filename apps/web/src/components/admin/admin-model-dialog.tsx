@@ -1,11 +1,12 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return -- catalog model entries come from Convex-inferred ProviderCatalogResult */
 import { useAction, useMutation } from 'convex/react'
+import { normalizeIconType } from '@chat/core/admin-types'
 import type { Doc, Id } from '@convex/_generated/dataModel'
 import { Loader2, Plus, RefreshCcw, Sparkles } from '@/lib/icons'
 import { useCallback, useId, useMemo, useReducer, useState } from 'react'
 import { toast } from 'sonner'
 import { api } from '@convex/_generated/api'
-import { parseConvexIdForTable } from '@chat/shared/logic/convex-ids'
+import { parseConvexIdForTable } from '@chat/core/logic/convex-ids'
 import { useAdminDiscovery } from '@/components/admin/admin-discovery-context'
 import { IconPickerField } from '@/components/admin/icon-picker-field'
 import type {
@@ -96,19 +97,6 @@ export type AdminModelDialogProps = {
     onResetModelFormToCustom: () => void
     onSave: () => void
     onIconUpload: (file: File) => Promise<void>
-  }
-}
-
-function normalizeIconType(value: string | undefined): IconType {
-  switch (value) {
-    case 'brand':
-    case 'emoji':
-    case 'lucide':
-    case 'phosphor':
-    case 'upload':
-      return value
-    default:
-      return undefined
   }
 }
 

@@ -1,4 +1,4 @@
-import { getBrandIcon, type BrandIconName } from '@chat/shared/brand-icons'
+import { getBrandIcon, type BrandIconName } from '@chat/core/brand-icons'
 import { cn } from '@/lib/utils'
 
 export function BrandIcon({

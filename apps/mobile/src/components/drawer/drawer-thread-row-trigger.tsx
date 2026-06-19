@@ -1,7 +1,7 @@
 import { Icon } from "@/components/icon";
 import { drawerThreadRowHeight } from "@/components/drawer/drawer-thread-row-layout";
 import { cn } from "@/utils/tailwind";
-import type { ThreadSummary } from "@chat/chat-core/types";
+import type { ThreadSummary } from "@chat/core/types";
 import { Pin } from "lucide-react-native";
 import { Pressable, Text } from "react-native";
 

@@ -3,7 +3,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { ResponsiveSelectField } from '@/components/ui/responsive-select-field'
 import { parseRateLimitKind, parseRateLimitScope } from '@/lib/parsers'
-import type { RateLimitPolicy } from '@chat/shared/admin-types'
+import type { RateLimitPolicy } from '@chat/core/admin-types'
 
 export type { RateLimitPolicy }
 

@@ -1,5 +1,5 @@
-import type { AttachmentAdapter, StorageAdapter } from "@chat/chat-core/adapters";
-import type { ChatMessage, ProjectSummary, ThreadSummary } from "@chat/chat-core/types";
+import type { AttachmentAdapter, StorageAdapter } from "@chat/core/adapters";
+import type { ChatMessage, ProjectSummary, ThreadSummary } from "@chat/core/types";
 import type { LocalAttachment } from "@/components/chat/attachment-types";
 import { uploadLocalAttachment } from "@/lib/attachment-upload";
 import {

@@ -1,5 +1,5 @@
 import { Icon } from "@/components/icon";
-import type { MentionProjectOption } from "@chat/shared/logic/project-mention";
+import type { MentionProjectOption } from "@chat/core/logic/project-mention";
 import { Folder, Sparkles } from "lucide-react-native";
 import { Pressable, ScrollView, Text, View } from "react-native";
 

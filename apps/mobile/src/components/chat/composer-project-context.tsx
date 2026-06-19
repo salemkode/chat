@@ -2,7 +2,7 @@ import { useChatContext } from "@/components/chat/chat-context";
 import { useModel } from "@/components/model-context";
 import { useComposerToast } from "@/components/composer-toast";
 import { api } from "@convex/_generated/api";
-import { useChatCoreContext, useChatProjects } from "@chat/chat-core";
+import { useChatCoreContext, useChatProjects } from "@chat/core";
 import {
   buildMentionProjectOptions,
   buildPendingProjectDraft,
@@ -10,8 +10,8 @@ import {
   type MentionProjectOption,
   type PendingProjectDraft,
   type ProjectMentionState,
-} from "@chat/shared/logic/project-mention";
-import { formatUserFacingError } from "@chat/shared/logic/user-facing-errors";
+} from "@chat/core/logic/project-mention";
+import { formatUserFacingError } from "@chat/core/logic/user-facing-errors";
 import { useAction, useQuery } from "convex/react";
 import {
   createContext,

@@ -5,7 +5,7 @@ import type {
   IconType,
   ProviderCatalogResult,
 } from '@/components/admin/types'
-import type { AppPlan } from '@chat/shared/admin-types'
+import type { AppPlan } from '@chat/core/admin-types'
 import { defaultBaseURL, type ProviderType } from '@/components/admin/admin-provider-catalog'
 
 export interface ProviderFormData {

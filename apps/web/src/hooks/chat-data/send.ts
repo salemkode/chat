@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { createClientRequestId, createClientThreadKey } from '@chat/shared/logic/client-keys'
+import { createClientRequestId, createClientThreadKey } from '@chat/core/logic/client-keys'
 import type { Id } from '@convex/_generated/dataModel'
 import { useAction, useMutation } from 'convex/react'
 import { api } from '@convex/_generated/api'
@@ -94,28 +94,17 @@ export function useDraft(threadId: string) {
 
 export function useSendMessage() {
   const { isOnline } = useOnlineStatus()
+  // Backwards-compatibility flags. These let the client keep talking to older
+  // Convex deployments that don't yet recognise `clientThreadKey`, a stable
+  // `clientRequestId`, or the search-mode arg. The first time the backend
+  // rejects one of these as an unknown field, we flip the flag to false and
+  // stop sending it. Safe to delete once every deployment understands all three.
   const supportsClientThreadKeyRef = useRef(true)
   const supportsClientRequestIdRef = useRef(true)
   const supportsSearchModeRef = useRef(true)
-  const selectAutoModel = useAction(
-    (
-      api as typeof api & {
-        modelRouter: {
-          selectAutoModel: unknown
-          selectAutoModelForPromptMessage: unknown
-        }
-      }
-    ).modelRouter.selectAutoModel as never,
-  )
+  const selectAutoModel = useAction(api.modelRouter.selectAutoModel)
   const selectAutoModelForPromptMessage = useAction(
-    (
-      api as typeof api & {
-        modelRouter: {
-          selectAutoModel: unknown
-          selectAutoModelForPromptMessage: unknown
-        }
-      }
-    ).modelRouter.selectAutoModelForPromptMessage as never,
+    api.modelRouter.selectAutoModelForPromptMessage,
   )
   const createThread = useMutation(api.agents.createChatThread).withOptimisticUpdate(
     (localStore, args) => {

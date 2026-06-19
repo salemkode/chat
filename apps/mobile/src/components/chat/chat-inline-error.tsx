@@ -1,4 +1,4 @@
-import { resolveChatInlineErrorMessage } from "@chat/shared/logic/user-facing-errors";
+import { resolveChatInlineErrorMessage } from "@chat/core/logic/user-facing-errors";
 import { cn } from "@/utils/tailwind";
 import { Text, View } from "react-native";
 

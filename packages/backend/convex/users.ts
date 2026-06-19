@@ -1,4 +1,4 @@
-import { formatClerkDisplayName } from '@chat/shared/logic/display-name'
+import { formatClerkDisplayName } from '@chat/core/logic/display-name'
 import { getAuthUserId } from './lib/auth'
 import { v } from 'convex/values'
 import { internalMutation, internalQuery, mutation, query, QueryCtx } from './_generated/server'

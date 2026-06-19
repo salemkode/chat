@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, no-underscore-dangle -- Convex hooks */
 import { useAction, useMutation } from 'convex/react'
+import { normalizeIconType } from '@chat/core/admin-types'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { Brain, Database, Eye, EyeOff, Loader2, Sparkles, Target } from '@/lib/icons'
@@ -16,7 +17,7 @@ import {
 } from '@/components/admin/admin-surface'
 import { EntityIcon } from '@/components/admin/entity-icon'
 import { formatCompactNumber, getProviderName } from '@/components/admin/admin-utils'
-import type { AdminModel, IconType } from '@/components/admin/types'
+import type { AdminModel } from '@/components/admin/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -103,19 +104,6 @@ const preferenceOptions: Array<{
     weights: { quality: 20, speed: 15, cost: 60, context: 10 },
   },
 ]
-
-function normalizeIconType(value: string | undefined): IconType {
-  switch (value) {
-    case 'brand':
-    case 'emoji':
-    case 'lucide':
-    case 'phosphor':
-    case 'upload':
-      return value
-    default:
-      return undefined
-  }
-}
 
 function isRouterPreference(value: string): value is RouterPreference {
   return preferenceOptions.some((option) => option.value === value)

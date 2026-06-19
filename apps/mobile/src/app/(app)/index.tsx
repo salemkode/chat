@@ -15,7 +15,7 @@ import {
   createStreamingStore,
   type ChatMessage,
 } from "@/components/chat";
-import { getMessageFileParts } from "@chat/shared/logic/message-file-parts";
+import { getMessageFileParts } from "@chat/core/logic/message-file-parts";
 import { ChatInlineError } from "@/components/chat/chat-inline-error";
 import { ComposerProjectProvider } from "@/components/chat/composer-project-context";
 import { useChatAttachments } from "@/components/chat/attachment-context";
@@ -23,20 +23,20 @@ import { useChatComposerOptions } from "@/components/chat/composer-options-conte
 import { Icon } from "@/components/icon";
 import { MainHeader } from "@/components/main-header";
 import { useModel } from "@/components/model-context";
-import { isAutoModelSelection } from "@chat/shared";
+import { isAutoModelSelection } from "@chat/core";
 import { validateAttachmentsForSend } from "@/lib/attachment-capability-messages";
 import {
   CHAT_PROJECT_ASSIGN_FAILED_MESSAGE,
   CHAT_STOP_GENERATION_FAILED_MESSAGE,
   formatMessageFailureNote,
   formatUserFacingError,
-} from "@chat/shared/logic/user-facing-errors";
+} from "@chat/core/logic/user-facing-errors";
 import { selectThread, threadSelection$ } from "@/state/thread-selection";
 import { useMessages, useSendMessage } from "@/hooks/use-chat-data";
 import { useSettings } from "@/hooks/use-settings";
 import { api } from "@convex/_generated/api";
 import { useSelector } from "@legendapp/state/react";
-import { useChatCoreContext, useGenerationState } from "@chat/chat-core";
+import { useChatCoreContext, useGenerationState } from "@chat/core";
 import { useQuery } from "convex/react";
 import * as Haptics from "expo-haptics";
 import { Link, useLocalSearchParams } from "expo-router";

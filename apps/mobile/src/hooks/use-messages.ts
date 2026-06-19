@@ -3,7 +3,7 @@ import type { FunctionReturnType } from "convex/server";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DeviceEventEmitter } from "react-native";
 import { api } from "@convex/_generated/api";
-import { useThreadMessages } from "@chat/chat-core";
+import { useThreadMessages } from "@chat/core";
 import {
   cacheMessagesToLocal,
   type ChatMessage,

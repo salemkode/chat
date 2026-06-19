@@ -12,7 +12,7 @@ import {
 import {
   canStopActiveGeneration,
   hasVisibleGenerationProgress,
-} from '@chat/shared/logic/chat-generation-core'
+} from '@chat/core/logic/chat-generation-core'
 
 function queuedMessage(text: string): QueuedMessage {
   return {

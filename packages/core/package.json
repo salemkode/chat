@@ -1,0 +1,62 @@
+{
+  "name": "@chat/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./admin-types": "./src/admin-types.ts",
+    "./brand-icons": "./src/brand-icons.ts",
+    "./hooks/use-mobile": "./src/hooks/use-mobile.ts",
+    "./hooks/use-online-status": "./src/hooks/use-online-status.ts",
+    "./logic/client-keys": "./src/logic/client-keys.ts",
+    "./logic/project-mention": "./src/logic/project-mention.ts",
+    "./logic/sidebar-threads": "./src/logic/sidebar-threads.ts",
+    "./logic/thread-groups": "./src/logic/thread-groups.ts",
+    "./logic/convex-ids": "./src/logic/convex-ids.ts",
+    "./logic/display-name": "./src/logic/display-name.ts",
+    "./logic/message-order": "./src/logic/message-order.ts",
+    "./logic/merge-message-lists": "./src/logic/merge-message-lists.ts",
+    "./logic/pending-send-core": "./src/logic/pending-send-core.ts",
+    "./logic/optimistic-list-messages-core": "./src/logic/optimistic-list-messages-core.ts",
+    "./logic/message-file-parts": "./src/logic/message-file-parts.ts",
+    "./logic/attachment-metadata": "./src/logic/attachment-metadata.ts",
+    "./logic/send-pipeline-core": "./src/logic/send-pipeline-core.ts",
+    "./logic/user-facing-errors": "./src/logic/user-facing-errors.ts",
+    "./logic/user-facing-error-catalog": "./src/logic/user-facing-error-catalog.ts",
+    "./logic/chat-generation-core": "./src/logic/chat-generation-core.ts",
+    "./logic/model-browser-query": "./src/logic/model-browser-query.ts",
+    "./logic/model-capabilities": "./src/logic/model-capabilities.ts",
+    "./logic/auto-model": "./src/logic/auto-model.ts",
+    "./logic/chat-suggestions": "./src/logic/chat-suggestions.ts",
+    "./quran-ayah": "./src/quran-ayah.ts",
+    "./project-context": "./src/project-context.ts",
+    "./convex-query-cache/provider": "./src/convex-query-cache/provider.tsx",
+    "./convex-query-cache/hooks": "./src/convex-query-cache/hooks.ts",
+    "./types": "./src/types.ts",
+    "./adapters": "./src/adapters.ts",
+    "./sidebar": "./src/sidebar.ts",
+    "./cache": "./src/cache/resolve-snapshot.ts",
+    "./send": "./src/send/send-registry.tsx",
+    "./messages": "./src/messages/use-thread-messages.ts",
+    "./generation": "./src/generation/use-generation-state.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "convex": "^1.39.1",
+    "react": "^19.0.0"
+  },
+  "dependencies": {
+    "simple-icons": "^16.21.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "convex": "^1.39.1",
+    "react": "^19.2.3",
+    "typescript": "^5.9.3",
+    "vitest": "^3.0.5"
+  }
+}

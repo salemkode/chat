@@ -23,7 +23,6 @@ export default [
   route('login', './routes/login.tsx'),
   route('login/sso-callback', './routes/login/sso-callback.tsx'),
   route('memory', './routes/memory.tsx'),
-  route('memory-demo', './routes/memory-demo.tsx'),
   route('share/:shareId', './routes/share.$shareId.tsx'),
   route('signup', './routes/signup.tsx'),
   route('signup/sso-callback', './routes/signup.sso-callback.tsx'),

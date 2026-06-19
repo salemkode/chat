@@ -1,5 +1,5 @@
 import type { Id } from '@convex/_generated/dataModel'
-import { isAutoModelSelection, parseAutoModelCollectionSelection } from '@chat/shared'
+import { isAutoModelSelection, parseAutoModelCollectionSelection } from '@chat/core'
 import { ExternalLink, FileText, RefreshCw, Square } from '@/lib/icons'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useChatModel } from '@/components/chat-model-context'
@@ -14,7 +14,7 @@ import { getSelectionTierFromAppPlan } from '@/lib/model-routing'
 import {
   CHAT_STOP_GENERATION_FAILED_MESSAGE,
   formatUserFacingError,
-} from '@chat/shared/logic/user-facing-errors'
+} from '@chat/core/logic/user-facing-errors'
 import { dispatchComposerError } from '@/lib/chat-events'
 
 const LONG_PRESS_DELAY_MS = 450

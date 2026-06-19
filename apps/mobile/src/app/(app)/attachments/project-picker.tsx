@@ -1,7 +1,7 @@
 import { ProjectPickerContent } from "@/components/dialog/project-picker-content";
 import { useComposerToast } from "@/components/composer-toast";
 import { api } from "@convex/_generated/api";
-import { useChatCoreContext, useChatProjects } from "@chat/chat-core";
+import { useChatCoreContext, useChatProjects } from "@chat/core";
 import { useMutation, useQuery } from "convex/react";
 import { useRouter } from "expo-router";
 import { useCallback, useMemo } from "react";

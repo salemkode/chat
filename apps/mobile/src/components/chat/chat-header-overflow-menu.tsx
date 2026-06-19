@@ -6,7 +6,7 @@ import {
   useChatHeaderLabels,
 } from "@/hooks/use-chat-header";
 import { selectThread, threadSelection$ } from "@/state/thread-selection";
-import { useChatCoreContext } from "@chat/chat-core";
+import { useChatCoreContext } from "@chat/core";
 import { useSelector } from "@legendapp/state/react";
 import { Stack } from "expo-router";
 import { EllipsisVertical, Pencil, Share2, SquarePen } from "lucide-react-native";

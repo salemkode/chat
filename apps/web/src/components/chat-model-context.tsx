@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { AUTO_MODEL_ID, isAutoModelSelection } from '@chat/shared'
+import { AUTO_MODEL_ID, isAutoModelSelection } from '@chat/core'
 import { useModels } from '@/hooks/use-chat-data'
 
 const LAST_USED_MODEL_STORAGE_KEY = 'last-used-model-id'

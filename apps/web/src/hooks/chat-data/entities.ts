@@ -10,12 +10,12 @@ import {
   MODEL_BROWSER_LOAD_MORE_NUM_ITEMS,
   MODEL_BROWSER_PREFETCH_NUM_ITEMS,
   type ModelBrowserQueryOptions,
-} from '@chat/shared'
+} from '@chat/core'
 import { useOnlineStatus } from '@/hooks/use-online-status'
-import { resolveChatSnapshot } from '@chat/chat-core'
+import { resolveChatSnapshot } from '@chat/core'
 import { usePaginatedQuery, useQuery } from '@/lib/convex-query-cache'
 import { readModelsCache, readProjectsCache, readSettings } from '@/offline/local-cache'
-import { parseConvexIdForTable } from '@chat/shared/logic/convex-ids'
+import { parseConvexIdForTable } from '@chat/core/logic/convex-ids'
 import {
   cacheModelsToLocal,
   cacheProjectsToLocal,
@@ -31,8 +31,7 @@ import {
 
 type ModelRecord = FunctionReturnType<typeof api.admin.listModelsForBrowser>['page'][number]
 
-export type UseModelsOptions = ModelBrowserQueryOptions & {
-  collectionId?: Id<'modelCollections'>
+export type UseModelsOptions = ModelBrowserQueryOptions<Id<'modelCollections'>> & {
   prefetchAll?: boolean
 }
 

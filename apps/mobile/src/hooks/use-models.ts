@@ -8,7 +8,7 @@ import {
   MODEL_BROWSER_LOAD_MORE_NUM_ITEMS,
   MODEL_BROWSER_PREFETCH_NUM_ITEMS,
   type ModelBrowserQueryOptions,
-} from "@chat/shared";
+} from "@chat/core";
 
 export type ModelRecord = FunctionReturnType<
   typeof api.admin.listModelsForBrowser

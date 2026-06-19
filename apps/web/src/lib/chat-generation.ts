@@ -1,4 +1,4 @@
-import { formatMessageFailureNote } from '@chat/shared/logic/user-facing-errors'
+import { formatMessageFailureNote } from '@chat/core/logic/user-facing-errors'
 import type { FunctionReturnType } from 'convex/server'
 import { api } from '@convex/_generated/api'
 

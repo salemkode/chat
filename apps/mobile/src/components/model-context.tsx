@@ -6,14 +6,14 @@ import {
   mediaTypeMatchesPattern,
   resolveModelAttachmentMediaTypes,
   type ModelAttachmentValidationStatus,
-} from "@chat/shared";
+} from "@chat/core";
 import {
   AUTO_MODEL_ID,
   encodeAutoModelCollectionSelection,
   isAutoModelSelection,
   parseAutoModelCollectionSelection,
-} from "@chat/shared";
-import type { IconType } from "@chat/shared/admin-types";
+} from "@chat/core";
+import type { IconType } from "@chat/core/admin-types";
 
 const LAST_USED_MODEL_KEY = "last-used-model-id";
 

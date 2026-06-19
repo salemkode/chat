@@ -5,7 +5,7 @@ import {
   AUTO_MODEL_ID,
   encodeAutoModelCollectionSelection,
   isAutoModelSelection,
-} from '@chat/shared'
+} from '@chat/core'
 import { useClerk } from '@clerk/react-router'
 import { useNavigate } from 'react-router'
 import {

@@ -1,5 +1,5 @@
-import { ChatCoreShell } from "@chat/chat-core";
-import type { ProjectSummary, ThreadSummary } from "@chat/chat-core/types";
+import { ChatCoreShell } from "@chat/core";
+import type { ProjectSummary, ThreadSummary } from "@chat/core/types";
 import { useMutation } from "convex/react";
 import { useMemo, type ReactNode } from "react";
 import { api } from "@convex/_generated/api";

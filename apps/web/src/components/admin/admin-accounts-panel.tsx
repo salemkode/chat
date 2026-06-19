@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access -- Convex hooks */
 import { useMemo, useState } from 'react'
 import { useMutation } from 'convex/react'
-import { parseConvexIdForTable } from '@chat/shared/logic/convex-ids'
+import { parseConvexIdForTable } from '@chat/core/logic/convex-ids'
 import { Loader2 } from '@/lib/icons'
 import { api } from '@convex/_generated/api'
 import {

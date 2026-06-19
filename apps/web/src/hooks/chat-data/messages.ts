@@ -5,7 +5,7 @@ import { api } from '@convex/_generated/api'
 import {
   useGenerationState as useChatCoreGenerationState,
   useThreadMessages,
-} from '@chat/chat-core'
+} from '@chat/core'
 import { CHAT_STREAM_RESUME_EVENT } from '@/lib/chat-events'
 import { sortChatMessages } from '@/hooks/chat-data/message-order'
 import { readMessagesCache } from '@/offline/local-cache'

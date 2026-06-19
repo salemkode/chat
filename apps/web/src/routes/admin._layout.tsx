@@ -19,6 +19,7 @@ import { AdminPageHeader } from '@/components/admin/admin-page-header'
 import { useAdminProviderDialog } from '@/components/admin/admin-provider-dialog'
 import { adminPanelClass } from '@/components/admin/admin-surface'
 import type { DashboardData } from '@/components/admin/types'
+import { AppAtmosphere } from '@/components/app-atmosphere'
 import { AuthRedirect } from '@/components/auth-redirect'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useQuery } from '@/lib/convex-query-cache'
@@ -248,7 +249,8 @@ export default function AdminLayoutRoute() {
 function AdminPageShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
-      {children}
+      <AppAtmosphere />
+      <div className="relative z-10">{children}</div>
     </div>
   )
 }

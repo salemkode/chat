@@ -7,7 +7,7 @@ import {
   encodeAutoModelCollectionSelection,
   isAutoModelSelection,
   parseAutoModelCollectionSelection,
-} from '@chat/shared'
+} from '@chat/core'
 import { Boxes, ChevronDown, Search, Star } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { useModels } from '@/hooks/use-chat-data'

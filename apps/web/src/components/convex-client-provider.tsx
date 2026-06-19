@@ -1,5 +1,5 @@
 import { useAuth } from '@clerk/react-router'
-import { ConvexQueryCacheProvider } from '@chat/shared/convex-query-cache/provider'
+import { ConvexQueryCacheProvider } from '@chat/core/convex-query-cache/provider'
 import { ConvexReactClient } from 'convex/react'
 import { ConvexProviderWithClerk } from 'convex/react-clerk'
 import { useEffect, type ReactNode } from 'react'

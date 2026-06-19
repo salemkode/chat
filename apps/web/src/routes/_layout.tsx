@@ -4,11 +4,12 @@ import {
   isAutoModelSelection,
   parseAutoModelCollectionSelection,
   resolveModelAttachmentMediaTypes,
-} from '@chat/shared'
-import { formatUserFacingError } from '@chat/shared/logic/user-facing-errors'
+} from '@chat/core'
+import { formatUserFacingError } from '@chat/core/logic/user-facing-errors'
 import { api } from '@convex/_generated/api'
 import type { Id } from '@convex/_generated/dataModel'
 import { useAction } from 'convex/react'
+import { AppAtmosphere } from '@/components/app-atmosphere'
 import { AuthLoadingScreen } from '@/components/auth/auth-loading-screen'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AIPromptInput } from '@/components/ai-prompt-input'
@@ -71,19 +72,20 @@ function AuthenticatedChatLayout() {
   const showComposer = !location.pathname.startsWith('/projects/')
 
   return (
-    <SidebarProvider className="h-screen">
+    <SidebarProvider className="relative h-screen overflow-hidden bg-background text-foreground">
+      <AppAtmosphere />
       <ChatModelProvider>
         <AppSidebar selectedThreadId={threadId ?? null} />
 
         <PendingSendsProvider>
-          <SidebarInset className="relative min-h-0 overflow-hidden border-0">
+          <SidebarInset className="relative z-10 min-h-0 overflow-hidden border-0 bg-transparent">
             <div className="flex min-h-0 flex-1 flex-col">
               <div className="min-h-0 flex-1">
                 <Outlet />
               </div>
 
               {showComposer ? (
-                <div className="shrink-0 border-t border-border/60 bg-background/88 px-3 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur-xl sm:px-4 sm:pt-4">
+                <div className="pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 px-3 shrink-0 sm:pt-4 sm:px-4">
                   <div className="mx-auto w-full max-w-[56rem]">
                     <ChatComposer threadId={threadId} mobile={isMobile} />
                   </div>

@@ -4,7 +4,7 @@ import type { Doc } from '@convex/_generated/dataModel'
 import { createContext, useCallback, useContext, useMemo, useReducer } from 'react'
 import { toast } from 'sonner'
 import { api } from '@convex/_generated/api'
-import { parseConvexIdForTable } from '@chat/shared/logic/convex-ids'
+import { parseConvexIdForTable } from '@chat/core/logic/convex-ids'
 import {
   initialDiscoveryState,
   mergeReducer,

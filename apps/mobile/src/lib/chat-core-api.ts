@@ -1,5 +1,5 @@
 import { api } from "@convex/_generated/api";
-import type { ChatCoreApiRefs } from "@chat/chat-core";
+import type { ChatCoreApiRefs } from "@chat/core";
 
 export const chatCoreApiRefs: ChatCoreApiRefs = {
   projects: {

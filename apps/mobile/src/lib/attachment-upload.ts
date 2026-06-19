@@ -1,5 +1,5 @@
 import type { Id } from "@convex/_generated/dataModel";
-import { parseConvexIdForTable } from "@chat/shared/logic/convex-ids";
+import { parseConvexIdForTable } from "@chat/core/logic/convex-ids";
 import type { LocalAttachment } from "@/components/chat/attachment-types";
 import { File } from "expo-file-system";
 import { Platform } from "react-native";

@@ -10,8 +10,7 @@
     "lint": "expo lint"
   },
   "dependencies": {
-    "@chat/chat-core": "workspace:^",
-    "@chat/shared": "workspace:^",
+    "@chat/core": "workspace:^",
     "@clerk/expo": "^3.3.0",
     "@convex-dev/agent": "0.6.0-alpha.1",
     "@expo/dom-webview": "^56.0.5",

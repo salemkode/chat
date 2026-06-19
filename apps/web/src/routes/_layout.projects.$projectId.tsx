@@ -29,58 +29,11 @@ export default function ProjectWorkspacePage() {
   const projectId = rawProjectId as Id<'projects'>
   const navigate = useNavigate()
 
-  const projectContextApi = (
-    api as typeof api & {
-      projectContext: {
-        getProjectWorkspace: unknown
-        listProjectSources: unknown
-        createGithubRepoSource: unknown
-        createGmailQuerySource: unknown
-        createManualLinkArtifact: unknown
-        listProjectArtifacts: unknown
-        updateProjectArtifact: unknown
-        generateProjectUploadUrl: unknown
-        createUploadedArtifact: unknown
-        syncProjectSourceNow: unknown
-      }
-      integrations: {
-        listConnections: unknown
-        getOAuthStartUrl: unknown
-      }
-      projectMembers: {
-        listProjectMembers: unknown
-      }
-      projects: {
-        listThreadsByProject: unknown
-      }
-    }
-  ).projectContext
-  const integrationsApi = (
-    api as typeof api & {
-      integrations: {
-        listConnections: unknown
-        getOAuthStartUrl: unknown
-      }
-    }
-  ).integrations
-  const projectMembersApi = (
-    api as typeof api & {
-      projectMembers: {
-        listProjectMembers: unknown
-      }
-    }
-  ).projectMembers
-  const projectsApi = (
-    api as typeof api & {
-      projects: {
-        listThreadsByProject: unknown
-      }
-    }
-  ).projects
-
+  // The Convex API is fully typed now, so we reference backend modules directly
+  // (no shims or `as never` casts). Each `useQuery`/`useMutation` is checked end-to-end.
   const workspace = useQuery(
-    projectContextApi.getProjectWorkspace as never,
-    projectId ? ({ projectId } as never) : 'skip',
+    api.projectContext.getProjectWorkspace,
+    projectId ? { projectId } : 'skip',
   ) as
     | {
         id: string
@@ -101,8 +54,8 @@ export default function ProjectWorkspacePage() {
     | undefined
 
   const sources = (useQuery(
-    projectContextApi.listProjectSources as never,
-    projectId ? ({ projectId } as never) : 'skip',
+    api.projectContext.listProjectSources,
+    projectId ? { projectId } : 'skip',
   ) ?? []) as Array<{
     id: string
     provider: SourceProvider
@@ -117,8 +70,8 @@ export default function ProjectWorkspacePage() {
   }>
 
   const artifacts = (useQuery(
-    projectContextApi.listProjectArtifacts as never,
-    projectId ? ({ projectId } as never) : 'skip',
+    api.projectContext.listProjectArtifacts,
+    projectId ? { projectId } : 'skip',
   ) ?? []) as Array<{
     id: string
     sourceId: string
@@ -134,7 +87,7 @@ export default function ProjectWorkspacePage() {
     updatedAt: number
   }>
 
-  const connections = (useQuery(integrationsApi.listConnections as never) ?? []) as Array<{
+  const connections = (useQuery(api.integrations.listConnections) ?? []) as Array<{
     id: string
     provider: 'github' | 'google'
     accountLabel: string
@@ -142,8 +95,8 @@ export default function ProjectWorkspacePage() {
   }>
 
   const members = (useQuery(
-    projectMembersApi.listProjectMembers as never,
-    projectId ? ({ projectId } as never) : 'skip',
+    api.projectMembers.listProjectMembers,
+    projectId ? { projectId } : 'skip',
   ) ?? []) as Array<{
     id: string
     userId: string
@@ -151,22 +104,22 @@ export default function ProjectWorkspacePage() {
   }>
 
   const threads = (useQuery(
-    projectsApi.listThreadsByProject as never,
-    projectId ? ({ projectId } as never) : 'skip',
+    api.projects.listThreadsByProject,
+    projectId ? { projectId } : 'skip',
   ) ?? []) as Array<{
     _id: string
     title?: string
     _creationTime: number
   }>
 
-  const createGithubRepoSource = useMutation(projectContextApi.createGithubRepoSource as never)
-  const createGmailQuerySource = useMutation(projectContextApi.createGmailQuerySource as never)
-  const createManualLinkArtifact = useMutation(projectContextApi.createManualLinkArtifact as never)
-  const updateProjectArtifact = useMutation(projectContextApi.updateProjectArtifact as never)
-  const syncProjectSourceNow = useMutation(projectContextApi.syncProjectSourceNow as never)
-  const generateProjectUploadUrl = useMutation(projectContextApi.generateProjectUploadUrl as never)
-  const createUploadedArtifact = useMutation(projectContextApi.createUploadedArtifact as never)
-  const getOAuthStartUrl = useMutation(integrationsApi.getOAuthStartUrl as never)
+  const createGithubRepoSource = useMutation(api.projectContext.createGithubRepoSource)
+  const createGmailQuerySource = useMutation(api.projectContext.createGmailQuerySource)
+  const createManualLinkArtifact = useMutation(api.projectContext.createManualLinkArtifact)
+  const updateProjectArtifact = useMutation(api.projectContext.updateProjectArtifact)
+  const syncProjectSourceNow = useMutation(api.projectContext.syncProjectSourceNow)
+  const generateProjectUploadUrl = useMutation(api.projectContext.generateProjectUploadUrl)
+  const createUploadedArtifact = useMutation(api.projectContext.createUploadedArtifact)
+  const getOAuthStartUrl = useMutation(api.integrations.getOAuthStartUrl)
 
   const [manualLink, setManualLink] = useState('')
   const [manualLinkTitle, setManualLinkTitle] = useState('')
@@ -225,7 +178,7 @@ export default function ProjectWorkspacePage() {
         provider,
         projectId,
         redirectTo: `/projects/${projectId}`,
-      } as never)) as { url: string }
+      })) as { url: string }
       window.location.assign(result.url)
     } catch (error) {
       setActionError(error instanceof Error ? error.message : 'Failed to start OAuth flow')

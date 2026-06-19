@@ -3,7 +3,7 @@ import {
   inferMediaTypeFromName,
   normalizeAttachmentFilename,
   resolveAttachmentMediaType,
-} from "@chat/shared/logic/attachment-metadata";
+} from "@chat/core/logic/attachment-metadata";
 
 export type LocalAttachmentSource = "files" | "photos" | "camera";
 

@@ -1,4 +1,4 @@
-import type { ThreadSummary } from "@chat/chat-core/types";
+import type { ThreadSummary } from "@chat/core/types";
 
 export type DrawerThreadRowProps = {
   thread: ThreadSummary;

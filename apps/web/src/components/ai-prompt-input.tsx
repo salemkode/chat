@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import { isAttachmentMediaTypeAllowed, resolveModelAttachmentMediaTypes } from '@chat/shared'
+import { isAttachmentMediaTypeAllowed, resolveModelAttachmentMediaTypes } from '@chat/core'
 import { api } from '@convex/_generated/api'
 import type { Id } from '@convex/_generated/dataModel'
 import { matchesHotkeyBinding } from '@/lib/hotkeys'

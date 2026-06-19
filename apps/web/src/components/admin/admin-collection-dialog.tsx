@@ -1,10 +1,11 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access -- models list matches AdminModel[] at runtime */
 import { useMutation } from 'convex/react'
+import { normalizeIconType } from '@chat/core/admin-types'
 import { Plus, Search, Sparkles } from '@/lib/icons'
 import { useCallback, useId, useMemo, useReducer, useState } from 'react'
 import { toast } from 'sonner'
 import { api } from '@convex/_generated/api'
-import { parseConvexIdForTable } from '@chat/shared/logic/convex-ids'
+import { parseConvexIdForTable } from '@chat/core/logic/convex-ids'
 import { EntityIcon } from '@/components/admin/entity-icon'
 import { IconPickerField } from '@/components/admin/icon-picker-field'
 import type {
@@ -17,7 +18,7 @@ import {
   initialModelCollectionDialogState,
   mergeReducer,
 } from '@/components/admin/admin-form-state'
-import type { AdminModel, AdminModelCollection, IconType } from '@/components/admin/types'
+import type { AdminModel, AdminModelCollection } from '@/components/admin/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -359,13 +360,6 @@ export function AdminCollectionDialog({ state, actions }: AdminCollectionDialogP
 
 function isPresent<T>(value: T | null | undefined): value is T {
   return value !== null && value !== undefined
-}
-
-function normalizeIconType(value: string | undefined): IconType {
-  if (value === 'brand' || value === 'emoji' || value === 'phosphor' || value === 'upload') {
-    return value
-  }
-  return undefined
 }
 
 export function useAdminCollectionDialog({

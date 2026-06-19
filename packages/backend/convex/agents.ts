@@ -1,3 +1,20 @@
+/**
+ * Chat orchestration: the heart of the backend.
+ *
+ * Two main concerns live here:
+ *
+ *   1. Thread lifecycle — creating chat threads, listing them, and the
+ *      metadata updates that power the sidebar (title/emoji/project/sort).
+ *   2. Generation (`streamMessage` / `generateMessage` / regenerate) — this is
+ *      the streaming pipeline: it assembles prompt context, chooses/validates a
+ *      model, calls the AI provider with `streamText`, persists UI-message
+ *      chunks as stream deltas, and finalizes the assistant message atomically
+ *      when the stream completes. A backend watchdog marks stalled generations
+ *      failed after a no-progress window so clients can offer Stop/Resend.
+ *
+ * "Agents" is the historical name (from `@convex-dev/agent`); today this file
+ * is really the chat generation + thread layer.
+ */
 import { api, components, internal } from './_generated/api'
 import { Agent, saveMessage, getFile } from '@convex-dev/agent'
 import type { FilePart, ImagePart, TextPart } from 'ai'

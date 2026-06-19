@@ -7,8 +7,8 @@
     "paths": {
       "@/*": ["./src/*"],
       "@convex/*": ["../../packages/backend/convex/*"],
-      "@chat/shared": ["../../packages/shared/src/index.ts"],
-      "@chat/shared/*": ["../../packages/shared/src/*"]
+      "@chat/core": ["../../packages/core/src/index.ts"],
+      "@chat/core/*": ["../../packages/core/src/*"]
     }
   },
   "files": [],

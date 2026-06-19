@@ -1,11 +1,11 @@
 import {
   isAttachmentMediaTypeAllowed,
   mediaTypeMatchesPattern,
-} from "@chat/shared";
+} from "@chat/core";
 import {
   CHAT_FILES_STILL_UPLOADING_MESSAGE,
   formatUserFacingError,
-} from "@chat/shared/logic/user-facing-errors";
+} from "@chat/core/logic/user-facing-errors";
 import type { LocalAttachment } from "@/components/chat/attachment-types";
 
 export function modelAcceptsNonImageAttachments(

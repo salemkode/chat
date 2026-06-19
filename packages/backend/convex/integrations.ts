@@ -8,6 +8,11 @@ import {
 } from './_generated/server'
 import type { Id } from './_generated/dataModel'
 import { getAuthUserId } from './lib/auth'
+import {
+  githubUserProfileSchema,
+  googleUserProfileSchema,
+  oauthTokenResponseSchema,
+} from './lib/external-schemas'
 import { encryptSecret } from './lib/integrationCrypto'
 import { requireProjectRole } from './lib/projectAccess'
 
@@ -327,12 +332,7 @@ export const exchangeOAuthCode = internalAction({
         throw new Error('Failed to exchange GitHub OAuth code')
       }
 
-      const tokenJson = (await tokenResponse.json()) as {
-        access_token?: string
-        refresh_token?: string
-        expires_in?: number
-        scope?: string
-      }
+      const tokenJson = oauthTokenResponseSchema.parse(await tokenResponse.json())
       if (!tokenJson.access_token) {
         throw new Error('GitHub OAuth response missing access_token')
       }
@@ -349,11 +349,7 @@ export const exchangeOAuthCode = internalAction({
         throw new Error('Failed to fetch GitHub account profile')
       }
 
-      const userJson = (await userResponse.json()) as {
-        id?: number
-        login?: string
-        name?: string
-      }
+      const userJson = githubUserProfileSchema.parse(await userResponse.json())
 
       if (!userJson.id) {
         throw new Error('GitHub account profile missing id')
@@ -393,12 +389,7 @@ export const exchangeOAuthCode = internalAction({
       throw new Error('Failed to exchange Google OAuth code')
     }
 
-    const tokenJson = (await tokenResponse.json()) as {
-      access_token?: string
-      refresh_token?: string
-      expires_in?: number
-      scope?: string
-    }
+    const tokenJson = oauthTokenResponseSchema.parse(await tokenResponse.json())
 
     if (!tokenJson.access_token) {
       throw new Error('Google OAuth response missing access_token')
@@ -414,11 +405,7 @@ export const exchangeOAuthCode = internalAction({
       throw new Error('Failed to fetch Google account profile')
     }
 
-    const profileJson = (await profileResponse.json()) as {
-      sub?: string
-      email?: string
-      name?: string
-    }
+    const profileJson = googleUserProfileSchema.parse(await profileResponse.json())
 
     if (!profileJson.sub) {
       throw new Error('Google account profile missing sub')

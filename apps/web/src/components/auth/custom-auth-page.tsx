@@ -1,7 +1,7 @@
 import { useAuth, useSignIn } from '@clerk/react-router'
 import { Navigate } from 'react-router'
 import { useState } from 'react'
-import { AuthAtmosphere } from '@/components/auth/auth-atmosphere'
+import { AppAtmosphere } from '@/components/app-atmosphere'
 import { AuthLoadingScreen } from '@/components/auth/auth-loading-screen'
 import { Button } from '@/components/ui/button'
 import { ArrowRight } from '@/lib/icons'
@@ -48,7 +48,7 @@ export function CustomAuthPage({ redirectTarget }: CustomAuthPageProps) {
 
   return (
     <main className="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-background text-foreground selection:bg-foreground selection:text-background">
-      <AuthAtmosphere />
+      <AppAtmosphere />
 
       <div className="animate-in fade-in zoom-in-95 relative z-10 w-full max-w-[24rem] p-6 duration-1000">
         <div className="relative overflow-hidden rounded-[2.5rem] border border-border bg-card/80 p-8 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-3xl dark:border-white/10 dark:bg-white/[0.02] dark:shadow-none sm:p-12">

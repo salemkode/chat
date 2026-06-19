@@ -1,6 +1,7 @@
 import { action, internalMutation, internalQuery } from './_generated/server'
 import { api, components, internal } from './_generated/api'
 import { ConvexError, v } from 'convex/values'
+import { routerSelectionResponseSchema } from './lib/external-schemas'
 import { getAuthUserId } from './lib/auth'
 import {
   modelSupportsAttachmentSummary,
@@ -548,7 +549,7 @@ export const selectAutoModel = action({
         throw new Error(`Route request failed with ${routeResponse.status}`)
       }
 
-      const payload = (await routeResponse.json()) as { model?: string }
+      const payload = routerSelectionResponseSchema.parse(await routeResponse.json())
       const selectedModel = eligibleModels.find(
         (model: (typeof eligibleModels)[number]) => model.modelId === payload.model,
       )

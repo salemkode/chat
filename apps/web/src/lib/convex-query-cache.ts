@@ -2,4 +2,4 @@ export {
   usePaginatedQuery,
   
   useQuery,
-} from '@chat/shared/convex-query-cache/hooks'
+} from '@chat/core/convex-query-cache/hooks'

@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, no-underscore-dangle -- Convex hooks */
 import { useMutation } from 'convex/react'
+import { normalizeIconType } from '@chat/core/admin-types'
 import { api } from '@convex/_generated/api'
 import type { AdminOutletContext } from '@/components/admin/admin-outlet-context'
 import { AdminCollectionAiDialog } from '@/components/admin/admin-collection-ai-dialog'
@@ -11,18 +12,11 @@ import {
   AdminSectionCard,
   AdminStatPill,
 } from '@/components/admin/admin-surface'
-import type { AdminModelCollection, IconType } from '@/components/admin/types'
+import type { AdminModelCollection } from '@/components/admin/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { InfiniteScrollTrigger } from '@/components/infinite-scroll-trigger'
 import { usePaginatedQuery } from '@/lib/convex-query-cache'
-
-function normalizeIconType(value: string | undefined): IconType {
-  if (value === 'brand' || value === 'emoji' || value === 'phosphor' || value === 'upload') {
-    return value
-  }
-  return undefined
-}
 
 type AdminCollectionsPanelProps = Pick<
   AdminOutletContext,

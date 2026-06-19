@@ -1,5 +1,18 @@
 # Chat Monorepo Architecture
 
+## Plain-language overview (the 60-second explainer)
+
+Think of this product as **one chat app with two faces and one brain**:
+
+- **Two faces (the apps):** `apps/mobile` (the phone app, built with React Native + Expo) and `apps/web` (the website, built with React). They look different because phones and browsers work differently, but they show the same conversations.
+- **One brain (the shared package):** `packages/core` (named `@chat/core`). Everything both apps need to agree on lives here — how messages are ordered, how the sidebar is grouped, how icons work, how errors are worded, and the React "glue" that turns that logic into ready-to-use hooks. This used to be two packages (`shared` + `chat-core`); they were merged into one so there's a single place to look.
+- **One server (the backend):** `packages/backend` is a **Convex** backend. Convex is special: it is *both* the database *and* the server code in one place. The apps don't talk to a separate API — they subscribe to Convex and get live updates pushed automatically whenever data changes.
+- **Who talks to whom:** Apps → Convex (for data + AI). Convex → AI providers (OpenAI, Anthropic, Google, etc.) to actually generate replies. The shared `@chat/core` package is used by both apps *and* (the pure-logic part only) by the backend.
+
+That's the whole shape. The rest of this document fills in the details.
+
+> **One rule that keeps it simple:** `@chat/core` has two layers — *pure logic* (no React, safe for the backend to import) and a *React layer* (only the apps use it). When you open the package, the pure logic comes first, the React layer second.
+
 ## Purpose
 
 This document describes the current repository architecture for the `chat` monorepo. It covers the main runtime systems, ownership boundaries, shared data flow, and the conventions already visible in code.
@@ -10,22 +23,18 @@ This repository is a pnpm workspace orchestrated by Turbo. The product is split 
 
 - `apps/mobile`: Expo + React Native mobile client
 - `apps/web`: React Router framework web client
-- `packages/shared`: cross-platform hooks and domain helpers
-- `convex`: backend schema, queries, mutations, actions, and AI orchestration
+- `packages/core` (`@chat/core`): the single shared package — pure cross-platform logic **plus** the React chat "core" (providers/hooks). The backend imports only the pure-logic part.
+- `packages/backend` (`convex/`): backend schema, queries, mutations, actions, and AI orchestration
 
-There are also non-primary directories that should be treated as supporting or legacy until explicitly adopted:
-
-- `apps/JSWithNativeSignInQuickstart`: Clerk sample app, not part of the main product architecture
-- `ls/`: separate Expo app outside the workspace package groups
-- build artifacts such as `.output/`, `dist/`, `apps/mobile/dist/`
+The two packages that previously split this work (`@chat/shared` for logic and `@chat/chat-core` for React) were merged into `@chat/core` to remove a confusing boundary.
 
 ## Topology
 
 ```text
 clients
   mobile (Expo Router) ─┐
-  web (React Router) ─┼─> Convex backend + database + AI orchestration
-  shared package ───────┘
+  web (React Router)    ─┼─> Convex backend + database + AI orchestration
+  @chat/core (shared)   ─┘    (pure logic also imported by the backend)
 
 Convex
   schema.ts
@@ -49,19 +58,22 @@ local persistence
 
 - `apps/mobile`: primary native app
 - `apps/web`: primary web app
-- `apps/JSWithNativeSignInQuickstart`: reference or leftover sample app, not a production boundary
 
-### Shared Package
+### Shared Package (`packages/core` / `@chat/core`)
 
-- `packages/shared/src/hooks`: reusable environment-agnostic hooks
-- `packages/shared/src/logic`: shared domain helpers like project mention parsing and thread grouping
+One package, two layers (pure logic first, React second):
+
+- `packages/core/src/logic`: pure, React-free domain helpers (project-mention parsing, thread grouping, message ordering, ID helpers, error catalog, model-browser query args). The backend imports from here.
+- `packages/core/src/admin-types.ts`: shared admin types and small parsers (e.g. `normalizeIconType`, rate-limit validators).
+- `packages/core/src/hooks`: reusable environment-agnostic hooks (`use-online-status`, `use-mobile`).
+- `packages/core/src/{context,send,messages,generation,cache,providers,sidebar}.ts(x)`: the React chat "core" — providers and hooks used only by the apps.
 
 ### Backend
 
 - `convex/schema.ts`: source of truth for persisted data model
 - `convex/*.ts`: product domains exposed to clients
-- `convex/functions/*`: deeper memory and admin internals
-- `convex/lib/*`: backend helpers for auth, providers, billing, rate limits, tools, validators
+- `convex/functions/*`: deeper memory internals
+- `convex/lib/*`: backend helpers for auth, providers, billing, rate limits, tools, validators, and **runtime validation of external responses** (`lib/external-schemas.ts` — zod schemas for OAuth/API responses)
 
 ## Runtime Architecture
 
@@ -127,6 +139,7 @@ Web feature areas:
 
 - `apps/web/src/routes/*`: route handlers for chat, auth, admin, share, memory demo, plus legacy auth redirects
 - `apps/web/src/components/*`: chat UI, sidebar, prompt input, auth redirect, settings, markdown, model UI
+- authenticated web shells (chat sidebar layout, admin pages, auth screens, and session bootstrap) share the theme-aware `AppAtmosphere` background from `apps/web/src/components/app-atmosphere.tsx`; it renders as a fixed `pointer-events-none` layer behind scrollable content
 - the authenticated web chat now keeps one shared responsive shell across phones and desktops: the thread header, transcript column, and composer all align to the same centered width, while smaller screens only diverge for touch sizing and overlay behavior
 - long-running web lists now use paginated Convex queries in the client hooks for sidebar chats, memory views, model browsing, and admin catalogs instead of relying on unbounded list queries
 - settings shell lives in `apps/web/src/components/settings-modal.tsx`; settings dropdown fields use the shared Shadcn `Select` pattern for consistent design, and appearance preferences now include theme mode, accent color, plus separately persisted English and Arabic font stacks restored from local storage before hydration
@@ -153,19 +166,25 @@ Streaming markdown rendering on web:
 - web block commits are token-aware: paragraphs commit when a blank line or a new block starts after them, fenced code commits when the closing fence arrives, and active lists / tables / blockquotes stay in the tail until they are clearly closed
 - `ChatMessageList` keeps `dataVersion` structural so per-token stream text does not force full-list remeasurement
 
-### 3. Shared Package
+### 3. Shared Package (`packages/core` / `@chat/core`)
 
-`packages/shared` is intentionally small and contains code that should remain free of platform UI assumptions.
+`@chat/core` is the single shared package for the whole product. It used to be two packages — `@chat/shared` (pure logic) and `@chat/chat-core` (React) — which were merged because the split was confusing and the boundary was arbitrary (the "logic" package already contained React code).
 
-Current responsibilities:
+It has two layers, and remembering this one distinction is enough to navigate it:
 
-- reusable hooks such as `use-online-status` and `use-smooth-text`
+**Pure-logic layer (no React; safe for the backend to import):**
+
+- reusable hooks such as `use-online-status` and `use-mobile`
 - thread grouping logic
 - project mention parsing used by mobile chat composer
-- shared admin types
-- **chat parity (pure logic)**: pending-send handoff (`logic/pending-send-core`), message list merge (`logic/merge-message-lists`), message ordering (`logic/message-order`), optimistic **user** `listMessages` row shape (`logic/optimistic-list-messages-core`; assistant replies are not optimistic), generation stall and send-queue primitives (`logic/chat-generation-core`), optimistic thread id/title (`logic/optimistic-thread-core`), send pipeline helpers (`logic/send-pipeline-core`).
+- shared admin types and parsers (`admin-types.ts`)
+- **chat parity (pure logic)**: pending-send handoff (`logic/pending-send-core`), message list merge (`logic/merge-message-lists`), message ordering (`logic/message-order`), optimistic **user** `listMessages` row shape (`logic/optimistic-list-messages-core`; assistant replies are not optimistic), generation stall and send-queue primitives (`logic/chat-generation-core`).
 
-`@chat/chat-core` owns cross-platform snapshot resolution (`resolveChatSnapshot`), in-flight send registry (`SendRegistryProvider`), `useThreadMessages` (live + offline + in-flight merge), `useGenerationState` (active assistant, stall detection, and stop eligibility), and adapter contracts for storage, attachments, and events. Stop is enabled while tokens or tool/reasoning activity are visible; after `STALL_THRESHOLD_MS` (20s) with no progress, clients expose force-stop via `canForceStop`. Web and mobile mount `ChatCoreShell` (registry + sidebar provider) with platform adapters under `apps/*/src/lib/chat-core-adapters.ts`. Chat data hooks use `convex/react` directly; offline snapshots plus the send registry replace the old convex-helpers-style query warm-cache for chat paths. Web `PendingSendsProvider` is a thin wrapper over `SendRegistryProvider` that keeps local blob previews during upload. Mobile listens for `CHAT_STREAM_RESUME_EVENT` via `DeviceEventEmitter` (`apps/mobile/src/lib/chat-events.ts`) with the same event names as the web `window` dispatcher so stream-resume behavior aligns.
+The backend imports only from this layer — today just `logic/display-name`, and it must never transitively pull in React.
+
+**React layer (apps only; never imported by the backend):**
+
+`@chat/core` owns cross-platform snapshot resolution (`resolveChatSnapshot`), in-flight send registry (`SendRegistryProvider`), `useThreadMessages` (live + offline + in-flight merge), `useGenerationState` (active assistant, stall detection, and stop eligibility), and adapter contracts for storage, attachments, and events. Stop is enabled while tokens or tool/reasoning activity are visible; after `STALL_THRESHOLD_MS` (20s) with no progress, clients expose force-stop via `canForceStop`. Web and mobile mount `ChatCoreShell` (registry + sidebar provider) with platform adapters under `apps/*/src/lib/chat-core-adapters.ts`. Chat data hooks use `convex/react` directly; offline snapshots plus the send registry replace the old convex-helpers-style query warm-cache for chat paths. Web `PendingSendsProvider` is a thin wrapper over `SendRegistryProvider` that keeps local blob previews during upload. Mobile listens for `CHAT_STREAM_RESUME_EVENT` via `DeviceEventEmitter` (`apps/mobile/src/lib/chat-events.ts`) with the same event names as the web `window` dispatcher so stream-resume behavior aligns.
 
 This package should continue to hold pure logic and cross-platform primitives, not app-specific screen composition.
 
@@ -228,7 +247,7 @@ Backend:
 6. File picker options are derived from each selected model attachment policy (`supportedAttachmentMediaTypes` when configured; an explicit empty list disables uploads; otherwise capability inference). Unsupported files are rejected in the sheet before upload, and the composer shows non-blocking inline errors for picker or upload failures.
 7. Successful user messages render stored file parts from `chatMessages.parts`, so attachments remain visible in the transcript after send.
 8. If a mutation fails, the composer restores the draft text, keeps the selected attachments, and shows inline error text.
-9. Raw Convex/provider errors are normalized for users through `packages/shared/src/logic/user-facing-error-catalog.ts` (`formatUserFacingError`, `formatMessageFailureNote`) before they reach `ChatInlineError` on web and mobile.
+9. Raw Convex/provider errors are normalized for users through `packages/core/src/logic/user-facing-error-catalog.ts` (`formatUserFacingError`, `formatMessageFailureNote`) before they reach `ChatInlineError` on web and mobile.
 
 ### Web
 
@@ -272,7 +291,7 @@ Web offline support is lighter and browser-oriented.
 
 - local snapshots live in `apps/web/src/offline/local-cache.ts`
 - drafts are kept in local storage helpers
-- `ConvexQueryCacheProvider` remains on web for admin/share routes; chat paths use `@chat/chat-core` snapshot merge instead
+- `ConvexQueryCacheProvider` remains on web for admin/share routes; chat paths use `@chat/core` snapshot merge instead
 - offline mode is mainly for last-known-state readback, not queued mutations
 
 ## AI and Model Routing
@@ -363,11 +382,10 @@ These are the main architectural rules reflected in the current mobile code and 
 
 ## Current Gaps and Cleanup Opportunities
 
-The repository is functional, but the architecture is carrying some extra weight:
+The repository is functional. Recent cleanup removed the `@chat/shared`/`@chat/chat-core` split (merged into `@chat/core`), deleted unused shadcn primitives and dead modules, and added runtime zod validation for external API responses. Remaining items worth keeping an eye on:
 
 - `README.md` still describes the repo as a single web app and should stay aligned with the monorepo structure
-- `apps/JSWithNativeSignInQuickstart` appears to be a sample app and should either be documented as reference-only or removed
-- `ls/` is a separate Expo project outside the workspace package globs and should be either promoted intentionally or moved out
+- the backend has two large files (`convex/admin.ts`, `convex/agents.ts`) that are navigable but would be easier to explain if split per domain — note this changes Convex `api.*` paths and needs a deploy to verify
 - checked-in build artifacts (`dist`, `.output`, `apps/mobile/dist`) blur the source architecture and should be treated as generated output
 
 ## Recommended Ownership Boundaries
@@ -378,7 +396,7 @@ Use these boundaries for ongoing work:
 - mobile route orchestration: `apps/mobile/app/**`
 - mobile data hooks and offline behavior: `apps/mobile/src/mobile-data/**`, `apps/mobile/src/offline/**`, `apps/mobile/src/store/**`
 - web route and UI logic: `apps/web/src/routes/**`, `apps/web/src/components/**`, `apps/web/src/hooks/**`
-- shared pure logic: `packages/shared/src/**`
+- shared pure logic + React chat core: `packages/core/src/**`
 - backend and data model: `convex/**`
 
 ## Short Version

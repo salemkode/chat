@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { BRAND_ICON_NAMES, getBrandIcon } from '@chat/shared/brand-icons'
+import { BRAND_ICON_NAMES, getBrandIcon } from '@chat/core/brand-icons'
 import { Upload } from '@/lib/icons'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -30,10 +30,11 @@ const ICON_PRESETS = [
 ] as const
 
 const ICON_NAMES = appIconNames
+// Brand presets are limited to icons that ship in simple-icons.
+// "openai" is intentionally absent — simple-icons has no OpenAI brand asset.
 const BRAND_ICON_PRESETS = [
   'googlegemini',
   'google',
-  'openai',
   'anthropic',
   'x',
   'deepseek',

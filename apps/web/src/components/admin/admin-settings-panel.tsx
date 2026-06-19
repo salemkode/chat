@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access -- Convex hooks */
 import { useAction, useMutation } from 'convex/react'
-import { parseConvexIdForTable } from '@chat/shared/logic/convex-ids'
+import { parseConvexIdForTable } from '@chat/core/logic/convex-ids'
 import { CreditCard, Loader2, Settings2 } from '@/lib/icons'
 import { useCallback, useReducer, useState } from 'react'
 import { toast } from 'sonner'
@@ -27,7 +27,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
-import type { AppPlan } from '@chat/shared/admin-types'
+import type { AppPlan } from '@chat/core/admin-types'
 import { useQuery } from '@/lib/convex-query-cache'
 
 type AdminSettingsPanelProps = Pick<AdminOutletContext, 'dashboard'>

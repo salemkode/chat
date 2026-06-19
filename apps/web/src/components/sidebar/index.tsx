@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { formatProfileName } from '@chat/shared/logic/display-name'
+import { formatProfileName } from '@chat/core/logic/display-name'
 import { useUser } from '@clerk/react-router'
 import { generatePath, useNavigate } from 'react-router'
 import { toast } from 'sonner'

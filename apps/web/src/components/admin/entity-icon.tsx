@@ -1,7 +1,7 @@
-import { inferBrandIconName } from '@chat/shared/brand-icons'
+import { inferBrandIconName } from '@chat/core/brand-icons'
 import { cn } from '@/lib/utils'
 import { getIcon } from '@/lib/icons'
-import type { IconType } from '@chat/shared/admin-types'
+import type { IconType } from '@chat/core/admin-types'
 import { BrandIcon } from '@/components/admin/brand-icon'
 
 export type { IconType }

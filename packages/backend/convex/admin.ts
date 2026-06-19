@@ -1,3 +1,23 @@
+/**
+ * Admin operations for the whole product (the `/admin/*` surface).
+ *
+ * This is a large file because it groups every admin-only backend function in
+ * one place. Logically it falls into a few groups — when reading it, look for
+ * these clusters of exports:
+ *
+ *   - Dashboard:        `getDashboardData` and the aggregated stats it powers
+ *   - Providers:        CRUD + provider-catalog inspection (`inspectProviderCatalog`)
+ *   - Models:           CRUD, model browsing/scoring, favorites, display metadata
+ *   - Collections:      model-group CRUD + AI-drafted collections
+ *   - Offers/discovery: model-offer access and discovery tooling
+ *   - Accounts/users:   account listing, plan management, rate limits
+ *   - Settings:         global app settings (billing, router, attachment policy…)
+ *   - Router health:    connection checks against the optional Python router
+ *
+ * Splitting this into one file per group is safe but changes every Convex
+ * `api.admin.*` path (and so every client call site + the deployed API), so it
+ * needs a Convex deploy to verify — see docs/architecture.md "Current gaps".
+ */
 import {
   action,
   internalMutation,
@@ -13,6 +33,12 @@ import { api, internal } from './_generated/api'
 import { ConvexError, v } from 'convex/values'
 import schema from './schema'
 import { getAuthUserId } from './lib/auth'
+import {
+  modelScoringResponseSchema,
+  routerCapabilitiesResponseSchema,
+  routerHealthResponseSchema,
+  routerModelsResponseSchema,
+} from './lib/external-schemas'
 import { fetchProviderCatalog } from './lib/providerCatalog'
 import {
   discoveredModelValidator,
@@ -1329,9 +1355,7 @@ export const verifyAutoModelRouterConnection = action({
         }
       }
 
-      const healthPayload = (await healthResponse.json()) as {
-        status?: string
-      }
+      const healthPayload = routerHealthResponseSchema.parse(await healthResponse.json())
       if (healthPayload.status !== 'ok') {
         return {
           ok: false,
@@ -1387,9 +1411,9 @@ export const verifyAutoModelRouterConnection = action({
         }
       }
 
-      const capabilitiesPayload = (await capabilitiesResponse.json()) as {
-        contract?: string
-      }
+      const capabilitiesPayload = routerCapabilitiesResponseSchema.parse(
+        await capabilitiesResponse.json(),
+      )
       const contractMatched = capabilitiesPayload.contract === expectedContract
       if (!contractMatched) {
         return {
@@ -1430,11 +1454,7 @@ export const verifyAutoModelRouterConnection = action({
         }
       }
 
-      const modelsPayload = (await modelsResponse.json()) as {
-        version?: unknown
-        count?: unknown
-        models?: unknown
-      }
+      const modelsPayload = routerModelsResponseSchema.parse(await modelsResponse.json())
       const modelsSchemaValid =
         typeof modelsPayload.version === 'number' &&
         typeof modelsPayload.count === 'number' &&
@@ -1712,29 +1732,7 @@ export const getAutoModelStudioSnapshot = action({
         }
       }
 
-      const payload = (await scoredResponse.json()) as {
-        models?: Array<{
-          name?: string
-          studio_profile?: {
-            auto_score?: number
-            category?:
-              | 'Best default'
-              | 'Coding'
-              | 'Vision'
-              | 'Long context'
-              | 'Fast'
-              | 'Budget'
-              | 'Reasoning'
-              | 'Needs metadata'
-            quality_score?: number
-            speed_score?: number
-            cost_score?: number
-            context_score?: number
-            routing_tags?: string[]
-            reasons?: string[]
-          }
-        }>
-      }
+      const payload = modelScoringResponseSchema.parse(await scoredResponse.json())
 
       const scoredModels = (payload.models ?? [])
         .map((model) => {

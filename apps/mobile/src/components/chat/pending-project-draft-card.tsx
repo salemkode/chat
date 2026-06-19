@@ -1,4 +1,4 @@
-import type { PendingProjectDraft } from "@chat/shared/logic/project-mention";
+import type { PendingProjectDraft } from "@chat/core/logic/project-mention";
 import {
   ActivityIndicator,
   Pressable,

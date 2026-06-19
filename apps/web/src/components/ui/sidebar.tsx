@@ -179,7 +179,10 @@ function Sidebar({
           data-sidebar="sidebar"
           data-slot="sidebar"
           data-mobile="true"
-          className="mobile-sidebar-sheet bg-sidebar text-sidebar-foreground w-[min(var(--sidebar-width),calc(100vw-0.75rem))] p-0 [&>button]:hidden"
+          className={cn(
+            'mobile-sidebar-sheet bg-sidebar text-sidebar-foreground left-0 top-0 bottom-0 h-dvh w-[min(var(--sidebar-width),100vw)] rounded-none p-0 shadow-none [backdrop-filter:none] [-webkit-backdrop-filter:none] [&>button]:hidden',
+            className,
+          )}
           style={
             {
               '--sidebar-width': SIDEBAR_WIDTH_MOBILE,

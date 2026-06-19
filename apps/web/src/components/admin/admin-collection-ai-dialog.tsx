@@ -1,13 +1,14 @@
 import { useAction, useMutation } from 'convex/react'
+import { normalizeIconType } from '@chat/core/admin-types'
 import type { Id } from '@convex/_generated/dataModel'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { api } from '@convex/_generated/api'
-import { parseConvexIdForTable } from '@chat/shared/logic/convex-ids'
+import { parseConvexIdForTable } from '@chat/core/logic/convex-ids'
 import type { AdminCollectionDraft } from '@/components/admin/admin-collection-dialog'
 import { formatAdminMutationError } from '@/components/admin/admin-mutation-error'
 import { EntityIcon } from '@/components/admin/entity-icon'
-import type { AdminModel, IconType } from '@/components/admin/types'
+import type { AdminModel } from '@/components/admin/types'
 import { Sparkles, Loader2 } from '@/lib/icons'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -36,13 +37,6 @@ type SuggestedCollectionDraft = AdminCollectionDraft
 
 function isPresent<T>(value: T | null | undefined): value is T {
   return value !== null && value !== undefined
-}
-
-function normalizeIconType(value: string | undefined): IconType {
-  if (value === 'brand' || value === 'emoji' || value === 'phosphor' || value === 'upload') {
-    return value
-  }
-  return undefined
 }
 
 function pickDefaultModelId(models: AdminModel[], defaultAuxiliaryModelId?: Id<'models'>): string {

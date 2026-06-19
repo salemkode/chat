@@ -7,7 +7,7 @@ import {
   buildOptimisticUserRow,
   maxOrderFromMessages,
   nextOrderAfterMax,
-} from "@chat/shared/logic/optimistic-list-messages-core";
+} from "@chat/core/logic/optimistic-list-messages-core";
 
 type ListMessagesPageItem = FunctionReturnType<
   typeof api.chat.listMessages

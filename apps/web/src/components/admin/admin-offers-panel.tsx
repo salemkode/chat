@@ -2,7 +2,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useMutation } from 'convex/react'
 import type { FunctionReturnType } from 'convex/server'
-import { parseConvexIdForTable } from '@chat/shared/logic/convex-ids'
+import { parseConvexIdForTable } from '@chat/core/logic/convex-ids'
 import { api } from '@convex/_generated/api'
 import type { AdminOutletContext } from '@/components/admin/admin-outlet-context'
 import {

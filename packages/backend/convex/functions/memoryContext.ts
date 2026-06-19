@@ -68,7 +68,7 @@ async function searchScopeHitsInner(
   const rawSearch = (await memoryRag.search(ctx, {
     namespace: args.userId,
     query: args.query.trim(),
-    limit: Math.max(args.maxResults * 3, args.maxResults),
+    limit: args.maxResults,
     filters,
   })) as {
     entries?: Array<Record<string, unknown>>

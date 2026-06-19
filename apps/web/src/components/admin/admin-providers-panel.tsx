@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, no-underscore-dangle -- Convex hooks */
 import { useMutation } from 'convex/react'
+import { normalizeIconType } from '@chat/core/admin-types'
 import { Loader2, Plus, WandSparkles } from '@/lib/icons'
 import { useCallback, useState } from 'react'
 import { api } from '@convex/_generated/api'
@@ -20,7 +21,7 @@ import {
   formatTokenCount,
   formatCompactNumber,
 } from '@/components/admin/admin-utils'
-import type { AdminProvider, IconType, ProviderCatalogResult } from '@/components/admin/types'
+import type { AdminProvider, ProviderCatalogResult } from '@/components/admin/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -41,18 +42,6 @@ type AdminProvidersPanelProps = Pick<
   'dashboard' | 'onOpenProviderDialog' | 'onSaveCurrentProvider'
 >
 
-function normalizeIconType(value: string | undefined): IconType {
-  switch (value) {
-    case 'brand':
-    case 'emoji':
-    case 'lucide':
-    case 'phosphor':
-    case 'upload':
-      return value
-    default:
-      return undefined
-  }
-}
 
 export function AdminProvidersPanel({
   dashboard: _dashboard,

@@ -1,4 +1,4 @@
-import type { ChatSuggestion } from '@chat/shared'
+import type { ChatSuggestion } from '@chat/core'
 
 export function ChatSuggestions({
   suggestions,

@@ -1,23 +1,28 @@
 import {
-  isRateLimitKind,
-  isRateLimitScope,
+  RATE_LIMIT_KINDS,
+  RATE_LIMIT_SCOPES,
   type RateLimitPolicy,
-} from '@chat/shared/admin-types'
+} from '@chat/core/admin-types'
+import { z } from 'zod'
+
+/**
+ * Small runtime parsers for untrusted/external values. Each one validates with a
+ * zod schema so the shape is actually checked (not just asserted via a cast).
+ */
+
+const uploadResponseSchema = z.object({
+  storageId: z.string().min(1),
+})
 
 export function parseUploadResponse(value: unknown): { storageId: string } {
-  if (!isRecord(value) || typeof value.storageId !== 'string') {
-    throw new Error('Upload response is missing storageId')
-  }
-
-  return { storageId: value.storageId }
+  return uploadResponseSchema.parse(value)
 }
 
-export function readFileReaderResultAsString(result: string | ArrayBuffer | null) {
-  if (typeof result !== 'string') {
-    throw new Error('Expected FileReader to produce a data URL string')
-  }
+const fileReaderStringSchema = z.string()
 
-  return result
+export function readFileReaderResultAsString(result: string | ArrayBuffer | null) {
+  // Throws a clear error if the FileReader did not produce a data URL string.
+  return fileReaderStringSchema.parse(result)
 }
 
 export function getRequiredEnv(env: Record<string, string | undefined>, key: string): string {
@@ -29,22 +34,14 @@ export function getRequiredEnv(env: Record<string, string | undefined>, key: str
   return value
 }
 
-export function parseRateLimitScope(value: unknown): RateLimitPolicy['scope'] {
-  if (!isRateLimitScope(value)) {
-    throw new Error('Invalid rate limit scope')
-  }
+const rateLimitScopeSchema = z.enum(RATE_LIMIT_SCOPES)
 
-  return value
+export function parseRateLimitScope(value: unknown): RateLimitPolicy['scope'] {
+  return rateLimitScopeSchema.parse(value)
 }
+
+const rateLimitKindSchema = z.enum(RATE_LIMIT_KINDS)
 
 export function parseRateLimitKind(value: unknown): RateLimitPolicy['kind'] {
-  if (!isRateLimitKind(value)) {
-    throw new Error('Invalid rate limit kind')
-  }
-
-  return value
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
+  return rateLimitKindSchema.parse(value)
 }

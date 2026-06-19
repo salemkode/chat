@@ -1,25 +1,57 @@
-import { resolveViewerDisplayName } from '@chat/shared/logic/display-name'
+import { resolveViewerDisplayName } from '@chat/core/logic/display-name'
 import { useEffect, useMemo } from 'react'
+import { useAuth } from '@clerk/react-router'
 import { api } from '@convex/_generated/api'
 import { useOnlineStatus } from '@/hooks/use-online-status'
 import { useConvexAuth, useQuery } from 'convex/react'
 import { readSession, readSettings } from '@/offline/local-cache'
 import { cacheViewerToLocal, useOfflineCacheVersion } from '@/hooks/chat-data/shared'
 
+export function resolveCachedSessionStatus(args: {
+  isClerkLoaded: boolean
+  isClerkSignedIn: boolean
+  isConvexAuthLoading: boolean
+  isConvexAuthenticated: boolean
+  isOnline: boolean
+  hasTrustedOfflineSession: boolean
+  isOfflineSessionLoaded: boolean
+}) {
+  const isWaitingForConvexSession =
+    args.isClerkLoaded && args.isClerkSignedIn && !args.isConvexAuthenticated
+  const isLoading =
+    !args.isClerkLoaded ||
+    args.isConvexAuthLoading ||
+    isWaitingForConvexSession ||
+    (!args.isOnline && !args.isOfflineSessionLoaded)
+
+  return {
+    isLoading,
+    isOfflineReady: args.hasTrustedOfflineSession,
+    isAuthenticatedOrOffline:
+      args.isConvexAuthenticated || (!args.isOnline && args.hasTrustedOfflineSession),
+  }
+}
+
 export function useCachedSessionStatus() {
+  const { isLoaded: isClerkLoaded, isSignedIn } = useAuth()
   const { isLoading: isConvexAuthLoading, isAuthenticated } = useConvexAuth()
   const { isOnline } = useOnlineStatus()
   const cacheVersion = useOfflineCacheVersion()
   const session = useMemo(() => readSession(), [cacheVersion])
   const isOfflineSessionLoaded = session !== null
   const hasTrustedOfflineSession = Boolean(session?.trusted)
-  const isLoading = isConvexAuthLoading || (!isOnline && !isOfflineSessionLoaded)
 
   return {
     isOnline,
-    isLoading,
-    isOfflineReady: hasTrustedOfflineSession,
-    isAuthenticatedOrOffline: isAuthenticated || (!isOnline && hasTrustedOfflineSession),
+    ...resolveCachedSessionStatus({
+      isClerkLoaded,
+      isClerkSignedIn: isSignedIn ?? false,
+      isConvexAuthLoading,
+      isConvexAuthenticated: isAuthenticated,
+      isOnline,
+      hasTrustedOfflineSession,
+      isOfflineSessionLoaded,
+    }),
   }
 }
 

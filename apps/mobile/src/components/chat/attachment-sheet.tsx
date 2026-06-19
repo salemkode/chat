@@ -16,9 +16,9 @@ import {
 import { pickMultipleImages, takePhoto } from "@/lib/image-picker";
 import { pickDocuments } from "@/lib/document-picker";
 import { threadSelection$ } from "@/state/thread-selection";
-import { useChatCoreContext, useChatProjects } from "@chat/chat-core";
+import { useChatCoreContext, useChatProjects } from "@chat/core";
 import { api } from "@convex/_generated/api";
-import { isAttachmentMediaTypeAllowed, mediaTypeMatchesPattern } from "@chat/shared";
+import { isAttachmentMediaTypeAllowed, mediaTypeMatchesPattern } from "@chat/core";
 import { useQuery } from "convex/react";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";

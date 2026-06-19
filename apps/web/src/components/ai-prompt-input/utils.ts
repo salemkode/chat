@@ -1,4 +1,4 @@
-import { isAttachmentMediaTypeAllowed } from '@chat/shared'
+import { isAttachmentMediaTypeAllowed } from '@chat/core'
 
 export {
   buildMentionProjectOptions,
@@ -7,7 +7,7 @@ export {
   type MentionProjectOption,
   type PendingProjectDraft,
   type ProjectMentionState,
-} from '@chat/shared/logic/project-mention'
+} from '@chat/core/logic/project-mention'
 
 export type ComposerReasoning = {
   enabled: boolean
@@ -150,4 +150,4 @@ function normalizeClipboardImageFile(file: File, index: number): File {
   })
 }
 
-export { formatUserFacingError as getComposerErrorMessage } from '@chat/shared/logic/user-facing-errors'
+export { formatUserFacingError as getComposerErrorMessage } from '@chat/core/logic/user-facing-errors'

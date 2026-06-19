@@ -1,4 +1,4 @@
-import { AuthAtmosphere } from '@/components/auth/auth-atmosphere'
+import { AppAtmosphere } from '@/components/app-atmosphere'
 import { OriginalThinkingAnimation } from '@/components/auth/original-thinking-animation'
 import { useEffect, useState } from 'react'
 
@@ -15,7 +15,7 @@ export function AuthLoadingScreen() {
 
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center gap-8 bg-background p-6 text-center text-foreground selection:bg-foreground selection:text-background">
-      <AuthAtmosphere />
+      <AppAtmosphere />
       
       <div className="relative z-10 flex flex-col items-center gap-6">
         <div className="animate-in fade-in zoom-in duration-1000">

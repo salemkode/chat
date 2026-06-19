@@ -6,7 +6,7 @@ import {
 import { SettingsSectionDivider, SettingsToggleRow } from '@/components/settings/settings-row'
 import { useModels } from '@/hooks/use-models'
 import { useSettings } from '@/hooks/use-settings'
-import { AUTO_MODEL_ID, isAutoModelSelection } from '@chat/shared'
+import { AUTO_MODEL_ID, isAutoModelSelection } from '@chat/core'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Check } from 'lucide-react-native'
 import { useCallback, useEffect, useMemo, useState } from 'react'

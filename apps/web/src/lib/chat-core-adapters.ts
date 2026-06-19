@@ -1,5 +1,5 @@
-import type { StorageAdapter, AttachmentAdapter, EventsAdapter } from '@chat/chat-core/adapters'
-import type { ChatMessage, ProjectSummary } from '@chat/chat-core/types'
+import type { StorageAdapter, AttachmentAdapter, EventsAdapter } from '@chat/core/adapters'
+import type { ChatMessage, ProjectSummary } from '@chat/core/types'
 import { CHAT_STREAM_RESUME_EVENT, CHAT_FOLLOW_LATEST_EVENT, dispatchChatEvent } from '@/lib/chat-events'
 import { parseUploadResponse } from '@/lib/parsers'
 import type { Id } from '@convex/_generated/dataModel'
