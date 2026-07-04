@@ -6,12 +6,12 @@ Think of this product as **one chat app with two faces and one brain**:
 
 - **Two faces (the apps):** `apps/mobile` (the phone app, built with React Native + Expo) and `apps/web` (the website, built with React). They look different because phones and browsers work differently, but they show the same conversations.
 - **One brain (the shared package):** `packages/core` (named `@chat/core`). Everything both apps need to agree on lives here — how messages are ordered, how the sidebar is grouped, how icons work, how errors are worded, and the React "glue" that turns that logic into ready-to-use hooks. This used to be two packages (`shared` + `chat-core`); they were merged into one so there's a single place to look.
-- **One server (the backend):** `packages/backend` is a **Convex** backend. Convex is special: it is *both* the database *and* the server code in one place. The apps don't talk to a separate API — they subscribe to Convex and get live updates pushed automatically whenever data changes.
-- **Who talks to whom:** Apps → Convex (for data + AI). Convex → AI providers (OpenAI, Anthropic, Google, etc.) to actually generate replies. The shared `@chat/core` package is used by both apps *and* (the pure-logic part only) by the backend.
+- **One server (the backend):** `packages/backend` is a **Convex** backend. Convex is special: it is _both_ the database _and_ the server code in one place. The apps don't talk to a separate API — they subscribe to Convex and get live updates pushed automatically whenever data changes.
+- **Who talks to whom:** Apps → Convex (for data + AI). Convex → AI providers (OpenAI, Anthropic, Google, etc.) to actually generate replies. The shared `@chat/core` package is used by both apps _and_ (the pure-logic part only) by the backend.
 
 That's the whole shape. The rest of this document fills in the details.
 
-> **One rule that keeps it simple:** `@chat/core` has two layers — *pure logic* (no React, safe for the backend to import) and a *React layer* (only the apps use it). When you open the package, the pure logic comes first, the React layer second.
+> **One rule that keeps it simple:** `@chat/core` has two layers — _pure logic_ (no React, safe for the backend to import) and a _React layer_ (only the apps use it). When you open the package, the pure logic comes first, the React layer second.
 
 ## Purpose
 
@@ -96,17 +96,15 @@ Chat architecture follows the repo rule set:
 
 Current chat composition:
 
-- `apps/mobile/app/(app)/(pager)/chat.tsx`: chat route that composes `ChatDrawerLayout`, `MobileSidebarPage`, and `ChatPage`
-- `apps/mobile/src/components/chat/chat-drawer-layout.tsx`: gesture-driven template-inspired drawer with live sidebar content behind the chat surface
-- `apps/mobile/app/(app)/(pager)/sidebar.tsx`: compatibility route that can render the same reusable sidebar page directly
-- legacy routes such as `apps/mobile/app/(app)/(chatTab)/chat/[id].tsx` now map deep links into the shared current-chat store and redirect into the chat shell route
-- top-level legacy routes under `apps/mobile/app/(tabs)` and `apps/mobile/app/sidebar` are redirect-only shims into the authenticated chat/projects/profile routes
-- the authenticated chat shell now uses a gesture drawer instead of swipe tabs: the sidebar slides from the left, while the main chat remains the default landing surface
-- mobile settings now open as a regular pushed stack flow rather than a bottom-sheet presentation, so profile, appearance, models, and memory stay within one full-page settings navigation path
-- `ChatPage` composes `ChatHeader`, `MessageList` or `NewChatEmptyState`, floating `ChatComposer`, `OfflineBanner`, and `ModelPickerDialog`
-- mobile chat input uses a Liquid Glass-aware floating `ChatComposer` dock with `react-native-keyboard-controller` positioning, multiline draft input, attachments, search, model access, and send/stop controls while `ModelPickerDialog` stays in `components/dialog` with a grouped, searchable list (Auto, Favorites, all models) on top of the same prop-driven boundaries as before
-- `MobileSidebarPage` composes the real mobile sidebar from reusable project, thread-list, and footer sections; the mobile list follows a ChatGPT-style structure with top shortcuts, pinned chats, compact expandable projects, relative-date chat sections, and long-press / overflow row actions
-- `use-chat-conversation.ts` assembles UI state, draft state, model state, project selection, send/replay logic, and inline error feedback
+- `apps/mobile/src/app/(app)/index.tsx`: chat route that composes `MainHeader`, `Conversation`, message rows, and the reusable prompt-input pieces
+- `apps/mobile/src/components/drawer-layout.tsx`: gesture-driven drawer with live sidebar content behind the chat surface
+- `apps/mobile/src/app/(app)/chats.tsx`: manual chat-list screen with search, filters, and new-chat controls in React Native layout
+- the authenticated chat shell uses a gesture drawer instead of swipe tabs: the sidebar slides from the left, while the main chat remains the default landing surface
+- mobile app screens hide Expo Router native headers and render manual React Native headers via `apps/mobile/src/components/app-header.tsx`; this avoids iOS native toolbar/header regressions and keeps header controls in normal layout
+- mobile settings use the same manual header pattern for profile, appearance, models, and memory routes
+- mobile chat input is a non-floating bottom composer inside `react-native-keyboard-controller` keyboard avoidance. The multiline draft input grows to at least four lines before internal scrolling, and attachments, project mention, model access, and send/stop controls remain under reusable `components/chat` and `components/dialog` boundaries.
+- `apps/mobile/src/components/drawer-content.tsx` composes the real mobile sidebar from reusable project, thread-list, and footer sections; the mobile list follows a ChatGPT-style structure with pinned chats, compact expandable projects, relative-date chat sections, and long-press / overflow row actions
+- `apps/mobile/src/app/(app)/index.tsx` assembles UI state, draft state, model state, project selection, send/stop logic, and inline error feedback while delegating visible chat pieces to `apps/mobile/src/components/chat`
 
 Mobile data and offline layer:
 
@@ -356,8 +354,8 @@ Operationally:
 - those facts are stored and later retrieved for context enrichment
 - memory concerns are kept outside the core chat UI composition layer
 - chat models without `tools` / `tool_calling` capabilities do not receive tool definitions during generation; memory CRUD intents are handled server-side instead
-- a cheaper **background memory model** (default fallback: `anthropic/claude-3-haiku` via OpenRouter) powers extraction and server-side memory intents; users pick it in Settings → Memory, admins can set an org default in the admin panel
-- tag models with the `auxiliary` capability to restrict the auxiliary-model candidate pool
+- a cheaper **background memory model** powers extraction and server-side memory intents; users pick it in Settings → Memory, admins can set an org default, and the backend falls back to the top ranked eligible model when neither is configured
+- tag models with the `auxiliary` capability to restrict the auxiliary-model candidate pool; when no accessible model is tagged, all enabled models the user can access are eligible
 
 Main auxiliary-model files:
 

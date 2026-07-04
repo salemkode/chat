@@ -6,10 +6,13 @@ import type { Doc, Id } from '../_generated/dataModel'
 import { api, components, internal } from '../_generated/api'
 import { resolveMemoryRag } from './memoryRag'
 import {
-  buildRagFilterValues,
+  buildRagSearchFiltersForScope,
   formatMemory,
+  getMemoryRagEntryId,
+  getMemoryRagEntryScope,
   type MemoryListItem,
   matchesMemoryFilters,
+  memoryRagEntryMatchesScope,
   memoryScopeValidator,
   paginateMemories,
   publicMemoryScopeValidator,
@@ -28,6 +31,7 @@ type MemoryReaderCtx = MemoryQueryCtx | MemoryActionCtx
 type UserMemoryDoc = Doc<'userMemories'>
 type ThreadMemoryDoc = Doc<'threadMemories'>
 type ProjectMemoryDoc = Doc<'projectMemories'>
+const SEARCH_OVERFETCH_MULTIPLIER = 8
 
 const memoryListItemValidator = v.object({
   memoryId: v.string(),
@@ -613,25 +617,16 @@ export const searchMemory = action({
       await assertProjectOwnership(ctx, { projectId: args.projectId, userId })
     }
 
-    const filters =
-      scope === 'thread'
-        ? buildRagFilterValues({
-            userId,
-            threadId: args.threadId!,
-            projectId: null,
-          }).filter((filter) => filter.name !== 'projectId')
-        : scope === 'project'
-          ? buildRagFilterValues({
-              userId,
-              threadId: null,
-              projectId: args.projectId!,
-            }).filter((filter) => filter.name !== 'threadId')
-          : [{ name: 'userId', value: userId }]
+    const filters = buildRagSearchFiltersForScope({
+      scope,
+      threadId: args.threadId,
+      projectId: args.projectId,
+    })
 
     const rawSearch = (await memoryRag.search(ctx, {
       namespace: userId,
       query: args.query.trim(),
-      limit: Math.max(maxResults * 3, maxResults),
+      limit: Math.max(maxResults * SEARCH_OVERFETCH_MULTIPLIER, maxResults),
       filters,
       vectorScoreThreshold: args.minScore,
     })) as {
@@ -650,12 +645,12 @@ export const searchMemory = action({
     }
 
     for (const entry of entries) {
-      const metadata =
-        entry.metadata && typeof entry.metadata === 'object'
-          ? (entry.metadata as Record<string, unknown>)
-          : undefined
-      const entryScope = metadata?.scope
-      const memoryId = metadata?.memoryId
+      if (!memoryRagEntryMatchesScope(entry, scope)) {
+        continue
+      }
+
+      const entryScope = getMemoryRagEntryScope(entry)
+      const memoryId = getMemoryRagEntryId(entry)
 
       if (entryScope === 'user' && typeof memoryId === 'string') {
         idsByScope.user.push(memoryId as Id<'userMemories'>)
@@ -700,17 +695,12 @@ export const searchMemory = action({
     const categorySet = args.categories?.length ? new Set(args.categories) : null
     const hits = entries
       .map((entry, index) => {
-        const metadata =
-          entry.metadata && typeof entry.metadata === 'object'
-            ? (entry.metadata as Record<string, unknown>)
-            : undefined
-        const entryScope =
-          metadata?.scope === 'user' ||
-          metadata?.scope === 'thread' ||
-          metadata?.scope === 'project'
-            ? metadata.scope
-            : undefined
-        const memoryId = typeof metadata?.memoryId === 'string' ? metadata.memoryId : undefined
+        if (!memoryRagEntryMatchesScope(entry, scope)) {
+          return null
+        }
+
+        const entryScope = getMemoryRagEntryScope(entry)
+        const memoryId = getMemoryRagEntryId(entry)
 
         if (!entryScope || !memoryId) return null
 
@@ -730,7 +720,6 @@ export const searchMemory = action({
                 ? entry.similarity
                 : undefined,
           rank: index + 1,
-          metadata,
         }
       })
       .filter((hit): hit is NonNullable<typeof hit> => hit !== null)
@@ -738,7 +727,7 @@ export const searchMemory = action({
 
     return {
       text: rawSearch.text ?? '',
-      hits: hits.map(({ metadata: _metadata, ...hit }) => hit),
+      hits,
     }
   },
 })

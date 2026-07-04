@@ -1,51 +1,49 @@
-import { SymbolImage } from "@/components/symbol-image";
-import { TouchableGlass } from "@/components/touchable-glass";
-import { AttachmentChipList } from "./attachment-chip-list";
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ActivityIndicator, Platform, Pressable, TextInput, View } from "react-native";
-import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
-import { useStableSafeAreaInsets } from "@/utils/use-stable-safe-area-insets";
-
 import {
-  useNativeThemeColors,
-  type NativeThemeColors,
-} from "@/hooks/use-native-theme-colors";
-import { useChatContext } from "./chat-context";
-import { useComposerProject } from "./composer-project-context";
-import { useConversationContext } from "./conversation";
-import { ChatInlineError } from "./chat-inline-error";
-import { PendingProjectDraftCard } from "./pending-project-draft-card";
-import { ProjectMentionPopup } from "./project-mention-popup";
+  AUTO_GROW_DEFAULT_MAX_HEIGHT,
+  AUTO_GROW_DEFAULT_MIN_HEIGHT,
+  AutoGrowingTextInput,
+  type AutoGrowingTextInputHandle,
+} from '@/components/auto-growing-text-input'
+import { SymbolImage } from '@/components/symbol-image'
+import { TouchableGlass } from '@/components/touchable-glass'
+import { AttachmentChipList } from './attachment-chip-list'
+import { useEffect, useRef, type ReactNode } from 'react'
+import { ActivityIndicator, Platform, Pressable, View } from 'react-native'
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated'
+import { useStableSafeAreaInsets } from '@/utils/use-stable-safe-area-insets'
+
+import { useNativeThemeColors, type NativeThemeColors } from '@/hooks/use-native-theme-colors'
+import { useChatContext } from './chat-context'
+import { useComposerProject } from './composer-project-context'
+import { useConversationContext } from './conversation'
+import { ChatInlineError } from './chat-inline-error'
+import { PendingProjectDraftCard } from './pending-project-draft-card'
+import { ProjectMentionPopup } from './project-mention-popup'
 import {
   COMPOSER_ACTION_SIZE,
   COMPOSER_GLASS_PADDING,
   COMPOSER_ROW_GAP,
   composerBottomSafeInset,
-} from "./composer-layout";
+} from './composer-layout'
 
-const IS_ANDROID = Platform.OS === "android";
-const TEXTAREA_MIN_HEIGHT = 44;
-const TEXTAREA_MAX_HEIGHT = 100;
+const IS_ANDROID = Platform.OS === 'android'
 
 /** Android needs raw color strings; dark accent is too close to the card background. */
-function composerTextSelectionColor(
-  theme: string,
-  colors: NativeThemeColors,
-): string | undefined {
-  if (theme === "dark") {
-    return colors.border ?? colors.accent;
+function composerTextSelectionColor(theme: string, colors: NativeThemeColors): string | undefined {
+  if (theme === 'dark') {
+    return colors.border ?? colors.accent
   }
-  return colors.accent ?? colors.border;
+  return colors.accent ?? colors.border
 }
 
 /**
  * Root container for the message composer. It renders as the bottom footer in
- * `<Conversation />`. The list reserves space for this height plus the bottom safe area.
+ * `<Conversation />` and participates in normal keyboard-avoiding layout.
  */
 export function PromptInput({ children }: { children: ReactNode }) {
-  const insets = useStableSafeAreaInsets();
-  const { promptInputStyle, onPromptInputLayout } = useConversationContext();
-  const { error } = useChatContext();
+  const insets = useStableSafeAreaInsets()
+  const { onPromptInputLayout } = useConversationContext()
+  const { error } = useChatContext()
   const {
     projectMention,
     mentionOptions,
@@ -60,14 +58,12 @@ export function PromptInput({ children }: { children: ReactNode }) {
     handleConfirmCreateProject,
     handleCancelCreateProject,
     creatingProject,
-  } = useComposerProject();
+  } = useComposerProject()
 
   return (
     <Animated.View
-      style={[
-        { paddingBottom: composerBottomSafeInset(insets.bottom) },
-        promptInputStyle,
-      ]}
+      className="bg-background"
+      style={{ paddingBottom: composerBottomSafeInset(insets.bottom) }}
     >
       <View onLayout={onPromptInputLayout}>
         {error ? (
@@ -75,7 +71,7 @@ export function PromptInput({ children }: { children: ReactNode }) {
             <ChatInlineError variant="composer" message={error.message} />
           </Animated.View>
         ) : null}
-        <View className="relative px-3">
+        <View className="pt-2">
           <AttachmentChipList />
           {projectMention ? (
             <ProjectMentionPopup
@@ -88,7 +84,8 @@ export function PromptInput({ children }: { children: ReactNode }) {
           <View
             style={{
               flex: 1,
-              padding: COMPOSER_GLASS_PADDING,
+              paddingHorizontal: COMPOSER_GLASS_PADDING,
+              paddingVertical: 8,
               gap: 10,
             }}
           >
@@ -101,15 +98,15 @@ export function PromptInput({ children }: { children: ReactNode }) {
                 onNameChange={setPendingProjectName}
                 onDescriptionChange={setPendingProjectDescription}
                 onConfirm={() => {
-                  void handleConfirmCreateProject();
+                  void handleConfirmCreateProject()
                 }}
                 onCancel={handleCancelCreateProject}
               />
             ) : null}
             <View
               style={{
-                flexDirection: "row",
-                alignItems: "flex-end",
+                flexDirection: 'row',
+                alignItems: 'flex-end',
                 gap: COMPOSER_ROW_GAP,
               }}
             >
@@ -119,34 +116,30 @@ export function PromptInput({ children }: { children: ReactNode }) {
         </View>
       </View>
     </Animated.View>
-  );
+  )
 }
 
 /**
  * A circular glass button for actions (e.g. attachments, camera).
  */
-export function PromptInputAction(props: {
-  children: ReactNode;
-  onPress?: () => void;
-}) {
+export function PromptInputAction(props: { children: ReactNode; onPress?: () => void }) {
   if (IS_ANDROID) {
     return (
       <Pressable
         hitSlop={4}
         onPress={props.onPress}
-        style={({ pressed }) => ({
+        style={{
           width: COMPOSER_ACTION_SIZE,
           height: COMPOSER_ACTION_SIZE,
-          borderRadius: COMPOSER_ACTION_SIZE / 2,
-          justifyContent: "center",
-          alignItems: "center",
-          opacity: pressed ? 0.82 : 1,
-        })}
-        className="border border-border/70 bg-card shadow-card"
+          borderRadius: 8,
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
+        className="bg-transparent active:bg-secondary"
       >
         {props.children}
       </Pressable>
-    );
+    )
   }
 
   return (
@@ -157,11 +150,11 @@ export function PromptInputAction(props: {
         width: COMPOSER_ACTION_SIZE,
         height: COMPOSER_ACTION_SIZE,
         borderRadius: COMPOSER_ACTION_SIZE / 2,
-        justifyContent: "center",
-        alignItems: "center",
+        justifyContent: 'center',
+        alignItems: 'center',
       }}
     />
-  );
+  )
 }
 
 /**
@@ -170,16 +163,16 @@ export function PromptInputAction(props: {
 export function PromptInputBody({ children }: { children: ReactNode }) {
   return (
     <View
-      className="flex-1 flex-row rounded-[22px] border border-border/70 bg-card/95 shadow-card"
+      className="flex-1 flex-row bg-background"
       style={{
         minHeight: 44,
-        borderRadius: 22,
-        borderCurve: "continuous",
+        borderRadius: 0,
+        borderCurve: 'continuous',
       }}
     >
       {children}
     </View>
-  );
+  )
 }
 
 /**
@@ -187,113 +180,100 @@ export function PromptInputBody({ children }: { children: ReactNode }) {
  * input value from `ChatContext`.
  */
 export function PromptInputTextarea({
-  placeholder = "Chat with Agent...",
+  placeholder = 'Chat with Agent...',
   maxLength = 1000,
 }: {
-  placeholder?: string;
-  maxLength?: number;
+  placeholder?: string
+  maxLength?: number
 }) {
-  const { input, setInput } = useChatContext();
+  const { input, setInput } = useChatContext()
   const {
     projectMention,
     mentionOptions,
     setHighlightedMentionIndex,
     syncProjectMention,
     dismissProjectMention,
-  } = useComposerProject();
-  const inputRef = useRef<TextInput>(null);
-  const [contentHeight, setContentHeight] = useState(TEXTAREA_MIN_HEIGHT);
-  const themeColors = useNativeThemeColors();
-
-  const resolvedHeight = Math.max(
-    TEXTAREA_MIN_HEIGHT,
-    Math.min(TEXTAREA_MAX_HEIGHT, contentHeight),
-  );
-  const textareaShouldScroll = contentHeight > TEXTAREA_MAX_HEIGHT;
+  } = useComposerProject()
+  const inputRef = useRef<AutoGrowingTextInputHandle>(null)
+  const themeColors = useNativeThemeColors()
 
   useEffect(() => {
-    if (input === "") {
-      setContentHeight(TEXTAREA_MIN_HEIGHT);
-      inputRef.current?.clear();
+    if (input === '') {
+      inputRef.current?.clear()
     }
-  }, [input]);
+  }, [input])
 
   const textColorProps = IS_ANDROID
     ? {
         cursorColor: themeColors.foreground,
-        selectionColor: composerTextSelectionColor(
-          themeColors.theme,
-          themeColors,
-        ),
+        selectionColor: composerTextSelectionColor(themeColors.theme, themeColors),
         placeholderTextColor: themeColors.mutedForeground,
       }
     : {
-        cursorColorClassName: "accent-foreground",
-        selectionColorClassName: "accent-accent dark:accent-border",
-        selectionHandleColorClassName: "accent-foreground",
-        placeholderTextColorClassName: "accent-muted-foreground",
-      };
+        cursorColorClassName: 'accent-foreground',
+        selectionColorClassName: 'accent-accent dark:accent-border',
+        selectionHandleColorClassName: 'accent-foreground',
+        placeholderTextColorClassName: 'accent-muted-foreground',
+      }
 
   return (
-    <TextInput
+    <AutoGrowingTextInput
       ref={inputRef}
       nativeID="composer"
+      testID="composer-input"
+      accessibilityLabel="Message input"
+      minHeight={AUTO_GROW_DEFAULT_MIN_HEIGHT}
+      maxHeight={AUTO_GROW_DEFAULT_MAX_HEIGHT}
       {...textColorProps}
       underlineColorAndroid="transparent"
       style={{
         fontSize: 16,
-        minHeight: TEXTAREA_MIN_HEIGHT,
-        height: resolvedHeight,
-        maxHeight: TEXTAREA_MAX_HEIGHT,
-        textAlignVertical: "top",
+        lineHeight: 22,
+        textAlignVertical: 'top',
       }}
       className="flex-1 self-stretch bg-transparent pl-4 pr-2 py-3 text-foreground dark:text-foreground"
       value={input}
       onChangeText={(text) => {
-        setInput(text);
-        syncProjectMention(text, text.length);
-      }}
-      onContentSizeChange={(event) => {
-        setContentHeight(event.nativeEvent.contentSize.height);
+        setInput(text)
+        syncProjectMention(text, text.length)
       }}
       onSelectionChange={(event) => {
-        syncProjectMention(input, event.nativeEvent.selection.start);
+        syncProjectMention(input, event.nativeEvent.selection.start)
       }}
       onKeyPress={(event) => {
         if (!projectMention) {
-          return;
+          return
         }
 
-        const key = event.nativeEvent.key;
-        if (key === "Escape") {
-          dismissProjectMention();
-          return;
+        const key = event.nativeEvent.key
+        if (key === 'Escape') {
+          dismissProjectMention()
+          return
         }
 
         if (mentionOptions.length === 0) {
-          return;
+          return
         }
 
-        if (key === "ArrowDown") {
+        if (key === 'ArrowDown') {
           setHighlightedMentionIndex((current) =>
             current + 1 >= mentionOptions.length ? 0 : current + 1,
-          );
-          return;
+          )
+          return
         }
 
-        if (key === "ArrowUp") {
+        if (key === 'ArrowUp') {
           setHighlightedMentionIndex((current) =>
             current - 1 < 0 ? mentionOptions.length - 1 : current - 1,
-          );
+          )
         }
       }}
       placeholder={placeholder}
       multiline
-      scrollEnabled={textareaShouldScroll}
       maxLength={maxLength}
       blurOnSubmit={false}
     />
-  );
+  )
 }
 
 /**
@@ -301,30 +281,33 @@ export function PromptInputTextarea({
  * is generating. Reads state from `ChatContext`.
  */
 export function PromptInputSubmit() {
-  const { canSend, isGenerating, canStop, canForceStop, onSend, onStop } = useChatContext();
-  const showStop = isGenerating && canStop;
-  const sendDisabled = !canSend || (isGenerating && !showStop);
+  const { canSend, isGenerating, canStop, canForceStop, onSend, onStop } = useChatContext()
+  const showStop = isGenerating && canStop
+  const sendDisabled = !canSend || (isGenerating && !showStop)
 
   return (
     <Pressable
-      style={({ pressed }) => ({
+      testID="composer-send"
+      style={{
         width: 34,
         height: 34,
         borderRadius: 17,
-        borderCurve: "continuous",
-        justifyContent: "center",
-        alignItems: "center",
-        opacity: pressed ? 0.7 : 1,
+        borderCurve: 'continuous',
+        justifyContent: 'center',
+        alignItems: 'center',
+        alignSelf: 'flex-end',
         margin: 5,
-      })}
+      }}
       className={
         sendDisabled && !showStop
-          ? "border border-border/60 bg-secondary"
-          : "bg-foreground"
+          ? 'bg-secondary active:opacity-70 disabled:opacity-60'
+          : 'bg-foreground active:opacity-70'
       }
       onPress={showStop ? onStop : onSend}
       disabled={sendDisabled && !showStop}
-      accessibilityLabel={showStop ? (canForceStop ? "Force stop" : "Stop generation") : "Send message"}
+      accessibilityLabel={
+        showStop ? (canForceStop ? 'Force stop' : 'Stop generation') : 'Send message'
+      }
     >
       {isGenerating && !showStop ? (
         <Animated.View entering={FadeIn} exiting={FadeOut}>
@@ -336,22 +319,16 @@ export function PromptInputSubmit() {
         </Animated.View>
       ) : showStop ? (
         <Animated.View entering={FadeIn} exiting={FadeOut}>
-          <SymbolImage
-            name="stop.fill"
-            size={14}
-            tintColorClassName="accent-background"
-          />
+          <SymbolImage name="stop.fill" size={14} tintColorClassName="accent-background" />
         </Animated.View>
       ) : (
         <SymbolImage
           name="arrow.up"
           size={16}
           sfEffect="scale/up"
-          tintColorClassName={
-            sendDisabled ? "accent-muted-foreground" : "accent-background"
-          }
+          tintColorClassName={sendDisabled ? 'accent-muted-foreground' : 'accent-background'}
         />
       )}
     </Pressable>
-  );
+  )
 }

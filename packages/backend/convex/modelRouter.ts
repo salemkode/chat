@@ -1,7 +1,7 @@
 import { action, internalMutation, internalQuery } from './_generated/server'
 import { api, components, internal } from './_generated/api'
 import { ConvexError, v } from 'convex/values'
-import { routerSelectionResponseSchema } from './lib/external-schemas'
+import { routerSelectionResponseSchema } from './lib/externalSchemas'
 import { getAuthUserId } from './lib/auth'
 import {
   modelSupportsAttachmentSummary,

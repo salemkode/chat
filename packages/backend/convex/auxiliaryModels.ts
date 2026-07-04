@@ -12,7 +12,7 @@ const auxiliaryModelCandidateValidator = v.object({
   modelId: v.string(),
   displayName: v.string(),
   estimatedCostPerExtraction: v.union(v.number(), v.null()),
-  supportsTools: v.literal(true),
+  supportsTools: v.boolean(),
   isRecommended: v.boolean(),
 })
 

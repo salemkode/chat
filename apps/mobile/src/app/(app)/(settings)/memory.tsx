@@ -152,13 +152,12 @@ export default function MemorySettingsScreen() {
   }
 
   return (
-    <SettingsPage>
+    <SettingsPage title="Memory">
       <LegendList
         className="flex-1 bg-background"
         data={isLoading ? [] : filteredMemories}
         keyExtractor={(item) => `${item.scope}:${item.memoryId}`}
         estimatedItemSize={156}
-        contentInsetAdjustmentBehavior="automatic"
         contentContainerClassName="px-5 pb-10"
         onEndReached={hasMore && !isLoadingMore ? loadMoreForScope : undefined}
         onEndReachedThreshold={0.35}
@@ -224,7 +223,9 @@ export default function MemorySettingsScreen() {
                       className="flex-row items-center gap-3 px-4 py-4 active:bg-muted/60"
                     >
                       <View className="w-5 items-center">
-                        {selected ? <Icon icon={Check} className="w-5 h-5 text-foreground" /> : null}
+                        {selected ? (
+                          <Icon icon={Check} className="w-5 h-5 text-foreground" />
+                        ) : null}
                       </View>
                       <Text className="flex-1 text-[16px] font-medium text-foreground">
                         {candidate.displayName}

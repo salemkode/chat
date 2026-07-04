@@ -14,54 +14,52 @@ import {
   StreamingMessage,
   createStreamingStore,
   type ChatMessage,
-} from "@/components/chat";
-import { getMessageFileParts } from "@chat/core/logic/message-file-parts";
-import { ChatInlineError } from "@/components/chat/chat-inline-error";
-import { ComposerProjectProvider } from "@/components/chat/composer-project-context";
-import { useChatAttachments } from "@/components/chat/attachment-context";
-import { useChatComposerOptions } from "@/components/chat/composer-options-context";
-import { Icon } from "@/components/icon";
-import { MainHeader } from "@/components/main-header";
-import { useModel } from "@/components/model-context";
-import { isAutoModelSelection } from "@chat/core";
-import { validateAttachmentsForSend } from "@/lib/attachment-capability-messages";
+} from '@/components/chat'
+import { getMessageFileParts } from '@chat/core/logic/message-file-parts'
+import { ChatInlineError } from '@/components/chat/chat-inline-error'
+import { ComposerProjectProvider } from '@/components/chat/composer-project-context'
+import { useChatAttachments } from '@/components/chat/attachment-context'
+import { useChatComposerOptions } from '@/components/chat/composer-options-context'
+import { Icon } from '@/components/icon'
+import { MainHeader } from '@/components/main-header'
+import { useModel } from '@/components/model-context'
+import { isAutoModelSelection, useChatCoreContext, useGenerationState } from '@chat/core'
+import { validateAttachmentsForSend } from '@/lib/attachment-capability-messages'
 import {
   CHAT_PROJECT_ASSIGN_FAILED_MESSAGE,
   CHAT_STOP_GENERATION_FAILED_MESSAGE,
   formatMessageFailureNote,
   formatUserFacingError,
-} from "@chat/core/logic/user-facing-errors";
-import { selectThread, threadSelection$ } from "@/state/thread-selection";
-import { useMessages, useSendMessage } from "@/hooks/use-chat-data";
-import { useSettings } from "@/hooks/use-settings";
-import { api } from "@convex/_generated/api";
-import { useSelector } from "@legendapp/state/react";
-import { useChatCoreContext, useGenerationState } from "@chat/core";
-import { useQuery } from "convex/react";
-import * as Haptics from "expo-haptics";
-import { Link, useLocalSearchParams } from "expo-router";
-import { Plus } from "lucide-react-native";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Text, View } from "react-native";
+} from '@chat/core/logic/user-facing-errors'
+import { selectThread, threadSelection$ } from '@/state/thread-selection'
+import { useMessages, useSendMessage } from '@/hooks/use-chat-data'
+import { useSettings } from '@/hooks/use-settings'
+import { api } from '@convex/_generated/api'
+import { useSelector } from '@legendapp/state/react'
+import { useQuery } from 'convex/react'
+import * as Haptics from 'expo-haptics'
+import { Link, useLocalSearchParams, useRouter } from 'expo-router'
+import { Plus } from 'lucide-react-native'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Text, View } from 'react-native'
 
 export default function ChatScreen() {
   const params = useLocalSearchParams<{
-    threadId?: string | string[];
-  }>();
-  const routeThreadId = Array.isArray(params.threadId)
-    ? params.threadId[0]
-    : params.threadId;
-  const selectedThreadId = useSelector(() =>
-    threadSelection$.selectedThreadId.get(),
-  );
+    threadId?: string | string[]
+    sharedText?: string | string[]
+  }>()
+  const routeThreadId = Array.isArray(params.threadId) ? params.threadId[0] : params.threadId
+  const routeSharedText = Array.isArray(params.sharedText) ? params.sharedText[0] : params.sharedText
+  const router = useRouter()
+  const selectedThreadId = useSelector(() => threadSelection$.selectedThreadId.get())
   const selectedThread = useQuery(
     api.chat.getThread,
-    selectedThreadId ? { threadId: selectedThreadId } : "skip",
-  );
+    selectedThreadId ? { threadId: selectedThreadId } : 'skip',
+  )
   const threadId =
-    routeThreadId || (selectedThread === null ? undefined : selectedThreadId) || undefined;
-  const [input, setInput] = useState("");
-  const [error, setError] = useState<Error | null>(null);
+    routeThreadId || (selectedThread === null ? undefined : selectedThreadId) || undefined
+  const [input, setInput] = useState('')
+  const [error, setError] = useState<Error | null>(null)
   const {
     selectedModelKey,
     selectedModel,
@@ -70,92 +68,100 @@ export default function ChatScreen() {
     attachmentMediaTypes,
     attachmentsSupported,
     imageAttachmentsSupported,
-  } = useModel();
-  const { searchEnabled } = useChatComposerOptions();
-  const { settings } = useSettings();
-  const { send, stop } = useSendMessage();
-  const { attachments, clearAttachments, hasUploadingAttachments } =
-    useChatAttachments();
+  } = useModel()
+  const { searchEnabled } = useChatComposerOptions()
+  const { settings } = useSettings()
+  const { send, stop } = useSendMessage()
+  const { attachments, clearAttachments, hasUploadingAttachments } = useChatAttachments()
   const { messages, hasActiveStreaming, hasMore, isLoadingMore, loadOlderMessages } =
-    useMessages(threadId);
-  const { activeGeneration, canStop, canForceStop } = useGenerationState(messages);
-  const { pendingProjectId, setPendingProjectId, assignThreadToProject } =
-    useChatCoreContext();
-  const streamingStore = useMemo(() => createStreamingStore(), []);
-  const prevStreamTextRef = useRef("");
+    useMessages(threadId)
+  const { activeGeneration, canStop, canForceStop } = useGenerationState(messages)
+  const { pendingProjectId, setPendingProjectId, assignThreadToProject } = useChatCoreContext()
+  const streamingStore = useMemo(() => createStreamingStore(), [])
+  const prevStreamTextRef = useRef('')
+
+  useEffect(() => {
+    if (!routeSharedText) {
+      return
+    }
+
+    let cancelled = false
+    queueMicrotask(() => {
+      if (cancelled) {
+        return
+      }
+      setInput((current) => (current.trim() ? `${current}\n\n${routeSharedText}` : routeSharedText))
+      router.replace('/')
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [routeSharedText, router])
 
   useEffect(() => {
     if (selectedThreadId && selectedThread === null) {
-      selectThread(undefined);
+      selectThread(undefined)
     }
-  }, [selectedThread, selectedThreadId]);
+  }, [selectedThread, selectedThreadId])
 
   useEffect(() => {
     if (!hasActiveStreaming) {
       if (prevStreamTextRef.current) {
-        prevStreamTextRef.current = "";
-        streamingStore.set("");
+        prevStreamTextRef.current = ''
+        streamingStore.set('')
       }
-      return;
+      return
     }
-    const streamingMsgs = messages.filter(
-      (m) => m.status === "streaming" || m.status === "pending",
-    );
-    const lastStreaming = streamingMsgs[streamingMsgs.length - 1];
+    const streamingMsgs = messages.filter((m) => m.status === 'streaming' || m.status === 'pending')
+    const lastStreaming = streamingMsgs[streamingMsgs.length - 1]
     if (lastStreaming) {
-      const text = lastStreaming.text ?? "";
+      const text = lastStreaming.text ?? ''
       if (text !== prevStreamTextRef.current) {
-        prevStreamTextRef.current = text;
-        streamingStore.set(text);
+        prevStreamTextRef.current = text
+        streamingStore.set(text)
       }
     }
-  }, [messages, hasActiveStreaming, streamingStore]);
+  }, [messages, hasActiveStreaming, streamingStore])
 
   useEffect(() => {
     if (!error) {
-      return;
+      return
     }
 
     if (input.trim() || attachments.length > 0) {
-      setError(null);
+      setError(null)
     }
-  }, [attachments.length, error, input]);
+  }, [attachments.length, error, input])
 
-  const isGenerating = hasActiveStreaming;
-  const canSend =
-    Boolean(input.trim() || attachments.length > 0) && !hasUploadingAttachments;
+  const isGenerating = hasActiveStreaming
+  const canSend = Boolean(input.trim() || attachments.length > 0) && !hasUploadingAttachments
 
   const onStop = useCallback(async () => {
     if (!threadId || !canStop) {
-      return;
+      return
     }
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    prevStreamTextRef.current = "";
-    streamingStore.set("");
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    prevStreamTextRef.current = ''
+    streamingStore.set('')
     try {
       const result = await stop({
         threadId,
         promptMessageId: activeGeneration?.promptMessageId,
-      });
+      })
       if (!result.stopped) {
-        setError(new Error(CHAT_STOP_GENERATION_FAILED_MESSAGE));
-        return;
+        setError(new Error(CHAT_STOP_GENERATION_FAILED_MESSAGE))
+        return
       }
-      setError(null);
+      setError(null)
     } catch (err) {
-      setError(new Error(formatUserFacingError(err)));
+      setError(new Error(formatUserFacingError(err)))
     }
-  }, [
-    activeGeneration?.promptMessageId,
-    canStop,
-    stop,
-    streamingStore,
-    threadId,
-  ]);
+  }, [activeGeneration?.promptMessageId, canStop, stop, streamingStore, threadId])
 
   const onSend = useCallback(async () => {
-    if (!canSend || isGenerating) return;
+    if (!canSend || isGenerating) return
 
     const attachmentError = validateAttachmentsForSend({
       attachments,
@@ -163,55 +169,53 @@ export default function ChatScreen() {
       attachmentMediaTypes,
       attachmentsSupported,
       imageAttachmentsSupported,
-    });
+    })
     if (attachmentError) {
-      setError(new Error(formatUserFacingError(attachmentError)));
-      return;
+      setError(new Error(formatUserFacingError(attachmentError)))
+      return
     }
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setError(null);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    setError(null)
 
-    const text = input;
-    setInput("");
+    const text = input
+    setInput('')
 
     try {
       const reasoningLevel =
-        settings?.reasoningLevel === "low" ||
-        settings?.reasoningLevel === "medium" ||
-        settings?.reasoningLevel === "high"
+        settings?.reasoningLevel === 'low' ||
+        settings?.reasoningLevel === 'medium' ||
+        settings?.reasoningLevel === 'high'
           ? settings.reasoningLevel
-          : "medium";
+          : 'medium'
 
       const result = await send({
         text,
         threadId,
-        modelDocId: isAutoModelSelection(selectedModelKey)
-          ? undefined
-          : selectedModelDocId,
+        modelDocId: isAutoModelSelection(selectedModelKey) ? undefined : selectedModelDocId,
         autoModelAllowedModelDocIds,
         attachments,
         searchEnabled,
-        searchMode: searchEnabled ? "required" : undefined,
+        searchMode: searchEnabled ? 'required' : undefined,
         reasoning: settings?.reasoningEnabled
           ? { enabled: true, level: reasoningLevel }
           : undefined,
-      });
-      clearAttachments();
+      })
+      clearAttachments()
       if (!threadId && result.threadId) {
-        selectThread(result.threadId);
+        selectThread(result.threadId)
         if (pendingProjectId) {
           void assignThreadToProject(result.threadId, pendingProjectId)
             .catch(() => {
-              setError(new Error(CHAT_PROJECT_ASSIGN_FAILED_MESSAGE));
+              setError(new Error(CHAT_PROJECT_ASSIGN_FAILED_MESSAGE))
             })
-            .finally(() => setPendingProjectId(null));
+            .finally(() => setPendingProjectId(null))
         }
       }
     } catch (err) {
-      setInput(text);
-      setError(new Error(formatUserFacingError(err)));
-      console.error("Send error:", err);
+      setInput(text)
+      setError(new Error(formatUserFacingError(err)))
+      console.error('Send error:', err)
     }
   }, [
     attachmentMediaTypes,
@@ -234,7 +238,7 @@ export default function ChatScreen() {
     settings?.reasoningLevel,
     setPendingProjectId,
     threadId,
-  ]);
+  ])
 
   const chatMessages = useMemo<ChatMessage[]>(
     () =>
@@ -242,42 +246,39 @@ export default function ChatScreen() {
         id: m.id,
         role: m.role,
         content:
-          (m.status === "streaming" || m.status === "pending") &&
-          m.role === "assistant" &&
+          (m.status === 'streaming' || m.status === 'pending') &&
+          m.role === 'assistant' &&
           m === messages[messages.length - 1]
-            ? ""
+            ? ''
             : m.text,
         parts: m.parts,
       })),
     [messages],
-  );
+  )
 
   const renderMessage = useCallback(
     ({ item }: { item: ChatMessage }) => {
-      if (item.role === "user") {
-        const hasAttachments = getMessageFileParts(item.parts ?? []).length > 0;
+      if (item.role === 'user') {
+        const hasAttachments = getMessageFileParts(item.parts ?? []).length > 0
         return (
           <Message from="user" wide={hasAttachments}>
             <View className="w-full gap-2">
               <MessageAttachments parts={item.parts} />
               {item.content ? (
-                <Text className="text-base leading-5.5 text-foreground">
-                  {item.content}
-                </Text>
+                <Text className="text-base leading-5.5 text-foreground">{item.content}</Text>
               ) : null}
             </View>
           </Message>
-        );
+        )
       }
 
-      const sourceMessage = messages.find((m) => m.id === item.id);
-      const isFailed = sourceMessage?.status === "failed";
-      const isStreaming =
-        isGenerating && item.content === "" && !isFailed;
+      const sourceMessage = messages.find((m) => m.id === item.id)
+      const isFailed = sourceMessage?.status === 'failed'
+      const isStreaming = isGenerating && item.content === '' && !isFailed
       const failureNote = formatMessageFailureNote(
         sourceMessage?.failureNote,
-        sourceMessage?.failureKind === "stopped" ? "stopped" : "error",
-      );
+        sourceMessage?.failureKind === 'stopped' ? 'stopped' : 'error',
+      )
 
       return (
         <Message from="assistant">
@@ -289,10 +290,10 @@ export default function ChatScreen() {
             <MessageResponse>{item.content}</MessageResponse>
           )}
         </Message>
-      );
+      )
     },
     [isGenerating, messages, streamingStore],
-  );
+  )
 
   const chat = useMemo(
     () => ({
@@ -320,10 +321,11 @@ export default function ChatScreen() {
       onStop,
       streamingStore,
     ],
-  );
+  )
 
   return (
     <>
+      <MainHeader />
       <ChatProvider value={chat}>
         <ComposerProjectProvider threadId={threadId}>
           <Conversation
@@ -332,10 +334,7 @@ export default function ChatScreen() {
             isLoadingOlder={isLoadingMore}
             onLoadOlder={loadOlderMessages}
             emptyState={
-              <ConversationEmptyState
-                title="Chat"
-                description="Send a message to get started"
-              />
+              <ConversationEmptyState title="Chat" description="Send a message to get started" />
             }
           >
             <ConversationScrollButton />
@@ -362,7 +361,6 @@ export default function ChatScreen() {
           </Conversation>
         </ComposerProjectProvider>
       </ChatProvider>
-      <MainHeader />
     </>
-  );
+  )
 }

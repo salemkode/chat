@@ -1,8 +1,5 @@
 import { Icon } from '@/components/icon'
-import {
-  SettingsPage,
-  SettingsSection,
-} from '@/components/settings/settings-shell'
+import { SettingsPage, SettingsSection } from '@/components/settings/settings-shell'
 import { SettingsSectionDivider, SettingsToggleRow } from '@/components/settings/settings-row'
 import { useModels } from '@/hooks/use-models'
 import { useSettings } from '@/hooks/use-settings'
@@ -94,12 +91,8 @@ export default function ModelsSettingsScreen() {
   }
 
   return (
-    <SettingsPage>
-      <ScrollView
-        className="flex-1 bg-background"
-        contentInsetAdjustmentBehavior="automatic"
-        contentContainerClassName="pb-10"
-      >
+    <SettingsPage title="Models">
+      <ScrollView className="flex-1 bg-background" contentContainerClassName="pb-10">
         <SettingsSection
           title="Default model"
           description="Choose a fixed model, or leave it on Auto when routing is available."
@@ -141,9 +134,7 @@ export default function ModelsSettingsScreen() {
                   </View>
                   <Text className="text-[16px] font-medium text-foreground">{option.label}</Text>
                 </Pressable>
-                {index < ROUTING_PREFERENCE_OPTIONS.length - 1 ? (
-                  <SettingsSectionDivider />
-                ) : null}
+                {index < ROUTING_PREFERENCE_OPTIONS.length - 1 ? <SettingsSectionDivider /> : null}
               </View>
             ))}
           </SettingsSection>

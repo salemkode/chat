@@ -1,42 +1,14 @@
-import { isLiquidGlassAvailable } from "expo-glass-effect";
-import { Stack } from "expo-router";
-import { useCSSVariable } from "uniwind";
-
-const GLASS = isLiquidGlassAvailable();
-const IS_ANDROID = process.env.EXPO_OS === "android";
+import { Stack } from 'expo-router'
 
 export default function AttachmentsLayout() {
-  const appForeground = useCSSVariable("--app-foreground") as string;
-  const appBackground = useCSSVariable("--app-background") as string;
-
   return (
     <Stack
       screenOptions={{
-        headerTintColor: appForeground,
-        headerBackButtonDisplayMode: "default",
-        headerShadowVisible: IS_ANDROID ? false : undefined,
-        headerStyle:
-          IS_ANDROID || !GLASS
-          ? {
-              backgroundColor: appBackground,
-            }
-          : undefined,
+        headerShown: false,
       }}
     >
-      <Stack.Screen
-        name="index"
-        options={{
-          title: "Add to chat",
-          headerLargeTitleShadowVisible: false,
-        }}
-      />
-      <Stack.Screen
-        name="project-picker"
-        options={{
-          title: "Add to project",
-          headerLargeTitleShadowVisible: false,
-        }}
-      />
+      <Stack.Screen name="index" />
+      <Stack.Screen name="project-picker" />
     </Stack>
-  );
+  )
 }

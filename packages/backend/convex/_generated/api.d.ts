@@ -1342,7 +1342,7 @@ export declare const api: {
         isRecommended: boolean;
         modelDocId: Id<"models">;
         modelId: string;
-        supportsTools: true;
+        supportsTools: boolean;
       }>
     >;
   };

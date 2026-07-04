@@ -1,55 +1,17 @@
-import { Stack } from "expo-router";
-import { useCSSVariable } from "uniwind";
+import { Stack } from 'expo-router'
 
 export default function SettingsLayout() {
-  const appForeground = useCSSVariable("--app-foreground");
-  const appBackground = useCSSVariable("--app-background");
-
   return (
     <Stack
       screenOptions={{
-        headerTransparent: false,
-        headerLargeTitleShadowVisible: false,
-        headerBackButtonDisplayMode: "default",
-        headerTintColor:
-          typeof appForeground === "string" ? appForeground : undefined,
-        headerShadowVisible: false,
-        headerStyle: {
-          backgroundColor:
-            typeof appBackground === "string" ? appBackground : undefined,
-        },
+        headerShown: false,
       }}
     >
-      <Stack.Screen
-        name="settings"
-        options={{
-          title: "Settings",
-        }}
-      />
-      <Stack.Screen
-        name="profile"
-        options={{
-          title: "Profile",
-        }}
-      />
-      <Stack.Screen
-        name="appearance"
-        options={{
-          title: "Theme",
-        }}
-      />
-      <Stack.Screen
-        name="models"
-        options={{
-          title: "Models & reasoning",
-        }}
-      />
-      <Stack.Screen
-        name="memory"
-        options={{
-          title: "Memory",
-        }}
-      />
+      <Stack.Screen name="settings" />
+      <Stack.Screen name="profile" />
+      <Stack.Screen name="appearance" />
+      <Stack.Screen name="models" />
+      <Stack.Screen name="memory" />
     </Stack>
-  );
+  )
 }

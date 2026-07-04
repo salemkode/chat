@@ -1,0 +1,35 @@
+appId: com.salemkode.agent
+name: Manual header and keyboard avoidance
+---
+- launchApp:
+    clearState: false
+- runFlow:
+    when:
+      visible: "http://127.0.0.1:8082"
+    commands:
+      - tapOn: "http://127.0.0.1:8082"
+- runFlow:
+    when:
+      visible: "Sign In Demo Account"
+    commands:
+      - tapOn: "Sign In Demo Account"
+      - extendedWaitUntil:
+          visible: "Open drawer"
+          timeout: 30000
+- extendedWaitUntil:
+    visible: "Open drawer"
+    timeout: 30000
+- assertVisible: "Open drawer"
+- assertVisible: "New chat"
+- assertVisible:
+    id: com.salemkode.agent:id/composer-input
+- tapOn:
+    id: com.salemkode.agent:id/composer-input
+- inputText: "Line one\nLine two\nLine three\nLine four"
+- assertVisible:
+    id: com.salemkode.agent:id/composer-send
+- assertVisible:
+    id: com.salemkode.agent:id/composer-input
+- takeScreenshot: composer-four-lines-keyboard
+- hideKeyboard
+- assertVisible: "Open drawer"

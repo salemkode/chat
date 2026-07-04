@@ -38,7 +38,7 @@ import {
   routerCapabilitiesResponseSchema,
   routerHealthResponseSchema,
   routerModelsResponseSchema,
-} from './lib/external-schemas'
+} from './lib/externalSchemas'
 import { fetchProviderCatalog } from './lib/providerCatalog'
 import {
   discoveredModelValidator,

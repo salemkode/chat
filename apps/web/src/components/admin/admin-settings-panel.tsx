@@ -375,7 +375,7 @@ export function AdminSettingsPanel({ dashboard }: AdminSettingsPanelProps) {
               }
             >
               <SelectTrigger id="default-auxiliary-model">
-                <SelectValue placeholder="Recommended (cheapest tool-capable model)" />
+                <SelectValue placeholder="Recommended (cheapest enabled model)" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__recommended__">Recommended (auto)</SelectItem>

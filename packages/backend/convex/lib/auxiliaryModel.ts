@@ -1,7 +1,7 @@
 import type { Doc, Id } from '../_generated/dataModel'
 import type { QueryCtx } from '../_generated/server'
 import { estimateCostFromProfile } from './pricingTier'
-import { modelIsAuxiliaryEligible, modelSupportsTools } from './modelCapabilities'
+import { filterAuxiliaryCandidatePool, modelSupportsTools } from './modelCapabilities'
 import { getModelOfferAccessFlags } from './modelOffersAccess'
 import { isModelUsableForPlan } from './appPlan'
 import { resolveEffectiveAppPlan } from './billing'
@@ -14,7 +14,7 @@ export type AuxiliaryModelCandidate = {
   modelId: string
   displayName: string
   estimatedCostPerExtraction: number | null
-  supportsTools: true
+  supportsTools: boolean
   isRecommended: boolean
 }
 
@@ -47,6 +47,8 @@ type RankableModel = {
   model: Doc<'models'>
   provider: Doc<'providers'>
   profile: Doc<'modelSelectionProfiles'> | null
+  capabilities: string[]
+  supportsTools: boolean
   estimatedCost: number | null
 }
 
@@ -110,71 +112,76 @@ export async function listAccessibleAuxiliaryRankables(
 
   const providerById = new Map(providers.map((provider) => [provider._id, provider]))
   const profileByModelId = new Map(profiles.map((profile) => [profile.modelId, profile]))
-  const toolCapable = models.filter((model) => {
-    const provider = providerById.get(model.providerId)
-    if (!provider) {
-      return false
-    }
+  const planUsable = models
+    .map((model) => {
+      const provider = providerById.get(model.providerId)
+      if (!provider) {
+        return null
+      }
 
-    const profile = profileByModelId.get(model._id) ?? null
-    const capabilities = profile?.capabilities ?? model.capabilities ?? []
-    if (!modelSupportsTools(capabilities)) {
-      return false
-    }
-
-    const offerFlags = getModelOfferAccessFlags(model._id, modelOffers, nowMs)
-    if (offerFlags.blocksAllAccess) {
-      return false
-    }
-
-    return isModelUsableForPlan({
-      model,
-      effectiveAppPlan,
-      hasActiveFreeAccessOffer: offerFlags.grantsFreeAccess,
-    })
-  })
-
-  const hasAuxiliaryTagged = toolCapable.some((model) => {
-    const profile = profileByModelId.get(model._id) ?? null
-    const capabilities = profile?.capabilities ?? model.capabilities ?? []
-    return modelIsAuxiliaryEligible(capabilities)
-  })
-
-  const eligible = toolCapable.filter((model) => {
-    if (!hasAuxiliaryTagged) {
-      return true
-    }
-    const profile = profileByModelId.get(model._id) ?? null
-    const capabilities = profile?.capabilities ?? model.capabilities ?? []
-    return modelIsAuxiliaryEligible(capabilities)
-  })
-
-  return rankAuxiliaryModels(
-    eligible.map((model) => {
       const profile = profileByModelId.get(model._id) ?? null
+      const capabilities = profile?.capabilities ?? model.capabilities ?? []
+      const offerFlags = getModelOfferAccessFlags(model._id, modelOffers, nowMs)
+      if (offerFlags.blocksAllAccess) {
+        return null
+      }
+
+      if (
+        !isModelUsableForPlan({
+          model,
+          effectiveAppPlan,
+          hasActiveFreeAccessOffer: offerFlags.grantsFreeAccess,
+        })
+      ) {
+        return null
+      }
+
       return {
         model,
-        provider: providerById.get(model.providerId)!,
+        provider,
         profile,
-        estimatedCost: estimateCostFromProfile(
-          profile?.pricing,
-          EXTRACTION_INPUT_TOKENS,
-          EXTRACTION_OUTPUT_TOKENS,
-        ),
+        capabilities,
+        supportsTools: modelSupportsTools(capabilities),
       }
-    }),
+    })
+    .filter((item): item is NonNullable<typeof item> => item !== null)
+
+  const eligible = filterAuxiliaryCandidatePool(planUsable)
+
+  return rankAuxiliaryModels(
+    eligible.map((item) => ({
+      ...item,
+      estimatedCost: estimateCostFromProfile(
+        item.profile?.pricing,
+        EXTRACTION_INPUT_TOKENS,
+        EXTRACTION_OUTPUT_TOKENS,
+      ),
+    })),
   )
+}
+
+function toResolvedAuxiliaryModel(match: RankableModel): ResolvedAuxiliaryModel {
+  return {
+    modelDocId: match.model._id,
+    modelId: match.model.modelId,
+    displayName: match.model.displayName,
+    providerType: match.provider.providerType,
+    providerDocId: match.provider._id,
+    apiKey: match.provider.apiKey,
+    customUrl: match.provider.baseURL,
+    config: match.provider.config,
+  }
 }
 
 export function toAuxiliaryCandidates(
   rankables: RankableModel[],
   selectedModelDocId?: Id<'models'> | null,
 ): AuxiliaryModelCandidate[] {
-  if (rankables.length === 0) {
+  const recommended = rankables[0]
+  if (!recommended) {
     return []
   }
 
-  const recommendedId = rankables[0]!.model._id
   const selectedStillEligible =
     selectedModelDocId && rankables.some((item) => item.model._id === selectedModelDocId)
 
@@ -183,10 +190,10 @@ export function toAuxiliaryCandidates(
     modelId: item.model.modelId,
     displayName: item.model.displayName,
     estimatedCostPerExtraction: item.estimatedCost,
-    supportsTools: true as const,
+    supportsTools: item.supportsTools,
     isRecommended: selectedStillEligible
       ? item.model._id === selectedModelDocId
-      : item.model._id === recommendedId,
+      : item.model._id === recommended.model._id,
   }))
 }
 
@@ -213,17 +220,13 @@ export async function resolveAuxiliaryModelForUser(
   for (const preferredId of preferredIds) {
     const match = rankables.find((item) => item.model._id === preferredId)
     if (match) {
-      return {
-        modelDocId: match.model._id,
-        modelId: match.model.modelId,
-        displayName: match.model.displayName,
-        providerType: match.provider.providerType,
-        providerDocId: match.provider._id,
-        apiKey: match.provider.apiKey,
-        customUrl: match.provider.baseURL,
-        config: match.provider.config,
-      }
+      return toResolvedAuxiliaryModel(match)
     }
+  }
+
+  const recommended = rankables[0]
+  if (recommended) {
+    return toResolvedAuxiliaryModel(recommended)
   }
 
   return unconfiguredAuxiliaryModel()

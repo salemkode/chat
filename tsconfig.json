@@ -1,9 +1,19 @@
 {
   "files": [],
   "references": [
-    { "path": "./apps/web/tsconfig.app.json" },
-    { "path": "./apps/mobile/tsconfig.json" },
-    { "path": "./packages/core/tsconfig.json" },
-    { "path": "./packages/backend/convex/tsconfig.json" }
-  ]
+    {
+      "path": "./apps/web/tsconfig.app.json"
+    },
+    {
+      "path": "./apps/mobile/tsconfig.json"
+    },
+    {
+      "path": "./packages/core/tsconfig.json"
+    },
+    {
+      "path": "./packages/backend/convex/tsconfig.json"
+    }
+  ],
+  "compilerOptions": {},
+  "extends": "expo/tsconfig.base"
 }

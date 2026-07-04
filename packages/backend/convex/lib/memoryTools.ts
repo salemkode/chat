@@ -3,9 +3,13 @@ import { z } from 'zod'
 import { internal } from '../_generated/api'
 import type { Id } from '../_generated/dataModel'
 import {
-  buildRagFilterValues,
+  buildRagSearchFiltersForScope,
   formatMemory,
+  getMemoryRagEntryId,
+  getMemoryRagEntryMetadata,
+  getMemoryRagEntryScope,
   type MemoryListItem,
+  memoryRagEntryMatchesScope,
   type PublicMemoryScope,
 } from '../functions/memoryShared'
 import { resolveMemoryRag, type MemoryRagClient } from '../functions/memoryRag'
@@ -20,6 +24,8 @@ type LinkedProject = {
   _id: Id<'projects'>
   name: string
 }
+
+const SEARCH_OVERFETCH_MULTIPLIER = 8
 
 const memorySearchInputSchema = z.object({
   query: z.string().min(1).max(500).describe('What saved memory to search for.'),
@@ -163,25 +169,16 @@ async function searchMemoryHitsWithRag(
   const scope = args.scope ?? 'all'
   const maxResults = Math.max(1, Math.min(args.maxResults ?? 5, 10))
 
-  const filters =
-    scope === 'thread'
-      ? buildRagFilterValues({
-          userId,
-          threadId,
-          projectId: null,
-        }).filter((filter) => filter.name !== 'projectId')
-      : scope === 'project'
-        ? buildRagFilterValues({
-            userId,
-            threadId: null,
-            projectId: await resolveProjectId(ctx, args.projectId),
-          }).filter((filter) => filter.name !== 'threadId')
-        : [{ name: 'userId', value: userId }]
+  const filters = buildRagSearchFiltersForScope({
+    scope,
+    threadId,
+    projectId: scope === 'project' ? await resolveProjectId(ctx, args.projectId) : undefined,
+  })
 
   const rawSearch = (await memoryRag.search(ctx, {
     namespace: userId,
     query: args.query.trim(),
-    limit: Math.max(maxResults * 3, maxResults),
+    limit: Math.max(maxResults * SEARCH_OVERFETCH_MULTIPLIER, maxResults),
     filters,
   })) as {
     entries?: Array<Record<string, unknown>>
@@ -195,12 +192,12 @@ async function searchMemoryHitsWithRag(
   }
 
   for (const entry of entries) {
-    const metadata =
-      entry.metadata && typeof entry.metadata === 'object'
-        ? (entry.metadata as Record<string, unknown>)
-        : undefined
-    const entryScope = metadata?.scope
-    const memoryId = metadata?.memoryId
+    if (!memoryRagEntryMatchesScope(entry, scope)) {
+      continue
+    }
+
+    const entryScope = getMemoryRagEntryScope(entry)
+    const memoryId = getMemoryRagEntryId(entry)
 
     if (entryScope === 'user' && typeof memoryId === 'string') {
       idsByScope.user.push(memoryId as Id<'userMemories'>)
@@ -246,15 +243,13 @@ async function searchMemoryHitsWithRag(
 
   return entries
     .map((entry, index) => {
-      const metadata =
-        entry.metadata && typeof entry.metadata === 'object'
-          ? (entry.metadata as Record<string, unknown>)
-          : undefined
-      const entryScope =
-        metadata?.scope === 'user' || metadata?.scope === 'thread' || metadata?.scope === 'project'
-          ? metadata.scope
-          : undefined
-      const memoryId = typeof metadata?.memoryId === 'string' ? metadata.memoryId : undefined
+      if (!memoryRagEntryMatchesScope(entry, scope)) {
+        return null
+      }
+
+      const metadata = getMemoryRagEntryMetadata(entry)
+      const entryScope = getMemoryRagEntryScope(entry)
+      const memoryId = getMemoryRagEntryId(entry)
 
       if (!entryScope || !memoryId) return null
 

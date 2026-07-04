@@ -1,19 +1,71 @@
 import { api } from "@convex/_generated/api";
-import { useClerk, useSignIn } from "@clerk/expo";
-import { useAction } from "convex/react";
+import { useSignIn } from "@clerk/expo";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { ActivityIndicator, Alert, Pressable, Text } from "react-native";
+import { publicConvex } from "@/lib/convex";
 
 const DEMO_EMAIL = "salemkode@gmail.com";
+const DEMO_SIGN_IN_TIMEOUT_MS = 15_000;
+
+function withTimeout<T>(promise: Promise<T>, message: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error(message));
+    }, DEMO_SIGN_IN_TIMEOUT_MS);
+
+    promise.then(
+      (value) => {
+        clearTimeout(timeout);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timeout);
+        reject(error);
+      },
+    );
+  });
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  if (typeof error !== "object" || error === null) {
+    return "Unable to sign in with demo account.";
+  }
+
+  if (
+    "errors" in error &&
+    Array.isArray(error.errors) &&
+    error.errors.length > 0
+  ) {
+    const [firstError] = error.errors;
+    if (
+      typeof firstError === "object" &&
+      firstError !== null &&
+      "longMessage" in firstError &&
+      typeof firstError.longMessage === "string"
+    ) {
+      return firstError.longMessage;
+    }
+    if (
+      typeof firstError === "object" &&
+      firstError !== null &&
+      "message" in firstError &&
+      typeof firstError.message === "string"
+    ) {
+      return firstError.message;
+    }
+  }
+
+  return "Unable to sign in with demo account.";
+}
 
 export function DemoLoginButton() {
   const { signIn } = useSignIn();
-  const { setActive } = useClerk();
   const router = useRouter();
-  const createMobileDevSignInTicket = useAction(
-    api.devAuth.createMobileDevSignInTicket,
-  );
   const [isLoading, setIsLoading] = useState(false);
 
   const handleDemoLogin = async () => {
@@ -24,7 +76,12 @@ export function DemoLoginButton() {
     setIsLoading(true);
 
     try {
-      const { ticket } = await createMobileDevSignInTicket({ email: DEMO_EMAIL });
+      const { ticket } = await withTimeout(
+        publicConvex.action(api.devAuth.createMobileDevSignInTicket, {
+          email: DEMO_EMAIL,
+        }),
+        "Demo sign-in timed out while requesting a Clerk ticket.",
+      );
       const result = await signIn.ticket({
         ticket,
       });
@@ -41,12 +98,15 @@ export function DemoLoginButton() {
         return;
       }
 
-      await setActive({ session: signIn.createdSessionId });
+      const finalizeResult = await signIn.finalize();
+      if (finalizeResult.error) {
+        throw finalizeResult.error;
+      }
+
       router.replace("/");
     } catch (err) {
-      console.error(err);
-      const message =
-        err instanceof Error ? err.message : "Unable to sign in with demo account.";
+      const message = getErrorMessage(err);
+      console.error("Demo sign-in failed", message, err);
       Alert.alert("Demo Sign-In Failed", message);
     } finally {
       setIsLoading(false);

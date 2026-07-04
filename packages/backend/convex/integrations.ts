@@ -12,7 +12,7 @@ import {
   githubUserProfileSchema,
   googleUserProfileSchema,
   oauthTokenResponseSchema,
-} from './lib/external-schemas'
+} from './lib/externalSchemas'
 import { encryptSecret } from './lib/integrationCrypto'
 import { requireProjectRole } from './lib/projectAccess'
 

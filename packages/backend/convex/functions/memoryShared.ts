@@ -92,6 +92,59 @@ export function buildRagFilterValues(args: {
   ]
 }
 
+export function buildRagSearchFiltersForScope(args: {
+  scope: PublicMemoryScope
+  threadId?: string
+  projectId?: Id<'projects'>
+}) {
+  switch (args.scope) {
+    case 'thread':
+      return args.threadId ? [{ name: 'threadId', value: args.threadId }] : []
+    case 'project':
+      return args.projectId ? [{ name: 'projectId', value: args.projectId }] : []
+    case 'user':
+    case 'all':
+      return []
+  }
+}
+
+function toUnknownRecord(value: unknown) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return undefined
+  }
+
+  return Object.fromEntries(Object.entries(value))
+}
+
+export function getMemoryRagEntryMetadata(entry: Record<string, unknown>) {
+  return toUnknownRecord(entry.metadata)
+}
+
+export function getMemoryRagEntryScope(entry: Record<string, unknown>) {
+  const metadata = getMemoryRagEntryMetadata(entry)
+  const scope = metadata?.scope
+
+  if (scope === 'user' || scope === 'thread' || scope === 'project') {
+    return scope
+  }
+
+  return undefined
+}
+
+export function getMemoryRagEntryId(entry: Record<string, unknown>) {
+  const metadata = getMemoryRagEntryMetadata(entry)
+  const memoryId = metadata?.memoryId
+  return typeof memoryId === 'string' ? memoryId : undefined
+}
+
+export function memoryRagEntryMatchesScope(
+  entry: Record<string, unknown>,
+  requestedScope: PublicMemoryScope,
+) {
+  const entryScope = getMemoryRagEntryScope(entry)
+  return requestedScope === 'all' ? entryScope !== undefined : entryScope === requestedScope
+}
+
 export function mergeStringLists(existing?: string[], incoming?: string[]) {
   const merged = normalizeTags([...(existing ?? []), ...(incoming ?? [])])
   return merged

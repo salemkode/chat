@@ -20,3 +20,17 @@ export function modelIsAuxiliaryEligible(capabilities?: string[] | null) {
 
   return capabilities.some((capability) => normalizeCapability(capability) === 'auxiliary')
 }
+
+export function filterAuxiliaryCandidatePool<T extends { capabilities?: string[] | null }>(
+  models: T[],
+) {
+  const hasAuxiliaryTaggedModel = models.some((model) =>
+    modelIsAuxiliaryEligible(model.capabilities),
+  )
+
+  if (!hasAuxiliaryTaggedModel) {
+    return models
+  }
+
+  return models.filter((model) => modelIsAuxiliaryEligible(model.capabilities))
+}

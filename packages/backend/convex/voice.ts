@@ -1,5 +1,5 @@
 import { ConvexError, v } from 'convex/values'
-import { voiceTranscriptionResponseSchema } from './lib/external-schemas'
+import { voiceTranscriptionResponseSchema } from './lib/externalSchemas'
 import { api } from './_generated/api'
 import { action, mutation } from './_generated/server'
 import { getAuthUserId } from './lib/auth'

@@ -12,6 +12,12 @@ import {
 } from "react-native-safe-area-context";
 
 const CLERK_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
+if (__DEV__) {
+  console.info(
+    "Clerk publishable key family",
+    CLERK_PUBLISHABLE_KEY?.includes("Y2FwYWJsZS") ? "capable-wahoo" : "other",
+  );
+}
 
 export const unstable_settings = {
   anchor: "index",

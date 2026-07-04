@@ -2,49 +2,34 @@ import {
   SettingsHeroCard,
   SettingsPage,
   SettingsSection,
-} from "@/components/settings/settings-shell";
-import {
-  SettingsRow,
-  SettingsSectionDivider,
-} from "@/components/settings/settings-row";
-import { useThemePreference } from "@/hooks/use-theme-preference";
-import { useViewer } from "@/hooks/use-viewer";
-import { useAuth } from "@clerk/expo";
-import {
-  Brain,
-  CircleUser,
-  Database,
-  LogOut,
-  Palette,
-  ShieldCheck,
-} from "lucide-react-native";
-import { Alert, ScrollView, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+} from '@/components/settings/settings-shell'
+import { SettingsRow, SettingsSectionDivider } from '@/components/settings/settings-row'
+import { useThemePreference } from '@/hooks/use-theme-preference'
+import { useViewer } from '@/hooks/use-viewer'
+import { useAuth } from '@clerk/expo'
+import { Brain, CircleUser, Database, LogOut, Palette, ShieldCheck } from 'lucide-react-native'
+import { Alert, ScrollView, Text, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 function themeModeLabel(mode: string) {
-  if (mode === "light") return "Light";
-  if (mode === "dark") return "Dark";
-  return "System";
+  if (mode === 'light') return 'Light'
+  if (mode === 'dark') return 'Dark'
+  return 'System'
 }
 
 export default function SettingsScreen() {
-  const viewer = useViewer();
-  const { settings: themeSettings } = useThemePreference();
-  const insets = useSafeAreaInsets();
-  const { signOut } = useAuth();
-  const viewerInitial =
-    viewer?.name?.trim().charAt(0) ||
-    viewer?.email?.trim().charAt(0) ||
-    "Y";
+  const viewer = useViewer()
+  const { settings: themeSettings } = useThemePreference()
+  const insets = useSafeAreaInsets()
+  const { signOut } = useAuth()
+  const viewerInitial = viewer?.name?.trim().charAt(0) || viewer?.email?.trim().charAt(0) || 'Y'
 
   return (
-    <SettingsPage>
+    <SettingsPage title="Settings">
       <ScrollView
         className="flex-1 text-foreground"
-        contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{
-          paddingBottom:
-            (process.env.EXPO_OS === "android" ? insets.bottom : 0) + 28,
+          paddingBottom: (process.env.EXPO_OS === 'android' ? insets.bottom : 0) + 28,
         }}
       >
         <SettingsHeroCard
@@ -64,7 +49,7 @@ export default function SettingsScreen() {
         {viewer?.email ? (
           <View
             className="mx-5 mt-4 rounded-[22px] border border-border bg-muted/60 px-4 py-3"
-            style={{ borderCurve: "continuous" }}
+            style={{ borderCurve: 'continuous' }}
           >
             <Text className="text-[12px] font-medium uppercase tracking-[1px] text-muted-foreground">
               Signed in as
@@ -119,18 +104,18 @@ export default function SettingsScreen() {
             description="Sign out of this account on this device."
             tone="destructive"
             onPress={() => {
-              Alert.alert("Sign Out", "Are you sure you want to sign out?", [
-                { text: "Cancel", style: "cancel" },
+              Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+                { text: 'Cancel', style: 'cancel' },
                 {
-                  text: "Sign Out",
-                  style: "destructive",
+                  text: 'Sign Out',
+                  style: 'destructive',
                   onPress: () => signOut(),
                 },
-              ]);
+              ])
             }}
           />
         </SettingsSection>
       </ScrollView>
     </SettingsPage>
-  );
+  )
 }

@@ -1,6 +1,5 @@
 import { formatDistanceToNow } from 'date-fns'
 import { api } from '@convex/_generated/api'
-import type { Id } from '@convex/_generated/dataModel'
 import type { FunctionReturnType } from 'convex/server'
 import { useMemo, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
@@ -34,25 +33,18 @@ export function MemorySettingsPanel() {
 
   const auxiliaryModelOptions = useMemo(() => {
     const candidates = auxiliaryCandidates ?? []
-    const recommended = candidates.find((candidate) => candidate.isRecommended)
-    const options = candidates.map((candidate) => ({
+    return candidates.map((candidate) => ({
       value: candidate.modelDocId,
       label: candidate.displayName,
       description: formatExtractionCost(candidate.estimatedCostPerExtraction),
     }))
-
-    if (recommended) {
-      return options
-    }
-
-    return options
   }, [auxiliaryCandidates])
 
   const selectedAuxiliaryModelId =
     settings?.auxiliaryModelId &&
     auxiliaryModelOptions.some((option) => option.value === settings.auxiliaryModelId)
       ? settings.auxiliaryModelId
-      : undefined
+      : auxiliaryCandidates?.find((candidate) => candidate.isRecommended)?.modelDocId
 
   const userMemories = usePaginatedQuery(
     api.functions.memory.listUserMemories,
@@ -145,34 +137,30 @@ export function MemorySettingsPanel() {
         <div className="space-y-1">
           <p className="text-sm font-medium text-foreground">Background memory model</p>
           <p className="text-sm text-muted-foreground">
-            Optional. Used for background memory extraction and memory commands when your chat
-            model does not support tools. Leave off to disable these tasks.
+            Used for background memory extraction and memory commands when your chat model does not
+            support tools. The recommended model is selected automatically.
           </p>
         </div>
         <ResponsiveSelectField
-          value={selectedAuxiliaryModelId ?? '__off__'}
+          value={selectedAuxiliaryModelId}
           onValueChange={(value) => {
-            if (value === '__off__') {
-              void updateSettings({ clearAuxiliaryModelId: true })
-              return
+            const selectedOption = auxiliaryModelOptions.find((option) => option.value === value)
+            if (selectedOption) {
+              void updateSettings({ auxiliaryModelId: selectedOption.value })
             }
-            void updateSettings({ auxiliaryModelId: value as Id<'models'> })
           }}
           title="Background memory model"
           className="w-full"
           disabled={auxiliaryModelOptions.length === 0}
           placeholder={
             auxiliaryModelOptions.length === 0
-              ? 'No tool-capable models available'
+              ? 'No enabled memory models available'
               : 'Choose background memory model'
           }
-          options={[
-            { value: '__off__', label: 'Off' },
-            ...auxiliaryModelOptions.map((option) => ({
-              value: option.value,
-              label: option.description ? `${option.label} (${option.description})` : option.label,
-            })),
-          ]}
+          options={auxiliaryModelOptions.map((option) => ({
+            value: option.value,
+            label: option.description ? `${option.label} (${option.description})` : option.label,
+          }))}
         />
       </div>
 

@@ -66,6 +66,25 @@ const expo = {
       },
     ],
     "expo-secure-store",
+    [
+      "expo-sharing",
+      {
+        ios: {
+          enabled: true,
+          activationRule: {
+            supportsText: true,
+            supportsWebUrlWithMaxCount: 1,
+            supportsImageWithMaxCount: 8,
+            supportsFileWithMaxCount: 8,
+          },
+        },
+        android: {
+          enabled: true,
+          singleShareMimeTypes: ["text/*", "image/*", "application/pdf"],
+          multipleShareMimeTypes: ["image/*", "application/pdf"],
+        },
+      },
+    ],
     "expo-web-browser",
     "expo-system-ui",
   ],

@@ -5,22 +5,31 @@ import {
   type NativeSyntheticEvent,
   Pressable,
   Text,
-  TextInput,
   type TextInputKeyPressEventData,
   type TextStyle,
   View,
 } from 'react-native'
 
+import { AutoGrowingTextInput } from '@/components/auto-growing-text-input'
 import { useChatContext } from './chat-context'
 import { useConversationContext } from './conversation'
 
+/**
+ * Web-only `TextStyle` widening: lets us pass `resize: 'none'` through to the
+ * underlying `<textarea>` without tripping the RN type defs (which do not model
+ * the web CSS `resize` property).
+ */
 type WebTextInputStyle = TextStyle & {
   resize: 'none'
 }
 
 type WebKeyPressEvent = NativeSyntheticEvent<TextInputKeyPressEventData & { shiftKey?: boolean }>
 
-const textareaStyle: WebTextInputStyle = { maxHeight: 200, resize: 'none' }
+/** Web composer auto-grow bounds (px). */
+const TEXTAREA_MIN_HEIGHT = 96
+const TEXTAREA_MAX_HEIGHT = 200
+
+const textareaStyle: WebTextInputStyle = { resize: 'none' }
 
 /**
  * Root container for the message composer matching Vercel chatbot design.
@@ -115,7 +124,7 @@ export function PromptInputBody({ children }: { children: ReactNode }) {
 
 /**
  * Auto-growing text input matching Vercel chatbot's textarea.
- * resize: none removes the browser resize handle.
+ * Uses the shared `AutoGrowingTextInput` so height tracking matches native.
  */
 export function PromptInputTextarea({
   placeholder = 'Chat with Agent...',
@@ -127,10 +136,12 @@ export function PromptInputTextarea({
   const { input, setInput, onSend } = useChatContext()
 
   return (
-    <TextInput
+    <AutoGrowingTextInput
       nativeID="composer"
-      className="min-h-24 w-full bg-transparent px-4 pt-3.5 pb-1.5 text-[13px] leading-relaxed text-foreground placeholder:text-muted-foreground/35 outline-none"
+      className="w-full bg-transparent px-4 pt-3.5 pb-1.5 text-[13px] leading-relaxed text-foreground placeholder:text-muted-foreground/35 outline-none"
       style={textareaStyle}
+      minHeight={TEXTAREA_MIN_HEIGHT}
+      maxHeight={TEXTAREA_MAX_HEIGHT}
       value={input}
       onChangeText={setInput}
       placeholder={placeholder}

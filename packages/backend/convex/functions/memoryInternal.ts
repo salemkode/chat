@@ -1,7 +1,7 @@
-import { internalAction, internalMutation, internalQuery } from '../_generated/server'
+import { internalAction, internalMutation, internalQuery, type ActionCtx } from '../_generated/server'
 import { v, ConvexError } from 'convex/values'
 import type { Doc, Id } from '../_generated/dataModel'
-import { components, internal } from '../_generated/api'
+import { internal } from '../_generated/api'
 import { resolveMemoryRag } from './memoryRag'
 import {
   buildRagFilterValues,
@@ -65,6 +65,26 @@ function assertScopeTarget(args: {
       message: 'projectId is required for project memories',
     })
   }
+}
+
+async function deleteMemoryRagEntry(
+  ctx: Pick<ActionCtx, 'runMutation' | 'runQuery'>,
+  args: { userId: Id<'users'>; ragKey: string },
+) {
+  const ragClient = await resolveMemoryRag(ctx)
+  if (!ragClient) {
+    return
+  }
+
+  const namespace = await ragClient.getOrCreateNamespace(ctx, {
+    namespace: args.userId,
+    status: 'ready',
+  })
+
+  await ragClient.deleteByKeyAsync(ctx, {
+    namespaceId: namespace.namespaceId,
+    key: args.ragKey,
+  })
 }
 
 function getMetadata(args: {
@@ -1077,10 +1097,7 @@ export const deleteMemoryInScope = internalAction({
           message: 'Memory not found',
         })
       }
-      await ctx.runMutation(components.rag.entries.deleteByKeyAsync, {
-        namespaceId: args.userId,
-        key: memory.ragKey,
-      })
+      await deleteMemoryRagEntry(ctx, { userId: args.userId, ragKey: memory.ragKey })
       await ctx.runMutation(internal.functions.memoryInternal.deleteUserMemoryRecord, {
         memoryId,
       })
@@ -1104,10 +1121,7 @@ export const deleteMemoryInScope = internalAction({
           message: 'Memory not found',
         })
       }
-      await ctx.runMutation(components.rag.entries.deleteByKeyAsync, {
-        namespaceId: args.userId,
-        key: memory.ragKey,
-      })
+      await deleteMemoryRagEntry(ctx, { userId: args.userId, ragKey: memory.ragKey })
       await ctx.runMutation(internal.functions.memoryInternal.deleteThreadMemoryRecord, {
         memoryId,
       })
@@ -1127,10 +1141,7 @@ export const deleteMemoryInScope = internalAction({
     if (!memory || memory.userId !== args.userId) {
       throw new ConvexError({ code: 'NOT_FOUND', message: 'Memory not found' })
     }
-    await ctx.runMutation(components.rag.entries.deleteByKeyAsync, {
-      namespaceId: args.userId,
-      key: memory.ragKey,
-    })
+    await deleteMemoryRagEntry(ctx, { userId: args.userId, ragKey: memory.ragKey })
     await ctx.runMutation(internal.functions.memoryInternal.deleteProjectMemoryRecord, {
       memoryId,
     })
